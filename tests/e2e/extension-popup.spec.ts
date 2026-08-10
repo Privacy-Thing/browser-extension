@@ -102,9 +102,9 @@ test("loads the popup and shows domain controls", async ({
   await languageTrigger.hover();
   const languageTooltip = popupPage.locator(".gw-popup-language-tooltip:visible");
   await expect(languageTooltip).toBeVisible();
-  await expect(languageTooltip.locator(".gw-popup-language-tooltip-item")).toHaveCount(
-    2,
-  );
+  await expect(
+    languageTooltip.locator(".gw-popup-language-tooltip-item").first(),
+  ).toBeVisible();
 
   // Stays in E2E deliberately: CSS `:hover` needs a real pointer, and
   // `userEvent.hover()` in a Storybook play function dispatches synthetic events

@@ -113,6 +113,7 @@ const RuleDialogFooter = ({ openAdvanced }: { openAdvanced: () => void }) => {
 
 const RuleFields = () => {
   const {
+    closeRuleDialog,
     editingRulePattern,
     editingRuleSeedKey,
     rotateRuleIdentity,
@@ -208,7 +209,10 @@ const RuleFields = () => {
               actionDescription={t.rules.dialog.identity.actionDescription}
               actionLabel={t.rules.dialog.identity.actionLabel}
               actionDisabled={false}
-              onAction={() => void rotateRuleIdentity(editingRulePattern)}
+              onAction={async () => {
+                const rotated = await rotateRuleIdentity(editingRulePattern);
+                if (rotated) closeRuleDialog();
+              }}
             />
           </>
         ) : null}
