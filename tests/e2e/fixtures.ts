@@ -4,6 +4,7 @@ import path from "node:path";
 
 import { expect, test as base } from "@playwright/test";
 import type { BrowserContext, Page } from "@playwright/test";
+import { deriveChromiumExtId } from "@privacy-brand/tooling-shared/chromium-extension-id";
 
 import { EXTENSION_COMMAND_TYPES } from "../../src/shared/extension-contract";
 
@@ -20,8 +21,6 @@ type ExtensionFixtures = {
 type InternalFixtures = {
   probeServers: StartedProbeServers;
 };
-
-let cachedExtensionId: string | null = null;
 
 const prepareExtensionUiState = async (
   context: BrowserContext,
@@ -143,14 +142,11 @@ export const test = base.extend<ExtensionFixtures & InternalFixtures>({
     }
   },
   extensionId: async ({ context }, use) => {
-    // Always wait for service worker in new context
-    const serviceWorker =
-      context.serviceWorkers()[0] ?? (await context.waitForEvent("serviceworker"));
-
-    if (!cachedExtensionId) {
-      cachedExtensionId = new URL(serviceWorker.url()).host;
-    }
-    const extensionId = cachedExtensionId;
+    // Chromium derives an unpacked extension ID from its absolute path. Resolve it
+    // directly so opening the extension page wakes MV3 instead of passively waiting
+    // for a service-worker startup event that Chromium is not required to emit.
+    const extensionPath = path.resolve(process.cwd(), "build", "chrome");
+    const extensionId = deriveChromiumExtId(extensionPath);
 
     await prepareExtensionUiState(context, extensionId);
 

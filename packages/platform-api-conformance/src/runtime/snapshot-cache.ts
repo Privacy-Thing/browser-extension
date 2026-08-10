@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 
+import { deriveChromiumExtId } from "@privacy-brand/tooling-shared/chromium-extension-id";
+
 import type { Config } from "../types.js";
 
 import {
@@ -66,12 +68,4 @@ export function buildSnapshotCacheKey(
     .slice(0, 12);
 }
 
-export function deriveChromiumExtId(extensionPath: string): string {
-  const idBytes = createHash("sha256").update(extensionPath).digest().subarray(0, 16);
-
-  return Array.from(
-    idBytes,
-    (byte) =>
-      `${String.fromCharCode(97 + (byte >> 4))}${String.fromCharCode(97 + (byte & 0x0f))}`,
-  ).join("");
-}
+export { deriveChromiumExtId };

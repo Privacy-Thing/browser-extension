@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./brand": "./src/brand.ts",
+    "./chromium-extension-id": "./src/chromium-extension-id.ts",
     "./extension-contract": "./src/extension-contract.ts",
     "./runtime-snapshot": "./src/runtime-snapshot.ts",
     "./firefox-binary": {
