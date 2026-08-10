@@ -1148,6 +1148,7 @@ jobs:
 
       - name: E2E Firefox runtime tests
         env:
+          HOME: /root
           PT_PLAYWRIGHT_JSON_REPORT: build/test-results/firefox-runtime-report.json
         run: >-
           pnpm exec task test:e2e:runtime:firefox:ci
