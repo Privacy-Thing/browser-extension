@@ -131,8 +131,6 @@ test("keeps the source archive on the strict retired-name allowlist", () => {
   packageSource();
 
   expect(listRetiredNameHits()).toEqual([
-    { path: "CODE_OF_CONDUCT.md", count: 1 },
-    { path: "SECURITY.md", count: 1 },
     { path: "config/brand-config.json", count: 2 },
     { path: "src/shared/extension-notifications.json", count: 2 },
   ]);
