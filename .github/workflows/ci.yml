@@ -1336,6 +1336,8 @@ jobs:
           path: build/firefox
 
       - name: Run API conformance
+        env:
+          HOME: /root
         run: pnpm exec task test:api-conformance -- --json --html --github-summary
 
       - name: Write job summary
