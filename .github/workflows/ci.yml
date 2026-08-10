@@ -132,13 +132,20 @@ jobs:
         run: |
           if [ "${EVENT_NAME}" = "pull_request" ] && [ -n "${BASE_SHA}" ]; then
             RANGE="${BASE_SHA}...${HEAD_SHA}"
-          elif [ -n "${BEFORE_SHA}" ] && [ "${BEFORE_SHA}" != "0000000000000000000000000000000000000000" ]; then
+          elif [ -n "${BEFORE_SHA}" ] \
+            && [ "${BEFORE_SHA}" != "0000000000000000000000000000000000000000" ] \
+            && git cat-file -e "${BEFORE_SHA}^{commit}" 2>/dev/null; then
             RANGE="${BEFORE_SHA}...${HEAD_SHA}"
           else
-            RANGE="$(git rev-list --max-parents=0 HEAD)..${HEAD_SHA}"
+            RANGE=""
           fi
 
-          git diff --name-only "${RANGE}" > changed-files.txt
+          if [ -n "${RANGE}" ]; then
+            git diff --name-only "${RANGE}" > changed-files.txt
+          else
+            echo "Previous revision is unavailable. Running the full suite."
+            : > changed-files.txt
+          fi
 
           if [ ! -s changed-files.txt ]; then
             echo "docs_only=false" >> "$GITHUB_OUTPUT"
