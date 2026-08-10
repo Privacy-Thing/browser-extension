@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { useState } from "react";
-import { expect, userEvent, within } from "storybook/test";
+import { expect, userEvent, waitFor, within } from "storybook/test";
 
 import { Combobox } from "../ui/combobox";
 import { dropdownPanelSideOffset } from "../ui/dropdown-chrome";
@@ -81,11 +81,11 @@ export const ControlledTest: Story = {
 
     await userEvent.click(trigger);
     const search = body.getByPlaceholderText("Search time zones...");
-    await expect(search).toHaveFocus();
+    await waitFor(() => expect(search).toHaveFocus());
     await userEvent.type(search, "Tokyo");
     await userEvent.click(body.getByRole("option", { name: "Asia/Tokyo" }));
     await expect(canvas.getByText("Selected: Asia/Tokyo")).toBeVisible();
-    await expect(trigger).toHaveFocus();
+    await waitFor(() => expect(trigger).toHaveFocus());
   },
 };
 
