@@ -1,0 +1,74 @@
+<!doctype html>
+<html>
+  <head>
+    <script>
+      globalThis.__firefoxFirstCallRace = {
+        permissionState: null,
+        firstCurrentPosition: null,
+        firstCurrentError: null,
+        firstWatchPosition: null,
+        firstWatchError: null
+      };
+
+      try {
+        navigator.permissions
+          ?.query({ name: "geolocation" })
+          .then((status) => {
+            globalThis.__firefoxFirstCallRace.permissionState = status.state;
+          })
+          .catch((error) => {
+            globalThis.__firefoxFirstCallRace.permissionState =
+              error instanceof Error ? error.message : String(error);
+          });
+      } catch (error) {
+        globalThis.__firefoxFirstCallRace.permissionState =
+          error instanceof Error ? error.message : String(error);
+      }
+
+      try {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            globalThis.__firefoxFirstCallRace.firstCurrentPosition = {
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+              timestamp: position.timestamp
+            };
+          },
+          (error) => {
+            globalThis.__firefoxFirstCallRace.firstCurrentError = error.message;
+          }
+        );
+      } catch (error) {
+        globalThis.__firefoxFirstCallRace.firstCurrentError =
+          error instanceof Error ? error.message : String(error);
+      }
+
+      try {
+        const watchId = navigator.geolocation.watchPosition(
+          (position) => {
+            if (!globalThis.__firefoxFirstCallRace.firstWatchPosition) {
+              globalThis.__firefoxFirstCallRace.firstWatchPosition = {
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude,
+                timestamp: position.timestamp
+              };
+            }
+
+            navigator.geolocation.clearWatch(watchId);
+          },
+          (error) => {
+            globalThis.__firefoxFirstCallRace.firstWatchError = error.message;
+          }
+        );
+      } catch (error) {
+        globalThis.__firefoxFirstCallRace.firstWatchError =
+          error instanceof Error ? error.message : String(error);
+      }
+    </script>
+  </head>
+  <body>
+    <h1>Firefox first-call race</h1>
+    <pre id="snapshot">pending</pre>
+    <script src="/first-call-race.js"></script>
+  </body>
+</html>

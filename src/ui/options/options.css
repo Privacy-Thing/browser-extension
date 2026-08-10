@@ -1,0 +1,282 @@
+/* ─── Base document ──────────────────────────────────────────────────────────── */
+
+html,
+body,
+#app {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: ui-sans-serif, -apple-system, "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── Light mode background ──────────────────────────────────────────────────── */
+
+html,
+body {
+  color-scheme: light;
+  background-color: #fafafa;
+  background-image:
+    radial-gradient(ellipse 60% 40% at 0% 0%, rgba(20, 184, 166, 0.07) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 30% at 100% 100%, rgba(20, 184, 166, 0.04) 0%, transparent 60%);
+  background-attachment: fixed;
+}
+
+/* ─── Dark mode background — atmospheric depth ───────────────────────────────── */
+
+[data-theme="dark"] html,
+[data-theme="dark"],
+[data-theme="dark"] body {
+  color-scheme: dark;
+  background-color: #0c0c10;
+  background-image:
+    radial-gradient(ellipse 55% 35% at -5% -5%, rgba(45, 212, 191, 0.06) 0%, transparent 100%),
+    radial-gradient(ellipse 30% 20% at 105% 105%, rgba(45, 212, 191, 0.03) 0%, transparent 100%);
+  background-attachment: fixed;
+}
+
+/* Very subtle dot grid — dark only */
+[data-theme="dark"] body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.4;
+  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+/* ─── Utility ────────────────────────────────────────────────────────────────── */
+
+[hidden] {
+  display: none !important;
+}
+
+code {
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.35rem;
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 0.875em;
+}
+
+/* ─── Anchor system ──────────────────────────────────────────────────────────── */
+
+.gw-anchor-target {
+  position: relative;
+  scroll-margin-top: 28px;
+}
+
+.gw-anchor-highlighted {
+  box-shadow:
+    0 0 0 1px hsl(var(--primary) / 0.55),
+    0 0 0 4px hsl(var(--primary) / 0.16),
+    0 0 18px hsl(var(--primary) / 0.22);
+}
+
+.gw-anchor-heading {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+}
+
+.gw-anchor-heading > *:first-child {
+  min-width: 0;
+}
+
+.gw-anchor-heading-compact {
+  align-items: flex-start;
+}
+
+/* ─── Table ──────────────────────────────────────────────────────────────────── */
+
+.gw-rules-table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+.gw-table-checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: hsl(var(--primary));
+  cursor: pointer;
+}
+
+.gw-rule-cell {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.gw-rule-cell > * {
+  overflow-wrap: anywhere;
+}
+
+/* ─── Generator / Editor modal layout ───────────────────────────────────────── */
+
+.gw-generator-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(260px, 0.8fr);
+  gap: 16px;
+  align-items: stretch;
+}
+
+.profile-generator-map {
+  min-height: 320px;
+  height: 100%;
+  border: 1px solid hsl(var(--border));
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.gw-map-placeholder {
+  display: grid;
+  place-items: center;
+  background: hsl(var(--muted));
+  border-radius: 12px;
+}
+
+.gw-map-placeholder > * {
+  width: min(100%, 360px);
+}
+
+/* ─── Map ────────────────────────────────────────────────────────────────────── */
+
+.maplibregl-map {
+  font: inherit;
+}
+
+.maplibregl-marker {
+  pointer-events: auto;
+}
+
+.profile-generator-map .maplibregl-ctrl-attrib,
+.profile-generator-map .maplibregl-ctrl-attrib.maplibregl-compact,
+.profile-generator-map .maplibregl-ctrl-attrib.maplibregl-compact-show {
+  background-color: hsl(var(--background) / 0.92) !important;
+  color: hsl(var(--foreground)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.28) !important;
+}
+
+.profile-generator-map .maplibregl-ctrl-attrib.maplibregl-compact,
+.profile-generator-map .maplibregl-ctrl-attrib.maplibregl-compact-show {
+  border-radius: 999px !important;
+}
+
+.profile-generator-map .maplibregl-ctrl-attrib a,
+.profile-generator-map .maplibregl-ctrl-attrib .maplibregl-ctrl-attrib-inner,
+.profile-generator-map .maplibregl-ctrl-attrib .maplibregl-ctrl-attrib-button {
+  color: inherit !important;
+}
+
+.profile-generator-map .maplibregl-ctrl-attrib .maplibregl-ctrl-attrib-button {
+  background-color: transparent !important;
+}
+
+.profile-generator-map .maplibregl-ctrl-attrib .maplibregl-ctrl-attrib-button:hover,
+.profile-generator-map .maplibregl-ctrl-attrib .maplibregl-ctrl-attrib-button:focus-visible {
+  background-color: hsl(var(--muted) / 0.4) !important;
+}
+
+[data-theme="dark"] .profile-generator-map .maplibregl-ctrl-attrib .maplibregl-ctrl-attrib-button {
+  filter: invert(1) brightness(1.25);
+}
+
+[data-theme="light"] .profile-generator-map .maplibregl-ctrl-attrib .maplibregl-ctrl-attrib-button {
+  filter: none;
+}
+
+.profile-map-pin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  background: transparent;
+}
+
+.profile-map-pin .profile-map-pin-dot {
+  display: block;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: hsl(var(--primary));
+  border: 3px solid hsl(var(--background));
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+/* ─── Responsive ─────────────────────────────────────────────────────────────── */
+
+@media (max-width: 920px) {
+  .gw-generator-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ─── Rolling value animation ─────────────────────────────────────────────── */
+
+.gw-rolling-value {
+  display: inline-flex;
+  align-items: center;
+  font-variant-numeric: tabular-nums;
+  font-kerning: none;
+}
+
+.gw-rolling-character {
+  --gw-rolling-character-height: 1.1em;
+  display: inline-block;
+  width: 1ch;
+  height: var(--gw-rolling-character-height);
+  overflow: hidden;
+  line-height: 1;
+  vertical-align: bottom;
+}
+
+.gw-rolling-character-track {
+  display: block;
+  transform: translateY(0);
+  will-change: transform;
+}
+
+.gw-rolling-character-track-animate {
+  transform: translateY(
+    calc(-1 * var(--gw-rolling-character-steps, 0) * var(--gw-rolling-character-height))
+  );
+  animation: gw-rolling-character-spin 900ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--gw-rolling-character-delay, 0ms);
+}
+
+:root[data-reduce-motion] .gw-rolling-character-track-animate {
+  animation: none;
+  will-change: auto;
+}
+
+.gw-rolling-character-slot {
+  display: block;
+  height: var(--gw-rolling-character-height);
+  line-height: var(--gw-rolling-character-height);
+  text-align: center;
+}
+
+.gw-rolling-value-separator {
+  display: inline-block;
+}
+
+@keyframes gw-rolling-character-spin {
+  from {
+    transform: translateY(0);
+  }
+
+  to {
+    transform: translateY(
+      calc(-1 * var(--gw-rolling-character-steps, 0) * var(--gw-rolling-character-height))
+    );
+  }
+}

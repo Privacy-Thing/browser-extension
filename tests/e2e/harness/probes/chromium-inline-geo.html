@@ -1,0 +1,75 @@
+<!doctype html>
+<html>
+  <head>
+    <script>
+      (() => {
+        const snapshot = {
+          permission: "pending",
+          firstPosition: null,
+          watchUpdates: [],
+          error: null,
+        };
+
+        const render = () => {
+          const target = document.querySelector("#early-geo");
+          if (target) {
+            target.textContent = JSON.stringify(snapshot);
+          }
+        };
+
+        navigator.permissions
+          ?.query({ name: "geolocation" })
+          .then((status) => {
+            snapshot.permission = status.state;
+          })
+          .catch((error) => {
+            snapshot.permission =
+              error instanceof Error
+                ? "error:" + error.message
+                : "error:" + String(error);
+          })
+          .finally(render);
+
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            snapshot.firstPosition = {
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+            };
+            render();
+          },
+          (error) => {
+            snapshot.error = error.message;
+            render();
+          },
+        );
+
+        const watchId = navigator.geolocation.watchPosition(
+          (position) => {
+            snapshot.watchUpdates.push({
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+            });
+            if (snapshot.watchUpdates.length >= 2) {
+              navigator.geolocation.clearWatch(watchId);
+            }
+            render();
+          },
+          (error) => {
+            snapshot.error = error.message;
+            render();
+          },
+        );
+
+        if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", render, { once: true });
+        } else {
+          render();
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <pre id="early-geo">pending</pre>
+  </body>
+</html>

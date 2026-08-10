@@ -1,0 +1,6 @@
+interface:
+  display_name: "Privacy Thing CI Failure Triage"
+  short_description: "Triage a concrete GitHub Actions failure"
+  icon_small: "../../../favicon.svg"
+  icon_large: "../../../favicon.svg"
+  default_prompt: "Use $privacything-ci-failure-triage to isolate the first real failure in this GitHub Actions run."

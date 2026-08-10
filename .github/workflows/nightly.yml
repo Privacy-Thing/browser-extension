@@ -1,0 +1,103 @@
+name: nightly
+
+on:
+  schedule:
+    - cron: "30 3 * * *"
+  workflow_dispatch:
+
+# A manual dispatch can land on top of the cron run, so keep one nightly workflow
+# active at a time.
+concurrency:
+  group: nightly
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  PNPM_STORE_DIR: ${{ github.workspace }}/build/pnpm-store
+  PNPM_CONFIG_STORE_DIR: ${{ github.workspace }}/build/pnpm-store
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Setup Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Cache pnpm store
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.PNPM_STORE_DIR }}
+          key: pnpm-store-${{ runner.os }}-${{ runner.arch }}-pnpm11-node24-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-${{ runner.os }}-${{ runner.arch }}-pnpm11-node24-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build E2E assets
+        run: pnpm build:e2e-assets
+
+      - name: Upload E2E build artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: e2e-build-assets
+          path: |
+            build/chrome
+            build/firefox
+          retention-days: 1
+
+  live-diagnostics:
+    needs: build
+    runs-on: ubuntu-24.04
+    container:
+      image: mcr.microsoft.com/playwright:v1.58.2-noble
+      options: --ipc=host
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Setup Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Cache pnpm store
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.PNPM_STORE_DIR }}
+          key: pnpm-store-${{ runner.os }}-${{ runner.arch }}-pnpm11-node24-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-${{ runner.os }}-${{ runner.arch }}-pnpm11-node24-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download E2E build artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: e2e-build-assets
+          path: build
+
+      - name: Live diagnostic tests
+        env:
+          PT_E2E_LANE: release
+        run: >-
+          pnpm exec playwright test --config config/playwright.config.ts
+          tests/e2e/google-maps-diagnostic.spec.ts
+          tests/e2e/service-worker-blocking-live.spec.ts

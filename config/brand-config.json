@@ -1,0 +1,21 @@
+{
+  "displayName": "Privacy Thing",
+  "engineName": "Refract",
+  "diagnosticsName": "X-Ray",
+  "fileStem": "privacything",
+  "artifactStem": "privacything",
+  "settingsExportStem": "privacything-settings",
+  "shortDescription": "Per-domain anti-fingerprinting and location spoofing extension.",
+  "channels": {
+    "stable": {
+      "displayName": "Privacy Thing (Preview)",
+      "firefoxExtensionId": "geowarp@tomaszjanusz.dev",
+      "iconAssetDir": "icons"
+    },
+    "beta": {
+      "displayName": "Privacy Thing Beta",
+      "firefoxExtensionId": "geowarp-beta@tomaszjanusz.dev",
+      "iconAssetDir": "icons/beta"
+    }
+  }
+}

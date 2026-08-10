@@ -1,0 +1,28 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+
+<Meta title="Documentation/Story conventions" />
+
+# Story conventions
+
+Stories show one Privacy Thing surface at a time. Use the global light/dark toolbar instead of rendering two themed copies in one canvas.
+
+## Frames
+
+- **Component**: reusable control in a spacious token-backed canvas.
+- **Popup**: the real 360px popup width.
+- **Sidebar**: the real 360px X-Ray side-panel width.
+- **Options**: a desktop-width page composition.
+
+The default is `component`. Set `parameters.privacyThing.surface` explicitly to `popup`, `sidebar`, or `options` only when the story renders that complete product surface. A workbench containing a popup remains a component canvas; the 360px frame belongs around the popup itself, not its controls.
+
+Each product surface also owns its visual viewport: popup and X-Ray use 360px, while Options uses a 1440px desktop snapshot. Stories are rendered in both toolbar themes.
+
+## Fixtures and tests
+
+Use realistic, local fixtures for extension state. Do not emulate the complete `chrome.*` API or application store. A small, shared boundary stub is allowed when the real component reads a browser API directly. Add a `play` function when a user-visible interaction, focus contract, or state transition needs protection. Tests must wait on observable DOM state rather than elapsed time.
+
+Visible catalog stories must remain visually stable after they render. Put state-mutating `play` functions in a separate story tagged with `!dev` and `!autodocs`. This keeps the interaction in the Vitest project without making the catalog canvas change by itself.
+
+## When to add a story
+
+Add one for a reusable component, a stable screen state, or a distinct visual/error/empty/loading state. Keep implementation-only wrappers out of the catalog.

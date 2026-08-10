@@ -1,0 +1,6 @@
+interface:
+  display_name: "Privacy Thing Public Boundary Audit"
+  short_description: "Audit a Privacy Thing public source boundary"
+  icon_small: "../../../favicon.svg"
+  icon_large: "../../../favicon.svg"
+  default_prompt: "Use $privacything-public-boundary-audit to review this snapshot before it crosses the public source boundary."

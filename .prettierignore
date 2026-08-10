@@ -1,0 +1,23 @@
+# Build output and caches
+node_modules/
+build/
+build/artifacts/
+coverage/
+output/
+playwright-report/
+test-results/
+.web-ext-profile/
+.pnpm-store/
+
+# Generated sources. Regenerate via `pnpm generate:*` / `pnpm task generate:worker-source`
+# instead of formatting them — a formatted copy drifts from its generator and trips
+# `check:worker-source` / `validate:metadata`.
+**/*.generated.ts
+packages/refract-worker/src/generated-worker-source.ts
+
+# Script-parsed or generator-validated data files.
+# CHANGELOG.md is rewritten by scripts/promote-unreleased-changelog.mjs and
+# config/store-listings/** is diffed by `check:amo-metadata`.
+CHANGELOG.md
+config/store-listings/
+pnpm-lock.yaml

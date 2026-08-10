@@ -1,0 +1,73 @@
+.gw-brand-svg {
+  display: block;
+  line-height: 0;
+}
+
+.gw-brand-svg .gw-brand-fallback,
+.gw-brand-svg .gw-brand-fallback svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.gw-brand-logo,
+.gw-brand-logo-horizontal,
+.gw-brand-wordmark,
+.gw-brand-thing,
+.gw-brand-icon {
+  color: hsl(var(--foreground));
+}
+
+.gw-brand-logo[data-tone="accent"],
+.gw-brand-logo-horizontal[data-tone="accent"],
+.gw-brand-wordmark[data-tone="accent"],
+.gw-brand-thing[data-tone="accent"],
+.gw-brand-icon[data-tone="accent"] {
+  color: hsl(var(--primary));
+}
+
+.gw-brand-logo--accent-cursor {
+  --privacy-thing-cursor-color: hsl(var(--primary));
+}
+
+.gw-brand-logo--crisp-shadow {
+  filter: drop-shadow(3px 3px 0 hsl(var(--foreground) / 0.14));
+}
+
+.gw-brand-logo--cursor-blink .gw-brand-fallback #cursor {
+  animation: gw-brand-cursor-blink 1.1s steps(1, end) infinite;
+}
+
+
+@keyframes gw-brand-cursor-blink {
+  0%,
+  45% {
+    opacity: 1;
+  }
+
+  46%,
+  95% {
+    opacity: 0;
+  }
+
+  96%,
+  100% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gw-brand-logo--cursor-blink .gw-brand-fallback #cursor {
+    animation: none;
+    opacity: 1;
+  }
+
+}
+
+.webh-brand-wordmark {
+  --webh-wordmark-letters: #1a1a1a;
+}
+
+[data-theme="dark"] .webh-brand-wordmark {
+  --webh-wordmark-letters: #f2f2f2;
+}

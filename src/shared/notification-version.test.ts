@@ -1,0 +1,31 @@
+import { describe, expect, it } from "vitest";
+
+import {
+  compareNoticeVersions,
+  isNotificationVersion,
+} from "@/shared/notification-version";
+
+describe("notification versions", () => {
+  it("validates release and beta formats independently", () => {
+    expect(isNotificationVersion("release", "0.10.0")).toBe(true);
+    expect(isNotificationVersion("release", "0.8.12.10")).toBe(true);
+    expect(isNotificationVersion("release", "0.10")).toBe(false);
+    expect(isNotificationVersion("beta", "0.2026.720.1530")).toBe(true);
+    expect(isNotificationVersion("beta", "0.10.0")).toBe(false);
+    expect(isNotificationVersion("beta", "0.2026.231.1200")).toBe(false);
+    expect(isNotificationVersion("beta", "0.2026.720.2460")).toBe(false);
+  });
+
+  it("compares numeric segments rather than strings", () => {
+    expect(compareNoticeVersions("release", "0.9.9", "0.10.0")).toBe(-1);
+    expect(compareNoticeVersions("release", "0.8.12.9", "0.8.12.10")).toBe(-1);
+    expect(compareNoticeVersions("release", "0.10.0", "0.10.0.0")).toBe(0);
+    expect(compareNoticeVersions("release", "0.11.0", "0.10.0")).toBe(1);
+    expect(compareNoticeVersions("beta", "0.2026.719.2359", "0.2026.720.1")).toBe(-1);
+  });
+
+  it("does not order invalid versions", () => {
+    expect(compareNoticeVersions("release", "local", "0.10.0")).toBeNull();
+    expect(compareNoticeVersions("beta", "0.10.0", "0.2026.720.1")).toBeNull();
+  });
+});

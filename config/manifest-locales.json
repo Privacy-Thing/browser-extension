@@ -1,0 +1,58 @@
+{
+  "$schemaNote": "Localized manifest descriptions. Chromium values must stay within the Chrome Web Store 132-character limit; Firefox values must stay within AMO's 250-character limit. Store-listing copy remains in config/store-listings.",
+  "defaultLocale": "en",
+  "locales": {
+    "ar": {
+      "chromium": "اطّلع على ما يقرأه الموقع، وحدد معلومات المتصفح التي يراها — بقواعد مستقلة لكل موقع.",
+      "firefox": "اطّلع على ما يقرأه الموقع، وحدد معلومات المتصفح التي يراها — بقواعد مستقلة لكل موقع وحاوية Firefox."
+    },
+    "zh_CN": {
+      "chromium": "查看网站读取了哪些信息，并决定向它提供哪些浏览器数据；每个网站都可使用独立规则。",
+      "firefox": "查看网站读取了哪些信息，并决定向它提供哪些浏览器数据；每个网站和 Firefox 容器都可使用独立规则。"
+    },
+    "uk": {
+      "chromium": "Дізнавайтеся, до яких даних звертається сайт, і вирішуйте, що він побачить — окремо для кожного сайту.",
+      "firefox": "Дізнавайтеся, до яких даних звертається сайт, і вирішуйте, що він побачить — окремо для кожного сайту й контейнера Firefox."
+    },
+    "ru": {
+      "chromium": "Узнайте, к каким данным обращается сайт, и решайте, что он увидит — с отдельными правилами для каждого сайта.",
+      "firefox": "Узнайте, к каким данным обращается сайт, и решайте, что он увидит — с отдельными правилами для каждого сайта и контейнера Firefox."
+    },
+    "pt_BR": {
+      "chromium": "Veja quais dados um site consulta e decida quais informações do navegador ele recebe, com regras próprias para cada site.",
+      "firefox": "Veja quais dados um site consulta e decida quais informações do navegador ele recebe, com regras próprias para cada site e contêiner do Firefox."
+    },
+    "pl": {
+      "chromium": "Zobacz, po jakie informacje sięga strona, i decyduj, jakie wybrane dane jej udostępniasz — osobno dla każdej witryny.",
+      "firefox": "Zobacz, po jakie informacje sięga strona, i decyduj, jakie wybrane dane jej udostępniasz — osobno dla każdej witryny i kontenera Firefoksa."
+    },
+    "ko": {
+      "chromium": "사이트가 읽는 정보를 확인하고, 어떤 브라우저 데이터를 보여줄지 사이트별로 직접 정하세요.",
+      "firefox": "사이트가 읽는 정보를 확인하고, 어떤 브라우저 데이터를 보여줄지 사이트와 Firefox 컨테이너별로 직접 정하세요."
+    },
+    "ja": {
+      "chromium": "サイトが読み取った情報を確認し、見せるブラウザ情報をサイトごとに決められます。",
+      "firefox": "サイトが読み取った情報を確認し、見せるブラウザ情報をサイトや Firefox コンテナごとに決められます。"
+    },
+    "it": {
+      "chromium": "Scopri quali dati consulta un sito e decidi quali informazioni del browser riceve, con regole separate per ogni sito.",
+      "firefox": "Scopri quali dati consulta un sito e decidi quali informazioni del browser riceve, con regole separate per ogni sito e contenitore Firefox."
+    },
+    "fr": {
+      "chromium": "Voyez ce qu’un site consulte et choisissez les données du navigateur qu’il reçoit — avec des règles propres à chaque site.",
+      "firefox": "Voyez ce qu’un site consulte et choisissez les données du navigateur qu’il reçoit — avec des règles propres à chaque site et conteneur Firefox."
+    },
+    "es": {
+      "chromium": "Descubre qué datos consulta cada sitio y decide qué información del navegador recibe, con reglas propias para cada web.",
+      "firefox": "Descubre qué datos consulta cada sitio y decide qué información del navegador recibe, con reglas propias para cada web y contenedor de Firefox."
+    },
+    "en": {
+      "chromium": "See what a site checks and decide which browser data it receives — with separate rules for every website.",
+      "firefox": "See what a site checks and decide which browser data it receives — with separate rules for every website and Firefox container."
+    },
+    "de": {
+      "chromium": "Sieh, welche Daten eine Website abfragt, und bestimme, welche Browserdaten sie erhält — mit eigenen Regeln pro Website.",
+      "firefox": "Sieh, welche Daten eine Website abfragt, und bestimme, welche Browserdaten sie erhält — mit eigenen Regeln pro Website und Firefox-Container."
+    }
+  }
+}

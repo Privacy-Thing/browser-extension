@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 635 635" fill-rule="evenodd" clip-rule="evenodd">
+  <g id="privacy-thing-mark" opacity=".48">
+    <g transform="matrix(2.317427 0 0 2.311486 -409.330913 -391.934431)"><path d="M314.5 187C381.006 187 435 241.218 435 308S381.006 429 314.5 429 194 374.782 194 308s53.994-121 120.5-121Zm-35.834 81.517c-11.958-2.118-24.312 11.229-27.57 29.786-3.259 18.557 3.804 35.341 15.762 37.458 11.957 2.118 24.311-11.229 27.57-29.786 3.258-18.557-3.805-35.341-15.762-37.458Zm72 0c-11.958 2.117-19.02 18.901-15.762 37.458 3.259 18.557 15.612 31.904 27.57 29.786 11.958-2.117 19.02-18.901 15.762-37.458-3.259-18.557-15.613-31.904-27.57-29.786Z" fill="#6f6f6f" stroke="#fff" stroke-width="12.61" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <g transform="matrix(2.317427 0 0 2.321077 -390.791494 -396.049067)" fill="#fff"><ellipse cx="314.5" cy="308" rx="120.5" ry="121" transform="matrix(.179799 .031703 -.048794 .276723 223.243431 207.461849)"/><ellipse cx="314.5" cy="308" rx="120.5" ry="121" transform="matrix(.179799 -.031703 .048794 .276723 276.994586 227.403289)"/></g>
+  </g>
+  <path d="M123 512 512 123" fill="none" stroke="#fff" stroke-width="82" stroke-linecap="round"/>
+  <path d="M123 512 512 123" fill="none" stroke="#8b8b8b" stroke-width="46" stroke-linecap="round"/>
+</svg>

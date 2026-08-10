@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "outDir": "dist",
+    "types": ["node", "chrome"]
+  },
+  "include": ["api-conformance.config.ts", "src/**/*"],
+  "exclude": []
+}

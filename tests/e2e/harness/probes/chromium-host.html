@@ -1,0 +1,23 @@
+<!doctype html>
+<html>
+  <body>
+    <h1>Extension test host</h1>
+    <button id="collect" type="button">Collect snapshot</button>
+    <button id="collect-watch" type="button">Collect watch snapshot</button>
+    <button id="collect-worker" type="button">Collect worker snapshot</button>
+    <button id="collect-shared-worker" type="button">
+      Collect shared worker snapshot
+    </button>
+    <button id="seed-state" type="button">Seed host state</button>
+    <button id="read-state" type="button">Read host state</button>
+    <button id="collect-fingerprint" type="button">Collect fingerprint snapshot</button>
+    <pre id="snapshot">pending</pre>
+    <pre id="watch-snapshot">pending</pre>
+    <pre id="worker-snapshot">pending</pre>
+    <pre id="shared-worker-snapshot">pending</pre>
+    <pre id="host-state">pending</pre>
+    <pre id="fingerprint-snapshot">pending</pre>
+    <iframe id="mirror-frame" src="/frame" title="Mirror frame"></iframe>
+    <script src="/page.js"></script>
+  </body>
+</html>

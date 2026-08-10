@@ -1,0 +1,3 @@
+CC-BY-4.0.txt
+Source: https://raw.githubusercontent.com/spdx/license-list-data/main/text/CC-BY-4.0.txt
+Purpose: local canonical text for manual third-party notice generation without a network dependency

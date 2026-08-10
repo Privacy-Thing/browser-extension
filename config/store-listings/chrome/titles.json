@@ -1,0 +1,18 @@
+{
+  "$schemaNote": "Localized Chromium store titles. Notion is the editorial source; the build injects these values into manifest.name through _locales/<locale>/messages.json. Titles must stay within the 75-character store limit.",
+  "locales": {
+    "ar": "Privacy Thing (Preview) — خصوصيتك. قواعدك.",
+    "de": "Privacy Thing (Preview) — Deine Privatsphäre. Deine Regeln.",
+    "en": "Privacy Thing (Preview) — Your privacy. Your rules.",
+    "es": "Privacy Thing (Preview) — Tu privacidad. Tus reglas.",
+    "fr": "Privacy Thing (Preview) — Votre vie privée. Vos règles.",
+    "it": "Privacy Thing (Preview) — La tua privacy. Le tue regole.",
+    "ja": "Privacy Thing (Preview) — プライバシーは、自分のルールで。",
+    "ko": "Privacy Thing (Preview) — 내 프라이버시, 내 규칙.",
+    "pl": "Privacy Thing (Preview) — Twoja prywatność. Twoje zasady.",
+    "pt_BR": "Privacy Thing (Preview) — Sua privacidade. Suas regras.",
+    "ru": "Privacy Thing (Preview) — Ваша приватность. Ваши правила.",
+    "uk": "Privacy Thing (Preview) — Ваша приватність. Ваші правила.",
+    "zh_CN": "Privacy Thing (Preview) — 你的隐私，由你做主。"
+  }
+}

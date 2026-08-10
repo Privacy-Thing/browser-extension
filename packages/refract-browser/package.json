@@ -1,0 +1,23 @@
+{
+  "name": "@privacy-brand/refract-browser",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./chromium": "./src/chromium/index.ts",
+    "./firefox": "./src/firefox/index.ts",
+    "./common/snapshot-transports": "./src/common/snapshot-transports/index.ts",
+    "./common/runtime-config": "./src/common/runtime-config.ts",
+    "./common/worker-bootstrap": "./src/common/worker-bootstrap.ts",
+    "./common/worker-construction": "./src/common/worker-construction.ts",
+    "./common/worker-fingerprint-inline": "./src/common/worker-fingerprint-inline.ts",
+    "./common/worker-webgl-inline": "./src/common/worker-webgl-inline.ts",
+    "./common/worker-runtime-log-relay": "./src/common/worker-runtime-log-relay.ts",
+    "./common/worker-bootstrap-ack-relay": "./src/common/worker-bootstrap-ack-relay.ts",
+    "./common/surface-error-emitter": "./src/common/surface-error-emitter.ts",
+    "./common/surface-usage-emitter": "./src/common/surface-usage-emitter.ts",
+    "./common/debug-logger": "./src/common/debug-logger.ts",
+    "./common/firefox-shim-state": "./src/common/firefox-shim-state.ts"
+  }
+}
