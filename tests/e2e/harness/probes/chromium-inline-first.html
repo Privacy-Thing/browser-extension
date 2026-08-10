@@ -1,0 +1,52 @@
+<!doctype html>
+<html>
+  <head>
+    <script>
+      (() => {
+        const snapshot = {
+          language: navigator.language,
+          userAgent: navigator.userAgent,
+          timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          webdriver: navigator.webdriver,
+          permission: "pending",
+        };
+
+        navigator.permissions
+          ?.query({ name: "geolocation" })
+          .then((status) => {
+            snapshot.permission = status.state;
+          })
+          .catch((error) => {
+            snapshot.permission =
+              error instanceof Error
+                ? "error:" + error.message
+                : "error:" + String(error);
+          })
+          .finally(() => {
+            const target = document.querySelector("#early-snapshot");
+            if (target) {
+              target.textContent = JSON.stringify(snapshot);
+            }
+          });
+
+        globalThis.__PT_EARLY_SNAPSHOT__ = snapshot;
+        const render = () => {
+          const target = document.querySelector("#early-snapshot");
+          if (target) {
+            target.textContent = JSON.stringify(snapshot);
+          }
+        };
+
+        if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", render, { once: true });
+        } else {
+          render();
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <pre id="early-snapshot">pending</pre>
+    <iframe id="early-frame" src="/inline-frame" title="Early frame"></iframe>
+  </body>
+</html>

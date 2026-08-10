@@ -1,0 +1,14 @@
+# Commits that only reformat code. `git blame` skips these so authorship still
+# points at whoever last changed the logic on a line.
+#
+# Enable once per clone (it cannot be committed into .git/config):
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+#
+# Only add a commit here when it changes formatting and nothing else. Record the
+# SHA that actually lands on main — a squash merge discards the branch commits,
+# and an unreachable SHA here is ignored silently, leaving blame unfiltered.
+
+# Adopt Prettier and ratcheted complexity budgets (#119). Squashed on merge, so
+# this SHA also carries the tooling config and ten suppression repairs; the
+# formatting sweep is the overwhelming majority of it.
+225c7f83d098f31b9065b1e192c14133ac658504

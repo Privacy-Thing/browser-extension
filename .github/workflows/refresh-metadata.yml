@@ -1,0 +1,375 @@
+name: refresh-metadata
+run-name: >-
+  ${{ format(
+    'Refresh extension metadata{0}{1}',
+    inputs.version && format(' v{0}', inputs.version) || '',
+    inputs.dry_run && ' (dry-run)' || ''
+  ) }}
+
+# Scheduled refresh of the upstream-fed spoofing catalogs
+# (src/shared/*.generated.ts). Runs every 2 days and, only when the data
+# actually changed:
+#   Phase A — cuts an isolated X.Y.Z.REV stable release built on top of the last
+#             stable tag (previous product + fresh metadata only) and triggers
+#             the publish pipeline (stable stores + auto-beta).
+#   Phase B — commits the same kind of refresh onto main so the next deliberate
+#             X.Y.Z release ships current data.
+#
+# Runs on GitHub-hosted runners. It dispatches publish over the REST API with the
+# scoped GitHub App token and prunes its temporary git worktree before exit.
+# The repository variable METADATA_REFRESH_ENABLED must be exactly `true`; a missing
+# value or any other value keeps both scheduled and manual runs inert.
+
+# default: "0 4 */2 * *" # 04:00 UTC, every 2 days
+on:
+  schedule:
+    - cron: "0 4 */2 * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Regenerate and show would-be changes without pushing or releasing
+        type: boolean
+        default: false
+      version:
+        description: Override revision version (e.g. 0.8.11.1); auto-computed from the latest tag when blank
+        type: string
+        default: ""
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: refresh-metadata
+  cancel-in-progress: false
+
+jobs:
+  resolve:
+    if: ${{ vars.METADATA_REFRESH_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    environment: automation
+    outputs:
+      base_tag: ${{ steps.compute.outputs.base_tag }}
+      next_version: ${{ steps.compute.outputs.next_version }}
+      next_tag: ${{ steps.compute.outputs.next_tag }}
+    steps:
+      - name: Require publish app credentials
+        env:
+          PUBLISH_APP_ID: ${{ vars.PUBLISH_APP_ID }}
+          PUBLISH_APP_PRIVATE_KEY: ${{ secrets.PUBLISH_APP_PRIVATE_KEY }}
+        run: |
+          if [ -z "${PUBLISH_APP_ID}" ] || [ -z "${PUBLISH_APP_PRIVATE_KEY}" ]; then
+            echo "Missing PUBLISH_APP_ID (variable) or PUBLISH_APP_PRIVATE_KEY (secret)."
+            echo "The default GITHUB_TOKEN cannot dispatch the publish workflow."
+            exit 1
+          fi
+
+      - name: Checkout main
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - name: Trust workspace for git
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Set up Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+
+      - name: Resolve revision version
+        id: compute
+        env:
+          VERSION_OVERRIDE: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          git fetch --tags origin
+
+          # compute-next-revision prints PT_* KEY=VALUE lines; source them.
+          node scripts/compute-next-revision.mjs > "${RUNNER_TEMP}/revision.env"
+          # shellcheck disable=SC1090
+          source "${RUNNER_TEMP}/revision.env"
+
+          if [ -n "${VERSION_OVERRIDE}" ]; then
+            if ! printf '%s' "${VERSION_OVERRIDE}" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$'; then
+              echo "Invalid version override: ${VERSION_OVERRIDE}"
+              exit 1
+            fi
+            PT_NEXT_REVISION_VERSION="${VERSION_OVERRIDE}"
+            PT_NEXT_REVISION_TAG="v${VERSION_OVERRIDE}"
+          fi
+
+          echo "Base stable tag: ${PT_BASE_STABLE_TAG} -> revision ${PT_NEXT_REVISION_TAG}"
+          {
+            echo "base_tag=${PT_BASE_STABLE_TAG}"
+            echo "next_version=${PT_NEXT_REVISION_VERSION}"
+            echo "next_tag=${PT_NEXT_REVISION_TAG}"
+          } >> "$GITHUB_OUTPUT"
+
+  refresh:
+    needs: resolve
+    name: Refresh v${{ needs.resolve.outputs.next_version }}${{ inputs.dry_run && ' (dry-run)' || '' }}
+    runs-on: ubuntu-latest
+    environment: automation
+    env:
+      DRY_RUN: ${{ inputs.dry_run && 'true' || 'false' }}
+      PT_FORCE_REGEN: "1"
+      PNPM_STORE_DIR: ${{ github.workspace }}/build/pnpm-store
+      BASE_TAG: ${{ needs.resolve.outputs.base_tag }}
+      REV_VERSION: ${{ needs.resolve.outputs.next_version }}
+      REV_TAG: ${{ needs.resolve.outputs.next_tag }}
+      WORKTREE: ${{ github.workspace }}/../refresh-metadata-base
+      # Upstream-fed catalogs regenerated on each run. locale-catalog is static
+      # (hardcoded) and the worker bundle is deterministic/local — both excluded.
+      GENERATED_FILES: >-
+        src/shared/hardware-profiles.steam.generated.ts
+        src/shared/hardware-profiles.apple.generated.ts
+        src/shared/chrome-versions.generated.ts
+        src/shared/osm-country-languages.generated.ts
+    steps:
+      # This job pushes a revision tag and a commit to main. Both refs are covered by
+      # rulesets whose only bypass actor is this app, so the checkout token must be the
+      # app's. The same token later dispatches the publish workflow.
+      - name: Mint publish app token
+        id: publish_app_token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ vars.PUBLISH_APP_ID }}
+          private-key: ${{ secrets.PUBLISH_APP_PRIVATE_KEY }}
+
+      - name: Checkout main
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          ref: main
+          token: ${{ steps.publish_app_token.outputs.token }}
+
+      - name: Trust workspace for git
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Configure git identity
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      # Needed for the metadata validator (tsx + zod). Generators themselves are
+      # dependency-free, but the validator gate runs with main's tooling.
+      - name: Set up Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+
+      - name: Activate pnpm
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # ---------------------------------------------------------------------
+      # Phase A — isolated revision release from the last stable tag
+      # ---------------------------------------------------------------------
+      - name: Build revision release from the stable tag
+        id: revision
+        run: |
+          set -euo pipefail
+          RELEASE_DATE="$(date -u +%Y-%m-%d)"
+          MAIN_SHA="$(git rev-parse HEAD)" # workspace is checked out at main
+
+          echo "Base stable tag: ${BASE_TAG} -> revision ${REV_TAG}"
+          git fetch --tags origin
+          # Shared bare-metal runner: drop any worktree left by a prior run.
+          git worktree prune
+          rm -rf "${WORKTREE}"
+          git worktree add --force --detach "${WORKTREE}" "${BASE_TAG}"
+
+          # Snapshot the base tag's catalogs as the drift baseline before regen.
+          BASELINE_DIR="${RUNNER_TEMP}/baseline-revision"
+          rm -rf "${BASELINE_DIR}"
+          mkdir -p "${BASELINE_DIR}"
+          cp "${WORKTREE}"/src/shared/*.generated.ts "${BASELINE_DIR}/"
+
+          # Regenerate using the BASE TAG's own generators so the output matches
+          # the code that will ship. Remove the freshly checked-out catalogs so
+          # the 24h freshness cache cannot short-circuit the download.
+          ( cd "${WORKTREE}"
+            rm -f ${GENERATED_FILES}
+            node scripts/build-steam-hardware.mjs
+            node scripts/build-apple-hardware.mjs
+            node scripts/build-chrome-versions.mjs
+            node scripts/build-osm-country-languages.mjs
+          )
+
+          if git -C "${WORKTREE}" diff --quiet -- ${GENERATED_FILES}; then
+            echo "Metadata unchanged against ${BASE_TAG}; no revision release."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+          # Validate the regenerated catalogs (structural + invariants + drift)
+          # with current (main) tooling BEFORE committing/tagging. A failure here
+          # aborts the step, so no broken revision is ever tagged or published.
+          pnpm validate:metadata \
+            --shared-dir "${WORKTREE}/src/shared" \
+            --baseline-dir "${BASELINE_DIR}"
+
+          # Build the revision commit: regenerated catalogs + version bump +
+          # dedicated changelog entry. Diff vs base must stay metadata-only;
+          # github-stable re-verifies this allowlist before publishing.
+          ( cd "${WORKTREE}"
+            # Adopt current main's workflow files so the pushed tag carries no
+            # workflow content diverging from the default branch — the default
+            # GITHUB_TOKEN lacks `workflows` permission and GitHub rejects a ref
+            # whose .github/workflows differ from main. .github is not part of
+            # the shipped extension; github-stable verifies these equal main.
+            git rm -r --quiet --ignore-unmatch .github/workflows
+            git checkout "${MAIN_SHA}" -- .github/workflows
+
+            node -e '
+              const fs = require("node:fs");
+              const json = JSON.parse(fs.readFileSync("package.json", "utf8"));
+              json.version = process.env.REV_VERSION;
+              fs.writeFileSync("package.json", `${JSON.stringify(json, null, 2)}\n`);
+            '
+            node "${GITHUB_WORKSPACE}/scripts/insert-metadata-release-changelog.mjs" \
+              --version "${REV_VERSION}" --date "${RELEASE_DATE}" --write
+            git add ${GENERATED_FILES} package.json CHANGELOG.md .github/workflows
+            git commit -m "chore: release v${REV_VERSION} (refresh extension metadata)"
+            git tag "${REV_TAG}"
+          )
+
+          echo "Revision commit diff against ${BASE_TAG}:"
+          git -C "${WORKTREE}" diff --name-only "${BASE_TAG}" "${REV_TAG}"
+
+      # ---------------------------------------------------------------------
+      # Phase B — prepare the matching main commit before any revision ref is
+      # published. The revision tag and main commit are pushed atomically below,
+      # so branch protection or a concurrent main update cannot leave a released
+      # tag without its data, changelog entry, and version bump on main.
+      # ---------------------------------------------------------------------
+      - name: Refresh metadata on main
+        id: main_refresh
+        if: ${{ !cancelled() }}
+        run: |
+          set -euo pipefail
+
+          # A changed revision is recorded on main before the tag is published;
+          # the atomic push below makes the two refs externally visible together.
+          RECORD_REVISION=false
+          if [ "${{ steps.revision.outputs.changed }}" = "true" ]; then
+            RECORD_REVISION=true
+          fi
+
+          # Snapshot main's current catalogs as the drift baseline before regen.
+          BASELINE_DIR_MAIN="${RUNNER_TEMP}/baseline-main"
+          rm -rf "${BASELINE_DIR_MAIN}"
+          mkdir -p "${BASELINE_DIR_MAIN}"
+          cp src/shared/*.generated.ts "${BASELINE_DIR_MAIN}/"
+
+          rm -f ${GENERATED_FILES}
+          node scripts/build-steam-hardware.mjs
+          node scripts/build-apple-hardware.mjs
+          node scripts/build-chrome-versions.mjs
+          node scripts/build-osm-country-languages.mjs
+
+          DATA_CHANGED=true
+          git diff --quiet -- ${GENERATED_FILES} && DATA_CHANGED=false
+
+          # Validate before committing anything to main; abort on broken catalogs.
+          if [ "${RECORD_REVISION}" = "true" ] || [ "${DATA_CHANGED}" = "true" ]; then
+            pnpm validate:metadata \
+              --shared-dir src/shared \
+              --baseline-dir "${BASELINE_DIR_MAIN}"
+          fi
+
+          if [ "${RECORD_REVISION}" = "true" ]; then
+            # Mirror the released revision on main: fresh data + dedicated
+            # changelog entry (without draining [Unreleased]) + version bump.
+            node -e '
+              const fs = require("node:fs");
+              const json = JSON.parse(fs.readFileSync("package.json", "utf8"));
+              json.version = process.env.REV_VERSION;
+              fs.writeFileSync("package.json", `${JSON.stringify(json, null, 2)}\n`);
+            '
+            node scripts/insert-metadata-release-changelog.mjs \
+              --version "${REV_VERSION}" --date "$(date -u +%Y-%m-%d)" --write
+            git add ${GENERATED_FILES} package.json CHANGELOG.md
+            git commit -m "chore: release v${REV_VERSION} (refresh extension metadata)"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          elif [ "${DATA_CHANGED}" = "true" ]; then
+            git add ${GENERATED_FILES}
+            git commit -m "chore: refresh extension metadata"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Nothing to commit on main."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            git checkout -- ${GENERATED_FILES} || true
+          fi
+
+      - name: Push revision tag and main refresh atomically
+        id: push_revision
+        if: >-
+          ${{ !cancelled()
+            && steps.revision.outputs.changed == 'true'
+            && steps.main_refresh.outputs.changed == 'true'
+            && env.DRY_RUN != 'true' }}
+        run: git push --atomic origin HEAD:main "${REV_TAG}"
+
+      - name: Push metadata-only main refresh
+        if: >-
+          ${{ !cancelled()
+            && steps.revision.outputs.changed != 'true'
+            && steps.main_refresh.outputs.changed == 'true'
+            && env.DRY_RUN != 'true' }}
+        run: git push origin HEAD:main
+
+      # Dispatching another workflow needs a PAT/App token over the REST API;
+      # the default GITHUB_TOKEN deliberately cannot create new workflow runs,
+      # and the REST call makes the token and response handling explicit.
+      - name: Trigger stable publish
+        id: trigger
+        if: steps.push_revision.outcome == 'success'
+        env:
+          PUBLISH_TOKEN: ${{ steps.publish_app_token.outputs.token }}
+        run: |
+          set -euo pipefail
+          # Write response body to a temp file so we can print it on error;
+          # fall back to /dev/null if the write fails (e.g. curl exit 23 on
+          # an empty 204 body) — the dispatch already succeeded at that point.
+          RESP_FILE="$(mktemp)" || RESP_FILE=/dev/null
+          HTTP_CODE="$(curl -sS -o "${RESP_FILE}" -w '%{http_code}' -X POST \
+            -H "Authorization: Bearer ${PUBLISH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/publish.yml/dispatches" \
+            -d "$(printf '{"ref":"main","inputs":{"channel":"stable","version":"%s"}}' "${REV_VERSION}")" \
+            || true)"
+          if [ -z "${HTTP_CODE}" ] || [ "${HTTP_CODE}" -ge 300 ]; then
+            echo "Dispatch failed: HTTP ${HTTP_CODE:-unknown}"
+            cat "${RESP_FILE}" 2>/dev/null || true
+            echo "The publish app needs Actions: write on this repository to dispatch."
+            exit 1
+          fi
+          echo "Dispatched publish (stable) for v${REV_VERSION}."
+
+      - name: Clean up revision worktree
+        if: always()
+        run: |
+          git worktree remove --force "${WORKTREE}" 2>/dev/null || true
+          rm -rf "${WORKTREE}"
+          git worktree prune || true
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Metadata refresh"
+            echo ""
+            echo "- Dry run: ${DRY_RUN}"
+            echo "- Base stable tag: ${BASE_TAG:-n/a}"
+            echo "- Revision: ${REV_TAG:-n/a} (changed: ${{ steps.revision.outputs.changed }})"
+            echo "- Main refresh changed: ${{ steps.main_refresh.outputs.changed }}"
+            echo "- Atomic revision push: ${{ steps.push_revision.outcome }}"
+            echo "- Publish dispatch: ${{ steps.trigger.outcome }}"
+          } >> "$GITHUB_STEP_SUMMARY"

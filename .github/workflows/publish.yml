@@ -1,0 +1,977 @@
+name: publish
+run-name: >-
+  ${{ inputs.channel == 'stable'
+    && format('Publish stable: v{0}', inputs.version)
+    || inputs.build_timestamp != ''
+      && format('Publish beta ({0}) @ {1}', inputs.build_timestamp, inputs.ref || 'main')
+      || format('Publish beta @ {0}', inputs.ref || 'main')
+  }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: Release channel to publish
+        required: true
+        type: choice
+        options:
+          - stable
+          - beta
+      version:
+        description: Stable semantic version without the v prefix, for example 0.7.0
+        required: false
+        default: ""
+        type: string
+      ref:
+        description: Git ref or SHA on main for beta publishing, defaults to main
+        required: false
+        default: main
+        type: string
+      build_timestamp:
+        description: Optional UTC timestamp override in YYYYMMDD_HHMMSS format for beta builds
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: write
+  actions: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+# Environments scope credentials, nothing else. Each one holds the credentials for a
+# single external system, so a job can only reference what it actually publishes with.
+#
+#   automation        PUBLISH_APP_ID (variable) + PUBLISH_APP_PRIVATE_KEY (secret)
+#   amo               AMO_JWT_*, AMO_PUBLISH_ENABLED
+#   chrome-web-store  CWS_* (one service account covers both listings)
+#   edge              EDGE_*
+#
+# `automation` holds a GitHub App instead of personal access tokens: the app does not
+# expire, is owned by the organisation rather than a person, and one installation covers
+# both Privacy-Thing and the personal repositories that CI has to reach.
+#
+# No environment carries protection rules. A required reviewer would mean approving your
+# own run, and refresh-metadata.yml dispatches this workflow on a schedule — a reviewer
+# would park every metadata revision waiting for a click.
+jobs:
+  cut-stable:
+    if: ${{ inputs.channel == 'stable' }}
+    # The browsers come from the image because `verify:publish` runs test:storybook and
+    # test:e2e:publish:ci; a bare ubuntu runner would fail both. Keep this tag equal
+    # to the Playwright version pinned in pnpm-workspace.yaml.
+    runs-on: ubuntu-latest
+    environment: automation
+    container:
+      image: mcr.microsoft.com/playwright:v1.58.2-noble
+      options: --ipc=host
+    outputs:
+      release_tag: ${{ steps.stable_target.outputs.release_tag }}
+      target_sha: ${{ steps.stable_target.outputs.target_sha }}
+    steps:
+      # This job pushes the release commit to main and creates the v* tag. Both refs are
+      # covered by rulesets whose only bypass actor is this app, so the checkout token
+      # must be the app's — the default GITHUB_TOKEN is rejected by both rules.
+      - name: Mint release app token
+        id: app_token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ vars.PUBLISH_APP_ID }}
+          private-key: ${{ secrets.PUBLISH_APP_PRIVATE_KEY }}
+
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          ref: main
+          token: ${{ steps.app_token.outputs.token }}
+
+      - name: Trust workspace for git
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Set up Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+
+      - name: Activate pnpm
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate stable version input
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          node -e 'const version = process.env.RELEASE_VERSION; if (!/^\d+\.\d+\.\d+(?:\.\d+)?$/.test(version ?? "")) { throw new Error(`Invalid version: ${version}`); }'
+
+      - name: Detect existing stable tag
+        id: existing_tag
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          RELEASE_TAG="v${RELEASE_VERSION}"
+          git fetch --tags origin
+          REMOTE_SHA="$(git ls-remote --tags origin "refs/tags/${RELEASE_TAG}" | awk '{print $1}' | head -n 1)"
+
+          if [ -n "${REMOTE_SHA}" ]; then
+            echo "Existing stable tag detected on origin: ${RELEASE_TAG} -> ${REMOTE_SHA}"
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "release_tag=${RELEASE_TAG}" >> "$GITHUB_OUTPUT"
+            echo "target_sha=${REMOTE_SHA}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "exists=false" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve release metadata
+        if: steps.existing_tag.outputs.exists != 'true'
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          echo "PT_BUILD_CHANNEL=release" >> "$GITHUB_ENV"
+          echo "PT_RELEASE_VERSION=${RELEASE_VERSION}" >> "$GITHUB_ENV"
+          PT_BUILD_CHANNEL=release PT_RELEASE_VERSION="${RELEASE_VERSION}" node scripts/resolve-build-metadata.mjs >> "$GITHUB_ENV"
+
+      - name: Prepare release files
+        if: steps.existing_tag.outputs.exists != 'true'
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          RELEASE_DATE="$(date -u +%Y-%m-%d)"
+          if grep -F "## [${RELEASE_VERSION}] -" CHANGELOG.md >/dev/null; then
+            echo "Release section already exists for ${RELEASE_VERSION}; skipping changelog promotion."
+          else
+            node scripts/promote-unreleased-changelog.mjs --version "${RELEASE_VERSION}" --date "${RELEASE_DATE}" --write
+          fi
+
+          node <<'NODE'
+          const fs = require("node:fs");
+
+          const version = process.env.RELEASE_VERSION;
+          const source = fs.readFileSync("package.json", "utf8");
+          const json = JSON.parse(source);
+          if (json.version !== version) {
+            json.version = version;
+            fs.writeFileSync("package.json", `${JSON.stringify(json, null, 2)}\n`);
+          }
+          NODE
+
+      - name: Verify release version in changelog
+        if: steps.existing_tag.outputs.exists != 'true'
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: grep -F "## [${RELEASE_VERSION}] -" CHANGELOG.md
+
+      - name: CI check
+        if: steps.existing_tag.outputs.exists != 'true'
+        run: pnpm exec task verify:publish
+
+      - name: Build release artifacts before tagging
+        if: steps.existing_tag.outputs.exists != 'true'
+        run: pnpm package:release
+
+      - name: Commit release
+        id: commit_release
+        if: steps.existing_tag.outputs.exists != 'true'
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json CHANGELOG.md
+          if git diff --cached --quiet; then
+            echo "created=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git commit -m "chore: release v${RELEASE_VERSION}"
+          echo "created=true" >> "$GITHUB_OUTPUT"
+
+      - name: Push release commit
+        if: steps.existing_tag.outputs.exists != 'true' && steps.commit_release.outputs.created == 'true'
+        run: git push origin HEAD:main
+
+      - name: Capture stable target
+        id: stable_target
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          if [ "${{ steps.existing_tag.outputs.exists }}" = "true" ]; then
+            TARGET_SHA="${{ steps.existing_tag.outputs.target_sha }}"
+            RELEASE_TAG="${{ steps.existing_tag.outputs.release_tag }}"
+          else
+            TARGET_SHA="$(git rev-parse HEAD)"
+            RELEASE_TAG="v${RELEASE_VERSION}"
+          fi
+          echo "target_sha=${TARGET_SHA}" >> "$GITHUB_OUTPUT"
+          echo "release_tag=${RELEASE_TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Tag validated release
+        if: steps.existing_tag.outputs.exists != 'true'
+        run: git tag "${{ steps.stable_target.outputs.release_tag }}" "${{ steps.stable_target.outputs.target_sha }}"
+
+      - name: Push release tag
+        if: steps.existing_tag.outputs.exists != 'true'
+        run: git push origin "${{ steps.stable_target.outputs.release_tag }}"
+
+  github-stable:
+    if: ${{ inputs.channel == 'stable' }}
+    needs: cut-stable
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.58.2-noble
+      options: --ipc=host
+    outputs:
+      release_tag: ${{ needs.cut-stable.outputs.release_tag }}
+      target_sha: ${{ needs.cut-stable.outputs.target_sha }}
+    env:
+      RELEASE_TAG: ${{ needs.cut-stable.outputs.release_tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          ref: refs/tags/${{ needs.cut-stable.outputs.release_tag }}
+
+      - name: Trust workspace for git
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Require tag commit on main or metadata-only revision
+        run: |
+          git fetch origin main
+          TAG_COMMIT="$(git rev-list -n 1 "${RELEASE_TAG}")"
+          if git merge-base --is-ancestor "${TAG_COMMIT}" "origin/main"; then
+            echo "Tag ${RELEASE_TAG} (${TAG_COMMIT}) is on origin/main."
+            exit 0
+          fi
+
+          # Off-main tags are only allowed for scheduled 4-part metadata-refresh
+          # revisions (X.Y.Z.REV) built on top of a stable tag. Their diff against
+          # the base commit must touch nothing but generated catalogs, the version
+          # bump, the changelog, and workflow files — proving a revision release
+          # cannot smuggle product code. See .github/workflows/refresh-metadata.yml.
+          VERSION="${RELEASE_TAG#v}"
+          if ! printf '%s' "${VERSION}" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "Tag ${RELEASE_TAG} points to ${TAG_COMMIT}, which is not on origin/main"
+            exit 1
+          fi
+
+          CHANGED_FILES="$(git diff --name-only "${TAG_COMMIT}^" "${TAG_COMMIT}")"
+          echo "Revision ${RELEASE_TAG} changes:"
+          echo "${CHANGED_FILES}"
+          # .github/workflows is allowed because the revision is built on an
+          # older tag and adopts current main's CI so the default token can push
+          # it. Those files are inert at release time: the publish run executes
+          # main's workflow definitions (dispatch ref=main), and the extension
+          # build ignores .github. The real guarantee is the allowlist below —
+          # no product code beyond the regenerated catalogs.
+          DISALLOWED="$(printf '%s\n' "${CHANGED_FILES}" \
+            | grep -vE '^(src/shared/[^/]+\.generated\.ts|package\.json|CHANGELOG\.md|\.github/workflows/.+)$' || true)"
+          if [ -n "${DISALLOWED}" ]; then
+            echo "Revision tag ${RELEASE_TAG} changes files outside the metadata allowlist:"
+            echo "${DISALLOWED}"
+            exit 1
+          fi
+          echo "Revision tag ${RELEASE_TAG} is a metadata-only refresh; allowing off-main release."
+
+      - name: Resolve release metadata
+        run: |
+          echo "PT_BUILD_CHANNEL=release" >> "$GITHUB_ENV"
+          echo "PT_RELEASE_VERSION=${RELEASE_TAG#v}" >> "$GITHUB_ENV"
+          PT_BUILD_CHANNEL=release PT_RELEASE_VERSION="${RELEASE_TAG#v}" node scripts/resolve-build-metadata.mjs >> "$GITHUB_ENV"
+
+      - name: Setup Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Build stable release artifacts
+        run: pnpm package:release
+
+      - name: Build stable source archive
+        # Runs the checked-out tag's own packager. Do NOT swap in main's copy:
+        # it imports scripts/brand-config.mjs, whose exports drift across
+        # releases, so a cross-version file mixes a new importer with an old
+        # module and fails to link.
+        run: pnpm package:source
+
+      - name: Extract release notes from changelog
+        run: |
+          # Use main's extractor, not the checked-out tag's: a 4-part X.Y.Z.REV
+          # revision is built on an older stable tag whose script may predate
+          # 4-part support. Safe to cross-check-out only because this script
+          # imports node builtins alone.
+          git fetch origin main
+          git checkout origin/main -- scripts/extract-changelog-section.mjs
+          node scripts/extract-changelog-section.mjs --version "${RELEASE_TAG}" --output build/artifacts/release-notes.md
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: release-${{ env.PT_ARTIFACT_VERSION_LABEL }}
+          path: |
+            build/artifacts/*-${{ env.PT_ARTIFACT_VERSION_LABEL }}-chromium.zip
+            build/artifacts/*-${{ env.PT_ARTIFACT_VERSION_LABEL }}-firefox.zip
+            build/artifacts/*-${{ env.PT_ARTIFACT_VERSION_LABEL }}-firefox.xpi
+            build/artifacts/*-${{ env.PT_ARTIFACT_VERSION_LABEL }}-source.zip
+
+      - name: Publish GitHub stable release
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          body_path: build/artifacts/release-notes.md
+          files: |
+            build/artifacts/*-${{ env.PT_ARTIFACT_VERSION_LABEL }}-chromium.zip
+            build/artifacts/*-${{ env.PT_ARTIFACT_VERSION_LABEL }}-firefox.zip
+            build/artifacts/*-${{ env.PT_ARTIFACT_VERSION_LABEL }}-firefox.xpi
+
+  github-beta:
+    if: ${{ always() && !cancelled() && !failure() && (inputs.channel == 'beta' || needs.github-stable.result == 'success') }}
+    needs:
+      - cut-stable
+      - github-stable
+    runs-on: ubuntu-latest
+    environment: automation
+    outputs:
+      target_sha: ${{ steps.prepare.outputs.target_sha }}
+      build_timestamp: ${{ steps.prepare.outputs.build_timestamp }}
+      beta_tag: ${{ steps.prepare.outputs.beta_tag }}
+      sync_stable_version: ${{ steps.prepare.outputs.sync_stable_version }}
+    steps:
+      # The app token cannot live in a job-level `env:` block: that is evaluated
+      # before any step runs, so it cannot reference a step output. Mint it first,
+      # then export it for the steps that read GH_TOKEN from the environment.
+      - name: Mint publish app token
+        id: app_token
+        if: vars.PUBLISH_APP_ID != ''
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ vars.PUBLISH_APP_ID }}
+          private-key: ${{ secrets.PUBLISH_APP_PRIVATE_KEY }}
+
+      - name: Export publish token
+        env:
+          PUBLISH_TOKEN: ${{ steps.app_token.outputs.token || github.token }}
+        run: |
+          echo "GH_TOKEN=${PUBLISH_TOKEN}" >> "$GITHUB_ENV"
+          echo "GITHUB_TOKEN=${PUBLISH_TOKEN}" >> "$GITHUB_ENV"
+
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          token: ${{ steps.app_token.outputs.token || github.token }}
+          ref: ${{ inputs.channel == 'stable' && format('refs/tags/{0}', needs.cut-stable.outputs.release_tag) || (inputs.ref || 'main') }}
+
+      - name: Trust workspace for git
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Fetch main and tags
+        run: git fetch --tags origin main
+
+      - name: Prepare beta publish context
+        id: prepare
+        env:
+          BUILD_TIMESTAMP_INPUT: ${{ inputs.build_timestamp }}
+          PUBLISH_CHANNEL: ${{ inputs.channel }}
+          STABLE_TARGET_SHA: ${{ needs.cut-stable.outputs.target_sha }}
+          STABLE_VERSION: ${{ inputs.version }}
+        run: |
+          if [ "${PUBLISH_CHANNEL}" = "stable" ]; then
+            TARGET_SHA="${STABLE_TARGET_SHA}"
+            SYNC_STABLE_VERSION="${STABLE_VERSION}"
+          else
+            TARGET_SHA="$(git rev-parse HEAD)"
+            SYNC_STABLE_VERSION=""
+
+            if ! git merge-base --is-ancestor "${TARGET_SHA}" "origin/main"; then
+              echo "Target ${TARGET_SHA} is not on origin/main"
+              exit 1
+            fi
+
+            RUN_ID="$(gh run list --workflow ci.yml --commit "${TARGET_SHA}" --json databaseId,status,conclusion --jq 'map(select(.status=="completed" and .conclusion=="success")) | first | .databaseId')"
+            if [ -z "${RUN_ID}" ] || [ "${RUN_ID}" = "null" ]; then
+              echo "No successful CI workflow run found for ${TARGET_SHA}"
+              exit 1
+            fi
+          fi
+
+          BUILD_TIMESTAMP="${BUILD_TIMESTAMP_INPUT}"
+          if [ -z "${BUILD_TIMESTAMP}" ]; then
+            BUILD_TIMESTAMP="$(date -u +%Y%m%d_%H%M%S)"
+          fi
+
+          BUILD_METADATA_ENV_PATH="${RUNNER_TEMP}/privacy-thing-build-metadata.env"
+          PT_BUILD_CHANNEL=beta PT_BUILD_TIMESTAMP="${BUILD_TIMESTAMP}" node scripts/resolve-build-metadata.mjs > "${BUILD_METADATA_ENV_PATH}"
+          BETA_TAG="beta-${BUILD_TIMESTAMP/_/-}"
+
+          echo "target_sha=${TARGET_SHA}" >> "$GITHUB_OUTPUT"
+          echo "build_timestamp=${BUILD_TIMESTAMP}" >> "$GITHUB_OUTPUT"
+          echo "beta_tag=${BETA_TAG}" >> "$GITHUB_OUTPUT"
+          echo "sync_stable_version=${SYNC_STABLE_VERSION}" >> "$GITHUB_OUTPUT"
+
+          echo "TARGET_SHA=${TARGET_SHA}" >> "$GITHUB_ENV"
+          echo "BETA_TAG=${BETA_TAG}" >> "$GITHUB_ENV"
+          echo "SYNC_STABLE_VERSION=${SYNC_STABLE_VERSION}" >> "$GITHUB_ENV"
+          cat "${BUILD_METADATA_ENV_PATH}" >> "$GITHUB_ENV"
+
+      - name: Setup Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build beta artifacts
+        run: pnpm package:release
+
+      - name: Build beta source archive
+        run: pnpm package:source
+
+      - name: Locate beta release files
+        run: |
+          CHROMIUM_ZIP_PATH="$(find artifacts -maxdepth 1 -name '*-chromium.zip' | head -n 1)"
+          FIREFOX_ZIP_PATH="$(find artifacts -maxdepth 1 -name '*-firefox.zip' | head -n 1)"
+          FIREFOX_XPI_PATH="$(find artifacts -maxdepth 1 -name '*-firefox.xpi' | head -n 1)"
+          SOURCE_ARCHIVE_PATH="$(find artifacts -maxdepth 1 -name '*-source.zip' | head -n 1)"
+
+          if [ -z "${CHROMIUM_ZIP_PATH}" ] || [ -z "${FIREFOX_ZIP_PATH}" ] || [ -z "${FIREFOX_XPI_PATH}" ] || [ -z "${SOURCE_ARCHIVE_PATH}" ]; then
+            echo "Could not locate one or more beta artifacts."
+            exit 1
+          fi
+
+          echo "CHROMIUM_ZIP_PATH=${CHROMIUM_ZIP_PATH}" >> "$GITHUB_ENV"
+          echo "FIREFOX_ZIP_PATH=${FIREFOX_ZIP_PATH}" >> "$GITHUB_ENV"
+          echo "FIREFOX_XPI_PATH=${FIREFOX_XPI_PATH}" >> "$GITHUB_ENV"
+          echo "SOURCE_ARCHIVE_PATH=${SOURCE_ARCHIVE_PATH}" >> "$GITHUB_ENV"
+
+      - name: Generate beta release notes
+        run: >-
+          node scripts/extract-beta-release-notes.mjs
+          --tag "${BETA_TAG}"
+          --target "${TARGET_SHA}"
+          --sync-stable-version "${SYNC_STABLE_VERSION}"
+          --output build/artifacts/beta-release-notes.md
+
+      - name: Create beta tag
+        run: git tag "${BETA_TAG}" "${TARGET_SHA}"
+
+      - name: Push beta tag
+        run: git push origin "${BETA_TAG}"
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: release-${{ env.PT_ARTIFACT_VERSION_LABEL }}
+          path: |
+            ${{ env.CHROMIUM_ZIP_PATH }}
+            ${{ env.FIREFOX_ZIP_PATH }}
+            ${{ env.FIREFOX_XPI_PATH }}
+            ${{ env.SOURCE_ARCHIVE_PATH }}
+            build/artifacts/beta-release-notes.md
+
+      - name: Publish GitHub beta prerelease
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3
+        with:
+          token: ${{ steps.app_token.outputs.token || github.token }}
+          tag_name: ${{ env.BETA_TAG }}
+          prerelease: true
+          target_commitish: ${{ env.TARGET_SHA }}
+          name: Privacy Thing Beta ${{ env.PT_ARTIFACT_VERSION_LABEL }}
+          body_path: build/artifacts/beta-release-notes.md
+          files: |
+            ${{ env.CHROMIUM_ZIP_PATH }}
+            ${{ env.FIREFOX_ZIP_PATH }}
+            ${{ env.FIREFOX_XPI_PATH }}
+
+  firefox-stable:
+    if: ${{ inputs.channel == 'stable' && needs.github-stable.result == 'success' }}
+    needs: github-stable
+    runs-on: ubuntu-latest
+    environment: amo
+    env:
+      RELEASE_TAG: ${{ needs.github-stable.outputs.release_tag }}
+      AMO_PUBLISH_ENABLED: ${{ vars.AMO_PUBLISH_ENABLED || secrets.AMO_PUBLISH_ENABLED }}
+      AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
+      AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          ref: refs/tags/${{ needs.github-stable.outputs.release_tag }}
+
+      - name: Trust workspace for git
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Verify tag commit is on main
+        run: |
+          git fetch origin main
+          TAG_COMMIT="$(git rev-list -n 1 "${RELEASE_TAG}")"
+          if git merge-base --is-ancestor "${TAG_COMMIT}" "origin/main"; then
+            exit 0
+          fi
+          # Off-main 4-part metadata revisions (X.Y.Z.REV) are validated by
+          # github-stable's metadata-only guard before this job runs.
+          if printf '%s' "${RELEASE_TAG#v}" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "Revision ${RELEASE_TAG} is an off-main metadata refresh validated upstream; allowing."
+            exit 0
+          fi
+          echo "Tag ${RELEASE_TAG} points to ${TAG_COMMIT}, which is not on origin/main"
+          exit 1
+
+      - name: Check required configuration
+        id: config
+        run: |
+          missing=0
+
+          if [ "${AMO_PUBLISH_ENABLED}" != "true" ]; then
+            echo "Firefox stable publish is paused (AMO_PUBLISH_ENABLED variable is not 'true')."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ -z "${AMO_JWT_ISSUER}" ] || [ -z "${AMO_JWT_SECRET}" ]; then
+            echo "Firefox stable publish is not configured: missing AMO_JWT_ISSUER or AMO_JWT_SECRET."
+            missing=1
+          fi
+
+          if [ ! -f config/store-listings/amo/stable-metadata.json ]; then
+            echo "Firefox stable publish is not configured: run pnpm task generate:amo-metadata."
+            missing=1
+          fi
+
+          if [ "${missing}" -eq 1 ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "configured=true" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve stable build metadata
+        if: steps.config.outputs.configured == 'true'
+        run: |
+          echo "PT_BUILD_CHANNEL=release" >> "$GITHUB_ENV"
+          echo "PT_RELEASE_VERSION=${RELEASE_TAG#v}" >> "$GITHUB_ENV"
+          PT_BUILD_CHANNEL=release PT_RELEASE_VERSION="${RELEASE_TAG#v}" node scripts/resolve-build-metadata.mjs >> "$GITHUB_ENV"
+
+      - name: Setup Node
+        if: steps.config.outputs.configured == 'true'
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Enable Corepack
+        if: steps.config.outputs.configured == 'true'
+        run: corepack enable
+
+      - name: Install dependencies
+        if: steps.config.outputs.configured == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Build stable Firefox
+        if: steps.config.outputs.configured == 'true'
+        run: pnpm build:firefox
+
+      - name: Build stable source archive
+        if: steps.config.outputs.configured == 'true'
+        run: |
+          git fetch origin main
+          git checkout origin/main -- scripts/sign-firefox-addon.mjs
+          pnpm package:source
+
+      - name: Upload stable source archive artifact
+        if: steps.config.outputs.configured == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: source-${{ env.PT_ARTIFACT_VERSION_LABEL }}
+          path: build/artifacts/*-${{ env.PT_ARTIFACT_VERSION_LABEL }}-source.zip
+
+      - name: Submit stable Firefox to AMO
+        if: steps.config.outputs.configured == 'true'
+        run: |
+          attempt=1
+          max_attempts=3
+
+          while [ "${attempt}" -le "${max_attempts}" ]; do
+            set +e
+            LOG_FILE="$(mktemp)"
+            node scripts/sign-firefox-addon.mjs \
+              --channel listed \
+              --source-dir build/firefox \
+              --artifacts-dir build/artifacts \
+              --api-key "${AMO_JWT_ISSUER}" \
+              --api-secret "${AMO_JWT_SECRET}" \
+              --amo-metadata config/store-listings/amo/stable-metadata.json \
+              --approval-timeout 0 \
+              --timeout 120000 \
+              --upload-source-code build/artifacts/*-${PT_ARTIFACT_VERSION_LABEL}-source.zip \
+              --no-input 2>&1 | tee "${LOG_FILE}"
+            status="${PIPESTATUS[0]}"
+            set -e
+
+            if [ "${status}" -eq 0 ]; then
+              exit 0
+            fi
+
+            if grep -F "Version ${PT_RELEASE_VERSION} already exists." "${LOG_FILE}" >/dev/null; then
+              echo "AMO already has Firefox stable version ${PT_RELEASE_VERSION}; treating rerun as success."
+              exit 0
+            fi
+
+            throttle_seconds="$(grep -o 'Expected available in [0-9]\+ seconds' "${LOG_FILE}" | awk '{print $4}' | tail -n 1)"
+            if [ -n "${throttle_seconds}" ] && [ "${attempt}" -lt "${max_attempts}" ]; then
+              sleep_seconds=$((throttle_seconds + 5))
+              echo "AMO throttled the request. Sleeping ${sleep_seconds}s before retry ${attempt}/${max_attempts}."
+              sleep "${sleep_seconds}"
+              attempt=$((attempt + 1))
+              continue
+            fi
+
+            exit "${status}"
+          done
+
+  cws-stable:
+    name: chrome-stable
+    if: ${{ inputs.channel == 'stable' && needs.github-stable.result == 'success' }}
+    needs: github-stable
+    runs-on: ubuntu-latest
+    environment: chrome-web-store
+    env:
+      RELEASE_TAG: ${{ needs.github-stable.outputs.release_tag }}
+      CWS_PUBLISH_ENABLED: ${{ vars.CWS_PUBLISH_ENABLED || secrets.CWS_PUBLISH_ENABLED }}
+      CWS_PUBLISHER_ID: ${{ secrets.CWS_PUBLISHER_ID }}
+      CWS_ITEM_ID: ${{ secrets.CWS_STABLE_ITEM_ID }}
+      CWS_SERVICE_ACCOUNT_JSON: ${{ secrets.CWS_SERVICE_ACCOUNT_JSON }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          ref: refs/tags/${{ needs.github-stable.outputs.release_tag }}
+
+      - name: Trust workspace for git
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Verify tag commit is on main
+        run: |
+          git fetch origin main
+          TAG_COMMIT="$(git rev-list -n 1 "${RELEASE_TAG}")"
+          if git merge-base --is-ancestor "${TAG_COMMIT}" "origin/main"; then
+            exit 0
+          fi
+          # Off-main 4-part metadata revisions (X.Y.Z.REV) are validated by
+          # github-stable's metadata-only guard before this job runs.
+          if printf '%s' "${RELEASE_TAG#v}" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "Revision ${RELEASE_TAG} is an off-main metadata refresh validated upstream; allowing."
+            exit 0
+          fi
+          echo "Tag ${RELEASE_TAG} points to ${TAG_COMMIT}, which is not on origin/main"
+          exit 1
+
+      - name: Check required configuration
+        id: config
+        run: |
+          missing=0
+
+          if [ "${CWS_PUBLISH_ENABLED}" != "true" ]; then
+            echo "Stable Chrome Web Store publish is paused (CWS_PUBLISH_ENABLED variable is not 'true')."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ -z "${CWS_PUBLISHER_ID}" ] || [ -z "${CWS_ITEM_ID}" ] || [ -z "${CWS_SERVICE_ACCOUNT_JSON}" ]; then
+            echo "Stable Chrome Web Store publish is not configured: missing CWS_PUBLISHER_ID, CWS_STABLE_ITEM_ID, or CWS_SERVICE_ACCOUNT_JSON."
+            missing=1
+          fi
+
+          if [ "${missing}" -eq 1 ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "configured=true" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve stable build metadata
+        if: steps.config.outputs.configured == 'true'
+        run: |
+          echo "PT_BUILD_CHANNEL=release" >> "$GITHUB_ENV"
+          echo "PT_RELEASE_VERSION=${RELEASE_TAG#v}" >> "$GITHUB_ENV"
+          PT_BUILD_CHANNEL=release PT_RELEASE_VERSION="${RELEASE_TAG#v}" node scripts/resolve-build-metadata.mjs >> "$GITHUB_ENV"
+
+      - name: Setup Node
+        if: steps.config.outputs.configured == 'true'
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Enable Corepack
+        if: steps.config.outputs.configured == 'true'
+        run: corepack enable
+
+      - name: Install dependencies
+        if: steps.config.outputs.configured == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Refresh CWS publisher helper
+        if: steps.config.outputs.configured == 'true'
+        run: |
+          git fetch origin main
+          git checkout origin/main -- scripts/publish-cws.mjs
+
+      - name: Build stable Chrome ZIP
+        if: steps.config.outputs.configured == 'true'
+        run: |
+          pnpm build:chrome
+          node scripts/package-release-assets.mjs chromium
+
+      - name: Publish stable package to Chrome Web Store
+        if: steps.config.outputs.configured == 'true'
+        run: |
+          node scripts/publish-cws.mjs \
+            --publisher-id "${CWS_PUBLISHER_ID}" \
+            --item-id "${CWS_ITEM_ID}" \
+            --zip-path build/artifacts/*-${PT_ARTIFACT_VERSION_LABEL}-chromium.zip
+
+  cws-beta:
+    name: chrome-beta
+    if: ${{ always() && !cancelled() && !failure() && needs.github-beta.result == 'success' }}
+    needs: github-beta
+    runs-on: ubuntu-latest
+    environment: chrome-web-store
+    env:
+      TARGET_SHA: ${{ needs.github-beta.outputs.target_sha }}
+      BUILD_TIMESTAMP: ${{ needs.github-beta.outputs.build_timestamp }}
+      CWS_PUBLISH_ENABLED: ${{ vars.CWS_PUBLISH_ENABLED || secrets.CWS_PUBLISH_ENABLED }}
+      CWS_PUBLISHER_ID: ${{ secrets.CWS_PUBLISHER_ID }}
+      CWS_ITEM_ID: ${{ secrets.CWS_BETA_ITEM_ID }}
+      CWS_SERVICE_ACCOUNT_JSON: ${{ secrets.CWS_SERVICE_ACCOUNT_JSON }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.github-beta.outputs.target_sha }}
+
+      - name: Trust workspace for git
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Fetch main
+        run: git fetch origin main
+
+      - name: Verify target commit is on main
+        run: |
+          if git merge-base --is-ancestor "${TARGET_SHA}" "origin/main"; then
+            exit 0
+          fi
+          # Allow an off-main commit that a 4-part metadata revision tag points
+          # at (validated by github-stable upstream).
+          git fetch --tags origin
+          if git tag --points-at "${TARGET_SHA}" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "Target ${TARGET_SHA} is a metadata revision validated upstream; allowing."
+            exit 0
+          fi
+          echo "Target ${TARGET_SHA} is not on origin/main"
+          exit 1
+
+      - name: Check required configuration
+        id: config
+        run: |
+          missing=0
+
+          if [ "${CWS_PUBLISH_ENABLED}" != "true" ]; then
+            echo "Beta Chrome Web Store publish is paused (CWS_PUBLISH_ENABLED variable is not 'true')."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ -z "${CWS_PUBLISHER_ID}" ] || [ -z "${CWS_ITEM_ID}" ] || [ -z "${CWS_SERVICE_ACCOUNT_JSON}" ]; then
+            echo "Beta Chrome Web Store publish is not configured: missing CWS_PUBLISHER_ID, CWS_BETA_ITEM_ID, or CWS_SERVICE_ACCOUNT_JSON."
+            missing=1
+          fi
+
+          if [ "${missing}" -eq 1 ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "configured=true" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve beta build metadata
+        if: steps.config.outputs.configured == 'true'
+        run: |
+          echo "PT_BUILD_CHANNEL=beta" >> "$GITHUB_ENV"
+          echo "PT_BUILD_TIMESTAMP=${BUILD_TIMESTAMP}" >> "$GITHUB_ENV"
+          PT_BUILD_CHANNEL=beta PT_BUILD_TIMESTAMP="${BUILD_TIMESTAMP}" node scripts/resolve-build-metadata.mjs >> "$GITHUB_ENV"
+
+      - name: Setup Node
+        if: steps.config.outputs.configured == 'true'
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Enable Corepack
+        if: steps.config.outputs.configured == 'true'
+        run: corepack enable
+
+      - name: Install dependencies
+        if: steps.config.outputs.configured == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Refresh CWS publisher helper
+        if: steps.config.outputs.configured == 'true'
+        run: |
+          git fetch origin main
+          git checkout origin/main -- scripts/publish-cws.mjs
+
+      - name: Build beta Chrome ZIP
+        if: steps.config.outputs.configured == 'true'
+        run: |
+          pnpm build:chrome
+          node scripts/package-release-assets.mjs chromium
+
+      - name: Locate beta Chromium ZIP
+        if: steps.config.outputs.configured == 'true'
+        run: |
+          CHROMIUM_ZIP_PATH="$(find artifacts -maxdepth 1 -name '*-chromium.zip' | head -n 1)"
+          if [ -z "${CHROMIUM_ZIP_PATH}" ]; then
+            echo "Could not locate beta Chromium ZIP."
+            exit 1
+          fi
+          echo "CHROMIUM_ZIP_PATH=${CHROMIUM_ZIP_PATH}" >> "$GITHUB_ENV"
+
+      - name: Publish beta package to Chrome Web Store
+        if: steps.config.outputs.configured == 'true'
+        run: |
+          node scripts/publish-cws.mjs \
+            --publisher-id "${CWS_PUBLISHER_ID}" \
+            --item-id "${CWS_ITEM_ID}" \
+            --zip-path "${CHROMIUM_ZIP_PATH}"
+
+  edge-stable:
+    name: edge-stable
+    if: ${{ inputs.channel == 'stable' && needs.github-stable.result == 'success' }}
+    needs: github-stable
+    runs-on: ubuntu-latest
+    environment: edge
+    env:
+      RELEASE_TAG: ${{ needs.github-stable.outputs.release_tag }}
+      EDGE_PUBLISH_ENABLED: ${{ vars.EDGE_PUBLISH_ENABLED || secrets.EDGE_PUBLISH_ENABLED }}
+      EDGE_PRODUCT_ID: ${{ secrets.EDGE_PRODUCT_ID }}
+      EDGE_CLIENT_ID: ${{ secrets.EDGE_CLIENT_ID }}
+      EDGE_API_KEY: ${{ secrets.EDGE_API_KEY }}
+      EDGE_PUBLISH_THROTTLE_DAYS: "10"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          ref: refs/tags/${{ needs.github-stable.outputs.release_tag }}
+
+      - name: Trust workspace for git
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Verify tag commit is on main
+        run: |
+          git fetch origin main
+          TAG_COMMIT="$(git rev-list -n 1 "${RELEASE_TAG}")"
+          if git merge-base --is-ancestor "${TAG_COMMIT}" "origin/main"; then
+            exit 0
+          fi
+          # Off-main 4-part metadata revisions (X.Y.Z.REV) are validated by
+          # github-stable's metadata-only guard before this job runs.
+          if printf '%s' "${RELEASE_TAG#v}" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "Revision ${RELEASE_TAG} is an off-main metadata refresh validated upstream; allowing."
+            exit 0
+          fi
+          echo "Tag ${RELEASE_TAG} points to ${TAG_COMMIT}, which is not on origin/main"
+          exit 1
+
+      - name: Check required configuration
+        id: config
+        run: |
+          if [ "${EDGE_PUBLISH_ENABLED}" != "true" ]; then
+            echo "Microsoft Edge Add-ons publishing is paused (EDGE_PUBLISH_ENABLED variable is not 'true')."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ -z "${EDGE_PRODUCT_ID}" ] || [ -z "${EDGE_CLIENT_ID}" ] || [ -z "${EDGE_API_KEY}" ]; then
+            echo "Edge Add-ons publish is not configured: missing EDGE_PRODUCT_ID, EDGE_CLIENT_ID, or EDGE_API_KEY."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "configured=true" >> "$GITHUB_OUTPUT"
+
+      - name: Refresh Edge publisher helpers
+        if: steps.config.outputs.configured == 'true'
+        run: |
+          git fetch origin main
+          git checkout origin/main -- scripts/publish-edge.mjs scripts/resolve-edge-publish-throttle.mjs
+
+      - name: Setup Node
+        if: steps.config.outputs.configured == 'true'
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Resolve Edge publish throttle
+        id: edge_throttle
+        if: steps.config.outputs.configured == 'true'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          node scripts/resolve-edge-publish-throttle.mjs \
+            --release-tag "${RELEASE_TAG}" \
+            --throttle-days "${EDGE_PUBLISH_THROTTLE_DAYS}"
+
+      - name: Resolve stable build metadata
+        if: steps.config.outputs.configured == 'true' && steps.edge_throttle.outputs.publish == 'true'
+        run: |
+          echo "PT_BUILD_CHANNEL=release" >> "$GITHUB_ENV"
+          echo "PT_RELEASE_VERSION=${RELEASE_TAG#v}" >> "$GITHUB_ENV"
+          PT_BUILD_CHANNEL=release PT_RELEASE_VERSION="${RELEASE_TAG#v}" node scripts/resolve-build-metadata.mjs >> "$GITHUB_ENV"
+
+      - name: Enable Corepack
+        if: steps.config.outputs.configured == 'true' && steps.edge_throttle.outputs.publish == 'true'
+        run: corepack enable
+
+      - name: Install dependencies
+        if: steps.config.outputs.configured == 'true' && steps.edge_throttle.outputs.publish == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Build stable Chrome ZIP
+        if: steps.config.outputs.configured == 'true' && steps.edge_throttle.outputs.publish == 'true'
+        run: |
+          pnpm build:chrome
+          node scripts/package-release-assets.mjs chromium
+
+      - name: Publish stable package to Edge Add-ons
+        if: steps.config.outputs.configured == 'true' && steps.edge_throttle.outputs.publish == 'true'
+        run: |
+          node scripts/publish-edge.mjs \
+            --product-id "${EDGE_PRODUCT_ID}" \
+            --zip-path build/artifacts/*-${PT_ARTIFACT_VERSION_LABEL}-chromium.zip \
+            --notes "Privacy Thing ${RELEASE_TAG}"

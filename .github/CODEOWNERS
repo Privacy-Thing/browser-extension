@@ -1,0 +1,22 @@
+# Code owners.
+#
+# This file documents ownership and auto-requests review on the paths below. It is not
+# a security boundary: with a single maintainer the owner owns everything, and without a
+# ruleset requiring code-owner review it only assigns a reviewer. Enforcement comes from
+# the branch and tag rulesets and from the release environments, not from this file.
+
+# Release and CI integrity.
+/.github/                           @TomaszJanusz
+
+# Legal terms.
+/LICENSE.md                         @TomaszJanusz
+/NOTICE.md                          @TomaszJanusz
+/licenses/*                          @TomaszJanusz
+/scripts/legal-templates/*           @TomaszJanusz
+
+# Supply chain.
+/pnpm-lock.yaml                     @TomaszJanusz
+/pnpm-workspace.yaml                @TomaszJanusz
+
+# Generated from upstream data; changes here should come from the generators.
+/src/shared/*.generated.ts          @TomaszJanusz

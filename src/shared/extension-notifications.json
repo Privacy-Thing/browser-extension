@@ -1,0 +1,32 @@
+{
+  "notifications": [
+    {
+      "id": "privacy-thing-rename",
+      "channel": "release",
+      "introducedInVersion": "0.9.0",
+      "title": {
+        "en": "GeoWarp is now {{brand}}"
+      },
+      "message": {
+        "en": [
+          "GeoWarp has a new name: {{brand}}. The extension you know is still here, with the same focus on giving you control over the location and browser information websites can see.",
+          "Thank you for using it and being part of the journey so far. Building this extension has been an extraordinary journey for me, and I’m excited to see what the future brings."
+        ]
+      }
+    },
+    {
+      "id": "notification-center-intro",
+      "channel": "release",
+      "introducedInVersion": "0.9.0",
+      "title": {
+        "en": "Notifications are now in the popup"
+      },
+      "message": {
+        "en": [
+          "{{brand}} now shows important updates and compatibility notices in the popup.",
+          "Opening a notification marks it as read. It remains available until you dismiss it."
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en" class="gw-popup-document">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="/icons/icon-32.png" type="image/png" />
+    <title>Popup</title>
+    <style>
+      html body {
+        width: 360px;
+        min-width: 360px;
+        min-height: 450px;
+        margin: 0;
+      }
+
+      html #app {
+        min-height: 450px;
+      }
+
+      html {
+        background: #f5f3ef;
+        color-scheme: light;
+      }
+
+      html:not([data-theme]) body {
+        visibility: hidden;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        html {
+          background: #0c0d11;
+          color-scheme: dark;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="./popup.tsx"></script>
+  </body>
+</html>

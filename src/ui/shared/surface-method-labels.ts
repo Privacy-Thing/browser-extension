@@ -1,0 +1,65 @@
+import type { SpoofingSurfaceMethodId } from "@/shared/spoofing-surfaces";
+import { t } from "@/ui/i18n";
+
+export const SURFACE_METHOD_LABELS: Record<SpoofingSurfaceMethodId, string> = {
+  "geolocation.getCurrentPosition":
+    t.sidebar.accessed.methods.geolocationGetCurrentPosition,
+  "geolocation.watchPosition": t.sidebar.accessed.methods.geolocationWatchPosition,
+  "geolocation.clearWatch": t.sidebar.accessed.methods.geolocationClearWatch,
+  "geolocation.permissionsQuery":
+    t.sidebar.accessed.methods.geolocationPermissionsQuery,
+  "date.constructor": t.sidebar.accessed.methods.dateConstructor,
+  "date.now": t.sidebar.accessed.methods.dateNow,
+  "date.parse": t.sidebar.accessed.methods.dateParse,
+  "date.getTimezoneOffset": t.sidebar.accessed.methods.dateGetTimezoneOffset,
+  "date.toString": t.sidebar.accessed.methods.dateToString,
+  "date.toLocaleString": t.sidebar.accessed.methods.dateToLocaleString,
+  "intl.constructor": t.sidebar.accessed.methods.intlConstructor,
+  "intl.resolvedOptions": t.sidebar.accessed.methods.intlResolvedOptions,
+  "intl.DateTimeFormat.format": t.sidebar.accessed.methods.intlDateTimeFormatFormat,
+  "intl.DateTimeFormat.formatToParts":
+    t.sidebar.accessed.methods.intlDateTimeFormatFormatToParts,
+  "canvas.getImageData": t.sidebar.accessed.methods.canvasGetImageData,
+  "canvas.toDataURL": t.sidebar.accessed.methods.canvasToDataURL,
+  "canvas.toBlob": t.sidebar.accessed.methods.canvasToBlob,
+  "webGL.readPixels": t.sidebar.accessed.methods.webGLReadPixels,
+  "webGL.getExtension": t.sidebar.accessed.methods.webGLGetExtension,
+  "webGL.getSupportedExtensions":
+    t.sidebar.accessed.methods.webGLGetSupportedExtensions,
+  "webGL.getParameter": t.sidebar.accessed.methods.webGLGetParameter,
+  "audio.getFloatFrequencyData": t.sidebar.accessed.methods.audioGetFloatFrequencyData,
+  "audio.getByteFrequencyData": t.sidebar.accessed.methods.audioGetByteFrequencyData,
+  "audio.getFloatTimeDomainData":
+    t.sidebar.accessed.methods.audioGetFloatTimeDomainData,
+  "audio.getByteTimeDomainData": t.sidebar.accessed.methods.audioGetByteTimeDomainData,
+  "audio.getChannelData": t.sidebar.accessed.methods.audioGetChannelData,
+  "navigator.webdriver": t.sidebar.accessed.methods.navigatorWebdriver,
+  "navigator.hardwareConcurrency":
+    t.sidebar.accessed.methods.navigatorHardwareConcurrency,
+  "navigator.deviceMemory": t.sidebar.accessed.methods.navigatorDeviceMemory,
+  "navigator.maxTouchPoints": t.sidebar.accessed.methods.navigatorMaxTouchPoints,
+  "navigator.platform": t.sidebar.accessed.methods.navigatorPlatform,
+  "navigator.userAgent": t.sidebar.accessed.methods.navigatorUserAgent,
+  "navigator.vendor": t.sidebar.accessed.methods.navigatorVendor,
+  "navigator.appVersion": t.sidebar.accessed.methods.navigatorAppVersion,
+  "screen.width": t.sidebar.accessed.methods.screenWidth,
+  "screen.height": t.sidebar.accessed.methods.screenHeight,
+  "screen.availWidth": t.sidebar.accessed.methods.screenAvailWidth,
+  "screen.availHeight": t.sidebar.accessed.methods.screenAvailHeight,
+  "screen.colorDepth": t.sidebar.accessed.methods.screenColorDepth,
+  "screen.pixelDepth": t.sidebar.accessed.methods.screenPixelDepth,
+  "screen.devicePixelRatio": t.sidebar.accessed.methods.screenDevicePixelRatio,
+  "clientHints.brands": t.sidebar.accessed.methods.clientHintsBrands,
+  "clientHints.mobile": t.sidebar.accessed.methods.clientHintsMobile,
+  "clientHints.platform": t.sidebar.accessed.methods.clientHintsPlatform,
+  "clientHints.toJSON": t.sidebar.accessed.methods.clientHintsToJSON,
+  "clientHints.getHighEntropyValues":
+    t.sidebar.accessed.methods.clientHintsGetHighEntropyValues,
+  "battery.getBattery": t.sidebar.accessed.methods.batteryGetBattery,
+  "webRTC.constructor": t.sidebar.accessed.methods.webRTCConstructor,
+  "webRTC.createOffer": t.sidebar.accessed.methods.webRTCCreateOffer,
+  "webRTC.createAnswer": t.sidebar.accessed.methods.webRTCCreateAnswer,
+  "worker.constructor": t.sidebar.accessed.methods.workerConstructor,
+  "serviceWorker.register": t.sidebar.accessed.methods.serviceWorkerRegister,
+  "sharedWorker.constructor": t.sidebar.accessed.methods.sharedWorkerConstructor,
+};

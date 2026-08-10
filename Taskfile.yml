@@ -1,0 +1,492 @@
+version: "3"
+
+tasks:
+  default:
+    desc: List available tasks
+    cmds:
+      - task --list-all
+
+  lint:
+    desc: Run ESLint
+    cmds:
+      - pnpm exec eslint . --config config/eslint.config.mjs --max-warnings 0 {{.CLI_ARGS}}
+
+  format:
+    desc: Rewrite TypeScript and JavaScript sources with Prettier
+    cmds:
+      - pnpm exec prettier --write {{.FORMAT_GLOBS}} {{.CLI_ARGS}}
+    vars: &format-vars
+      FORMAT_GLOBS: >-
+        "src/**/*.{ts,tsx}"
+        "packages/*/src/**/*.{ts,tsx}"
+        "tests/**/*.ts"
+        "config/**/*.{ts,mjs}"
+        "scripts/**/*.{ts,mjs,js}"
+
+  format:check:
+    desc: Fail if any TypeScript or JavaScript source is not Prettier-formatted
+    cmds:
+      - pnpm exec prettier --check {{.FORMAT_GLOBS}} {{.CLI_ARGS}}
+    vars: *format-vars
+
+  check:
+    desc: Run TypeScript checks
+    cmds:
+      - pnpm exec tsc --noEmit -p tsconfig.json
+
+  check:tools:
+    desc: Run tooling TypeScript checks
+    cmds:
+      - pnpm --filter @privacy-brand/platform-api-conformance exec tsc --noEmit -p tsconfig.json
+
+  check:worker-source:
+    desc: Fail if the committed worker runtime bundle is out of sync with its source
+    cmds:
+      - pnpm --filter @privacy-brand/refract-worker exec tsx src/build-worker-source.ts --check
+
+  check:test-lanes:
+    desc: Validate that every Playwright spec belongs to exactly one E2E ownership lane
+    cmds:
+      - pnpm exec tsx scripts/check-e2e-lanes.ts
+
+  check:test-targets:
+    desc: Validate neutral versus target-dependent Vitest suffixes from the static import graph
+    cmds:
+      - node scripts/check-test-targets.mjs
+
+  check:test-layers:
+    desc: Fail if E2E specs assert CSS, geometry, or translated copy past config/test-layer-budget.json
+    cmds:
+      - node scripts/check-test-layers.mjs
+
+  check:test-determinism:
+    desc: Reject real-time waits and uncontrolled animation frames in unit, E2E, and Storybook tests
+    cmds:
+      - node scripts/check-test-determinism.mjs
+
+  check:amo-metadata:
+    desc: Fail if config/store-listings/amo/stable-metadata.json is out of sync with its sources
+    cmds:
+      - node scripts/build-amo-metadata.mjs --check
+
+  check:cws-listings:
+    desc: Validate CWS title limits and full-description locale parity
+    cmds:
+      - node scripts/check-cws-listings.mjs
+
+  validate:metadata:
+    desc: Validate the generated spoofing catalogs (src/shared/*.generated.ts)
+    cmds:
+      - pnpm exec tsx scripts/validate-generated-metadata.ts
+
+  build:
+    desc: Build Chrome and Firefox bundles
+    cmds:
+      - task: build:chrome
+      - task: build:firefox
+
+  build:chrome:
+    desc: Build Chrome extension bundle
+    deps:
+      - check:worker-source
+    cmds:
+      - node scripts/build-target.mjs chromium build/chrome
+
+  build:firefox:
+    desc: Build Firefox extension bundle
+    deps:
+      - check:worker-source
+    cmds:
+      - node scripts/build-target.mjs firefox build/firefox
+
+  build:firefox:runtime-test:
+    desc: Build Firefox bundle for runtime Playwright suite
+    deps:
+      - check:worker-source
+    env:
+      PT_FIREFOX_RUNTIME_TEST_HOST: 127.0.0.1
+    cmds:
+      - node scripts/build-target.mjs firefox build/firefox
+
+  build:chrome:watch:
+    desc: Watch Chrome extension bundle
+    cmds:
+      - node scripts/chromium-dev-profile.mjs --watch-only
+
+  build:firefox:watch:
+    desc: Watch Firefox extension bundle
+    cmds:
+      - node scripts/firefox-dev-profile.mjs --watch-only
+
+  analyze:bundle-sources:
+    desc: Show top sourcemap sources for budgeted extension bundles
+    cmds:
+      - node scripts/analyze-bundle-sources.mjs {{.CLI_ARGS}}
+
+  audit:performance:
+    desc: Run the local Chromium baseline-versus-Privacy Thing performance audit
+    deps:
+      - build:chrome
+    cmds:
+      - node scripts/run-performance-audit.mjs
+
+  dev:chrome:
+    desc: Run Chrome dev workflow
+    cmds:
+      - node scripts/chromium-dev-profile.mjs
+
+  dev:firefox:
+    desc: Run Firefox dev workflow
+    cmds:
+      - node scripts/firefox-dev-profile.mjs
+
+  start:chrome:
+    desc: Launch Chrome dev profile only
+    cmds:
+      - node scripts/chromium-dev-profile.mjs --launch-only
+
+  start:firefox:
+    desc: Launch Firefox dev profile only
+    cmds:
+      - node scripts/firefox-dev-profile.mjs --launch-only
+
+  test:
+    desc: Run unit and E2E tests
+    cmds:
+      - task: test:unit
+      - task: test:e2e
+
+  test:unit:
+    desc: Run neutral unit tests once, then target-dependent tests for Chromium and Firefox
+    cmds:
+      - node scripts/run-unit-tests.mjs
+
+  test:unit:app:
+    desc: Run app unit tests without api-conformance tooling tests
+    cmds:
+      - pnpm exec vitest run --config config/vitest.config.app.neutral.ts
+      - pnpm exec vitest run --config config/vitest.config.app.chromium.ts
+      - pnpm exec vitest run --config config/vitest.config.app.firefox.ts
+
+  test:unit:tooling:
+    desc: Run api-conformance tooling unit tests
+    cmds:
+      - pnpm exec vitest run --config config/vitest.config.neutral.ts packages/platform-api-conformance/src
+
+  test:unit:coverage:
+    desc: Run unit tests with per-target coverage reports
+    cmds:
+      - node -e "const fs=require('node:fs'); ['build/coverage/neutral','build/coverage/chromium','build/coverage/firefox'].forEach((dir)=>fs.rmSync(dir,{recursive:true,force:true}));"
+      - node scripts/run-unit-tests.mjs --coverage
+      - node scripts/aggregate-coverage.mjs
+
+  test:unit:coverage:app:
+    desc: Run app unit tests with per-target coverage reports
+    cmds:
+      - node -e "const fs=require('node:fs'); ['build/coverage/neutral','build/coverage/chromium','build/coverage/firefox'].forEach((dir)=>fs.rmSync(dir,{recursive:true,force:true}));"
+      - pnpm exec vitest run --config config/vitest.config.app.neutral.ts --coverage.enabled true
+      - pnpm exec vitest run --config config/vitest.config.app.chromium.ts --coverage.enabled true
+      - pnpm exec vitest run --config config/vitest.config.app.firefox.ts --coverage.enabled true
+      - node scripts/aggregate-coverage.mjs
+
+  test:unit:coverage:chrome:
+    desc: Run chrome-target unit tests with coverage
+    cmds:
+      - pnpm exec vitest run --config config/vitest.config.chromium.ts --coverage.enabled true
+
+  test:unit:coverage:firefox:
+    desc: Run firefox-target unit tests with coverage
+    cmds:
+      - pnpm exec vitest run --config config/vitest.config.firefox.ts --coverage.enabled true
+
+  test:unit:changed:
+    desc: Run unit tests only for files changed since origin/main (both compile targets)
+    cmds:
+      - node scripts/run-unit-tests.mjs --changed origin/main
+
+  test:unit:watch:
+    desc: Watch target-neutral unit tests
+    cmds:
+      - pnpm exec vitest --config config/vitest.config.neutral.ts
+
+  test:unit:chrome:
+    desc: Run unit tests compiled with chrome target
+    cmds:
+      - pnpm exec vitest run --config config/vitest.config.chromium.ts
+
+  test:unit:firefox:
+    desc: Run unit tests compiled with firefox target
+    cmds:
+      - pnpm exec vitest run --config config/vitest.config.firefox.ts
+
+  test:e2e:
+    desc: Run the Chromium core E2E lane
+    env:
+      PT_E2E_LANE: core
+      NODE_OPTIONS: --disable-warning=DEP0205
+    cmds:
+      - task: build:chrome
+      - pnpm exec playwright test --config config/playwright.config.ts
+
+  test:e2e:ci:
+    desc: Run Playwright without rebuilding
+    env:
+      PT_E2E_LANE: core
+      NODE_OPTIONS: --disable-warning=DEP0205
+    cmds:
+      - pnpm exec playwright test --config config/playwright.config.ts
+
+  test:e2e:product:
+    desc: "Run product-lane E2E tests only (§F.3: options, popup, state)"
+    env:
+      PT_E2E_LANE: product
+      NODE_OPTIONS: --disable-warning=DEP0205
+    cmds:
+      - task: build:chrome
+      - pnpm exec playwright test --config config/playwright.config.ts
+
+  test:e2e:product:ci:
+    desc: "Run product-lane E2E tests without rebuilding"
+    env:
+      PT_E2E_LANE: product
+      NODE_OPTIONS: --disable-warning=DEP0205
+    cmds:
+      - pnpm exec playwright test --config config/playwright.config.ts
+
+  test:e2e:release:
+    desc: "Run release-lane manual probe tests (§F.3: nightly / release candidate)"
+    env:
+      PT_E2E_LANE: release
+      PT_BROWSERLEAKS: "1"
+      PT_CREEPJS: "1"
+      NODE_OPTIONS: --disable-warning=DEP0205
+    cmds:
+      - task: build:chrome
+      - pnpm exec playwright test --config config/playwright.config.ts
+
+  test:e2e:publish:
+    desc: Run release-gate Playwright suite
+    env:
+      PT_E2E_LANE: publish
+      NODE_OPTIONS: --disable-warning=DEP0205
+    cmds:
+      - task: build:chrome
+      - pnpm exec playwright test --config config/playwright.config.ts
+
+  test:e2e:publish:ci:
+    desc: Run the publish E2E lane without rebuilding
+    env:
+      PT_E2E_LANE: publish
+      NODE_OPTIONS: --disable-warning=DEP0205
+    cmds:
+      - pnpm exec playwright test --config config/playwright.config.ts
+
+  test:build-contracts:
+    desc: Build both targets and verify manifest, licensing, marker, and bundle-budget contracts
+    cmds:
+      - task: build
+      - task: test:build-contracts:ci
+
+  test:build-contracts:ci:
+    desc: Verify build contracts against existing Chromium and Firefox artifacts
+    cmds:
+      - pnpm exec vitest run --config config/vitest.config.build-contracts.ts
+
+  test:e2e:runtime:firefox:
+    desc: Run Firefox runtime Playwright suite
+    env:
+      PT_FIREFOX_RUNTIME_TEST_HOST: 127.0.0.1
+      NODE_OPTIONS: --disable-warning=DEP0205
+    cmds:
+      - task: build:firefox:runtime-test
+      - node scripts/run-firefox-runtime-test.mjs {{.CLI_ARGS}}
+
+  test:e2e:runtime:firefox:ci:
+    desc: Run Firefox runtime Playwright suite without rebuilding
+    env:
+      PT_FIREFOX_RUNTIME_TEST_HOST: 127.0.0.1
+      PT_FIREFOX_RUNTIME_WORKERS: "3"
+      NODE_OPTIONS: --disable-warning=DEP0205
+    cmds:
+      - node scripts/run-firefox-runtime-test.mjs {{.CLI_ARGS}}
+
+  test:e2e:browserleaks:
+    desc: Run manual BrowserLeaks harness
+    env:
+      PT_E2E_LANE: release
+      PT_BROWSERLEAKS: "1"
+      NODE_OPTIONS: --disable-warning=DEP0205
+    cmds:
+      - task: build:chrome
+      - pnpm exec playwright test --config config/playwright.config.ts tests/e2e/browserleaks-manual.spec.ts --headed
+
+  verify:
+    desc: Run the full local CI-equivalent suite
+    cmds:
+      - task: lint
+      - task: format:check
+      - task: check
+      - task: check:tools
+      - task: check:worker-source
+      - task: check:test-lanes
+      - task: check:test-targets
+      - task: check:test-layers
+      - task: check:test-determinism
+      - task: check:amo-metadata
+      - task: check:cws-listings
+      - task: validate:metadata
+      - task: test:unit
+      - task: test:storybook
+      - task: build
+      - task: test:build-contracts:ci
+      - task: test:e2e:ci
+      - task: test:e2e:product:ci
+      - task: test:e2e:runtime:firefox
+
+  verify:quick:
+    desc: Run the fast local verification suite
+    cmds:
+      - task: lint
+      - task: format:check
+      - task: check
+      - task: check:tools
+      - task: check:worker-source
+      - task: check:test-lanes
+      - task: check:test-targets
+      - task: check:test-layers
+      - task: check:test-determinism
+      - task: check:amo-metadata
+      - task: check:cws-listings
+      - task: validate:metadata
+      - task: test:unit
+      - task: build
+      - task: test:build-contracts:ci
+      - pnpm exec playwright test --config config/playwright.config.ts --list
+
+  verify:product:
+    desc: "Run product-lane verification (§F.3: lint + unit + product E2E)"
+    cmds:
+      - task: lint
+      - task: check
+      - task: test:unit
+      - task: test:storybook
+      - task: test:e2e:product
+
+  verify:publish:
+    desc: Run the publish-workflow verification suite
+    cmds:
+      - task: lint
+      - task: check
+      - task: check:tools
+      - task: check:worker-source
+      - task: check:test-lanes
+      - task: check:test-targets
+      - task: check:test-layers
+      - task: check:test-determinism
+      - task: check:amo-metadata
+      - task: check:cws-listings
+      - task: validate:metadata
+      - task: test:unit:app
+      - task: test:storybook
+      - task: build
+      - task: test:build-contracts:ci
+      - task: test:e2e:publish:ci
+
+  package:
+    desc: Package Chrome and Firefox artifacts
+    cmds:
+      - task: package:chrome
+      - task: package:firefox
+
+  package:chrome:
+    desc: Package Chrome artifacts
+    cmds:
+      - task: build:chrome
+      - node scripts/package-release-assets.mjs chromium
+
+  package:firefox:
+    desc: Package Firefox artifacts
+    cmds:
+      - task: build:firefox
+      - node scripts/package-release-assets.mjs firefox
+
+  package:source:
+    desc: Package source archive
+    cmds:
+      - node scripts/package-source-code.mjs
+
+  preview:
+    desc: Run Vite preview server
+    cmds:
+      - pnpm exec vite preview --config config/vite.config.ts
+
+  storybook:
+    desc: Run Storybook dev server
+    cmds:
+      - pnpm exec storybook dev -p 6006
+
+  storybook:build:
+    desc: Build Storybook static output
+    cmds:
+      - pnpm exec storybook build -o build/storybook-static
+
+  test:storybook:
+    desc: Run Storybook browser interaction tests
+    cmds:
+      - pnpm exec vitest run --config vitest.storybook.config.ts
+
+  generate:icons:
+    desc: Generate icon assets
+    cmds:
+      - node scripts/generate-icon-assets.mjs
+
+  generate:amo-metadata:
+    desc: Regenerate config/store-listings/amo/stable-metadata.json from its sources
+    cmds:
+      - node scripts/build-amo-metadata.mjs
+
+  generate:worker-source:
+    desc: Regenerate the worker runtime bundle from its source (commit the result)
+    cmds:
+      - pnpm --filter @privacy-brand/refract-worker exec tsx src/build-worker-source.ts
+
+  generate:firefox-update-manifest:
+    desc: Generate Firefox update manifest
+    cmds:
+      - node scripts/generate-firefox-update-manifest.mjs {{.CLI_ARGS}}
+
+  generate:legal:third-party-notices:
+    desc: Generate third-party notices for direct production dependencies
+    cmds:
+      - node scripts/generate-third-party-notices.mjs {{.CLI_ARGS}}
+
+  generate:legal:
+    desc: Generate project legal files and third-party notices
+    cmds:
+      - node scripts/generate-legal-files.mjs {{.CLI_ARGS}}
+      - node scripts/generate-third-party-notices.mjs
+
+  changelog:promote:
+    desc: Promote the unreleased changelog section
+    cmds:
+      - node scripts/promote-unreleased-changelog.mjs --write {{.CLI_ARGS}}
+
+  test:api-conformance:
+    desc: Run API conformance tooling
+    cmds:
+      - pnpm --filter @privacy-brand/platform-api-conformance exec tsx src/index.ts {{.CLI_ARGS}}
+
+  build:e2e-assets:
+    desc: Transitional alias for build
+    cmds:
+      - task: build
+
+  package:release:
+    desc: Transitional alias for package
+    cmds:
+      - task: package
+
+  test:e2e:firefox-runtime:
+    desc: Transitional alias for test:e2e:runtime:firefox
+    cmds:
+      - task: test:e2e:runtime:firefox

@@ -1,0 +1,920 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+[data-radix-popper-content-wrapper]:has([role="tooltip"]) {
+  pointer-events: none !important;
+}
+
+/*
+  CSS variables defined outside @layer base so they are always injected
+  regardless of preflight being disabled.
+*/
+
+@property --gw-animated-border-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 45deg;
+}
+
+@property --gw-animated-border-boost-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@property --gw-animated-border-trail-band {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 9%;
+}
+
+/* Animated dimensions for an accent halo. Registered so its box-shadow
+   recomposes smoothly each frame, like the ring's custom properties. */
+@property --gw-animated-accent-halo-intensity {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 1;
+}
+
+@property --gw-animated-accent-halo-blur {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 192px;
+}
+
+/* ─── Light theme ───────────────────────────────────────────────────────────── */
+
+:root,
+[data-theme="light"] {
+  /* Surfaces */
+  --background:           0 0% 98%;       /* #FAFAFA */
+  --foreground:           240 10% 9%;     /* #13141A */
+
+  --card:                 0 0% 100%;
+  --card-foreground:      240 10% 9%;
+
+  --popover:              0 0% 100%;
+  --popover-foreground:   240 10% 9%;
+
+  /* Brand */
+  --primary:              165 82% 28%;    /* deep teal */
+  --primary-foreground:   0 0% 100%;
+
+  /* Neutrals */
+  --secondary:            240 5% 96%;     /* #F4F4F5 */
+  --secondary-foreground: 240 6% 28%;
+
+  --muted:                240 5% 96%;
+  --muted-foreground:     240 4% 46%;     /* #71717A */
+
+  --accent:               240 5% 94%;
+  --accent-foreground:    240 10% 9%;
+
+  /* Destructive */
+  --destructive:          4 86% 44%;
+  --destructive-foreground: 0 0% 100%;
+
+  /* Structure */
+  --border:               240 6% 90%;     /* #E4E4E7 */
+  --input:                240 6% 90%;
+  --ring:                 165 82% 28%;
+  --radius:               0.5rem;
+
+  /* Tone colors */
+  --tone-info-bg:         168 60% 94%;
+  --tone-info-text:       168 90% 22%;
+  --tone-info-border:     168 40% 82%;
+
+  --tone-success-bg:      142 50% 94%;
+  --tone-success-text:    142 72% 26%;
+  --tone-success-border:  142 36% 80%;
+
+  --tone-error-bg:        4 72% 96%;
+  --tone-error-text:      4 76% 40%;
+  --tone-error-border:    4 50% 86%;
+
+  --tone-warning-bg:      38 80% 95%;
+  --tone-warning-text:    32 90% 32%;
+  --tone-warning-border:  38 60% 82%;
+
+  --tone-neutral-bg:      240 5% 96%;
+  --tone-neutral-text:    240 4% 40%;
+  --tone-neutral-border:  240 6% 88%;
+
+  --scrollbar-track:      hsl(var(--accent) / 0.65);
+  --scrollbar-thumb:      hsl(var(--ring) / 0.78);
+  --scrollbar-thumb-hover:hsl(var(--ring) / 0.92);
+  --gw-form-field-surface: hsl(var(--background));
+  --gw-form-field-hover-surface: hsl(var(--accent) / 0.04);
+  --gw-form-panel-surface: hsl(var(--card));
+  --gw-form-overlay-surface: hsl(var(--popover));
+  --gw-form-foreground: hsl(var(--foreground));
+  --gw-form-muted-foreground: hsl(var(--muted-foreground));
+  --gw-form-border-color: hsl(var(--input));
+  --gw-form-border-hover-color: hsl(var(--ring) / 0.6);
+  --gw-form-focus-offset-color: var(--gw-form-field-surface);
+  --gw-form-focus-ring-color: hsl(var(--ring) / 0.6);
+  --gw-form-chrome-border-color: hsl(var(--ring) / 0.6);
+  --gw-form-chrome-glow-color: hsl(var(--ring) / 0.6);
+  --gw-form-overlay-shadow-color: rgba(0, 0, 0, 0.18);
+  --gw-form-panel-shadow-color: rgba(0, 0, 0, 0.12);
+  --gw-form-panel-inset-highlight-color: rgba(255, 255, 255, 0.03);
+}
+
+/* ─── Dark theme — Linear/Vercel zinc aesthetic ─────────────────────────────── */
+
+[data-theme="dark"] {
+  /* Surfaces — 5-level hierarchy */
+  --background:           240 6% 5%;      /* #0C0C10 — deepest */
+  --foreground:           0 0% 95%;       /* #F2F2F2 */
+
+  --card:                 240 5% 8%;      /* #131318 — raised surface */
+  --card-foreground:      0 0% 95%;
+
+  --popover:              240 5% 11%;     /* #19191F — floating surface */
+  --popover-foreground:   0 0% 95%;
+
+  /* Brand */
+  --primary:              168 70% 46%;    /* teal — the single high-sat accent */
+  --primary-foreground:   240 10% 5%;
+
+  /* Neutrals */
+  --secondary:            240 4% 13%;     /* #1E1E22 */
+  --secondary-foreground: 240 5% 76%;
+
+  --muted:                240 4% 13%;
+  --muted-foreground:     240 5% 56%;     /* #868692 */
+
+  --accent:               240 4% 16%;     /* hover surface */
+  --accent-foreground:    0 0% 95%;
+
+  /* Destructive */
+  --destructive:          4 86% 44%;
+  --destructive-foreground: 0 0% 100%;
+
+  /* Structure */
+  --border:               240 4% 18%;     /* #27272D — barely-there borders */
+  --input:                240 4% 18%;
+  --ring:                 168 70% 46%;
+
+  /* Tone colors */
+  --tone-info-bg:         168 28% 11%;
+  --tone-info-text:       168 58% 62%;
+  --tone-info-border:     168 24% 20%;
+
+  --tone-success-bg:      142 24% 11%;
+  --tone-success-text:    142 50% 58%;
+  --tone-success-border:  142 20% 20%;
+
+  --tone-error-bg:        4 34% 13%;
+  --tone-error-text:      4 70% 65%;
+  --tone-error-border:    4 26% 24%;
+
+  --tone-warning-bg:      35 34% 12%;
+  --tone-warning-text:    38 76% 62%;
+  --tone-warning-border:  35 26% 22%;
+
+  --tone-neutral-bg:      240 5% 12%;
+  --tone-neutral-text:    240 4% 60%;
+  --tone-neutral-border:  240 4% 20%;
+
+  --scrollbar-track:      hsl(var(--accent) / 0.72);
+  --scrollbar-thumb:      hsl(var(--ring) / 0.82);
+  --scrollbar-thumb-hover:hsl(var(--ring) / 0.98);
+  --gw-form-field-surface: hsl(var(--background));
+  --gw-form-field-hover-surface: hsl(var(--accent) / 0.04);
+  --gw-form-panel-surface: hsl(var(--card));
+  --gw-form-overlay-surface: hsl(var(--popover));
+  --gw-form-foreground: hsl(var(--foreground));
+  --gw-form-muted-foreground: hsl(var(--muted-foreground));
+  --gw-form-border-color: hsl(var(--input));
+  --gw-form-border-hover-color: hsl(var(--ring) / 0.6);
+  --gw-form-focus-offset-color: var(--gw-form-field-surface);
+  --gw-form-focus-ring-color: hsl(var(--ring) / 0.6);
+  --gw-form-chrome-border-color: hsl(var(--ring) / 0.6);
+  --gw-form-chrome-glow-color: hsl(var(--ring) / 0.6);
+  --gw-form-overlay-shadow-color: rgba(0, 0, 0, 0.42);
+  --gw-form-panel-shadow-color: rgba(0, 0, 0, 0.2);
+  --gw-form-panel-inset-highlight-color: rgba(255, 255, 255, 0.03);
+}
+
+/* ─── color-scheme ──────────────────────────────────────────────────────────── */
+
+:root,
+[data-theme="light"] { color-scheme: light; }
+[data-theme="dark"]  { color-scheme: dark; }
+
+/* ─── Base resets ───────────────────────────────────────────────────────────── */
+
+@layer base {
+  * { border-color: hsl(var(--border)); }
+}
+
+/* ─── Dialog Border Animation ─────────────────────────────────────────────── */
+
+.gw-dialog-overlay {
+  /* Light skin: tint the scrim with the surface background token
+     (hsl(var(--background)) = #FAFAFA) at 0.6 alpha. */
+  background-color: hsl(var(--background) / 0.6);
+  animation-fill-mode: both;
+}
+
+[data-theme="dark"] .gw-dialog-overlay {
+  /* Dark skin keeps the neutral black scrim. */
+  background-color: rgb(0 0 0 / 0.6);
+}
+
+.gw-dialog-overlay[data-state="open"] {
+  animation: gw-dialog-overlay-open 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.gw-dialog-overlay[data-state="closed"] {
+  animation: gw-dialog-overlay-close 180ms cubic-bezier(0.7, 0, 0.84, 0) both;
+}
+
+:root[data-reduce-motion] .gw-dialog-overlay,
+:root[data-reduce-motion] .gw-dialog-content {
+  animation: none;
+  will-change: auto;
+}
+
+.gw-dialog-content {
+  --gw-dialog-open-duration: 250ms;
+  --gw-dialog-close-duration: 250ms;
+  --gw-dialog-open-scale-x: 0.975;
+  --gw-dialog-open-scale-y: 0.8;
+  --gw-dialog-close-scale-x: var(--gw-dialog-open-scale-x);
+  --gw-dialog-close-scale-y: var(--gw-dialog-open-scale-y);
+  transform-origin: center center;
+  will-change: transform, opacity;
+}
+
+.gw-dialog-content[data-state="open"] {
+  animation:
+    gw-dialog-content-open var(--gw-dialog-open-duration) cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.gw-dialog-content[data-state="closed"] {
+  animation:
+    gw-dialog-content-close var(--gw-dialog-close-duration) cubic-bezier(0.64, 0, 0.78, 0) both;
+}
+
+@keyframes gw-dialog-overlay-open {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes gw-dialog-overlay-close {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes gw-dialog-content-open {
+  from {
+    opacity: 0;
+    transform:
+      translate(-50%, -50%)
+      scaleX(var(--gw-dialog-open-scale-x))
+      scaleY(var(--gw-dialog-open-scale-y));
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scaleX(1) scaleY(1);
+  }
+}
+
+@keyframes gw-dialog-content-close {
+  from {
+    opacity: 1;
+    transform: translate(-50%, -50%) scaleX(1) scaleY(1);
+  }
+
+  to {
+    opacity: 0;
+    transform:
+      translate(-50%, -50%)
+      scaleX(var(--gw-dialog-close-scale-x))
+      scaleY(var(--gw-dialog-close-scale-y));
+  }
+}
+
+/*
+  Ring timing is tuned from product shorthand such as:
+  - "14s / obrót"
+  - "2 obroty"
+  - "krótkie / średnie / długie przejście"
+
+  That shorthand does not map to a single CSS animation.
+
+  The animated accent ring is a composition of:
+  - `gw-animated-border-boost`: one-shot additive offset for the startup push
+  - `gw-animated-border-rotate`: steady orbit that runs from frame 1
+  - `gw-animated-border-breathe`: contrast pulse tied to the steady orbit
+
+  Conversion rules:
+  - requested startup duration = seconds-per-rotation * startup-rotation-count
+  - requested startup rotation count = boost keyframe target / 360deg
+  - fade preset = `--gw-dialog-boost-easing`
+  - settled cadence = `--gw-dialog-animation-duration`
+
+  Important nuance: perceived startup speed is `boost + steady orbit`, because
+  the steady orbit never waits for the boost to finish. Changing boost values
+  alone does not make startup literally equal to the shorthand cadence.
+
+  Popup cards use the same model but may intentionally keep different numbers.
+  That divergence is deliberate: do not retune one surface to match the other
+  without checking how both read in motion.
+*/
+
+.gw-animated-accent-border,
+.gw-animated-accent-surface {
+  isolation: isolate;
+  background-clip: padding-box;
+}
+
+/*
+  Single source of truth for the dialog "surface" look: the frame fill, the
+  transparent border that opens a gap for the animated ring, and the corner
+  radius. Consumed by BOTH the Radix DialogContent
+  (packages/ui/src/ui/dialog.tsx) and the onboarding wizard frame
+  (src/ui/options/components/onboarding/WelcomeWizard.tsx) so the two surfaces
+  cannot drift apart. The accent colours, border width, mask padding and corner
+  radius variables it reads live on .gw-dialog-content--animated-border; this rule
+  is purely the static surface that consumes them.
+*/
+.gw-dialog-surface {
+  border-style: solid;
+  border-width: var(--gw-dialog-border-width);
+  border-color: transparent;
+  border-radius: var(--gw-dialog-corner-radius);
+  background-color: hsl(var(--background));
+}
+
+/*
+  Surface layer for the reusable halo: a depth shadow creates the dark visual
+  separation between the surface and its coloured halo. Consumers tune the
+  geometry through custom properties without duplicating the layer stack.
+*/
+.gw-animated-accent-halo-surface,
+.gw-animated-accent-surface {
+  isolation: isolate;
+  box-shadow:
+    var(--gw-animated-accent-halo-depth-shadow, 0 28px 88px rgba(0, 0, 0, 0.34)),
+    0 0 0 1px var(--gw-animated-accent-halo-outline-color, transparent);
+}
+
+/*
+  Reusable breathing accent halo. It lives on a dedicated pseudo-element so a
+  surface can keep its own open/close animation. Outer box-shadow paints only
+  outside the silhouette, while the opaque surface covers its inner portion.
+*/
+.gw-animated-accent-halo::after,
+.gw-animated-accent-surface::after {
+  content: "";
+  position: absolute;
+  inset: calc(0px - var(--gw-animated-accent-halo-gap, 0px));
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: 0 0 var(--gw-animated-accent-halo-blur, 192px)
+    color-mix(in srgb, var(--gw-animated-accent-halo-source)
+      calc(var(--gw-animated-accent-halo-strength, 34%) * var(--gw-animated-accent-halo-intensity, 1)),
+      transparent);
+  animation: gw-animated-accent-halo-breathe var(--gw-animated-border-animation-duration, 14s) linear infinite;
+}
+
+:root[data-reduce-motion] .gw-animated-accent-halo::after,
+:root[data-reduce-motion] .gw-animated-accent-surface::after {
+  animation: none;
+}
+
+.gw-dialog-content--animated-border {
+  --gw-animated-border-angle: 45deg;
+  --gw-animated-border-boost-angle: 0deg;
+  --gw-animated-border-core-band: 2.8%;
+  --gw-animated-border-trail-band: 9%;
+  --gw-animated-border-mask-padding: 3px;
+  --gw-animated-border-corner-radius: var(--gw-dialog-corner-radius);
+  --gw-animated-border-boost-duration: 28s;
+  --gw-animated-border-boost-easing: cubic-bezier(0.18, 0.52, 0.3, 1);
+  --gw-animated-border-animation-duration: 14s;
+  --gw-animated-border-accent-base: var(--gw-dialog-accent-base);
+  --gw-animated-border-accent-trail: var(--gw-dialog-accent-trail);
+  --gw-animated-border-accent-light: var(--gw-dialog-accent-light);
+  --gw-animated-border-accent-peak: var(--gw-dialog-accent-peak);
+  --gw-dialog-border-width: 4px;
+  --gw-dialog-corner-radius: 0px;
+  --gw-dialog-accent-source: var(--gw-dialog-accent-color, hsl(var(--primary)));
+  --gw-animated-border-static-accent: var(--gw-dialog-accent-source);
+  --gw-dialog-accent-base: color-mix(in srgb, var(--gw-dialog-accent-source) 15%, transparent);
+  --gw-dialog-accent-trail: color-mix(in srgb, var(--gw-dialog-accent-source) 35%, transparent);
+  --gw-dialog-accent-light: var(--gw-dialog-accent-source);
+  --gw-dialog-accent-peak: color-mix(in srgb, var(--gw-dialog-accent-source) 82%, white);
+  --gw-dialog-shadow-accent-border: color-mix(in srgb, var(--gw-dialog-accent-source) 16%, transparent);
+  --gw-animated-accent-halo-source: var(--gw-dialog-accent-source);
+  --gw-animated-accent-halo-outline-color: var(--gw-dialog-shadow-accent-border);
+  /* Toned resting strength; the breathe keyframe scales it. */
+  --gw-animated-accent-halo-strength: 34%;
+}
+
+@media (min-width: 640px) {
+  .gw-dialog-content--animated-border {
+    --gw-animated-border-corner-radius: var(--radius);
+    --gw-dialog-corner-radius: var(--radius);
+  }
+}
+
+:root:not([data-theme="dark"]) .gw-dialog-content--animated-border,
+[data-theme="light"] .gw-dialog-content--animated-border {
+  /* Monotonic toward the centre like the dark skin: base → trail → light → peak
+     increases in saturation (less white), so the peak is the most vivid point
+     rather than washing out lighter than its flanks. peak/light mirrors the
+     dark skin's 70/55 ratio. */
+  --gw-dialog-accent-base: color-mix(in srgb, var(--gw-dialog-accent-source) 26%, white);
+  --gw-dialog-accent-trail: color-mix(in srgb, var(--gw-dialog-accent-source) 52%, white);
+  --gw-dialog-accent-light: color-mix(in srgb, var(--gw-dialog-accent-source) 78%, white);
+  --gw-dialog-accent-peak: var(--gw-dialog-accent-source);
+}
+
+[data-theme="dark"] .gw-dialog-content--animated-border {
+  --gw-dialog-accent-light: color-mix(in srgb, var(--gw-dialog-accent-source) 55%, transparent);
+  --gw-dialog-accent-peak: color-mix(in srgb, var(--gw-dialog-accent-source) 70%, transparent);
+}
+
+.gw-animated-accent-border::before,
+.gw-animated-accent-surface::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  box-sizing: border-box;
+  z-index: 0;
+  padding: var(--gw-animated-border-mask-padding);
+  border-radius: calc(var(--gw-animated-border-corner-radius) - 1px);
+  pointer-events: none;
+  background: var(--gw-animated-border-background, conic-gradient(
+    from calc(var(--gw-animated-border-boost-angle) + var(--gw-animated-border-angle) - 90deg),
+    var(--gw-animated-border-accent-base) 0%,
+    var(--gw-animated-border-accent-base) calc(25% - calc(var(--gw-animated-border-trail-band) * 1.55)),
+    var(--gw-animated-border-accent-trail) calc(25% - calc(var(--gw-animated-border-trail-band) * 0.9)),
+    var(--gw-animated-border-accent-light) calc(25% - calc(var(--gw-animated-border-core-band) * 0.55)),
+    var(--gw-animated-border-accent-peak) calc(25% - calc(var(--gw-animated-border-core-band) * 0.18)),
+    var(--gw-animated-border-accent-peak) calc(25% + calc(var(--gw-animated-border-core-band) * 0.18)),
+    var(--gw-animated-border-accent-light) calc(25% + calc(var(--gw-animated-border-core-band) * 0.55)),
+    var(--gw-animated-border-accent-trail) calc(25% + calc(var(--gw-animated-border-trail-band) * 0.9)),
+    var(--gw-animated-border-accent-base) calc(25% + calc(var(--gw-animated-border-trail-band) * 1.55)),
+    var(--gw-animated-border-accent-base) calc(75% - calc(var(--gw-animated-border-trail-band) * 1.55)),
+    var(--gw-animated-border-accent-trail) calc(75% - calc(var(--gw-animated-border-trail-band) * 0.9)),
+    var(--gw-animated-border-accent-light) calc(75% - calc(var(--gw-animated-border-core-band) * 0.55)),
+    var(--gw-animated-border-accent-peak) calc(75% - calc(var(--gw-animated-border-core-band) * 0.18)),
+    var(--gw-animated-border-accent-peak) calc(75% + calc(var(--gw-animated-border-core-band) * 0.18)),
+    var(--gw-animated-border-accent-light) calc(75% + calc(var(--gw-animated-border-core-band) * 0.55)),
+    var(--gw-animated-border-accent-trail) calc(75% + calc(var(--gw-animated-border-trail-band) * 0.9)),
+    var(--gw-animated-border-accent-base) calc(75% + calc(var(--gw-animated-border-trail-band) * 1.55)),
+    var(--gw-animated-border-accent-base) 100%
+  ));
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  animation: var(--gw-animated-border-animation,
+    gw-animated-border-rotate var(--gw-animated-border-animation-duration) linear infinite,
+    gw-animated-border-breathe var(--gw-animated-border-animation-duration) linear infinite);
+}
+
+.gw-animated-accent-border[data-animation-timing="steady"],
+.gw-animated-accent-surface[data-animation-timing="steady"] {
+  --gw-animated-border-animation:
+    gw-animated-border-rotate var(--gw-animated-border-animation-duration) linear infinite,
+    gw-animated-border-breathe var(--gw-animated-border-animation-duration) linear infinite;
+}
+
+.gw-animated-accent-border[data-animation-timing="boosted"],
+.gw-animated-accent-surface[data-animation-timing="boosted"] {
+  --gw-animated-border-animation:
+    gw-animated-border-boost var(--gw-animated-border-boost-duration) var(--gw-animated-border-boost-easing) 1 forwards,
+    gw-animated-border-rotate var(--gw-animated-border-animation-duration) linear infinite,
+    gw-animated-border-breathe var(--gw-animated-border-animation-duration) linear infinite;
+}
+
+.gw-animated-accent-border[data-animation-timing="urgent"],
+.gw-animated-accent-surface[data-animation-timing="urgent"] {
+  --gw-animated-border-boost-duration: 8s;
+  --gw-animated-border-animation-duration: 8s;
+  --gw-animated-border-animation:
+    gw-animated-border-boost var(--gw-animated-border-boost-duration) var(--gw-animated-border-boost-easing) 1 forwards,
+    gw-animated-border-rotate var(--gw-animated-border-animation-duration) linear infinite,
+    gw-animated-border-breathe var(--gw-animated-border-animation-duration) linear infinite;
+}
+
+:root[data-reduce-motion] .gw-animated-accent-border,
+:root[data-reduce-motion] .gw-animated-accent-surface {
+  --gw-animated-border-animation: none;
+  --gw-animated-border-background: var(--gw-animated-border-static-accent);
+}
+
+@keyframes gw-animated-border-boost {
+  from {
+    --gw-animated-border-boost-angle: 0deg;
+  }
+
+  /* 360deg = 1 requested startup rotation. Keep this target in sync with the documented shorthand. */
+  to {
+    --gw-animated-border-boost-angle: 720deg;
+  }
+}
+
+@keyframes gw-animated-border-rotate {
+  from {
+    --gw-animated-border-angle: 45deg;
+  }
+
+  to {
+    --gw-animated-border-angle: 405deg;
+  }
+}
+
+@keyframes gw-animated-border-breathe {
+  0%,
+  25%,
+  50%,
+  75%,
+  100% {
+    --gw-animated-border-trail-band: 9%;
+  }
+
+  9.5%,
+  34.5%,
+  59.5%,
+  84.5% {
+    --gw-animated-border-trail-band: 13.25%;
+  }
+
+  11.75%,
+  36.75%,
+  61.75%,
+  86.75% {
+    --gw-animated-border-trail-band: 12.9%;
+  }
+
+  15.5%,
+  40.5%,
+  65.5%,
+  90.5% {
+    --gw-animated-border-trail-band: 9%;
+  }
+}
+
+/* Halo breathe: mirrors gw-animated-border-breathe's timing 1:1 (same duration var,
+   linear easing, and keyframe stops) so the halo swells on the exact beat as the
+   ring's highlight. Swing: trough 0.9x/184px → ~1.1x/200px. */
+@keyframes gw-animated-accent-halo-breathe {
+  0%,
+  25%,
+  50%,
+  75%,
+  100% {
+    --gw-animated-accent-halo-intensity: 0.9;
+    --gw-animated-accent-halo-blur: var(--gw-animated-accent-halo-rest-blur, 184px);
+  }
+
+  9.5%,
+  34.5%,
+  59.5%,
+  84.5% {
+    --gw-animated-accent-halo-intensity: 1.1;
+    --gw-animated-accent-halo-blur: var(--gw-animated-accent-halo-peak-blur, 200px);
+  }
+
+  11.75%,
+  36.75%,
+  61.75%,
+  86.75% {
+    --gw-animated-accent-halo-intensity: 1.08;
+    --gw-animated-accent-halo-blur: var(--gw-animated-accent-halo-settle-blur, 198px);
+  }
+
+  15.5%,
+  40.5%,
+  65.5%,
+  90.5% {
+    --gw-animated-accent-halo-intensity: 0.9;
+    --gw-animated-accent-halo-blur: var(--gw-animated-accent-halo-rest-blur, 184px);
+  }
+}
+
+@keyframes gw-welcome-step-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.gw-welcome-step-content {
+  animation: gw-welcome-step-enter 180ms ease-out;
+}
+
+:root[data-reduce-motion] .gw-welcome-step-content {
+  animation: none;
+}
+
+/* ─── High contrast ────────────────────────────────────────────────────────── */
+
+.high-contrast {
+  --foreground:           240 10% 4%;
+  --card-foreground:      240 10% 4%;
+  --popover-foreground:   240 10% 4%;
+  --secondary:            240 7% 92%;
+  --secondary-foreground: 240 10% 14%;
+  --muted:                240 8% 92%;
+  --muted-foreground:     240 4% 28%;
+  --accent:               240 8% 90%;
+  --accent-foreground:    240 10% 6%;
+  --border:               240 6% 74%;
+  --input:                240 6% 74%;
+  --ring:                 165 90% 24%;
+
+  --tone-info-bg:         168 72% 90%;
+  --tone-info-text:       168 100% 16%;
+  --tone-info-border:     168 52% 58%;
+
+  --tone-success-bg:      142 54% 90%;
+  --tone-success-text:    142 86% 18%;
+  --tone-success-border:  142 44% 54%;
+
+  --tone-error-bg:        4 88% 93%;
+  --tone-error-text:      4 90% 26%;
+  --tone-error-border:    4 62% 56%;
+
+  --tone-warning-bg:      38 92% 91%;
+  --tone-warning-text:    32 100% 20%;
+  --tone-warning-border:  38 72% 54%;
+
+  --tone-neutral-bg:      240 7% 92%;
+  --tone-neutral-text:    240 8% 20%;
+  --tone-neutral-border:  240 10% 58%;
+
+  --scrollbar-track:      hsl(var(--muted));
+  --scrollbar-thumb:      hsl(var(--ring));
+  --scrollbar-thumb-hover:hsl(var(--foreground));
+  --gw-form-field-surface: hsl(var(--background));
+  --gw-form-field-hover-surface: hsl(var(--accent) / 0.04);
+  --gw-form-panel-surface: hsl(var(--card));
+  --gw-form-overlay-surface: hsl(var(--popover));
+  --gw-form-foreground: hsl(var(--foreground));
+  --gw-form-muted-foreground: hsl(var(--muted-foreground));
+  --gw-form-border-color: hsl(var(--input));
+  --gw-form-border-hover-color: hsl(var(--ring) / 0.6);
+  --gw-form-focus-offset-color: var(--gw-form-field-surface);
+  --gw-form-focus-ring-color: hsl(var(--ring) / 0.6);
+  --gw-form-chrome-border-color: hsl(var(--ring) / 0.6);
+  --gw-form-chrome-glow-color: hsl(var(--ring) / 0.6);
+  --gw-form-overlay-shadow-color: rgba(0, 0, 0, 0.18);
+  --gw-form-panel-shadow-color: rgba(0, 0, 0, 0.12);
+  --gw-form-panel-inset-highlight-color: rgba(255, 255, 255, 0.03);
+}
+
+[data-theme="dark"].high-contrast,
+[data-theme="dark"] .high-contrast {
+  --foreground:           0 0% 100%;
+  --card-foreground:      0 0% 100%;
+  --popover-foreground:   0 0% 100%;
+  --secondary:            240 5% 18%;
+  --secondary-foreground: 0 0% 94%;
+  --muted:                240 5% 16%;
+  --muted-foreground:     240 5% 76%;
+  --accent:               240 6% 21%;
+  --accent-foreground:    0 0% 100%;
+  --border:               240 4% 36%;
+  --input:                240 4% 36%;
+  --ring:                 168 84% 62%;
+
+  --tone-info-bg:         168 30% 16%;
+  --tone-info-text:       168 86% 78%;
+  --tone-info-border:     168 44% 44%;
+
+  --tone-success-bg:      142 28% 16%;
+  --tone-success-text:    142 74% 78%;
+  --tone-success-border:  142 44% 44%;
+
+  --tone-error-bg:        4 38% 16%;
+  --tone-error-text:      4 88% 82%;
+  --tone-error-border:    4 54% 48%;
+
+  --tone-warning-bg:      35 40% 16%;
+  --tone-warning-text:    38 94% 80%;
+  --tone-warning-border:  38 52% 50%;
+
+  --tone-neutral-bg:      240 5% 16%;
+  --tone-neutral-text:    240 10% 84%;
+  --tone-neutral-border:  240 8% 44%;
+
+  --scrollbar-track:      hsl(var(--muted));
+  --scrollbar-thumb:      hsl(var(--ring));
+  --scrollbar-thumb-hover:hsl(var(--foreground));
+  --gw-form-field-surface: hsl(var(--background));
+  --gw-form-field-hover-surface: hsl(var(--accent) / 0.04);
+  --gw-form-panel-surface: hsl(var(--card));
+  --gw-form-overlay-surface: hsl(var(--popover));
+  --gw-form-foreground: hsl(var(--foreground));
+  --gw-form-muted-foreground: hsl(var(--muted-foreground));
+  --gw-form-border-color: hsl(var(--input));
+  --gw-form-border-hover-color: hsl(var(--ring) / 0.6);
+  --gw-form-focus-offset-color: var(--gw-form-field-surface);
+  --gw-form-focus-ring-color: hsl(var(--ring) / 0.6);
+  --gw-form-chrome-border-color: hsl(var(--ring) / 0.6);
+  --gw-form-chrome-glow-color: hsl(var(--ring) / 0.6);
+  --gw-form-overlay-shadow-color: rgba(0, 0, 0, 0.42);
+  --gw-form-panel-shadow-color: rgba(0, 0, 0, 0.2);
+  --gw-form-panel-inset-highlight-color: rgba(255, 255, 255, 0.03);
+}
+
+.gw-form-control {
+  --gw-form-focus-offset-color: var(--gw-form-field-surface);
+  color: var(--gw-form-foreground);
+  border-color: var(--gw-form-border-color);
+  background-color: var(--gw-form-field-surface);
+}
+
+.gw-form-control::placeholder {
+  color: var(--gw-form-muted-foreground);
+}
+
+.gw-form-control:hover {
+  border-color: var(--gw-form-border-hover-color);
+  background-color: var(--gw-form-field-hover-surface);
+}
+
+.gw-form-control:disabled,
+.gw-form-control[aria-disabled="true"] {
+  border-color: var(--gw-form-border-color);
+  background-color: var(--gw-form-field-surface);
+}
+
+.gw-form-panel-control {
+  --gw-form-focus-offset-color: var(--gw-form-panel-surface);
+  color: var(--gw-form-foreground);
+  border-color: var(--gw-form-border-color);
+  background-color: var(--gw-form-panel-surface);
+}
+
+.gw-form-overlay-surface {
+  --gw-form-focus-offset-color: var(--gw-form-overlay-surface);
+  --gw-form-overlay-shadow-bottom:
+    0 2px 0 0 var(--gw-form-focus-offset-color),
+    2px 0 0 0 var(--gw-form-focus-offset-color),
+    -2px 0 0 0 var(--gw-form-focus-offset-color),
+    0 12px 28px var(--gw-form-overlay-shadow-color);
+  --gw-form-overlay-shadow-top:
+    0 -2px 0 0 var(--gw-form-focus-offset-color),
+    2px 0 0 0 var(--gw-form-focus-offset-color),
+    -2px 0 0 0 var(--gw-form-focus-offset-color),
+    0 -12px 28px var(--gw-form-overlay-shadow-color);
+  color: var(--gw-form-foreground);
+  border-color: var(--gw-form-border-color);
+  background-color: var(--gw-form-overlay-surface);
+}
+
+.gw-form-decorative {
+  color: var(--gw-form-muted-foreground);
+}
+
+.gw-form-focus-visible:focus-visible,
+.gw-form-focus-within:focus-within {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--gw-form-focus-offset-color),
+    0 0 0 4px var(--gw-form-focus-ring-color);
+}
+
+@media (forced-colors: active) {
+  :root {
+    --gw-form-field-surface: Canvas;
+    --gw-form-field-hover-surface: Canvas;
+    --gw-form-panel-surface: Canvas;
+    --gw-form-overlay-surface: Canvas;
+    --gw-form-foreground: CanvasText;
+    --gw-form-muted-foreground: CanvasText;
+    --gw-form-border-color: ButtonBorder;
+    --gw-form-border-hover-color: Highlight;
+    --gw-form-focus-ring-color: Highlight;
+    --gw-form-chrome-border-color: Highlight;
+    --gw-form-chrome-glow-color: Highlight;
+    --gw-form-overlay-shadow-color: transparent;
+    --gw-form-panel-shadow-color: transparent;
+    --gw-form-panel-inset-highlight-color: transparent;
+  }
+}
+
+/* High contrast: dashed/dotted borders become solid for clarity */
+.high-contrast .border-dashed {
+  border-style: solid !important;
+}
+.high-contrast .border-dotted {
+  border-style: solid !important;
+}
+.high-contrast [style*="border-style: dashed"],
+.high-contrast [style*="border-style: dotted"] {
+  border-style: solid !important;
+}
+
+.high-contrast [class*="border-border/60"],
+.high-contrast [class*="border-border/70"] {
+  border-color: hsl(var(--border)) !important;
+}
+
+.high-contrast [class*="border-foreground/10"] {
+  border-color: hsl(var(--foreground) / 0.38) !important;
+}
+
+.high-contrast [class*="bg-muted/20"],
+.high-contrast [class*="bg-muted/30"],
+.high-contrast [class*="bg-card/35"] {
+  background-color: hsl(var(--muted)) !important;
+}
+
+.high-contrast [class*="text-tone-info-text/"] {
+  color: hsl(var(--tone-info-text)) !important;
+}
+
+.high-contrast [class*="text-tone-warning-text/"] {
+  color: hsl(var(--tone-warning-text)) !important;
+}
+
+.high-contrast [class*="text-tone-success-text/"] {
+  color: hsl(var(--tone-success-text)) !important;
+}
+
+.high-contrast [class*="text-tone-error-text/"] {
+  color: hsl(var(--tone-error-text)) !important;
+}
+
+.high-contrast [data-tab][data-state="active"] {
+  border-color: hsl(var(--foreground) / 0.38) !important;
+}
+
+.high-contrast [class*="bg-destructive/10"] {
+  background-color: hsl(var(--destructive) / 0.2) !important;
+}
+
+html {
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+*::-webkit-scrollbar {
+  width: 0.8rem;
+  height: 0.8rem;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb);
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-thumb-hover);
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* ─── Proper noun highlight ──────────────────────────────────────────────────── */
+
+@layer utilities {
+  .gw-proper-noun {
+    @apply font-medium text-foreground;
+  }
+}

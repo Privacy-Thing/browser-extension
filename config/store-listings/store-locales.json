@@ -1,0 +1,14 @@
+{
+  "$schema-note": "Per-locale short descriptions injected into manifest.description via _locales/<locale>/messages.json. chromium values must stay <=132 chars (Chrome Web Store hard limit); firefox values <=250 (AMO). Long store-listing copy lives in the sibling description.*.md files (generated into amo/stable-metadata.json for AMO; pasted into the Chrome Web Store dashboard), not here.",
+  "defaultLocale": "en",
+  "locales": {
+    "en": {
+      "chromium": "See what a site checks and decide which browser data it receives — with separate rules for every website.",
+      "firefox": "See what a site checks and decide which browser data it receives — with separate rules for every website and Firefox container."
+    },
+    "pl": {
+      "chromium": "Zobacz, po jakie informacje sięga strona, i decyduj, jakie wybrane dane jej udostępniasz — osobno dla każdej witryny.",
+      "firefox": "Zobacz, po jakie informacje sięga strona, i decyduj, jakie wybrane dane jej udostępniasz — osobno dla każdej witryny i kontenera Firefoksa."
+    }
+  }
+}

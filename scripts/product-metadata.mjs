@@ -1,0 +1,15 @@
+export {
+  BETA_FX_EXT_ID as BETA_FIREFOX_EXTENSION_ID,
+  BRAND_ARTIFACT_STEM as PRODUCT_ARTIFACT_STEM,
+  BRAND_FILE_STEM as PRODUCT_SLUG,
+  BRAND_SHORT_DESCRIPTION as PRODUCT_SHORT_DESCRIPTION,
+  STABLE_FX_EXT_ID as STABLE_FIREFOX_EXTENSION_ID,
+  BETA_BRAND_DISPLAY_NAME as BETA_PRODUCT_DISPLAY_NAME,
+  BETA_ICON_ASSET_DIR as BETA_PRODUCT_ICON_ASSET_DIR,
+  STABLE_DISPLAY_NAME as STABLE_PRODUCT_DISPLAY_NAME,
+  STABLE_ICON_ASSET_DIR as STABLE_PRODUCT_ICON_ASSET_DIR,
+  buildArtifactFileName as buildProductArtifactFileName,
+  buildSourceArchiveName as buildProductSourceArchiveFileName,
+  buildSourceArchivePrefix as buildProductSourceArchivePrefix,
+  buildBrandTempDirPrefix as buildProductTempDirectoryPrefix,
+} from "./brand-config.mjs";

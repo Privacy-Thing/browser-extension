@@ -1,0 +1,70 @@
+name: Bug report
+description: Something behaves incorrectly
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not report security issues here. A spoofing bypass, a detection leak or
+        anything that lets a page identify the extension goes through
+        [private reporting](https://github.com/Privacy-Thing/browser-extension/security/advisories/new)
+        instead — see `SECURITY.md`.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you expected, and what you got instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: |
+        The site, the active profile or rule, and what you did. A page that
+        reproduces it publicly helps more than a description.
+      placeholder: |
+        1. Rule for example.com set to profile X
+        2. Open example.com
+        3. Read navigator.language in the console
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Extension version
+      placeholder: "0.9.1"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: browser
+    attributes:
+      label: Browser
+      options:
+        - Chrome
+        - Edge
+        - Brave
+        - Other Chromium
+        - Firefox
+    validations:
+      required: true
+
+  - type: input
+    id: browser-version
+    attributes:
+      label: Browser and OS version
+      placeholder: "Firefox 141 on macOS 15.2"
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Anything else
+      description: |
+        Console errors, whether it survives a reload, whether it happens in a
+        container or a private window, whether an earlier version worked.

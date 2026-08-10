@@ -1,0 +1,45 @@
+<!doctype html>
+<html>
+  <head>
+    <style>
+      body {
+        margin: 0;
+      }
+
+      .spacer {
+        height: 2200px;
+      }
+
+      #hash-target {
+        display: block;
+        min-height: 32px;
+      }
+    </style>
+    <script>
+      globalThis.__firefoxTimeLocaleRaceEvents = {
+        hashchange: 0
+      };
+      globalThis.addEventListener("hashchange", () => {
+        globalThis.__firefoxTimeLocaleRaceEvents.hashchange += 1;
+      });
+      globalThis.__firefoxTimeLocaleRace = {
+        initialHash: location.hash,
+        initialLanguage: navigator.language,
+        initialLanguages: [...navigator.languages],
+        initialTimeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        initialTimezoneOffset: new Date("2026-03-29T12:00:00.000Z").getTimezoneOffset(),
+        earlyFormatter: new Intl.DateTimeFormat("en-US", {
+          dateStyle: "full",
+          timeStyle: "long"
+        })
+      };
+    </script>
+  </head>
+  <body>
+    <div class="spacer"></div>
+    <a id="hash-target" href="#hash-target">Hash target</a>
+    <h1>Firefox time/locale race</h1>
+    <pre id="snapshot">pending</pre>
+    <script src="/time-locale-race.js"></script>
+  </body>
+</html>

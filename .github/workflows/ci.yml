@@ -1,0 +1,1440 @@
+name: CI
+run-name: >-
+  ${{ github.event_name == 'pull_request'
+    && format('CI: PR #{0} — {1}', github.event.pull_request.number, github.head_ref)
+    || format('CI: {0}', github.ref_name)
+  }}
+
+on:
+  # `codex/**` is deliberately absent: those branches are worked through pull
+  # requests, and a branch listed here would fire a second run in a different
+  # concurrency group that nothing cancels.
+  push:
+    branches: ["main"]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  # Telling whether a merge commit's tree was already validated by the pull request
+  # it came from: `actions: read` for this workflow's own run history, and
+  # `pull-requests: read` for the commit-to-pull-request lookup, which returns 403
+  # with only `contents: read`.
+  actions: read
+  pull-requests: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  PNPM_STORE_DIR: ${{ github.workspace }}/build/pnpm-store
+  PNPM_CONFIG_STORE_DIR: ${{ github.workspace }}/build/pnpm-store
+
+# Pull requests from repository branches and forks use this same workflow. Keep it
+# GitHub-hosted, read-only and free of privileged environments or repository secrets.
+jobs:
+  changes:
+    if: >-
+      github.event_name != 'pull_request'
+      || github.event.pull_request.draft == false
+    timeout-minutes: 5
+    # Every other job depends on this changed-file gate directly or transitively.
+    runs-on: ubuntu-24.04
+    outputs:
+      docs_only: ${{ steps.filter.outputs.docs_only }}
+      generic_ui_only: ${{ steps.filter.outputs.generic_ui_only }}
+      app_ui_integrated: ${{ steps.filter.outputs.app_ui_integrated }}
+      needs_e2e: ${{ steps.filter.outputs.needs_e2e }}
+      needs_e2e_core: ${{ steps.filter.outputs.needs_e2e_core }}
+      needs_e2e_product: ${{ steps.filter.outputs.needs_e2e_product }}
+      needs_package: ${{ steps.filter.outputs.needs_package }}
+      needs_ui_tooling: ${{ steps.filter.outputs.needs_ui_tooling }}
+      needs_api_conformance: ${{ steps.filter.outputs.needs_api_conformance }}
+      already_validated: ${{ steps.validated.outputs.already_validated }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+
+      # A merge commit whose tree is identical to the pull request head, and whose
+      # pull request already had a green CI run, does not need the E2E lanes again.
+      # Direct pushes to main have no associated pull request, so they still get the
+      # full suite. Every failure path here falls back to "not validated".
+      - name: Detect already validated tree
+        id: validated
+        if: github.event_name == 'push' && github.ref_name == 'main'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          # `gh api` prints the error body on stdout, so an unreadable endpoint
+          # yields JSON rather than an empty string. Validate every value that
+          # comes back instead of trusting the exit code alone: a 403 here once fed
+          # the words of an error message into the loop below as commit shas.
+          is_sha() { printf '%s' "$1" | grep -Eq '^[0-9a-f]{40}$'; }
+
+          not_validated() {
+            echo "already_validated=false" >> "$GITHUB_OUTPUT"
+            echo "$1 Running the full suite."
+            exit 0
+          }
+
+          if ! current_tree="$(gh api "repos/${REPO}/commits/${HEAD_SHA}" \
+            --jq '.commit.tree.sha' 2>&1)" || ! is_sha "${current_tree}"; then
+            not_validated "Could not resolve the tree for ${HEAD_SHA}: ${current_tree}."
+          fi
+
+          if ! merged_heads="$(gh api "repos/${REPO}/commits/${HEAD_SHA}/pulls" \
+            --jq '.[] | select(.merged_at != null) | .head.sha' 2>&1)"; then
+            not_validated "Could not list pull requests for ${HEAD_SHA}: ${merged_heads}."
+          fi
+
+          for head in ${merged_heads}; do
+            is_sha "${head}" || continue
+
+            if ! head_tree="$(gh api "repos/${REPO}/commits/${head}" \
+              --jq '.commit.tree.sha' 2>&1)" || ! is_sha "${head_tree}"; then
+              echo "Could not resolve the tree for PR head ${head}."
+              continue
+            fi
+            if [ "${head_tree}" != "${current_tree}" ]; then
+              echo "PR head ${head} has tree ${head_tree}, not ${current_tree}."
+              continue
+            fi
+
+            green_runs="$(gh api \
+              "repos/${REPO}/actions/workflows/ci.yml/runs?head_sha=${head}&event=pull_request&status=success" \
+              --jq '.workflow_runs | length' 2>/dev/null || echo 0)"
+            case "${green_runs}" in
+              '' | *[!0-9]*) green_runs=0 ;;
+            esac
+            if [ "${green_runs}" != "0" ]; then
+              echo "already_validated=true" >> "$GITHUB_OUTPUT"
+              echo "Tree ${current_tree} already validated by a green PR run for ${head}."
+              exit 0
+            fi
+            echo "PR head ${head} matches the tree but has no successful CI workflow run."
+          done
+
+          not_validated "No validated pull request found for ${HEAD_SHA}."
+
+      - name: Detect changed files
+        id: filter
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BEFORE_SHA: ${{ github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          if [ "${EVENT_NAME}" = "pull_request" ] && [ -n "${BASE_SHA}" ]; then
+            RANGE="${BASE_SHA}...${HEAD_SHA}"
+          elif [ -n "${BEFORE_SHA}" ] && [ "${BEFORE_SHA}" != "0000000000000000000000000000000000000000" ]; then
+            RANGE="${BEFORE_SHA}...${HEAD_SHA}"
+          else
+            RANGE="$(git rev-list --max-parents=0 HEAD)..${HEAD_SHA}"
+          fi
+
+          git diff --name-only "${RANGE}" > changed-files.txt
+
+          if [ ! -s changed-files.txt ]; then
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"
+            echo "generic_ui_only=false" >> "$GITHUB_OUTPUT"
+            echo "app_ui_integrated=false" >> "$GITHUB_OUTPUT"
+            echo "needs_e2e=true" >> "$GITHUB_OUTPUT"
+            echo "needs_package=true" >> "$GITHUB_OUTPUT"
+            echo "needs_ui_tooling=true" >> "$GITHUB_OUTPUT"
+            echo "needs_api_conformance=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if grep -Eqv '^(README\.md|CHANGELOG\.md|PRIVACY\.md|build/.*\.md|docs/|\.github/ISSUE_TEMPLATE/|\.github/PULL_REQUEST_TEMPLATE\.md)' changed-files.txt; then
+            docs_only=false
+          else
+            docs_only=true
+          fi
+
+          # generic_ui_only is intentionally inverse-allowlisted. It only turns
+          # true when every non-doc change stays inside the audited `packages/ui`
+          # core, so we can skip E2E and packaging without weakening package
+          # fan-in or silently widening the lane to app shell and branding code.
+          grep -Ev '^(README\.md|CHANGELOG\.md|PRIVACY\.md|build/.*\.md|docs/|\.github/ISSUE_TEMPLATE/|\.github/PULL_REQUEST_TEMPLATE\.md)' changed-files.txt > non-doc-changed-files.txt || true
+          build_critical_scripts_pattern='^scripts/(build-locales\.mjs|build-osm-country-languages\.mjs|build-chrome-versions\.mjs|generate-icon-assets\.mjs|build-target\.mjs|brand-config\.mjs|build-channel-config\.mjs|resolve-build-metadata\.mjs)$'
+          package_critical_scripts_pattern='^scripts/(package-release-assets\.mjs|package-source-code\.mjs|generate-legal-files\.mjs|generate-third-party-notices\.mjs|publish-cws\.mjs|sign-firefox-addon\.mjs|generate-firefox-update-manifest\.mjs|promote-unreleased-changelog\.mjs|extract-changelog-section\.mjs|extract-beta-release-notes\.mjs)$'
+          package_critical_script_dirs_pattern='^scripts/(legal-templates|third-party-license-templates)/'
+          generic_ui_only=false
+          if [ -s non-doc-changed-files.txt ] \
+            && ! grep -Eq '^(src/ui/components/stories/|src/ui/branding/|src/ui/shared/(AppPageFrame|ThemeProvider)(\.test)?\.tsx|src/ui/options/components/playground/)' non-doc-changed-files.txt \
+            && ! grep -Eqv '^(packages/ui/src/ui/[^/]+\.(ts|tsx)|packages/ui/src/lib/[^/]+\.(ts|tsx)|packages/ui/src/settings-control-metadata(\.test)?\.tsx|packages/ui/src/focus-first-setting-control(\.test)?\.ts|packages/ui/src/(AnchorHeading|ContainerBadge|Settings(Control|Empty|Help|Section)Card|SettingsSubcard)(\.test)?\.tsx|packages/ui/src/index\.ts|packages/ui/src/stories/[^/]+\.stories\.tsx|packages/ui/package\.json|packages/ui/tsconfig\.json)$' non-doc-changed-files.txt; then
+            generic_ui_only=true
+          fi
+
+          # app_ui_integrated is also inverse-allowlisted. It covers app-shell and
+          # branding UI that should still run lint/check/unit/storybook, while
+          # keeping full E2E and packaging reserved for runtime-sensitive changes.
+          app_ui_integrated=false
+          if [ "${generic_ui_only}" != "true" ] && [ -s non-doc-changed-files.txt ] \
+            && ! grep -Eqv '^(\.storybook/.*|packages/ui/src/ui/[^/]+\.(ts|tsx)|packages/ui/src/lib/[^/]+\.(ts|tsx)|packages/ui/src/settings-control-metadata(\.test)?\.tsx|packages/ui/src/focus-first-setting-control(\.test)?\.ts|packages/ui/src/(AnchorHeading|ContainerBadge|Settings(Control|Empty|Help|Section)Card|SettingsSubcard)(\.test)?\.tsx|packages/ui/src/index\.ts|packages/ui/src/stories/[^/]+\.stories\.tsx|packages/ui/package\.json|packages/ui/tsconfig\.json|src/ui/branding/.*|src/ui/shared/(AppPageFrame|AppSubpageHeader|MadeWithLoveBadge)(\.test)?\.tsx?|src/ui/components/stories/(AppPageFrame|BrandIcon|BrandLogo|NumberInput|Separator|Toast|WebhWordmark)\.stories\.tsx)$' non-doc-changed-files.txt; then
+            app_ui_integrated=true
+          fi
+
+          needs_e2e=false
+          if grep -Eq '^(src/|tests/e2e/|public/|Taskfile\.yml|tsconfig\.json|config/(brand-config\.json|manifest\.ts|playwright\.config\.ts|vite\.config\.(ts|js|mts|mjs)|tailwind\.config\.ts|postcss\.config\.mjs|eslint\.config\.(js|mjs))|package\.json|pnpm-lock\.yaml|\.github/workflows/ci\.yml|\.github/workflows/publish\.yml)' changed-files.txt; then
+            needs_e2e=true
+          fi
+          if grep -Eq "${build_critical_scripts_pattern}" changed-files.txt; then
+            needs_e2e=true
+          fi
+          if grep -Eq '^packages/(refract-core|refract-browser|spectroscope-protocol)/' changed-files.txt; then
+            needs_e2e=true
+          fi
+
+          needs_package=false
+          if grep -Eq '^(src/|public/|Taskfile\.yml|tsconfig\.json|config/(brand-config\.json|manifest\.ts|vite\.config\.(ts|js|mts|mjs)|tailwind\.config\.ts|postcss\.config\.mjs)|package\.json|pnpm-lock\.yaml|\.github/workflows/ci\.yml|\.github/workflows/publish\.yml)' changed-files.txt; then
+            needs_package=true
+          fi
+          if grep -Eq "${build_critical_scripts_pattern}|${package_critical_scripts_pattern}|${package_critical_script_dirs_pattern}" changed-files.txt; then
+            needs_package=true
+          fi
+          if grep -Eq '^packages/(refract-core|refract-browser|spectroscope-protocol)/' changed-files.txt; then
+            needs_package=true
+          fi
+
+          if grep -Eq '^(\.storybook/|\.github/workflows/ci\.yml|src/ui/|packages/ui/|config/(vite\.config\.ts|tailwind\.config\.ts|postcss\.config\.mjs)|vitest\.storybook\.config\.ts|package\.json|pnpm-lock\.yaml|Taskfile\.yml)' changed-files.txt; then
+            needs_ui_tooling=true
+          else
+            needs_ui_tooling=false
+          fi
+
+          if grep -Eq '^(packages/platform-api-conformance/|packages/tooling-shared/|src/shared/brand\.ts|src/shared/extension-contract\.ts|src/shared/types\.ts|scripts/firefox-binary\.mjs|Taskfile\.yml|config/vitest\.config\.(base|chromium)\.ts)' changed-files.txt; then
+            needs_api_conformance=true
+          else
+            needs_api_conformance=false
+          fi
+
+          # needs_e2e_core — injection/runtime lane: injection, content, background, shared, core packages.
+          # Also fires for tests/e2e spec files belonging to the runtime lane and for build-critical
+          # config changes that affect the extension artifact (manifest, vite config, public/).
+          needs_e2e_core=false
+          if grep -Eq '^(src/(injection|content|background|shared)/|packages/(refract-core|refract-browser|spectroscope-protocol|refract-worker)/)' changed-files.txt; then
+            needs_e2e_core=true
+          fi
+          if grep -Eq '^tests/e2e/(extension-runtime|extension-fingerprint|firefox-runtime|fixtures|harness)' changed-files.txt; then
+            needs_e2e_core=true
+          fi
+          if grep -Eq '^tests/build-contracts/' changed-files.txt; then
+            needs_e2e_core=true
+          fi
+          if grep -Eq '^(Taskfile\.yml|package\.json|config/(e2e-lanes\.ts|playwright\.config\.ts|vitest\.config\.build-contracts\.ts)|\.github/workflows/ci\.yml)$' changed-files.txt; then
+            needs_e2e_core=true
+          fi
+          if grep -Eq "${build_critical_scripts_pattern}" changed-files.txt; then
+            needs_e2e_core=true
+          fi
+          if grep -Eq '^(config/(manifest\.ts|vite\.config\.|brand-config\.json)|public/|package\.json|pnpm-lock\.yaml)' changed-files.txt; then
+            needs_e2e_core=true
+          fi
+
+          # needs_e2e_product — UI/popup lane: options, popup, settings UI, shared background drivers.
+          # src/background/ and src/shared/ are cross-cutting so they trigger both lanes.
+          needs_e2e_product=false
+          if grep -Eq '^(src/(ui|background|shared)/|packages/ui/src/)' changed-files.txt; then
+            needs_e2e_product=true
+          fi
+          if grep -Eq '^tests/e2e/(extension-options|extension-popup|extension-state|fixtures)' changed-files.txt; then
+            needs_e2e_product=true
+          fi
+          if grep -Eq '^(Taskfile\.yml|package\.json|config/(e2e-lanes\.ts|playwright\.config\.ts)|\.github/workflows/ci\.yml)$' changed-files.txt; then
+            needs_e2e_product=true
+          fi
+
+          if [ "${generic_ui_only}" = "true" ]; then
+            needs_e2e=false
+            needs_e2e_core=false
+            needs_e2e_product=false
+            needs_package=false
+            needs_ui_tooling=true
+          fi
+
+          if [ "${app_ui_integrated}" = "true" ]; then
+            needs_e2e=false
+            needs_e2e_core=false
+            needs_e2e_product=false
+            needs_package=false
+            needs_ui_tooling=true
+          fi
+
+          echo "docs_only=${docs_only}" >> "$GITHUB_OUTPUT"
+          echo "generic_ui_only=${generic_ui_only}" >> "$GITHUB_OUTPUT"
+          echo "app_ui_integrated=${app_ui_integrated}" >> "$GITHUB_OUTPUT"
+          echo "needs_e2e=${needs_e2e}" >> "$GITHUB_OUTPUT"
+          echo "needs_e2e_core=${needs_e2e_core}" >> "$GITHUB_OUTPUT"
+          echo "needs_e2e_product=${needs_e2e_product}" >> "$GITHUB_OUTPUT"
+          echo "needs_package=${needs_package}" >> "$GITHUB_OUTPUT"
+          echo "needs_ui_tooling=${needs_ui_tooling}" >> "$GITHUB_OUTPUT"
+          echo "needs_api_conformance=${needs_api_conformance}" >> "$GITHUB_OUTPUT"
+
+  lint:
+    timeout-minutes: 10
+    needs: changes
+    if: needs.changes.outputs.already_validated != 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      # Keep the job green for required checks on docs-only PRs while skipping the
+      # expensive install/lint path.
+      - name: Docs-only fast path
+        if: needs.changes.outputs.docs_only == 'true'
+        run: echo "Docs-only change; skipping lint."
+
+      - name: Checkout
+        if: needs.changes.outputs.docs_only != 'true'
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Setup Node
+        if: needs.changes.outputs.docs_only != 'true'
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Enable Corepack
+        if: needs.changes.outputs.docs_only != 'true'
+        run: corepack enable
+
+      - name: Cache pnpm store
+        if: needs.changes.outputs.docs_only != 'true'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.PNPM_STORE_DIR }}
+          key: pnpm-store-${{ runner.os }}-${{ runner.arch }}-pnpm11-node24-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-${{ runner.os }}-${{ runner.arch }}-pnpm11-node24-
+
+      - name: Install dependencies
+        if: needs.changes.outputs.docs_only != 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        if: needs.changes.outputs.docs_only != 'true'
+        run: pnpm lint
+
+      # Reads files only, so it rides along with lint instead of paying for its
+      # own job. The `verify` task groups are not what CI runs, so a guard wired
+      # only there would never fire on a pull request.
+      - name: Test-layer policy
+        if: needs.changes.outputs.docs_only != 'true'
+        run: pnpm exec task check:test-layers
+
+  typescript:
+    timeout-minutes: 10
+    needs: changes
+    if: needs.changes.outputs.already_validated != 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Docs-only fast path
+        if: needs.changes.outputs.docs_only == 'true'
+        run: echo "Docs-only change; skipping TypeScript."
+
+      - name: Checkout
+        if: needs.changes.outputs.docs_only != 'true'
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Setup Node
+        if: needs.changes.outputs.docs_only != 'true'
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Enable Corepack
+        if: needs.changes.outputs.docs_only != 'true'
+        run: corepack enable
+
+      - name: Cache pnpm store
+        if: needs.changes.outputs.docs_only != 'true'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.PNPM_STORE_DIR }}
+          key: pnpm-store-${{ runner.os }}-${{ runner.arch }}-pnpm11-node24-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-${{ runner.os }}-${{ runner.arch }}-pnpm11-node24-
+
+      - name: Install dependencies
+        if: needs.changes.outputs.docs_only != 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: TypeScript
+        if: needs.changes.outputs.docs_only != 'true'
+        run: pnpm check
+
+      - name: Worker bundle is in sync with source
+        if: needs.changes.outputs.docs_only != 'true'
+        run: pnpm exec task check:worker-source
+
+  unit:
+    timeout-minutes: 10
+    needs: changes
+    if: needs.changes.outputs.already_validated != 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Docs-only fast path
+        if: needs.changes.outputs.docs_only == 'true'
+        run: echo "Docs-only change; skipping unit tests."
+
+      - name: Checkout
+        if: needs.changes.outputs.docs_only != 'true'
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+
+      - name: Resolve base SHA for changed-file scoping
+        id: base_sha
+        if: needs.changes.outputs.docs_only != 'true'
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ] && [ -n "${{ github.event.pull_request.base.sha }}" ]; then
+            echo "sha=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_OUTPUT"
+          elif [ -n "${{ github.event.before }}" ] && [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]; then
+            echo "sha=${{ github.event.before }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "sha=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Node
+        if: needs.changes.outputs.docs_only != 'true'
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Enable Corepack
+        if: needs.changes.outputs.docs_only != 'true'
+        run: corepack enable
+
+      - name: Cache pnpm store
+        if: needs.changes.outputs.docs_only != 'true'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.PNPM_STORE_DIR }}
+          key: pnpm-store-${{ runner.os }}-${{ runner.arch }}-pnpm11-node24-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-${{ runner.os }}-${{ runner.arch }}-pnpm11-node24-
+
+      - name: Install dependencies
+        if: needs.changes.outputs.docs_only != 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Unit tests with coverage
+        if: needs.changes.outputs.docs_only != 'true'
+        env:
+          CHANGED_SHA: ${{ steps.base_sha.outputs.sha }}
+        run: |
+          # `--changed` selects per lane, so a lane with no related tests is a
+          # normal outcome — the neutral lane sits out most target-only changes.
+          # Vitest's github-actions reporter still writes a "0 total" block for it,
+          # and three of those read like a broken run. Give each lane its own
+          # summary file and forward it only when it has something to report; the
+          # reporter's failure annotations go to stdout and are unaffected.
+          run_scoped_lane() {
+            lane="$1"
+            lane_summary="$(mktemp)"
+            status=0
+            GITHUB_STEP_SUMMARY="${lane_summary}" pnpm exec vitest run \
+              --config "config/vitest.config.app.${lane}.ts" \
+              --coverage.enabled true --changed "$CHANGED_SHA" || status=$?
+            if grep -q 'Test Files\*\*: 0 total' "${lane_summary}"; then
+              echo "No \`${lane}\` unit tests were related to this change." \
+                >> "$GITHUB_STEP_SUMMARY"
+            else
+              cat "${lane_summary}" >> "$GITHUB_STEP_SUMMARY"
+            fi
+            rm -f "${lane_summary}"
+            return "${status}"
+          }
+
+          if [ -n "$CHANGED_SHA" ]; then
+            rm -rf build/coverage/neutral build/coverage/chromium build/coverage/firefox
+            run_scoped_lane neutral
+            run_scoped_lane chromium
+            run_scoped_lane firefox
+            node scripts/aggregate-coverage.mjs
+          else
+            pnpm test:unit:coverage:app
+          fi
+
+      - name: Write unit coverage summary
+        if: always() && needs.changes.outputs.docs_only != 'true'
+        run: node scripts/write-unit-coverage-summary.mjs >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload unit coverage artifacts
+        if: always() && needs.changes.outputs.docs_only != 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: unit-coverage
+          path: |
+            build/coverage/neutral
+            build/coverage/chromium
+            build/coverage/firefox
+            build/coverage/aggregate-summary.json
+          if-no-files-found: ignore
+          retention-days: 7
+
+  api-conformance-tooling:
+    timeout-minutes: 10
+    needs: changes
+    if: >-
+      needs.changes.outputs.needs_api_conformance == 'true'
+      && needs.changes.outputs.already_validated != 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Setup Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Cache pnpm store
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.PNPM_STORE_DIR }}
+          key: pnpm-store-${{ runner.os }}-${{ runner.arch }}-pnpm11-node24-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-${{ runner.os }}-${{ runner.arch }}-pnpm11-node24-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Tooling TypeScript checks
+        run: pnpm exec task check:tools
+
+      - name: Tooling unit tests
+        run: pnpm exec task test:unit:tooling
+
+  ui-tooling-storybook:
+    timeout-minutes: 10
+    needs: changes
+    if: >-
+      needs.changes.outputs.needs_ui_tooling == 'true'
+      && needs.changes.outputs.already_validated != 'true'
+    runs-on: ubuntu-24.04
+    container:
+      image: mcr.microsoft.com/playwright:v1.58.2-noble
+      options: --ipc=host
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Setup Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Cache pnpm store
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.PNPM_STORE_DIR }}
+          key: pnpm-store-${{ runner.os }}-${{ runner.arch }}-pnpm11-node24-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-${{ runner.os }}-${{ runner.arch }}-pnpm11-node24-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Storybook
+        run: pnpm task storybook:build
+
+      - name: Run Storybook component tests
+        run: pnpm test:storybook
+
+      - name: Upload Storybook artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: storybook-static
+          path: build/storybook-static
+          if-no-files-found: error
+          retention-days: 7
+
+  build-e2e-assets:
+    timeout-minutes: 10
+    needs:
+      - changes
+    if: >-
+      (needs.changes.outputs.needs_e2e_core == 'true'
+      || needs.changes.outputs.needs_e2e_product == 'true'
+      || needs.changes.outputs.needs_api_conformance == 'true')
+      && needs.changes.outputs.already_validated != 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Setup Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Cache pnpm store
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.PNPM_STORE_DIR }}
+          key: pnpm-store-${{ runner.os }}-${{ runner.arch }}-pnpm11-node24-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-${{ runner.os }}-${{ runner.arch }}-pnpm11-node24-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build E2E assets
+        run: pnpm build:e2e-assets
+
+      - name: Upload E2E build artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: e2e-build-chromium
+          path: build/chrome
+          retention-days: 1
+
+      - name: Upload Chromium runtime marker
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: e2e-build-chromium-runtime-marker
+          path: build/runtime-applied-marker.chromium.txt
+          retention-days: 1
+
+      - name: Upload Firefox E2E build artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: e2e-build-firefox
+          path: build/firefox
+          retention-days: 1
+
+      - name: Build Firefox runtime E2E artifact
+        run: pnpm exec task build:firefox:runtime-test
+
+      - name: Upload Firefox runtime E2E build artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: e2e-build-firefox-runtime
+          path: build/firefox
+          retention-days: 1
+
+  build-assertions-chromium:
+    timeout-minutes: 10
+    needs:
+      - changes
+      - build-e2e-assets
+    if: >-
+      needs.changes.outputs.needs_e2e_core == 'true'
+      && needs.changes.outputs.already_validated != 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Setup Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Cache pnpm store
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.PNPM_STORE_DIR }}
+          key: pnpm-store-${{ runner.os }}-${{ runner.arch }}-pnpm11-node24-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-${{ runner.os }}-${{ runner.arch }}-pnpm11-node24-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download Chromium E2E build artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: e2e-build-chromium
+          path: build/chrome
+
+      # The marker travels as its own artifact so the full id manifest stays out
+      # of downstream jobs; the build-contract test asserts both facts.
+      - name: Download Chromium runtime marker
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: e2e-build-chromium-runtime-marker
+          path: build
+
+      - name: Chromium build assertions
+        run: >-
+          pnpm exec vitest run --config config/vitest.config.build-contracts.ts
+          tests/build-contracts/chromium-build.test.ts
+
+  build-assertions-firefox:
+    timeout-minutes: 10
+    needs:
+      - changes
+      - build-e2e-assets
+    if: >-
+      needs.changes.outputs.needs_e2e_core == 'true'
+      && needs.changes.outputs.already_validated != 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Setup Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Cache pnpm store
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.PNPM_STORE_DIR }}
+          key: pnpm-store-${{ runner.os }}-${{ runner.arch }}-pnpm11-node24-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-${{ runner.os }}-${{ runner.arch }}-pnpm11-node24-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download Firefox E2E build artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: e2e-build-firefox-runtime
+          path: build/firefox
+
+      - name: Firefox build assertions
+        run: >-
+          pnpm exec vitest run --config config/vitest.config.build-contracts.ts
+          tests/build-contracts/firefox-build.test.ts
+
+  # Browser jobs use the public Playwright image pinned to the workspace version.
+  e2e-options-navigation:
+    timeout-minutes: 15
+    needs:
+      - changes
+      - build-e2e-assets
+    if: >-
+      needs.changes.outputs.needs_e2e_product == 'true'
+      && needs.changes.outputs.already_validated != 'true'
+    runs-on: ubuntu-24.04
+    container:
+      image: mcr.microsoft.com/playwright:v1.58.2-noble
+      options: --ipc=host
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Setup Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Cache pnpm store
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.PNPM_STORE_DIR }}
+          key: pnpm-store-${{ runner.os }}-${{ runner.arch }}-pnpm11-node24-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-${{ runner.os }}-${{ runner.arch }}-pnpm11-node24-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download E2E build artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: e2e-build-chromium
+          path: build/chrome
+
+      - name: E2E options navigation tests
+        env:
+          PT_E2E_LANE: product
+        run: >-
+          pnpm exec playwright test --config config/playwright.config.ts
+          tests/e2e/extension-options-navigation.spec.ts
+
+      - name: Upload Playwright traces
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: playwright-traces-${{ github.job }}-attempt-${{ github.run_attempt }}
+          path: |
+            build/test-results/**/trace.zip
+            build/test-results/**/error-context.md
+          if-no-files-found: ignore
+          retention-days: 3
+
+  e2e-options-rules:
+    timeout-minutes: 15
+    needs:
+      - changes
+      - build-e2e-assets
+    if: >-
+      needs.changes.outputs.needs_e2e_product == 'true'
+      && needs.changes.outputs.already_validated != 'true'
+    runs-on: ubuntu-24.04
+    container:
+      image: mcr.microsoft.com/playwright:v1.58.2-noble
+      options: --ipc=host
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Setup Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Cache pnpm store
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.PNPM_STORE_DIR }}
+          key: pnpm-store-${{ runner.os }}-${{ runner.arch }}-pnpm11-node24-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-${{ runner.os }}-${{ runner.arch }}-pnpm11-node24-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download E2E build artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: e2e-build-chromium
+          path: build/chrome
+
+      - name: E2E options rules tests
+        env:
+          PT_E2E_LANE: product
+        run: >-
+          pnpm exec playwright test --config config/playwright.config.ts
+          tests/e2e/extension-options-rules.spec.ts
+
+      - name: Upload Playwright traces
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: playwright-traces-${{ github.job }}-attempt-${{ github.run_attempt }}
+          path: |
+            build/test-results/**/trace.zip
+            build/test-results/**/error-context.md
+          if-no-files-found: ignore
+          retention-days: 3
+
+  e2e-options-profiles:
+    timeout-minutes: 15
+    needs:
+      - changes
+      - build-e2e-assets
+      - e2e-options-rules
+    if: ${{ !cancelled()
+      && needs.changes.outputs.already_validated != 'true'
+      && needs.build-e2e-assets.result == 'success'
+      && needs.changes.outputs.needs_e2e_product == 'true' }}
+    runs-on: ubuntu-24.04
+    container:
+      image: mcr.microsoft.com/playwright:v1.58.2-noble
+      options: --ipc=host
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Setup Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Cache pnpm store
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.PNPM_STORE_DIR }}
+          key: pnpm-store-${{ runner.os }}-${{ runner.arch }}-pnpm11-node24-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-${{ runner.os }}-${{ runner.arch }}-pnpm11-node24-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download E2E build artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: e2e-build-chromium
+          path: build/chrome
+
+      - name: E2E options location tests
+        env:
+          PT_E2E_LANE: product
+        run: >-
+          pnpm exec playwright test --config config/playwright.config.ts
+          tests/e2e/extension-options-locations.spec.ts
+
+      - name: Upload Playwright traces
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: playwright-traces-${{ github.job }}-attempt-${{ github.run_attempt }}
+          path: |
+            build/test-results/**/trace.zip
+            build/test-results/**/error-context.md
+          if-no-files-found: ignore
+          retention-days: 3
+
+  e2e-popup:
+    timeout-minutes: 15
+    needs:
+      - changes
+      - build-e2e-assets
+      - e2e-options-navigation
+    if: ${{ !cancelled()
+      && needs.changes.outputs.already_validated != 'true'
+      && needs.build-e2e-assets.result == 'success'
+      && needs.changes.outputs.needs_e2e_product == 'true' }}
+    runs-on: ubuntu-24.04
+    container:
+      image: mcr.microsoft.com/playwright:v1.58.2-noble
+      options: --ipc=host
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Setup Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Cache pnpm store
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.PNPM_STORE_DIR }}
+          key: pnpm-store-${{ runner.os }}-${{ runner.arch }}-pnpm11-node24-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-${{ runner.os }}-${{ runner.arch }}-pnpm11-node24-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download E2E build artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: e2e-build-chromium
+          path: build/chrome
+
+      - name: E2E popup tests
+        env:
+          PT_E2E_LANE: product
+        run: >-
+          pnpm exec playwright test --config config/playwright.config.ts
+          tests/e2e/extension-popup.spec.ts
+
+      - name: Upload Playwright traces
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: playwright-traces-${{ github.job }}-attempt-${{ github.run_attempt }}
+          path: |
+            build/test-results/**/trace.zip
+            build/test-results/**/error-context.md
+          if-no-files-found: ignore
+          retention-days: 3
+
+  e2e-runtime-chromium:
+    timeout-minutes: 15
+    needs:
+      - changes
+      - build-e2e-assets
+      - e2e-popup
+    if: ${{ !cancelled()
+      && needs.changes.outputs.already_validated != 'true'
+      && needs.build-e2e-assets.result == 'success'
+      && needs.changes.outputs.needs_e2e_core == 'true' }}
+    runs-on: ubuntu-24.04
+    container:
+      image: mcr.microsoft.com/playwright:v1.58.2-noble
+      options: --ipc=host
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Setup Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Cache pnpm store
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.PNPM_STORE_DIR }}
+          key: pnpm-store-${{ runner.os }}-${{ runner.arch }}-pnpm11-node24-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-${{ runner.os }}-${{ runner.arch }}-pnpm11-node24-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download E2E build artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: e2e-build-chromium
+          path: build/chrome
+
+      - name: E2E Chromium runtime tests
+        env:
+          PT_E2E_LANE: core
+        run: >-
+          pnpm exec playwright test --config config/playwright.config.ts
+          tests/e2e/extension-runtime.spec.ts
+          tests/e2e/extension-fingerprint.spec.ts
+
+      - name: Upload Playwright traces
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: playwright-traces-${{ github.job }}-attempt-${{ github.run_attempt }}
+          path: |
+            build/test-results/**/trace.zip
+            build/test-results/**/error-context.md
+          if-no-files-found: ignore
+          retention-days: 3
+
+  e2e-state:
+    timeout-minutes: 15
+    needs:
+      - changes
+      - build-e2e-assets
+      - e2e-options-profiles
+    if: ${{ !cancelled()
+      && needs.changes.outputs.already_validated != 'true'
+      && needs.build-e2e-assets.result == 'success'
+      && needs.changes.outputs.needs_e2e_product == 'true' }}
+    runs-on: ubuntu-24.04
+    container:
+      image: mcr.microsoft.com/playwright:v1.58.2-noble
+      options: --ipc=host
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Setup Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Cache pnpm store
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.PNPM_STORE_DIR }}
+          key: pnpm-store-${{ runner.os }}-${{ runner.arch }}-pnpm11-node24-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-${{ runner.os }}-${{ runner.arch }}-pnpm11-node24-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download E2E build artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: e2e-build-chromium
+          path: build/chrome
+
+      - name: E2E state tests
+        # Lower parallelism than the global CI default (3): these
+        # settings-propagation tests are the longest product lane.
+        env:
+          PT_E2E_LANE: product
+        run: >-
+          pnpm exec playwright test --config config/playwright.config.ts
+          tests/e2e/extension-state.spec.ts --workers=2
+
+      - name: Upload Playwright traces
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: playwright-traces-${{ github.job }}-attempt-${{ github.run_attempt }}
+          path: |
+            build/test-results/**/trace.zip
+            build/test-results/**/error-context.md
+          if-no-files-found: ignore
+          retention-days: 3
+
+  e2e-runtime-firefox:
+    timeout-minutes: 15
+    needs:
+      - changes
+      - build-e2e-assets
+      - e2e-state
+    if: ${{ !cancelled()
+      && needs.changes.outputs.already_validated != 'true'
+      && needs.build-e2e-assets.result == 'success'
+      && needs.changes.outputs.needs_e2e_core == 'true' }}
+    runs-on: ubuntu-24.04
+    container:
+      image: mcr.microsoft.com/playwright:v1.58.2-noble
+      options: --ipc=host
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Setup Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Cache pnpm store
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.PNPM_STORE_DIR }}
+          key: pnpm-store-${{ runner.os }}-${{ runner.arch }}-pnpm11-node24-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-${{ runner.os }}-${{ runner.arch }}-pnpm11-node24-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download Firefox runtime E2E build artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: e2e-build-firefox-runtime
+          path: build/firefox
+
+      - name: E2E Firefox runtime tests
+        env:
+          PT_PLAYWRIGHT_JSON_REPORT: build/test-results/firefox-runtime-report.json
+        run: >-
+          pnpm exec task test:e2e:runtime:firefox:ci
+
+      - name: Upload Playwright traces
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: playwright-traces-${{ github.job }}-attempt-${{ github.run_attempt }}
+          path: |
+            build/test-results/**/trace.zip
+            build/test-results/**/error-context.md
+          if-no-files-found: ignore
+          retention-days: 3
+
+      - name: Write Firefox runtime timing summary
+        if: always()
+        run: |
+          REPORT_PATH="build/test-results/firefox-runtime-report.json"
+          if [ ! -f "${REPORT_PATH}" ]; then
+            exit 0
+          fi
+
+          node - <<'EOF' >> "$GITHUB_STEP_SUMMARY"
+          const fs = require("node:fs");
+
+          const reportPath = "build/test-results/firefox-runtime-report.json";
+          const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+          const tests = [];
+          const phases = [];
+
+          const visitSuite = (suite, titlePath = []) => {
+            const nextTitlePath = suite.title ? [...titlePath, suite.title] : titlePath;
+            for (const spec of suite.specs ?? []) {
+              const specTitlePath = [...nextTitlePath, spec.title].filter(Boolean);
+              const specDuration = (spec.tests ?? []).reduce((sum, test) => {
+                return (
+                  sum +
+                  (test.results ?? []).reduce(
+                    (innerSum, result) => innerSum + (result.duration ?? 0),
+                    0
+                  )
+                );
+              }, 0);
+              tests.push({
+                title: specTitlePath.join(" › "),
+                durationMs: specDuration,
+                status: (spec.tests ?? [])
+                  .map((test) => {
+                    const explicitStatus =
+                      typeof test.status === "string" ? test.status : null;
+                    if (explicitStatus) {
+                      return explicitStatus;
+                    }
+
+                    const resultStatuses = (test.results ?? [])
+                      .map((result) => result.status)
+                      .filter((status) => typeof status === "string");
+                    return resultStatuses.join(", ");
+                  })
+                  .filter(Boolean)
+                  .join(", ")
+              });
+
+              const visitSteps = (steps, testResult) => {
+                for (const step of steps ?? []) {
+                  if (typeof step.title === "string" && step.title.startsWith("phase: ")) {
+                    phases.push({
+                      testTitle: specTitlePath.join(" › "),
+                      phaseTitle: step.title.replace(/^phase:\s*/, ""),
+                      durationMs: step.duration ?? 0,
+                      status: testResult.status ?? "unknown"
+                    });
+                  }
+
+                  visitSteps(step.steps, testResult);
+                }
+              };
+
+              for (const specTest of spec.tests ?? []) {
+                for (const result of specTest.results ?? []) {
+                  visitSteps(result.steps, result);
+                }
+              }
+            }
+            for (const child of suite.suites ?? []) {
+              visitSuite(child, nextTitlePath);
+            }
+          };
+
+          for (const suite of report.suites ?? []) {
+            visitSuite(suite);
+          }
+
+          tests.sort((a, b) => b.durationMs - a.durationMs);
+          const top = tests.slice(0, 10);
+          phases.sort((a, b) => b.durationMs - a.durationMs);
+          const topPhases = phases.slice(0, 12);
+
+          console.log("## Firefox runtime slowest tests");
+          console.log("");
+          console.log("| Test | Duration | Status |");
+          console.log("| --- | ---: | --- |");
+          for (const test of top) {
+            console.log(
+              `| ${test.title.replace(/\|/g, "\\|")} | ${(test.durationMs / 1000).toFixed(1)}s | ${test.status} |`
+            );
+          }
+
+          if (topPhases.length > 0) {
+            console.log("");
+            console.log("## Firefox runtime slowest phases");
+            console.log("");
+            console.log("| Test | Phase | Duration | Status |");
+            console.log("| --- | --- | ---: | --- |");
+            for (const phase of topPhases) {
+              console.log(
+                `| ${phase.testTitle.replace(/\|/g, "\\|")} | ${phase.phaseTitle.replace(/\|/g, "\\|")} | ${(phase.durationMs / 1000).toFixed(1)}s | ${phase.status} |`
+              );
+            }
+          }
+          EOF
+
+      - name: Upload Firefox runtime report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: e2e-runtime-firefox-report
+          path: build/test-results/firefox-runtime-report.json
+          if-no-files-found: ignore
+          retention-days: 14
+
+  api-conformance:
+    timeout-minutes: 15
+    needs:
+      - changes
+      - build-e2e-assets
+    if: >-
+      (needs.changes.outputs.needs_e2e_core == 'true'
+      || needs.changes.outputs.needs_api_conformance == 'true')
+      && needs.changes.outputs.already_validated != 'true'
+    runs-on: ubuntu-24.04
+    container:
+      image: mcr.microsoft.com/playwright:v1.58.2-noble
+      options: --ipc=host
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Setup Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Cache pnpm store
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.PNPM_STORE_DIR }}
+          key: pnpm-store-${{ runner.os }}-${{ runner.arch }}-pnpm11-node24-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-${{ runner.os }}-${{ runner.arch }}-pnpm11-node24-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download Chromium build artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: e2e-build-chromium
+          path: build/chrome
+
+      - name: Download Chromium runtime marker
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: e2e-build-chromium-runtime-marker
+          path: build
+
+      - name: Download Firefox build artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: e2e-build-firefox
+          path: build/firefox
+
+      - name: Run API conformance
+        run: pnpm exec task test:api-conformance -- --json --html --github-summary
+
+      - name: Write job summary
+        if: always()
+        run: |
+          if [ -f build/api-conformance/github-summary.md ]; then
+            cat build/api-conformance/github-summary.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload HTML report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: api-conformance-report
+          path: build/api-conformance/api-conformance-report.html
+          retention-days: 30
+
+  package-beta:
+    timeout-minutes: 15
+    if: >-
+      always()
+      && needs.changes.result == 'success'
+      && github.event_name == 'push'
+      && github.ref_name == 'main'
+      && needs.changes.outputs.needs_package == 'true'
+      && (needs.lint.result == 'success' || needs.lint.result == 'skipped')
+      && (needs.typescript.result == 'success' || needs.typescript.result == 'skipped')
+      && (needs.unit.result == 'success' || needs.unit.result == 'skipped')
+      && (needs.build-e2e-assets.result == 'success' || needs.build-e2e-assets.result == 'skipped')
+      && (needs.e2e-options-navigation.result == 'success' || needs.e2e-options-navigation.result == 'skipped')
+      && (needs.e2e-options-rules.result == 'success' || needs.e2e-options-rules.result == 'skipped')
+      && (needs.e2e-options-profiles.result == 'success' || needs.e2e-options-profiles.result == 'skipped')
+      && (needs.e2e-popup.result == 'success' || needs.e2e-popup.result == 'skipped')
+      && (needs.e2e-runtime-chromium.result == 'success' || needs.e2e-runtime-chromium.result == 'skipped')
+      && (needs.e2e-state.result == 'success' || needs.e2e-state.result == 'skipped')
+      && (needs.e2e-runtime-firefox.result == 'success' || needs.e2e-runtime-firefox.result == 'skipped')
+      && (needs.build-assertions-chromium.result == 'success' || needs.build-assertions-chromium.result == 'skipped')
+      && (needs.build-assertions-firefox.result == 'success' || needs.build-assertions-firefox.result == 'skipped')
+      && (needs.api-conformance-tooling.result == 'success' || needs.api-conformance-tooling.result == 'skipped')
+      && (needs.api-conformance.result == 'success' || needs.api-conformance.result == 'skipped')
+    needs:
+      - changes
+      - lint
+      - typescript
+      - unit
+      - build-e2e-assets
+      - e2e-options-navigation
+      - e2e-options-rules
+      - e2e-options-profiles
+      - e2e-popup
+      - e2e-runtime-chromium
+      - e2e-state
+      - e2e-runtime-firefox
+      - build-assertions-chromium
+      - build-assertions-firefox
+      - api-conformance-tooling
+      - api-conformance
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Setup Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Cache pnpm store
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.PNPM_STORE_DIR }}
+          key: pnpm-store-${{ runner.os }}-${{ runner.arch }}-pnpm11-node24-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-${{ runner.os }}-${{ runner.arch }}-pnpm11-node24-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Resolve beta build metadata
+        run: |
+          BUILD_TIMESTAMP="$(date -u +%Y%m%d_%H%M%S)"
+          echo "PT_BUILD_CHANNEL=beta" >> "$GITHUB_ENV"
+          echo "PT_BUILD_TIMESTAMP=${BUILD_TIMESTAMP}" >> "$GITHUB_ENV"
+          PT_BUILD_CHANNEL=beta PT_BUILD_TIMESTAMP="${BUILD_TIMESTAMP}" node scripts/resolve-build-metadata.mjs >> "$GITHUB_ENV"
+
+      - name: Package beta artifacts
+        env:
+          PT_PACKAGE_CHROMIUM_CRX: "false"
+        run: pnpm package:release
+
+      - name: Upload beta artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ${{ env.PT_ARTIFACT_VERSION_LABEL }}
+          path: |
+            build/artifacts/*-chromium.zip
+            build/artifacts/*-firefox.zip
+            build/artifacts/*-firefox.xpi

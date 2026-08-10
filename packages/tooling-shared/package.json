@@ -1,0 +1,19 @@
+{
+  "name": "@privacy-brand/tooling-shared",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./brand": "./src/brand.ts",
+    "./extension-contract": "./src/extension-contract.ts",
+    "./runtime-snapshot": "./src/runtime-snapshot.ts",
+    "./firefox-binary": {
+      "types": "./src/firefox-binary.d.ts",
+      "default": "./src/firefox-binary.mjs"
+    }
+  },
+  "dependencies": {
+    "@playwright/test": "1.58.2"
+  }
+}

@@ -1,0 +1,65 @@
+name: Sync Privacy Policy to Website
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "PRIVACY.md"
+  release:
+    types: [published]
+  workflow_dispatch:
+
+concurrency:
+  group: sync-privacy-policy
+  cancel-in-progress: true
+
+jobs:
+  sync-privacy:
+    if: ${{ github.event_name != 'release' || github.event.release.prerelease == false }}
+    runs-on: ubuntu-latest
+    environment: automation
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout Privacy Thing repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.event.release.tag_name || github.ref }}
+
+      - name: Mint website app token
+        id: app_token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ vars.PUBLISH_APP_ID }}
+          private-key: ${{ secrets.PUBLISH_APP_PRIVATE_KEY }}
+          owner: TomaszJanusz
+          repositories: tomaszjanusz.dev
+
+      - name: Checkout website repo
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          repository: TomaszJanusz/tomaszjanusz.dev
+          token: ${{ steps.app_token.outputs.token }}
+          path: website
+
+      - name: Copy PRIVACY.md to website
+        run: cp PRIVACY.md website/packages/portfolio/content/legal/privacy-policy.md
+
+      - name: Check for changes
+        id: check
+        working-directory: website
+        run: |
+          git diff --quiet packages/portfolio/content/legal/privacy-policy.md && echo "changed=false" >> $GITHUB_OUTPUT || echo "changed=true" >> $GITHUB_OUTPUT
+
+      - name: Commit and push
+        if: steps.check.outputs.changed == 'true'
+        working-directory: website
+        env:
+          SOURCE_REF: ${{ github.event.release.tag_name || github.sha || 'manual' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add packages/portfolio/content/legal/privacy-policy.md
+          git commit -m "chore: sync PRIVACY.md from Privacy-Thing/browser-extension ${SOURCE_REF}"
+          git push

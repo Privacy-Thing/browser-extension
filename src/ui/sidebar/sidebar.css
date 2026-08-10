@@ -1,0 +1,48 @@
+html,
+body {
+  min-width: 0;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  background: var(--background);
+  color: var(--foreground);
+}
+
+/*
+  Status box — system messages (loading, no spoofing, unsupported tab, error).
+  Shares the gw-animated-accent-border machinery from globals.css.
+*/
+.gw-sidebar-status-box {
+  --gw-sidebar-status-accent: hsl(var(--primary));
+  --gw-animated-border-angle: 45deg;
+  --gw-animated-border-boost-angle: 0deg;
+  --gw-animated-border-core-band: 2.8%;
+  --gw-animated-border-trail-band: 9%;
+  --gw-animated-border-mask-padding: 1px;
+  --gw-animated-border-corner-radius: var(--radius);
+  --gw-animated-border-boost-duration: 18s;
+  --gw-animated-border-boost-easing: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --gw-animated-border-animation-duration: 12s;
+  --gw-animated-border-accent-base:  color-mix(in srgb, var(--gw-sidebar-status-accent) 12%, transparent);
+  --gw-animated-border-accent-trail: color-mix(in srgb, var(--gw-sidebar-status-accent) 30%, transparent);
+  --gw-animated-border-accent-light: color-mix(in srgb, var(--gw-sidebar-status-accent) 60%, transparent);
+  --gw-animated-border-accent-peak:  color-mix(in srgb, var(--gw-sidebar-status-accent) 80%, white);
+  --gw-animated-border-static-accent: var(--gw-sidebar-status-accent);
+  background-color: hsl(var(--card) / 0.55);
+  background-clip: padding-box;
+  border-radius: var(--radius);
+}
+
+:root:not([data-theme="dark"]) .gw-sidebar-status-box,
+[data-theme="light"] .gw-sidebar-status-box {
+  --gw-animated-border-accent-base:  color-mix(in srgb, var(--gw-sidebar-status-accent) 22%, white);
+  --gw-animated-border-accent-trail: color-mix(in srgb, var(--gw-sidebar-status-accent) 46%, white);
+  --gw-animated-border-accent-light: color-mix(in srgb, var(--gw-sidebar-status-accent) 80%, white);
+  --gw-animated-border-accent-peak:  color-mix(in srgb, var(--gw-sidebar-status-accent) 70%, white);
+  background-color: hsl(var(--card) / 0.8);
+}
+
+.gw-sidebar-status-box[data-tone="error"] {
+  --gw-sidebar-status-accent: hsl(var(--tone-error-text));
+  background-color: hsl(var(--tone-error-bg) / 0.5);
+}

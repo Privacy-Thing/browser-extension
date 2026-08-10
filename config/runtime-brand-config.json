@@ -1,0 +1,8 @@
+{
+  "displayName": "Privacy Thing",
+  "engineName": "Refract",
+  "diagnosticsName": "X-Ray",
+  "fileStem": "privacything",
+  "settingsExportStem": "privacything-settings",
+  "shortDescription": "Per-domain anti-fingerprinting and location spoofing extension."
+}

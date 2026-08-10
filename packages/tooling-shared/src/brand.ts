@@ -1,0 +1,7 @@
+export {
+  BRAND_CONFIG,
+  BRAND_DISPLAY_NAME,
+  BRAND_FILE_STEM,
+  SETTINGS_EXPORT_STEM,
+  BRAND_SHORT_DESCRIPTION,
+} from "../../../src/shared/brand.js";

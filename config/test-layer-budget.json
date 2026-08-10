@@ -1,0 +1,44 @@
+{
+  "$comment": [
+    "Ratchet baseline for the test-layer policy (see AGENTS.md, 'Testing', and",
+    "scripts/check-test-layers.mjs).",
+    "",
+    "These numbers are pre-existing debt, not a target. `pnpm task check:test-layers`",
+    "fails when a count rises above its baseline. When you reduce a count, run the",
+    "task with --write to lower the baseline permanently — it must never be raised",
+    "by hand.",
+    "",
+    "A residual entry is only legitimate when the occurrence locates an element",
+    "rather than asserting its design. Those are named in $residual below."
+  ],
+  "$residual": {
+    "tests/e2e/extension-popup.spec.ts": "One setViewportSize drives the responsive collapse as behaviour, not as a measurement. The three getComputedStyle reads cover the power button's hover halo: CSS `:hover` needs a real pointer, and userEvent in a Storybook play function dispatches synthetic events without setting `:hover`, so Playwright is the only harness here that can reach it.",
+    "tests/e2e/google-maps-diagnostic.spec.ts": "Filters Google Maps' own controls by screen position to find the right button; there is no stable selector in a third-party UI.",
+    "tests/e2e/extension-test.helpers.ts": "Reads a node's box to drive an interaction, not to assert a layout.",
+    "tests/e2e/firefox-runtime.shared.ts": "Checks that an anchor is inside the viewport before acting on it."
+  },
+  "$userDataNotes": {
+    "New location": "Default draft name from src/background/location-drafts.ts, not a language-pack label. Matches only as a substring of 'New locations inherit this safety limit'.",
+    "Warsaw": "Example location name; also occurs in the pack's sample copy."
+  },
+  "userDataLiterals": [
+    "Warsaw",
+    "Paris",
+    "shop.example.com",
+    "*.example.com",
+    "New location",
+    "Renamed profile",
+    "native-visible",
+    "csp-visible"
+  ],
+  "exemptSpecs": [],
+  "budgets": {
+    "visual-measurement": {
+      "tests/e2e/extension-popup.spec.ts": 4,
+      "tests/e2e/extension-test.helpers.ts": 1,
+      "tests/e2e/firefox-runtime.shared.ts": 3,
+      "tests/e2e/google-maps-diagnostic.spec.ts": 2
+    },
+    "translated-copy": {}
+  }
+}

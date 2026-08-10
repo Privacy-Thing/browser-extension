@@ -1,0 +1,6 @@
+interface:
+  display_name: "Privacy Thing Runtime Triage"
+  short_description: "Diagnose Privacy Thing runtime leaks"
+  icon_small: "../../../favicon.svg"
+  icon_large: "../../../favicon.svg"
+  default_prompt: "Use $privacything-runtime-triage to diagnose this runtime leak from exact browser or test evidence."

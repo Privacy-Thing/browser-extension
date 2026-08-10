@@ -1,0 +1,67 @@
+packages:
+  - .
+  - packages/*
+
+overrides:
+  # react and react-dom are a matched pair and MUST resolve to the same single
+  # version. Without this exact pin, a lockfile regeneration (e.g. any Dependabot
+  # bump) lets react-dom float up to a newer patch that `minimumReleaseAge` still
+  # blocks for react, splitting the pair into two react-dom versions. That trips
+  # the "exactly one installed direct dependency" guard in
+  # scripts/generate-third-party-notices.mjs and fails build:chrome. Keep these in
+  # lockstep — bump both together (with the package.json ranges) when updating React.
+  react: 19.2.7
+  react-dom: 19.2.7
+  # Playwright MUST match the browser version baked into the public CI image
+  # (`mcr.microsoft.com/playwright:v<X>-noble`). The image bakes one version's
+  # Chromium and Firefox; the browser jobs run inside it and do NOT `playwright
+  # install`. Keep every declaration and override pinned to the image version or
+  # e2e fails with "Executable doesn't exist" or an unresolved Firefox executable.
+  "@playwright/test": 1.58.2
+  playwright: 1.58.2
+  playwright-core: 1.58.2
+  "@babel/core": ^7.29.6
+  basic-ftp: ^5.3.1
+  esbuild@>=0.27.0: ^0.28.1
+  adm-zip: 0.6.0
+  brace-expansion@^1.1.0: ^1.1.18
+  brace-expansion@^5.0.0: ^5.0.9
+  fast-uri: ^3.1.5
+  ip-address: ^10.3.1
+  js-yaml: 4.3.1
+  nanoid@<3.3.17: 3.3.17
+  node-forge: ^1.4.0
+  picomatch@^2.0.0: ^2.3.2
+  picomatch@^4.0.0: ^4.0.4
+  postcss: ^8.5.23
+  shell-quote: 1.9.0
+  tar: ^7.5.21
+  undici: ^7.29.0
+  ws: ^8.20.1
+
+allowBuilds:
+  "@go-task/cli": true
+  # Never build this at install time — the published tarball already ships
+  # `dist`. The package keeps a `prepare` script so that publishing and git
+  # installs can build it, and pnpm flags any dependency carrying one, so the
+  # answer has to be recorded rather than left out. Building here would fail
+  # anyway: the tarball ships no sources.
+  "@privacy-thing/brand": false
+  esbuild: true
+  spawn-sync: true
+  unrs-resolver: true
+
+blockExoticSubdeps: true
+minimumReleaseAge: 1440
+minimumReleaseAgeStrict: true
+minimumReleaseAgeExclude:
+  # First-party package, published to npm from its own repository's CI via OIDC
+  # trusted publishing. The quarantine exists to blunt compromised third-party
+  # releases; here it would only stall our own, so a brand release can be
+  # consumed the moment it ships.
+  - "@privacy-thing/brand"
+trustPolicy: no-downgrade
+trustPolicyExclude:
+  # Validated during the first pnpm 11 rollout. This transitive semver pin is
+  # currently required by existing toolchain packages but trips no-downgrade.
+  - semver@6.3.1

@@ -1,0 +1,34 @@
+node_modules
+
+# Single working directory for everything this repository generates.
+#
+# Every task writes here and nowhere else: extension builds (build/chrome,
+# build/firefox), release packages (build/artifacts), Playwright output and traces
+# (build/test-results), coverage (build/coverage), the Storybook export
+# (build/storybook-static), the persistent Firefox dev profile
+# (build/web-ext-profile) and benchmark runs (build/test-benchmarks).
+#
+# If you add a task that produces files, point it at build/. Do not add a new
+# top-level ignore entry.
+build/
+
+*.log
+
+# Tooling that writes outside build/ on its own defaults and cannot be redirected
+# from configuration. The repository's own tasks never produce these.
+.vercel/
+.playwright-cli/
+playwright-report/
+
+# Provider-local agent state stays local; Claude shares the canonical .agents skills.
+.claude/*
+!.claude/skills
+.codex/
+.gemini/
+.mcp.json
+skills-lock.json
+
+# OS and editor noise.
+.DS_Store
+/.idea/
+.env*.local

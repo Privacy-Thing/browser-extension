@@ -1,0 +1,68 @@
+{
+  "note": "Structured (non-prose) AMO listing metadata. Prose lives in the per-locale description.*.md files. The summary is NOT here: it is reused from manifest-locales.json (the Firefox short description) so the manifest and the AMO summary stay in sync. The license is NOT here either: build-amo-metadata.mjs emits the complete AGPL-3.0-or-later grant and section 7 terms as custom_license from LICENSE.md. Do not add version.license — AMO rejects license and custom_license together, and its predefined AGPL slug is 3.0-only. Every configured manifest locale must be mapped exactly once or named in unsupportedManifestLocales when production AMO does not accept it. Run `pnpm task generate:amo-metadata` after editing; `pnpm task check:amo-metadata` guards drift.",
+  "version": {
+    "compatibility": [
+      "firefox"
+    ]
+  },
+  "categories": {
+    "firefox": [
+      "privacy-security",
+      "language-support",
+      "web-development"
+    ]
+  },
+  "unsupportedManifestLocales": [
+    "ar"
+  ],
+  "locales": {
+    "de": {
+      "storeLocale": "de",
+      "title": "Privacy Thing (Preview)"
+    },
+    "en-US": {
+      "storeLocale": "en",
+      "title": "Privacy Thing (Preview)"
+    },
+    "es-ES": {
+      "storeLocale": "es",
+      "title": "Privacy Thing (Preview)"
+    },
+    "fr": {
+      "storeLocale": "fr",
+      "title": "Privacy Thing (Preview)"
+    },
+    "it": {
+      "storeLocale": "it",
+      "title": "Privacy Thing (Preview)"
+    },
+    "ja": {
+      "storeLocale": "ja",
+      "title": "Privacy Thing (Preview)"
+    },
+    "ko": {
+      "storeLocale": "ko",
+      "title": "Privacy Thing (Preview)"
+    },
+    "pl": {
+      "storeLocale": "pl",
+      "title": "Privacy Thing (Preview)"
+    },
+    "pt-BR": {
+      "storeLocale": "pt_BR",
+      "title": "Privacy Thing (Preview)"
+    },
+    "ru": {
+      "storeLocale": "ru",
+      "title": "Privacy Thing (Preview)"
+    },
+    "uk": {
+      "storeLocale": "uk",
+      "title": "Privacy Thing (Preview)"
+    },
+    "zh-CN": {
+      "storeLocale": "zh_CN",
+      "title": "Privacy Thing (Preview)"
+    }
+  }
+}

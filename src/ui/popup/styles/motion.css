@@ -1,0 +1,15 @@
+.gw-popup-rule-motion {
+  position: relative;
+}
+
+.gw-popup-shell-frame[data-has-top-accent="true"] .gw-popup-shell {
+  border-top-color: hsl(var(--border));
+}
+
+:root[data-reduce-motion] .gw-popup-button,
+:root[data-reduce-motion] .gw-popup-power-button,
+:root[data-reduce-motion] .gw-popup-power-button::after,
+:root[data-reduce-motion] .gw-popup-advanced-chevron,
+:root[data-reduce-motion] .gw-popup-advanced-region {
+  transition: none;
+}

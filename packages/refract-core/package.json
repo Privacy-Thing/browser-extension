@@ -1,0 +1,19 @@
+{
+  "name": "@privacy-brand/refract-core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./fingerprint/*": "./src/fingerprint/*.ts",
+    "./geolocation/*": "./src/geolocation/*.ts",
+    "./integrity/*": "./src/integrity/*.ts",
+    "./native/*": "./src/native/*.ts",
+    "./runtime/*": "./src/runtime/*.ts",
+    "./time/*": "./src/time/*.ts",
+    "./types/*": "./src/types/*.ts"
+  },
+  "dependencies": {
+    "zod": "^3.24.2"
+  }
+}

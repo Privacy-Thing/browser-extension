@@ -1,0 +1,17 @@
+{
+  "name": "@privacy-brand/refract-worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/generated-worker-source.ts",
+    "./worker-audio": "./src/worker-audio.ts",
+    "./worker-location": "./src/worker-location.ts"
+  },
+  "dependencies": {
+    "@privacy-brand/refract-core": "workspace:*"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.1"
+  }
+}

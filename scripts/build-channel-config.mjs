@@ -1,0 +1,18 @@
+export {
+  BETA_FX_EXT_ID as BETA_FIREFOX_EXTENSION_ID,
+  STABLE_FX_EXT_ID as STABLE_FIREFOX_EXTENSION_ID,
+  normalizeBuildChannel,
+  resolveFxExtId as resolveFirefoxExtensionId,
+  resolveFirefoxUpdateUrl,
+  shouldEmitBuildMaps as shouldEmitBuildSourceMaps,
+  BETA_BRAND_DISPLAY_NAME as BETA_PRODUCT_DISPLAY_NAME,
+  BETA_ICON_ASSET_DIR as BETA_PRODUCT_ICON_ASSET_DIR,
+  STABLE_DISPLAY_NAME as STABLE_PRODUCT_DISPLAY_NAME,
+  STABLE_ICON_ASSET_DIR as STABLE_PRODUCT_ICON_ASSET_DIR,
+  resolveBrandDisplayName as resolveProductDisplayName,
+  resolveBrandIconAssetDir as resolveProductIconAssetDir,
+  resolveManifestExtName,
+  MANIFEST_DEFAULT_LOCALE,
+  MANIFEST_LOCALE_CODES,
+  resolveManifestShortDesc as resolveManifestShortDescription,
+} from "./brand-config.mjs";

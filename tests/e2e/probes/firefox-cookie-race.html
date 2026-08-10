@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Firefox cookie race probe</title>
+    <script>
+      globalThis.__firefoxCookieRace = {
+        initialCookie: document.cookie
+      };
+    </script>
+    <script src="/cookie-race.js"></script>
+  </head>
+  <body>
+    <pre id="snapshot">pending</pre>
+  </body>
+</html>

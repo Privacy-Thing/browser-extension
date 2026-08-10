@@ -1,0 +1,18 @@
+<!doctype html>
+<html>
+  <head>
+    <script>
+      const marker = globalThis.__PT_FIREFOX_TIMING_SPIKE__;
+      globalThis.__firefoxMainWorldTimingProbe = {
+        inlineReadyState: document.readyState,
+        markerPresent: Boolean(marker),
+        markerReadyState:
+          marker && typeof marker.readyState === "string" ? marker.readyState : null,
+        markerHref: marker && typeof marker.href === "string" ? marker.href : null,
+      };
+    </script>
+  </head>
+  <body>
+    <h1>Firefox main-world timing spike</h1>
+  </body>
+</html>

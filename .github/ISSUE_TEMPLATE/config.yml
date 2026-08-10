@@ -1,0 +1,10 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security issue
+    url: https://github.com/Privacy-Thing/browser-extension/security/advisories/new
+    about: >-
+      Spoofing bypasses, detection leaks and anything that identifies the extension
+      go through private reporting, never a public issue.
+  - name: Contributing
+    url: https://github.com/Privacy-Thing/browser-extension/blob/main/CONTRIBUTING.md
+    about: Read before opening a pull request — the project is not accepting contributions yet.

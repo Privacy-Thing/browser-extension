@@ -1,0 +1,39 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["DOM", "DOM.Iterable", "ES2022"],
+    "strict": true,
+    "jsx": "react-jsx",
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "useDefineForClassFields": true,
+    "allowJs": false,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "types": ["node", "chrome", "vite/client"],
+    "ignoreDeprecations": "6.0",
+    "baseUrl": ".",
+    "paths": {
+      "@/ui/components/ui/toast": ["packages/ui/src/ui/toast.tsx"],
+      "@/ui/components/ui/*": ["packages/ui/src/ui/*"],
+      "@/ui/components/lib/utils": ["packages/ui/src/lib/utils.ts"],
+      "@/ui/components/settings-control-metadata": ["packages/ui/src/settings-control-metadata.tsx"],
+      "@/ui/components/focus-first-setting-control": ["packages/ui/src/focus-first-setting-control.ts"],
+      "@/ui/components/SettingsControlCard": ["packages/ui/src/SettingsControlCard.tsx"],
+      "@/ui/components/SettingsEmptyState": ["packages/ui/src/SettingsEmptyState.tsx"],
+      "@/ui/components/SettingsHelpCard": ["packages/ui/src/SettingsHelpCard.tsx"],
+      "@/ui/components/SettingsSectionCard": ["packages/ui/src/SettingsSectionCard.tsx"],
+      "@/ui/components/SettingsSubcard": ["packages/ui/src/SettingsSubcard.tsx"],
+      "@/ui/components/ContainerBadge": ["packages/ui/src/ContainerBadge.tsx"],
+      "@/ui/options/components/AnchorHeading": ["packages/ui/src/AnchorHeading.tsx"],
+      "@/*": ["src/*"]
+    }
+  },
+  "include": ["src", "packages", "config/*.ts", "config/eslint.config.mjs"],
+  "exclude": ["packages/platform-api-conformance"]
+}

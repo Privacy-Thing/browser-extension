@@ -1,0 +1,25 @@
+/**
+ * Test-only access to build-scoped identifiers. Production code must consume
+ * the compile-time globals directly so bundlers cannot assemble this map.
+ */
+export const RUNTIME_READY_EVENT_NAME = __PT_RUNTIME_READY_EVENT_NAME__;
+export const RUNTIME_APPLIED_ATTR = __PT_RUNTIME_APPLIED_ATTR__;
+export const RUNTIME_CONFIG_ATTR = __PT_RUNTIME_CONFIG_ATTR__;
+export const RUNTIME_PAYLOAD_ATTR = __PT_RUNTIME_PAYLOAD_ATTR__;
+export const RUNTIME_DISABLED_ATTR = __PT_RUNTIME_DISABLED_ATTR__;
+export const LOG_EVENT_TYPE = __PT_LOG_EVENT_TYPE__;
+export const SHIM_GUARD_KEY = __PT_SHIM_GUARD_KEY__;
+export const WORKER_PATCH_GUARD_KEY = __PT_WORKER_PATCH_GUARD_KEY__;
+export const SW_PATCH_GUARD_KEY = __PT_SW_PATCH_GUARD_KEY__;
+export const FIREFOX_STATE_PORT_ID = __PT_FIREFOX_STATE_PORT_ID__;
+export const FX_STATE_CHANGE_EVENT = __PT_FX_STATE_CHANGE_EVENT__;
+export const FX_STATIC_CANDIDATES_KEY = __PT_FX_STATIC_CANDIDATES_KEY__;
+export const SURFACE_USAGE_TYPE = __PT_SURFACE_USAGE_TYPE__;
+export const SURFACE_ERROR_TYPE = __PT_SURFACE_ERROR_TYPE__;
+export const SURFACE_USAGE_REG_TYPE = __PT_SURFACE_USAGE_REG_TYPE__;
+export const SW_REWRITE_TYPE = __PT_SW_REWRITE_TYPE__;
+export const SW_STRICT_ISSUE_TYPE = __PT_SW_STRICT_ISSUE_TYPE__;
+export const FX_HANDOFF_ATTR = __PT_FX_HANDOFF_ATTR__;
+export const FX_HANDOFF_READY_EVENT = __PT_FX_HANDOFF_READY_EVENT__;
+export const STRICT_WORKER_PREFIX = __PT_STRICT_WORKER_PREFIX__;
+export const WORKER_ACK_TYPE = __PT_WORKER_ACK_TYPE__;

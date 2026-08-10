@@ -1,0 +1,101 @@
+import { BRAND_DISPLAY_NAME } from "@/shared/brand";
+
+export const firefoxContainers = {
+  copyLinkLabel: "containers",
+  copyLinkHelpLabel: "containers help",
+  title: "Containers",
+  description: `Manage Firefox Containers and give each one an optional ${BRAND_DISPLAY_NAME} preset from one place.`,
+  refreshTitle: "Refresh container list",
+  refreshButton: "Refresh list",
+  createButton: "New container",
+  deleteButton: "Delete",
+  removeAssignmentButton: "Remove assignment",
+  editActionTitle: (name: string) => `Edit container “${name}”`,
+  deleteActionTitle: (name: string) => `Delete container “${name}”`,
+  removeAssignmentActionTitle: (name: string) =>
+    `Remove preset assignment for deleted container “${name}”`,
+  showInactiveLabel: "Show inactive containers",
+  filterPlaceholder: "Search containers...",
+  loading: "Loading containers...",
+  noResults: "No containers match the current filter.",
+  columns: {
+    container: "Container",
+    location: "Preset",
+    actions: "Actions",
+  },
+  noLocationAssigned: "No preset assigned",
+  missingLocation: "Assigned preset is missing",
+  inactiveBadge: "Deleted",
+  deletedContainerLabel: "Deleted container",
+  emptyTitle: "No Firefox Containers yet",
+  emptyBody: `Create your first container here or in Firefox settings, then assign a ${BRAND_DISPLAY_NAME} preset to it.`,
+  unavailableTitle: "Firefox Containers are unavailable",
+  unavailableBody:
+    "Turn on Firefox Containers, then refresh the list. If the problem continues, this Firefox build may not allow the extension to manage them.",
+  unavailableHint: `${BRAND_DISPLAY_NAME} can manage containers only when Firefox Containers are turned on.`,
+  editor: {
+    createTitle: "Create container",
+    editTitlePrefix: "Edit container",
+    createDescription: `Choose a name, color, icon, and optional ${BRAND_DISPLAY_NAME} settings for the new Firefox container.`,
+    editDescription: `Update the Firefox container properties and its optional ${BRAND_DISPLAY_NAME} settings in one save.`,
+    saveButton: "Save",
+    previewUntitled: "Untitled container",
+    nameRequired: "Container name cannot be empty.",
+    defaultRulePreviewTitle: "No saved settings yet",
+    defaultRulePreviewLocation: (label: string) =>
+      `This container does not have its own ${BRAND_DISPLAY_NAME} settings yet, so it uses the Default Rule preset: ${label}. Save container settings to give it its own setup.`,
+    defaultRulePreviewProtections: `This container does not have its own ${BRAND_DISPLAY_NAME} settings yet, so it uses only the Default Rule protections that do not need a preset. Save container settings to give it its own setup.`,
+    defaultRulePreviewUnconfigured: `This container does not have its own ${BRAND_DISPLAY_NAME} settings yet. The Default Rule is enabled, but it does not have a preset or custom protection settings yet. Save container settings to give this container its own setup, or finish configuring the Default Rule.`,
+    defaultRulePreviewDisabled: `This container does not have its own ${BRAND_DISPLAY_NAME} settings yet. The Default Rule is off, so ${BRAND_DISPLAY_NAME} stays off here. Save container settings to give this container its own setup, or turn on the Default Rule.`,
+    defaultRulePreviewMissing: `This container does not have its own ${BRAND_DISPLAY_NAME} settings yet. No saved Default Rule setup is available, so ${BRAND_DISPLAY_NAME} stays off here. Save container settings to give this container its own setup, or set a Default Rule.`,
+    fields: {
+      name: "Name",
+      color: "Color",
+      icon: "Icon",
+      enabled: "Enabled",
+      location: "Preset",
+      locationProfile: "Regional preset",
+    },
+    unassignedLocation: "No preset assigned",
+    enabledHint:
+      "When disabled, this container assignment does not apply. Its settings stay saved.",
+    locationProfileHint:
+      "Choose the preset this container should use. Leave it unassigned to use only this container's protection settings and the Default Rule preset when available.",
+    identity: {
+      sectionTitle: "Identity",
+      sectionDescription:
+        "This container keeps its own spoofing identity. Rotate it only when you want a fresh fingerprint and a clean site state for this container.",
+      actionDescription:
+        "Clears related site data and starts this container with a fresh identity.",
+      actionLabel: "New identity",
+      confirmTitle: (name: string) => `New identity for “${name}”?`,
+      confirmDescription:
+        "This clears cookies, storage, Service Workers, and caches for sites tied to this container. Then it creates a new spoofing identity.",
+      confirmDomainsLabel: `${BRAND_DISPLAY_NAME} will clear browser data for these domains:`,
+      confirmNoDomains: `No browser data has been recorded for this container yet. ${BRAND_DISPLAY_NAME} will still create a new spoofing identity.`,
+      confirmLabel: "Create new identity",
+      rotateSuccess: "Saved a new container identity.",
+      rotateError: "Creating a new container identity failed.",
+    },
+  },
+  confirmations: {
+    deleteTitle: (name: string) => `Delete container “${name}”?`,
+    deleteBody: `This removes the Firefox container and clears its ${BRAND_DISPLAY_NAME} preset assignment.`,
+    removeOrphanTitle: "Remove deleted container assignment?",
+    removeOrphanBody: `The Firefox container no longer exists. This will clear the stale ${BRAND_DISPLAY_NAME} preset assignment only.`,
+  },
+  messages: {
+    created: (name: string) => `Created container “${name}”.`,
+    updated: (name: string) => `Saved container “${name}”.`,
+    deleted: (name: string) => `Deleted container “${name}”.`,
+    orphanRemoved: "Removed the stale container assignment.",
+    saveFailed: "Saving the container failed.",
+    deleteFailed: "Deleting the container failed.",
+  },
+  help: {
+    title: "Containers",
+    body1: `Firefox Containers add another way to choose settings in Firefox. ${BRAND_DISPLAY_NAME} checks Domain Rules first, then the container assignment.`,
+    body2: `The container editor saves Firefox container details together with ${BRAND_DISPLAY_NAME} settings such as enabled state, an optional preset, and custom protection settings.`,
+    body3: `Inactive rows represent assignments whose Firefox container was removed outside ${BRAND_DISPLAY_NAME}. Review them and clear them deliberately instead of losing them silently.`,
+  },
+} as const;

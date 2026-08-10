@@ -1,0 +1,61 @@
+<!doctype html>
+<html>
+  <head>
+    <script>
+      (() => {
+        const snapshot = {
+          status: "pending",
+          available: typeof navigator.getBattery === "function",
+          samePromise: false,
+          nativeManager: false,
+          ownNames: null,
+          charging: null,
+          chargingTime: null,
+          dischargingTime: null,
+          level: null,
+          error: null,
+        };
+        globalThis.__BATTERY_FIRST_INLINE__ = snapshot;
+
+        const render = () => {
+          const target = document.querySelector("#battery-first-inline");
+          if (target) {
+            target.textContent = JSON.stringify(snapshot);
+          }
+        };
+        document.addEventListener("DOMContentLoaded", render, { once: true });
+
+        if (!snapshot.available) {
+          snapshot.status = "unavailable";
+          return;
+        }
+
+        const first = navigator.getBattery();
+        const second = navigator.getBattery();
+        snapshot.samePromise = first === second;
+        first
+          .then((manager) => {
+            snapshot.status = "resolved";
+            snapshot.nativeManager =
+              typeof BatteryManager === "function" &&
+              manager instanceof BatteryManager &&
+              Object.getPrototypeOf(manager) === BatteryManager.prototype;
+            snapshot.ownNames = Object.getOwnPropertyNames(manager);
+            snapshot.charging = manager.charging;
+            snapshot.chargingTime = manager.chargingTime;
+            snapshot.dischargingTime = String(manager.dischargingTime);
+            snapshot.level = manager.level;
+          })
+          .catch((error) => {
+            snapshot.status = "rejected";
+            snapshot.error =
+              error instanceof Error ? error.name + ":" + error.message : String(error);
+          })
+          .finally(render);
+      })();
+    </script>
+  </head>
+  <body>
+    <pre id="battery-first-inline">pending</pre>
+  </body>
+</html>
