@@ -81,7 +81,7 @@ jobs:
           private-key: ${{ secrets.PUBLISH_APP_PRIVATE_KEY }}
 
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           ref: main
@@ -91,7 +91,7 @@ jobs:
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Set up Node
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
 
@@ -230,7 +230,7 @@ jobs:
       RELEASE_TAG: ${{ needs.cut-stable.outputs.release_tag }}
     steps:
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           ref: refs/tags/${{ needs.cut-stable.outputs.release_tag }}
@@ -283,7 +283,7 @@ jobs:
           PT_BUILD_CHANNEL=release PT_RELEASE_VERSION="${RELEASE_TAG#v}" node scripts/resolve-build-metadata.mjs >> "$GITHUB_ENV"
 
       - name: Setup Node
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
           package-manager-cache: false
@@ -369,7 +369,7 @@ jobs:
           echo "GITHUB_TOKEN=${PUBLISH_TOKEN}" >> "$GITHUB_ENV"
 
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           token: ${{ steps.app_token.outputs.token || github.token }}
@@ -428,7 +428,7 @@ jobs:
           cat "${BUILD_METADATA_ENV_PATH}" >> "$GITHUB_ENV"
 
       - name: Setup Node
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
           package-manager-cache: false
@@ -513,7 +513,7 @@ jobs:
       AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
     steps:
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           ref: refs/tags/${{ needs.github-stable.outputs.release_tag }}
@@ -574,7 +574,7 @@ jobs:
 
       - name: Setup Node
         if: steps.config.outputs.configured == 'true'
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
           package-manager-cache: false
@@ -663,7 +663,7 @@ jobs:
       CWS_SERVICE_ACCOUNT_JSON: ${{ secrets.CWS_SERVICE_ACCOUNT_JSON }}
     steps:
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           ref: refs/tags/${{ needs.github-stable.outputs.release_tag }}
@@ -719,7 +719,7 @@ jobs:
 
       - name: Setup Node
         if: steps.config.outputs.configured == 'true'
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
           package-manager-cache: false
@@ -767,7 +767,7 @@ jobs:
       CWS_SERVICE_ACCOUNT_JSON: ${{ secrets.CWS_SERVICE_ACCOUNT_JSON }}
     steps:
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           ref: ${{ needs.github-beta.outputs.target_sha }}
@@ -825,7 +825,7 @@ jobs:
 
       - name: Setup Node
         if: steps.config.outputs.configured == 'true'
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
           package-manager-cache: false
@@ -883,7 +883,7 @@ jobs:
       EDGE_PUBLISH_THROTTLE_DAYS: "10"
     steps:
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           ref: refs/tags/${{ needs.github-stable.outputs.release_tag }}
@@ -932,7 +932,7 @@ jobs:
 
       - name: Setup Node
         if: steps.config.outputs.configured == 'true'
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
           package-manager-cache: false
