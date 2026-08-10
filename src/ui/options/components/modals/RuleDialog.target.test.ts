@@ -361,11 +361,17 @@ describe("RuleDialog", () => {
       "Clears related site data and starts this rule with a fresh identity.",
     );
 
+    const rotateRuleIdentity = currentContext?.rotateRuleIdentity;
+    if (!vi.isMockFunction(rotateRuleIdentity)) {
+      throw new Error("Expected the identity action to be mocked.");
+    }
+
     await clickElement(
       document.querySelector('[data-dialog-section="identity"] button'),
     );
 
-    expect(currentContext?.rotateRuleIdentity).toHaveBeenCalledWith("example.com");
+    expect(rotateRuleIdentity).toHaveBeenCalledWith("example.com");
+    expect(document.getElementById("rule-dialog")).toBeNull();
   });
 
   it("moves pattern instructions into a tooltip trigger and keeps the header copy concise", async () => {
