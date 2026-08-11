@@ -1,6 +1,5 @@
 import { type ReactNode, useEffect, useState } from "react";
 
-import { EXTENSION_STORAGE_KEYS } from "@/shared/extension-contract";
 import { MAX_RANDOM_RADIUS_KM, MIN_RANDOM_RADIUS_KM } from "@/shared/settings-defaults";
 import { cn } from "@/ui/components/lib/utils";
 import {
@@ -26,6 +25,15 @@ import { useSettings } from "@/ui/options/state/SettingsContext";
 type GeoSettingsDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+};
+
+export const commitWatchPositionDelay = (
+  value: readonly number[],
+  current: [number, number],
+  scheduleAutosave: (overrides: { watchPositionDelay: [number, number] }) => void,
+): void => {
+  const next: [number, number] = [value[0] ?? current[0], value[1] ?? current[1]];
+  scheduleAutosave({ watchPositionDelay: next });
 };
 
 type GeoSettingsAnchor =
@@ -308,21 +316,9 @@ const WatchDelayControl = () => {
             value[1] ?? watchPositionDelay[1],
           ])
         }
-        onValueCommit={(value) => {
-          const next: [number, number] = [
-            value[0] ?? watchPositionDelay[0],
-            value[1] ?? watchPositionDelay[1],
-          ];
-          localStorage.setItem(
-            EXTENSION_STORAGE_KEYS.watchPositionDelayMin,
-            next[0].toString(),
-          );
-          localStorage.setItem(
-            EXTENSION_STORAGE_KEYS.watchPositionDelayMax,
-            next[1].toString(),
-          );
-          scheduleAutosave({ watchPositionDelay: next });
-        }}
+        onValueCommit={(value) =>
+          commitWatchPositionDelay(value, watchPositionDelay, scheduleAutosave)
+        }
       />
     </DialogSliderRow>
   );

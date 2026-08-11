@@ -178,7 +178,9 @@ test.describe("manual browserleaks acceptance", () => {
     await page.waitForLoadState("domcontentloaded");
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.locator("#js-detect")).toBeVisible({ timeout: 15_000 });
-    await expect(page).toHaveURL(/browserleaks\.com\/javascript/);
+    await expect(page).toHaveURL(
+      (url) => url.hostname === "browserleaks.com" && url.pathname === "/javascript",
+    );
     const artifact = await captureArtifact(page, "javascript");
     expect(artifact.runtimeSnapshot.timeZone).toBe("Europe/Warsaw");
     expect(artifact.runtimeSnapshot.webdriver).toBe(false);
@@ -205,7 +207,9 @@ test.describe("manual browserleaks acceptance", () => {
     await page.waitForLoadState("domcontentloaded");
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.locator("#geo-perm")).toBeVisible({ timeout: 15_000 });
-    await expect(page).toHaveURL(/browserleaks\.com\/geo/);
+    await expect(page).toHaveURL(
+      (url) => url.hostname === "browserleaks.com" && url.pathname === "/geo",
+    );
     const artifact = await captureArtifact(page, "geo");
     expect(artifact.runtimeSnapshot.permissions).toBe("granted");
     expect(artifact.comparison).toEqual(

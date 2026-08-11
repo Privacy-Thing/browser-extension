@@ -38,7 +38,7 @@ export const attachWorkerLogRelay = (
 
     messageEvent.stopImmediatePropagation();
     try {
-      postMessageTarget.postMessage(payload, "*");
+      postMessageTarget.postMessage(payload);
     } catch {
       // Ignore dispatch errors.
     }

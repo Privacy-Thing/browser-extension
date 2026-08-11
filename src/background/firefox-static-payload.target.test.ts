@@ -93,4 +93,26 @@ describe("buildFxSeedSource", () => {
       delete globalRecord[symbol];
     }
   });
+
+  it("serializes script-sensitive candidate data without changing it", () => {
+    const candidate = buildFxStateCandidate({
+      pattern: `</script>\\"\u2028\u2029.example.com`,
+      state: createShimState(7),
+    });
+    const globalRecord = globalThis as Record<string | symbol, unknown>;
+    const symbol = Symbol.for(FX_STATIC_CANDIDATES_KEY);
+    delete globalRecord[symbol];
+
+    try {
+      const source = buildFxSeedSource(candidate);
+      expect(source).not.toContain("</script>");
+
+      const runSource = new Function(source) as () => void;
+      runSource();
+
+      expect(globalRecord[symbol]).toEqual([candidate]);
+    } finally {
+      delete globalRecord[symbol];
+    }
+  });
 });

@@ -2,6 +2,8 @@ import fs from "node:fs";
 import process from "node:process";
 import { URL } from "node:url";
 
+import { fetchTrustedText } from "./upstream-fetch.mjs";
+
 const OSM_COUNTRY_SOURCE_URL =
   "https://wiki.openstreetmap.org/w/index.php?title=Nominatim/Country_Codes&action=raw";
 
@@ -76,19 +78,12 @@ export const osmCountryLanguageMap = Object.freeze(
 ) as Readonly<Record<string, readonly string[]>>;
 `;
 
-const response = await globalThis.fetch(OSM_COUNTRY_SOURCE_URL, {
-  headers: {
-    Accept: "text/plain",
-  },
+const source = await fetchTrustedText({
+  url: OSM_COUNTRY_SOURCE_URL,
+  allowedOrigins: ["https://wiki.openstreetmap.org"],
+  acceptedContentTypes: ["text/plain", "text/x-wiki"],
+  accept: "text/plain",
 });
-
-if (!response.ok) {
-  throw new Error(
-    `Could not download OSM country language source (${response.status}).`,
-  );
-}
-
-const source = await response.text();
 const entries = extractTableRows(source)
   .map(parseCountryLanguageRow)
   .filter((entry) => entry !== null)

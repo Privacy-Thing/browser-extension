@@ -12,6 +12,7 @@ import {
   fuzzChromiumUserAgent,
   parseBrowserUaVersion,
   parseChromiumUaVersion,
+  quoteHeaderString,
   readFingerprintSource,
   serializeHintBrands,
 } from "@/shared/browser-fingerprint";
@@ -39,6 +40,13 @@ afterEach(() => {
 });
 
 describe("browser fingerprint helpers", () => {
+  it("escapes backslashes before quotes in structured header strings", () => {
+    expect(quoteHeaderString('Brand\\"Name')).toBe('"Brand\\\\\\"Name"');
+    expect(serializeHintBrands([{ brand: 'Brand\\"Name', version: '1\\"2' }])).toBe(
+      '"Brand\\\\\\"Name";v="1\\\\\\"2"',
+    );
+  });
+
   it("caches high entropy client hints for the process lifetime", async () => {
     const getHighEntropyValues = vi.fn(async () => ({
       brands: [{ brand: "Chromium", version: "149" }],

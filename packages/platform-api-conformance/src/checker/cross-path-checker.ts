@@ -46,7 +46,7 @@ const COVERAGE_MATRIX: {
     label: "Intl constructors (non-DTF)",
   },
   {
-    pattern: /^NavigatorUAData\.|\.userAgentData|\.brands/,
+    pattern: /^(?:NavigatorUAData\.|.*\.userAgentData(?:\.|$)|.*\.brands(?:\.|$))/,
     expectedBrowsers: ["chromium"],
     label: "Client Hints",
   },

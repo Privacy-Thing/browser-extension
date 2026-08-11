@@ -2,6 +2,9 @@ import fs from "node:fs";
 import process from "node:process";
 import { URL } from "node:url";
 
+import { extractSteamSurveyText } from "./steam-survey-text.mjs";
+import { fetchTrustedText } from "./upstream-fetch.mjs";
+
 // Apple Silicon hardware profiles from Valve's public Steam Hardware & Software
 // Survey. Steam provides macOS marginal distributions; this generator constrains
 // them with a small Apple display/scaling compatibility table so runtime profiles
@@ -213,11 +216,6 @@ if (!FORCE_REGEN && isOutputFresh()) {
   process.exit(0);
 }
 
-const stripTags = (value) =>
-  value
-    .replace(/<[^>]*>/g, "")
-    .replace(/\u00a0/g, " ")
-    .trim();
 const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 const assertDisplayModes = () => {
@@ -248,13 +246,12 @@ const assertDisplayModes = () => {
 };
 
 const fetchPage = async () => {
-  const response = await globalThis.fetch(STEAM_MAC_SURVEY_URL, {
-    headers: { Accept: "text/html" },
+  return fetchTrustedText({
+    url: STEAM_MAC_SURVEY_URL,
+    allowedOrigins: ["https://store.steampowered.com"],
+    acceptedContentTypes: ["text/html"],
+    accept: "text/html",
   });
-  if (!response.ok) {
-    throw new Error(`Could not download Steam macOS survey page (${response.status}).`);
-  }
-  return response.text();
 };
 
 const extractCategoryRows = (html, categoryLabel) => {
@@ -280,8 +277,8 @@ const extractCategoryRows = (html, categoryLabel) => {
     /stats_col_mid data_row">([\s\S]*?)<\/div>\s*<div class="stats_col_right data_row">([\s\S]*?)<\/div>/g;
   let match;
   while ((match = cellPattern.exec(block)) !== null) {
-    const name = stripTags(match[1]);
-    const percentMatch = /([\d.]+)\s*%/.exec(stripTags(match[2]));
+    const name = extractSteamSurveyText(match[1]);
+    const percentMatch = /([\d.]+)\s*%/.exec(extractSteamSurveyText(match[2]));
     if (!percentMatch || seen.has(name)) continue;
     seen.add(name);
     rows.push({ name, percentage: Number(percentMatch[1]) / 100 });

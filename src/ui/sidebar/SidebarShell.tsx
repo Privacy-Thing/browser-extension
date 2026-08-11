@@ -127,21 +127,19 @@ export const SidebarShell = () => {
           >
             {hostname}
           </p>
-          {(rulePattern !== null || hostname !== null) && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6 shrink-0"
-              onClick={handleOpenDomainRule}
-              title={t.sidebar.openRule}
-            >
-              <i
-                className="fa-solid fa-arrow-up-right-from-square text-[9px]"
-                aria-hidden="true"
-              />
-              <span className="sr-only">{t.sidebar.openRule}</span>
-            </Button>
-          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 shrink-0"
+            onClick={handleOpenDomainRule}
+            title={t.sidebar.openRule}
+          >
+            <i
+              className="fa-solid fa-arrow-up-right-from-square text-[9px]"
+              aria-hidden="true"
+            />
+            <span className="sr-only">{t.sidebar.openRule}</span>
+          </Button>
         </div>
       )}
 

@@ -251,23 +251,20 @@ export const emitRuntimeLogEvent = ({
     }
 
     try {
-      globalThis.postMessage(
-        {
-          type: __PT_LOG_EVENT_TYPE__,
-          eventName: snapshot.logEventName,
-          detail: JSON.stringify({
-            component: diagnostic.component,
-            method: diagnostic.method,
-            kind: diagnostic.kind,
-            level: diagnostic.level,
-            message: diagnostic.message,
-            stack: toStackFrames(diagnostic.stack, diagnostic.headline).join("\n"),
-            args: toSerializable(args, ["<Unserializable Arguments>"]),
-            result: toSerializable(result, "<Unserializable Result>"),
-          }),
-        },
-        "*",
-      );
+      globalThis.postMessage({
+        type: __PT_LOG_EVENT_TYPE__,
+        eventName: snapshot.logEventName,
+        detail: JSON.stringify({
+          component: diagnostic.component,
+          method: diagnostic.method,
+          kind: diagnostic.kind,
+          level: diagnostic.level,
+          message: diagnostic.message,
+          stack: toStackFrames(diagnostic.stack, diagnostic.headline).join("\n"),
+          args: toSerializable(args, ["<Unserializable Arguments>"]),
+          result: toSerializable(result, "<Unserializable Result>"),
+        }),
+      });
     } catch {
       // Ignore dispatch errors
     }

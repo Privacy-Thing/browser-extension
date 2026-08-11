@@ -15,7 +15,7 @@ export type {
   BrowserFingerprintSource,
   UserAgentDataLike,
 } from "./browser-fingerprint-source.js";
-export { serializeHintBrands } from "./browser-client-hints.js";
+export { quoteHeaderString, serializeHintBrands } from "./browser-client-hints.js";
 
 import type { BrowserClientHintBrand, BrowserFingerprint } from "@/shared/types";
 

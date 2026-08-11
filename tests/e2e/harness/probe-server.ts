@@ -68,7 +68,10 @@ const send = (
   body: string,
   headers: Record<string, string>,
 ): void => {
-  response.writeHead(statusCode, headers);
+  response.writeHead(statusCode, {
+    "X-Content-Type-Options": "nosniff",
+    ...headers,
+  });
   response.end(body);
 };
 
@@ -79,23 +82,16 @@ const parseCookies = (cookieHeader: string | undefined): Record<string, string> 
     return {};
   }
 
-  return cookieHeader
-    .split(/;\s*/)
-    .reduce<Record<string, string>>((accumulator, item) => {
-      const separatorIndex = item.indexOf("=");
-      if (separatorIndex === -1) {
-        return accumulator;
-      }
+  const entries = new Map<string, string>();
+  for (const item of cookieHeader.split(/;\s*/)) {
+    const separatorIndex = item.indexOf("=");
+    if (separatorIndex === -1) continue;
 
-      const key = item.slice(0, separatorIndex).trim();
-      const value = item.slice(separatorIndex + 1).trim();
-      if (!key) {
-        return accumulator;
-      }
-
-      accumulator[key] = value;
-      return accumulator;
-    }, {});
+    const key = item.slice(0, separatorIndex).trim();
+    const value = item.slice(separatorIndex + 1).trim();
+    if (key) entries.set(key, value);
+  }
+  return Object.fromEntries(entries);
 };
 
 const escapeHtml = (value: string): string =>

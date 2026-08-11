@@ -864,12 +864,11 @@ describe("createWorkerSource", () => {
     try {
       const geolocation = {} as Geolocation;
       const successCallback = vi.fn();
-      vi.spyOn(Math, "random").mockReturnValue(0);
 
       await withWorkerTestGlobals({ navigator: { geolocation } as Navigator }, () => {
         installWorkerInTest(snapshot);
         geolocation.getCurrentPosition(successCallback);
-        vi.advanceTimersByTime(10);
+        vi.advanceTimersByTime(500);
 
         const position = successCallback.mock.calls[0]?.[0] as GeolocationPosition;
         expect(position.toJSON()).toEqual({
@@ -1009,7 +1008,6 @@ describe("createWorkerSource", () => {
       const originalDocument = (
         globalThis as typeof globalThis & { document?: Document }
       ).document;
-      vi.spyOn(Math, "random").mockReturnValue(0);
 
       await withWorkerTestGlobals(
         {
@@ -1029,13 +1027,13 @@ describe("createWorkerSource", () => {
 
             const watchId = geolocation.watchPosition(successCallback);
 
-            // getCallbackDelay() = 10ms with Math.random = 0
-            vi.advanceTimersByTime(10);
+            // The cryptographic callback jitter is capped below 500ms.
+            vi.advanceTimersByTime(500);
             expect(successCallback).toHaveBeenCalledTimes(1);
 
             targetDocument.visibilityState = "hidden";
-            // getNextWatchDelay() = 50 000ms; advance well past it while hidden
-            vi.advanceTimersByTime(100);
+            // Advance past the 50-second watch interval to exercise suspension.
+            vi.advanceTimersByTime(50_001);
             expect(successCallback).toHaveBeenCalledTimes(1);
 
             geolocation.clearWatch(watchId);
@@ -1063,7 +1061,6 @@ describe("createWorkerSource", () => {
     try {
       const geolocation = {} as Geolocation;
       const successCallback = vi.fn();
-      vi.spyOn(Math, "random").mockReturnValue(0);
 
       await withWorkerTestGlobals(
         {
@@ -1077,16 +1074,16 @@ describe("createWorkerSource", () => {
 
           const watchId = geolocation.watchPosition(successCallback);
 
-          // getCallbackDelay() = 10ms with Math.random = 0
-          vi.advanceTimersByTime(10);
+          // The cryptographic callback jitter is capped below 500ms.
+          vi.advanceTimersByTime(500);
           expect(successCallback).toHaveBeenCalledTimes(1);
 
           // getNextWatchDelay() = 1 000ms; cache still valid at midpoint
           vi.advanceTimersByTime(500);
           expect(successCallback).toHaveBeenCalledTimes(1);
 
-          // advance past cache expiry (10 + 1 000 = 1 010ms total)
-          vi.advanceTimersByTime(510);
+          // Advance past the one-second cache expiry.
+          vi.advanceTimersByTime(501);
           expect(successCallback).toHaveBeenCalledTimes(2);
 
           geolocation.clearWatch(watchId);

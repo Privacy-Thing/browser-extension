@@ -9,6 +9,7 @@ import {
   patternToRegexFilter,
   syncContextHeaderRule,
 } from "@/background/dnr";
+import { buildRequestHeaders } from "@/background/dnr-request-headers";
 import {
   clearSurfaceEvidence,
   getRealmEvidence,
@@ -64,6 +65,25 @@ const expectedLocaleHeaders = (value: string) => [
     value,
   },
 ];
+
+describe("buildRequestHeaders", () => {
+  it("escapes structured Client Hint platform values", () => {
+    const requestHeaders = buildRequestHeaders({
+      fingerprint: {
+        clientHints: {
+          platform: 'Win\\"dows',
+          mobile: false,
+        },
+      },
+    } as RuntimeSnapshot);
+
+    expect(requestHeaders).toContainEqual({
+      header: "Sec-CH-UA-Platform",
+      operation: "set",
+      value: '"Win\\\\\\"dows"',
+    });
+  });
+});
 
 type HeaderInput = Parameters<typeof buildHeaderRulesBase>[0];
 type DomainInput = Parameters<typeof buildDomainFallbackRulesBase>[0];

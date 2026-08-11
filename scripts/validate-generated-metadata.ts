@@ -102,6 +102,9 @@ export type RawCatalogs = {
 export type ValidateOptions = {
   baseline?: RawCatalogs | undefined;
   driftThreshold?: number | undefined;
+  growthThreshold?: number | undefined;
+  distributionDriftThreshold?: number | undefined;
+  osmMappingDriftThreshold?: number | undefined;
 };
 
 const checkWeightsSumToOne = (
@@ -310,7 +313,8 @@ const sizeMetrics = (catalogs: RawCatalogs): Record<string, number> => {
 const validateDrift = (
   current: RawCatalogs,
   baseline: RawCatalogs,
-  threshold: number,
+  dropThreshold: number,
+  growthThreshold: number,
   problems: string[],
 ): void => {
   const currentMetrics = sizeMetrics(current);
@@ -318,14 +322,168 @@ const validateDrift = (
   for (const [key, baseValue] of Object.entries(baselineMetrics)) {
     if (baseValue <= 0) continue;
     const value = currentMetrics[key] ?? 0;
-    const floor = baseValue * (1 - threshold);
+    const floor = baseValue * (1 - dropThreshold);
+    const ceiling = baseValue * (1 + growthThreshold);
     if (value < floor) {
       problems.push(
         `drift: ${key} dropped from ${baseValue} to ${value} (below floor ${floor.toFixed(0)} at ${(
-          threshold * 100
+          dropThreshold * 100
+        ).toFixed(0)}% threshold)`,
+      );
+    } else if (value > ceiling) {
+      problems.push(
+        `drift: ${key} grew from ${baseValue} to ${value} (above ceiling ${ceiling.toFixed(0)} at ${(
+          growthThreshold * 100
         ).toFixed(0)}% threshold)`,
       );
     }
+  }
+};
+
+type WeightedValue = { value: unknown; weight: number };
+
+const stableValueKey = (value: unknown): string => {
+  if (Array.isArray(value)) {
+    return `[${value.map(stableValueKey).join(",")}]`;
+  }
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    return `{${Object.keys(record)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${stableValueKey(record[key])}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value) ?? String(value);
+};
+
+const collectWeightedSets = (
+  catalogs: RawCatalogs,
+): Record<string, readonly WeightedValue[]> => {
+  const distributions: Record<string, readonly WeightedValue[]> = {};
+  const steam = catalogs.steam as
+    Record<string, Record<string, WeightedValue[]>> | undefined;
+  for (const platform of STEAM_PLATFORMS) {
+    const profile = steam?.[platform];
+    for (const category of ["resolutions", "cpuCores", "ram"] as const) {
+      const entries = profile?.[category];
+      if (Array.isArray(entries)) {
+        distributions[`steam.${platform}.${category}`] = entries;
+      }
+    }
+  }
+
+  const apple = catalogs.apple as
+    | {
+        devices?: WeightedValue[];
+        marginals?: Record<string, WeightedValue[]>;
+      }
+    | undefined;
+  if (Array.isArray(apple?.devices)) {
+    distributions["apple.devices"] = apple.devices;
+  }
+  for (const category of ["resolutions", "cpuCores", "ram"] as const) {
+    const entries = apple?.marginals?.[category];
+    if (Array.isArray(entries)) {
+      distributions[`apple.marginals.${category}`] = entries;
+    }
+  }
+  return distributions;
+};
+
+const distributionWeights = (
+  entries: readonly WeightedValue[],
+): Map<string, number> => {
+  const weights = new Map<string, number>();
+  for (const entry of entries) {
+    const key = stableValueKey(entry.value);
+    weights.set(key, (weights.get(key) ?? 0) + entry.weight);
+  }
+  return weights;
+};
+
+const totalVariationDistance = (
+  current: readonly WeightedValue[],
+  baseline: readonly WeightedValue[],
+): number => {
+  const currentWeights = distributionWeights(current);
+  const baselineWeights = distributionWeights(baseline);
+  const keys = new Set([...currentWeights.keys(), ...baselineWeights.keys()]);
+  let absoluteDifference = 0;
+  for (const key of keys) {
+    absoluteDifference += Math.abs(
+      (currentWeights.get(key) ?? 0) - (baselineWeights.get(key) ?? 0),
+    );
+  }
+  return absoluteDifference / 2;
+};
+
+const validateWeightDrift = (
+  current: RawCatalogs,
+  baseline: RawCatalogs,
+  threshold: number,
+  problems: string[],
+): void => {
+  const currentDistributions = collectWeightedSets(current);
+  const baselineDistributions = collectWeightedSets(baseline);
+  for (const [key, baselineEntries] of Object.entries(baselineDistributions)) {
+    const currentEntries = currentDistributions[key];
+    if (
+      !currentEntries ||
+      currentEntries.length === 0 ||
+      baselineEntries.length === 0
+    ) {
+      continue;
+    }
+    const distance = totalVariationDistance(currentEntries, baselineEntries);
+    if (distance > threshold) {
+      problems.push(
+        `drift: ${key} distribution distance ${distance.toFixed(4)} exceeds ${threshold.toFixed(4)}`,
+      );
+    }
+  }
+};
+
+const osmLanguageMap = (raw: unknown): Map<string, string> => {
+  const result = new Map<string, string>();
+  if (!Array.isArray(raw)) return result;
+  for (const entry of raw) {
+    const candidate = entry as Record<string, unknown> | null;
+    if (
+      !candidate ||
+      typeof candidate !== "object" ||
+      typeof candidate.countryCode !== "string" ||
+      !Array.isArray(candidate.languageCodes)
+    ) {
+      continue;
+    }
+    result.set(
+      candidate.countryCode,
+      [...candidate.languageCodes].sort().join("\u0000"),
+    );
+  }
+  return result;
+};
+
+const validateOsmMappingDrift = (
+  current: RawCatalogs,
+  baseline: RawCatalogs,
+  threshold: number,
+  problems: string[],
+): void => {
+  const currentMap = osmLanguageMap(current.osmCatalog);
+  const baselineMap = osmLanguageMap(baseline.osmCatalog);
+  const countries = new Set([...currentMap.keys(), ...baselineMap.keys()]);
+  if (countries.size === 0) return;
+
+  let changed = 0;
+  for (const country of countries) {
+    if (currentMap.get(country) !== baselineMap.get(country)) changed += 1;
+  }
+  const ratio = changed / countries.size;
+  if (ratio > threshold) {
+    problems.push(
+      `drift: osm language mappings changed for ${changed}/${countries.size} countries (${ratio.toFixed(4)}, limit ${threshold.toFixed(4)})`,
+    );
   }
 };
 
@@ -340,7 +498,25 @@ export const validateCatalogs = (
   validateOsm(catalogs.osmCatalog, catalogs.osmMap, problems);
   validateLocale(catalogs.localeCatalog, catalogs.localeOptionsByTarget, problems);
   if (options.baseline) {
-    validateDrift(catalogs, options.baseline, options.driftThreshold ?? 0.5, problems);
+    validateDrift(
+      catalogs,
+      options.baseline,
+      options.driftThreshold ?? 0.5,
+      options.growthThreshold ?? 0.5,
+      problems,
+    );
+    validateWeightDrift(
+      catalogs,
+      options.baseline,
+      options.distributionDriftThreshold ?? 0.25,
+      problems,
+    );
+    validateOsmMappingDrift(
+      catalogs,
+      options.baseline,
+      options.osmMappingDriftThreshold ?? 0.2,
+      problems,
+    );
   }
   return problems;
 };
@@ -365,13 +541,26 @@ const loadCatalogs = async (sharedDir: string): Promise<RawCatalogs> => {
 };
 
 const parseArgs = (argv: string[]) => {
-  const args = { sharedDir: "src/shared", baselineDir: "", driftThreshold: 0.5 };
+  const args = {
+    sharedDir: "src/shared",
+    baselineDir: "",
+    driftThreshold: 0.5,
+    growthThreshold: 0.5,
+    distributionDriftThreshold: 0.25,
+    osmMappingDriftThreshold: 0.2,
+  };
   for (let index = 0; index < argv.length; index += 1) {
     const value = argv[index];
     if (value === "--shared-dir") args.sharedDir = argv[++index] ?? args.sharedDir;
     else if (value === "--baseline-dir")
       args.baselineDir = argv[++index] ?? args.baselineDir;
     else if (value === "--drift-threshold") args.driftThreshold = Number(argv[++index]);
+    else if (value === "--growth-threshold")
+      args.growthThreshold = Number(argv[++index]);
+    else if (value === "--distribution-drift-threshold")
+      args.distributionDriftThreshold = Number(argv[++index]);
+    else if (value === "--osm-mapping-drift-threshold")
+      args.osmMappingDriftThreshold = Number(argv[++index]);
   }
   return args;
 };
@@ -389,6 +578,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === currentFilePath) {
       const problems = validateCatalogs(catalogs, {
         baseline,
         driftThreshold: args.driftThreshold,
+        growthThreshold: args.growthThreshold,
+        distributionDriftThreshold: args.distributionDriftThreshold,
+        osmMappingDriftThreshold: args.osmMappingDriftThreshold,
       });
       if (problems.length > 0) {
         console.error(`Metadata validation failed (${problems.length} problem(s)):`);
