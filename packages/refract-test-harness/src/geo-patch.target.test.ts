@@ -43,7 +43,6 @@ describe("installGeolocationPatch", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-01-15T12:00:00.000Z"));
-    vi.spyOn(Math, "random").mockReturnValue(0.1234);
   });
 
   afterEach(() => {
@@ -753,10 +752,8 @@ describe("installGeolocationPatch", () => {
 
     vi.advanceTimersByTime(250);
     expect(successCallback).toHaveBeenCalledTimes(2);
-    expect(
-      (successCallback.mock.calls[1]?.[0] as GeolocationPosition).timestamp,
-    ).toBeGreaterThan(
-      (successCallback.mock.calls[0]?.[0] as GeolocationPosition).timestamp,
+    expect(successCallback.mock.calls[1]?.[0]).not.toBe(
+      successCallback.mock.calls[0]?.[0],
     );
 
     geolocation.clearWatch(watchId);

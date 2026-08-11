@@ -1,13 +1,16 @@
 const NativeArray = Array;
 const NativeMap = Map;
 const NativeSet = Set;
+const NativeUint32Array = Uint32Array;
 const NativeWeakMap = WeakMap;
 const NativeWeakSet = WeakSet;
+const nativeCrypto = globalThis.crypto;
 
 const nativeArrayIsArray = Array.isArray;
 const nativeArrayPush = Array.prototype.push;
 const nativeArrayShift = Array.prototype.shift;
 const nativeDateNow = Date.now;
+const nativeGetRandomValues = nativeCrypto?.getRandomValues;
 const nativeJsonStringify = JSON.stringify;
 const nativeMapDelete = Map.prototype.delete;
 const nativeMapGet = Map.prototype.get;
@@ -246,3 +249,14 @@ export const privateWeakSetHas = <T extends object>(
 
 export const privateDateNow = (): number =>
   nativeReflectApply(nativeDateNow, Date, []) as number;
+
+/** Returns a captured Web Crypto sample in the half-open interval [0, 1). */
+export const privateCryptoRandomUnit = (): number => {
+  if (!nativeCrypto || typeof nativeGetRandomValues !== "function") {
+    throw new Error("Web Crypto getRandomValues is unavailable");
+  }
+
+  const values = new NativeUint32Array(1);
+  nativeReflectApply(nativeGetRandomValues, nativeCrypto, [values]);
+  return (values[0] ?? 0) / 0x1_0000_0000;
+};

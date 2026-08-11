@@ -104,9 +104,7 @@ export const createFxInjection = (deps: FirefoxInjectionModeDeps) => {
     try {
       await refreshPromise;
     } finally {
-      if (injectionRefreshPromise === refreshPromise) {
-        injectionRefreshPromise = null;
-      }
+      injectionRefreshPromise = null;
     }
   };
 

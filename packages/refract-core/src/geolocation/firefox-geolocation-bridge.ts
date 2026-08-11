@@ -2,6 +2,7 @@ import type { FirefoxGeoState } from "@privacy-brand/refract-browser/common/fire
 
 import { createNativeSource, maskAsNative } from "../native/native-mask";
 import { inspectPatchAnchors, markPatchAnchor } from "../runtime/patch-marker";
+import { privateCryptoRandomUnit } from "../runtime/primordials";
 import { getNativeDate } from "../time/native-date";
 
 import { createGeoCache } from "./cache";
@@ -150,7 +151,7 @@ class FxGeoBridge implements FirefoxGeolocationBridge {
     this.getGeoRuntime()?.getNextWatchDelay() ?? 60_000;
 
   private getCallbackDelay = (): number =>
-    this.getGeoRuntime()?.getCallbackDelay() ?? 10 + Math.random() * 40;
+    this.getGeoRuntime()?.getCallbackDelay() ?? 10 + privateCryptoRandomUnit() * 40;
 
   private createPosition = (): GeolocationPosition => {
     if (!this.geoData) {

@@ -68,6 +68,7 @@ describe("debug-logger", () => {
     expect(Array.isArray(traceFrames)).toBe(true);
     expect(traceFrames.join("\n")).not.toContain("[Refract] Date.now intercepted");
     expect(postMessage).toHaveBeenCalledTimes(1);
+    expect(postMessage.mock.calls[0]).toHaveLength(1);
     const payload = postMessage.mock.calls[0]?.[0];
     expect(payload).toMatchObject({
       type: LOG_EVENT_TYPE,

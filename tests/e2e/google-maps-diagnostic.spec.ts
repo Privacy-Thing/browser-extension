@@ -168,7 +168,12 @@ test("diagnose Google Maps with Privacy Thing spoofing active", async ({
       await consentButton.click();
       console.log("Consent screen dismissed");
       // Wait for redirect/reload after consent
-      await mapsPage.waitForURL(/google.com\/maps/, { timeout: 10_000 });
+      await mapsPage.waitForURL(
+        (url) =>
+          url.hostname === "www.google.com" &&
+          (url.pathname === "/maps" || url.pathname.startsWith("/maps/")),
+        { timeout: 10_000 },
+      );
     } catch {
       console.log("No consent screen detected");
     }
@@ -380,7 +385,12 @@ test("diagnose Google Maps with Privacy Thing spoofing active", async ({
         .first();
       await consentBtn.waitFor({ timeout: 5_000 });
       await consentBtn.click();
-      await mapsPageOff.waitForURL(/google.com\/maps/, { timeout: 10_000 });
+      await mapsPageOff.waitForURL(
+        (url) =>
+          url.hostname === "www.google.com" &&
+          (url.pathname === "/maps" || url.pathname.startsWith("/maps/")),
+        { timeout: 10_000 },
+      );
     } catch {
       /* no consent */
     }

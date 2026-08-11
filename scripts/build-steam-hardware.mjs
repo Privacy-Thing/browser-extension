@@ -2,6 +2,9 @@ import fs from "node:fs";
 import process from "node:process";
 import { URL } from "node:url";
 
+import { extractSteamSurveyText } from "./steam-survey-text.mjs";
+import { fetchTrustedText } from "./upstream-fetch.mjs";
+
 // Source: Steam Hardware & Software Survey (Valve), read directly from the official
 // public survey page. The page renders per-platform marginal distributions for display
 // resolution, physical CPU count, and system RAM as aggregate percentages (facts).
@@ -48,21 +51,14 @@ if (!FORCE_REGEN && isOutputFresh()) {
   process.exit(0);
 }
 
-const stripTags = (value) =>
-  value
-    .replace(/<[^>]*>/g, "")
-    .replace(/\u00a0/g, " ")
-    .trim();
-
 const fetchPage = async (param) => {
   const url = `${STEAM_SURVEY_BASE_URL}${param}`;
-  const response = await globalThis.fetch(url, { headers: { Accept: "text/html" } });
-  if (!response.ok) {
-    throw new Error(
-      `Could not download Steam survey page for ${param} (${response.status}).`,
-    );
-  }
-  return response.text();
+  return fetchTrustedText({
+    url,
+    allowedOrigins: ["https://store.steampowered.com"],
+    acceptedContentTypes: ["text/html"],
+    accept: "text/html",
+  });
 };
 
 /**
@@ -95,8 +91,8 @@ const extractCategoryRows = (html, categoryLabel) => {
     /stats_col_mid data_row">([\s\S]*?)<\/div>\s*<div class="stats_col_right data_row">([\s\S]*?)<\/div>/g;
   let match;
   while ((match = cellPattern.exec(block)) !== null) {
-    const name = stripTags(match[1]);
-    const percentMatch = /([\d.]+)\s*%/.exec(stripTags(match[2]));
+    const name = extractSteamSurveyText(match[1]);
+    const percentMatch = /([\d.]+)\s*%/.exec(extractSteamSurveyText(match[2]));
     if (!percentMatch || seen.has(name)) continue;
     seen.add(name);
     rows.push({ name, percentage: Number(percentMatch[1]) / 100 });

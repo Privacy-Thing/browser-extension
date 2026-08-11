@@ -1,6 +1,6 @@
 import { isFpSurfaceEnabled } from "@privacy-brand/refract-core/fingerprint/surface-guards";
 
-import { serializeHintBrands } from "@/shared/browser-fingerprint";
+import { quoteHeaderString, serializeHintBrands } from "@/shared/browser-fingerprint";
 import type { DynamicHeaderRule, RuntimeSnapshot } from "@/shared/types";
 
 const SET_HEADER = "set" as chrome.declarativeNetRequest.HeaderOperation;
@@ -43,7 +43,7 @@ export const buildRequestHeaders = (
     requestHeaders.push({
       header: "Sec-CH-UA-Platform",
       operation: SET_HEADER,
-      value: `"${clientHints.platform.replace(/"/g, '\\"')}"`,
+      value: quoteHeaderString(clientHints.platform),
     });
   }
   if (typeof clientHints?.mobile === "boolean") {

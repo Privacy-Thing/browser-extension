@@ -91,21 +91,18 @@ import type { XRaySurfaceCategory } from "@/shared/types";
         safeResult = "<Unserializable Result>";
       }
 
-      globalThis.postMessage(
-        {
-          type: __PT_LOG_EVENT_TYPE__,
-          eventName: activeDebugState.logEventName,
-          detail: JSON.stringify({
-            component,
-            method,
-            level:
-              method === "install" ? ExtensionLogLevel.Verbose : ExtensionLogLevel.Info,
-            args: safeArgs,
-            result: safeResult,
-          }),
-        },
-        "*",
-      );
+      globalThis.postMessage({
+        type: __PT_LOG_EVENT_TYPE__,
+        eventName: activeDebugState.logEventName,
+        detail: JSON.stringify({
+          component,
+          method,
+          level:
+            method === "install" ? ExtensionLogLevel.Verbose : ExtensionLogLevel.Info,
+          args: safeArgs,
+          result: safeResult,
+        }),
+      });
     } catch {
       // Ignore dispatch errors.
     }
@@ -136,7 +133,7 @@ import type { XRaySurfaceCategory } from "@/shared/types";
         queuePagePayload("bootstrap-log", payload);
       }
 
-      globalThis.postMessage(payload, "*");
+      globalThis.postMessage(payload);
     } catch {
       // Ignore dispatch errors.
     }
@@ -178,7 +175,7 @@ import type { XRaySurfaceCategory } from "@/shared/types";
 
     try {
       queuePagePayload("bootstrap-heartbeat", payload);
-      globalThis.postMessage(payload, "*");
+      globalThis.postMessage(payload);
     } catch {
       // Ignore dispatch errors.
     }

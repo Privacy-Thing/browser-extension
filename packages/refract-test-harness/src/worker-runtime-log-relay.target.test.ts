@@ -34,7 +34,6 @@ describe("worker-runtime-log-relay", () => {
         type: LOG_EVENT_TYPE,
         eventName: "evt123",
       }),
-      "*",
     );
   });
 

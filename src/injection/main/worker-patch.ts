@@ -182,20 +182,17 @@ class WorkerPatchInstaller {
   #emitSignal(method: string, details?: Record<string, unknown>): void {
     if (!this.#snapshot.logEventName) return;
     try {
-      globalThis.postMessage(
-        {
-          type: __PT_LOG_EVENT_TYPE__,
-          eventName: this.#snapshot.logEventName,
-          detail: JSON.stringify({
-            component: "Worker",
-            method,
-            level: ExtensionLogLevel.Warn,
-            args: [],
-            result: details ?? null,
-          }),
-        },
-        "*",
-      );
+      globalThis.postMessage({
+        type: __PT_LOG_EVENT_TYPE__,
+        eventName: this.#snapshot.logEventName,
+        detail: JSON.stringify({
+          component: "Worker",
+          method,
+          level: ExtensionLogLevel.Warn,
+          args: [],
+          result: details ?? null,
+        }),
+      });
     } catch {
       // Diagnostics must not break worker construction.
     }

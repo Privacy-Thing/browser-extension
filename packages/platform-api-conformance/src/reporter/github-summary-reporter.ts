@@ -3,6 +3,7 @@ import { join } from "node:path";
 
 import { resolveRepoPath } from "../repo-paths.js";
 
+import { escapeMarkdownInline, escapeMarkdownTableCell } from "./markdown-escape.js";
 import type { ReportInput } from "./report-input.js";
 
 /**
@@ -26,7 +27,9 @@ export class GithubSummaryReporter {
           ? "\u{1F7E1}"
           : "\u{1F7E2}";
 
-    const targetsLabel = targets.map((t) => `${t.name} ${t.version}`).join(", ");
+    const targetsLabel = targets
+      .map((t) => escapeMarkdownInline(`${t.name} ${t.version}`))
+      .join(", ");
 
     const lines: string[] = [];
 
@@ -63,13 +66,14 @@ export class GithubSummaryReporter {
               ? "\u{1F7E1}"
               : "\u{1F7E2}";
         const targetsCell = f.affectedTargets?.length
-          ? f.affectedTargets.join(", ")
+          ? escapeMarkdownTableCell(f.affectedTargets.join(", "))
           : "—";
-        // Escape pipe characters in message to avoid breaking GFM table
-        const message = f.message.replace(/\|/g, "\\|").replace(/\n/g, " ");
-        const api = f.api.replace(/\|/g, "\\|");
+        const message = escapeMarkdownTableCell(f.message);
+        const api = escapeMarkdownTableCell(f.api);
+        const category = escapeMarkdownTableCell(f.category);
+        const severity = escapeMarkdownTableCell(f.severity);
         lines.push(
-          `| ${sevEmoji} ${f.severity} | ${f.category} | \`${api}\` | ${message} | ${targetsCell} |`,
+          `| ${sevEmoji} ${severity} | ${category} | \`${api}\` | ${message} | ${targetsCell} |`,
         );
       }
 

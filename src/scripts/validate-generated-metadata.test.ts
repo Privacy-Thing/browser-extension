@@ -158,4 +158,61 @@ describe("validateCatalogs", () => {
     });
     expect(problems).toEqual([]);
   });
+
+  it("flags an unexpectedly expanded catalog", () => {
+    const problems = validateCatalogs(makeValidCatalogs(8), {
+      baseline: makeValidCatalogs(1),
+      growthThreshold: 0.5,
+    });
+    expect(problems.some((p) => p.startsWith("drift: chrome.versions grew"))).toBe(
+      true,
+    );
+  });
+
+  it("flags a large weighted distribution change", () => {
+    const baseline = makeValidCatalogs();
+    const current = makeValidCatalogs();
+    const baselineCpu = (baseline.steam as { windows: ReturnType<typeof steamProfile> })
+      .windows.cpuCores;
+    const currentCpu = (current.steam as { windows: ReturnType<typeof steamProfile> })
+      .windows.cpuCores;
+    baselineCpu.splice(0, 1, weighted(4, 0.5), weighted(8, 0.5));
+    currentCpu.splice(0, 1, weighted(4, 0.1), weighted(8, 0.9));
+
+    expect(
+      validateCatalogs(current, { baseline }).some((p) =>
+        p.startsWith("drift: steam.windows.cpuCores distribution"),
+      ),
+    ).toBe(true);
+  });
+
+  it("compares object-valued distributions by stable keys", () => {
+    const baseline = makeValidCatalogs();
+    const current = makeValidCatalogs();
+    const currentResolutions = (
+      current.steam as { windows: ReturnType<typeof steamProfile> }
+    ).windows.resolutions;
+    currentResolutions[0] = weighted({ height: 1080, width: 1920 }, 1);
+
+    expect(validateCatalogs(current, { baseline })).toEqual([]);
+  });
+
+  it("flags widespread OSM language mapping changes", () => {
+    const baseline = makeValidCatalogs();
+    const current = makeValidCatalogs();
+    const currentOsm = current.osmCatalog as {
+      countryCode: string;
+      languageCodes: string[];
+    }[];
+    for (const entry of currentOsm.slice(0, 30)) entry.languageCodes = ["zz"];
+    current.osmMap = Object.fromEntries(
+      currentOsm.map((entry) => [entry.countryCode, entry.languageCodes]),
+    );
+
+    expect(
+      validateCatalogs(current, { baseline }).some((p) =>
+        p.startsWith("drift: osm language mappings changed"),
+      ),
+    ).toBe(true);
+  });
 });

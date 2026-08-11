@@ -192,9 +192,8 @@ export async function captureValueProbes(
     };
     const result: Record<string, unknown> = {
       classExtendsOutcome: outcome(() => {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        class Fake extends (target as GenericConstructor) {}
-        return "ok";
+        const subclass = class extends (target as GenericConstructor) {};
+        return typeof subclass === "function" ? "ok" : "unexpected";
       }),
       descriptorKeys: Object.keys(Object.getOwnPropertyDescriptors(target)).sort(),
       hasPrototype: "prototype" in target,

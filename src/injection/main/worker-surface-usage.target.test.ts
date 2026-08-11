@@ -383,6 +383,7 @@ describe("main runtime Dedicated Worker surface usage", () => {
     const attemptSignals = readPostedAttemptSignals(postMessageSpy).filter(
       (signal) => signal.method === "dedicated-worker-attempt",
     );
+    expect(postMessageSpy.mock.calls.every((call) => call.length === 1)).toBe(true);
     expect(attemptSignals).toEqual([
       expect.objectContaining({
         result: expect.objectContaining({

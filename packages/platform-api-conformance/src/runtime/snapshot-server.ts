@@ -49,8 +49,8 @@ self.__PT_CONFORMANCE_FUNCTION_LIES__ = (probe) => {
     toStringLooksNative: Function.prototype.toString.call(target.toString).includes("[native code]"),
     newOutcome: outcome(() => Reflect.construct(target, [])),
     classExtendsOutcome: outcome(() => {
-      class Fake extends target {}
-      return "ok";
+      const subclass = class extends target {};
+      return typeof subclass === "function" ? "ok" : "unexpected";
     })
   };
 
@@ -129,8 +129,8 @@ self.__PT_CONFORMANCE_FUNCTION_LIES__ = (probe) => {
     toStringLooksNative: Function.prototype.toString.call(target.toString).includes("[native code]"),
     newOutcome: outcome(() => Reflect.construct(target, [])),
     classExtendsOutcome: outcome(() => {
-      class Fake extends target {}
-      return "ok";
+      const subclass = class extends target {};
+      return typeof subclass === "function" ? "ok" : "unexpected";
     })
   };
 

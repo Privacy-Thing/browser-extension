@@ -53,9 +53,36 @@ describe("startProbeServers", () => {
       expect(echoResponse.headers.get("access-control-allow-origin")).toBe(
         servers.secondaryUrl,
       );
+      expect(echoResponse.headers.get("x-content-type-options")).toBe("nosniff");
 
       const retiredResponse = await fetch(`${servers.primaryUrl}/qa/`);
       expect(retiredResponse.status).toBe(404);
+    } finally {
+      await servers.close();
+    }
+  });
+
+  it("encodes reflected HTML and parses prototype-shaped cookie names safely", async () => {
+    const servers = await startProbeServers({
+      primaryPort: 0,
+      secondaryPort: 0,
+    });
+
+    try {
+      const htmlResponse = await fetch(`${servers.primaryUrl}/api/echo-request.html`, {
+        headers: {
+          Cookie: "__proto__=first; constructor=second; duplicate=old; duplicate=new",
+          "X-Probe": "<script>alert(1)</script>",
+        },
+      });
+      const html = await htmlResponse.text();
+
+      expect(htmlResponse.headers.get("x-content-type-options")).toBe("nosniff");
+      expect(html).not.toContain("<script>alert(1)</script>");
+      expect(html).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
+      expect(html).toContain("&quot;__proto__&quot;: &quot;first&quot;");
+      expect(html).toContain("&quot;constructor&quot;: &quot;second&quot;");
+      expect(html).toContain("&quot;duplicate&quot;: &quot;new&quot;");
     } finally {
       await servers.close();
     }

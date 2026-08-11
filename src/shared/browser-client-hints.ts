@@ -26,9 +26,15 @@ export const buildClientHints = (
 };
 
 /** Serializes Client Hint brands into the Sec-CH-UA header value format. */
+export const quoteHeaderString = (value: string): string =>
+  `"${value.replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`;
+
 export const serializeHintBrands = (
   brands: readonly BrowserClientHintBrand[] | undefined,
 ): string | undefined =>
   brands
-    ?.map((brand) => `"${brand.brand.replace(/"/g, '\\"')}";v="${brand.version}"`)
+    ?.map(
+      (brand) =>
+        `${quoteHeaderString(brand.brand)};v=${quoteHeaderString(brand.version)}`,
+    )
     .join(", ");

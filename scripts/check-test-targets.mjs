@@ -5,6 +5,8 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 
+import { applyWildcards } from "./wildcard-pattern.mjs";
+
 const root = process.cwd();
 const write = process.argv.includes("--write");
 const verbose = process.argv.includes("--verbose");
@@ -95,7 +97,9 @@ const resolveTsconfigImport = (specifier) => {
       ? specifier.slice(prefix.length, specifier.length - suffix.length || undefined)
       : "";
     for (const target of targets) {
-      const resolved = resolveFile(path.resolve(root, target.replace("*", wildcard)));
+      const resolved = resolveFile(
+        path.resolve(root, applyWildcards(target, wildcard)),
+      );
       if (resolved) return resolved;
     }
     return null;
@@ -118,7 +122,8 @@ const resolveWorkspaceImport = (specifier) => {
           prefix.length,
           exportKey.length - suffix.length || undefined,
         );
-        exportTarget = typeof value === "string" ? value.replace("*", wildcard) : value;
+        exportTarget =
+          typeof value === "string" ? applyWildcards(value, wildcard) : value;
         break;
       }
     }

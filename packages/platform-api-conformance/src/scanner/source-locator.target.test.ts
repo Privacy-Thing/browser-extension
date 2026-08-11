@@ -1,4 +1,4 @@
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -11,7 +11,7 @@ import { SourceLocator, extractSurface } from "./source-locator.js";
  * that mirror real patterns from `src/injection/`.
  */
 
-const TEST_ROOT = join(tmpdir(), `source-locator-test-${Date.now()}`);
+const TEST_ROOT = mkdtempSync(join(tmpdir(), "source-locator-test-"));
 const INJECTION_DIR = join(TEST_ROOT, "src", "injection");
 
 const FILES: Record<string, string> = {

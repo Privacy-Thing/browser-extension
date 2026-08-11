@@ -1,6 +1,14 @@
 import { createSimpleGeoRuntime } from "@privacy-brand/refract-core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+const createSeededRandom = (seed = 0x9e37_79b9) => {
+  let state = seed >>> 0;
+  return (): number => {
+    state = (Math.imul(state, 1_664_525) + 1_013_904_223) >>> 0;
+    return state / 0x1_0000_0000;
+  };
+};
+
 const createRuntime = (noiseRadius = 50) =>
   createSimpleGeoRuntime(
     {
@@ -10,6 +18,7 @@ const createRuntime = (noiseRadius = 50) =>
       noiseRadius,
     },
     [6, 10],
+    createSeededRandom(),
   );
 
 describe("createSimpleGeoRuntime", () => {
@@ -19,7 +28,25 @@ describe("createSimpleGeoRuntime", () => {
   });
 
   it("uses the configured watch cadence", () => {
-    vi.spyOn(Math, "random").mockReturnValue(0.5);
+    const runtime = createSimpleGeoRuntime(
+      {
+        latitude: 52.2297,
+        longitude: 21.0122,
+        accuracy: 25,
+        noiseRadius: 50,
+      },
+      [2, 5],
+      () => 0.5,
+    );
+
+    expect(runtime.getNextWatchDelay()).toBe(3500);
+  });
+
+  it("uses captured Web Crypto instead of Math.random by default", () => {
+    vi.spyOn(Math, "random").mockImplementation(() => {
+      throw new Error("Math.random must not be used");
+    });
+
     const runtime = createSimpleGeoRuntime(
       {
         latitude: 52.2297,
@@ -30,7 +57,12 @@ describe("createSimpleGeoRuntime", () => {
       [2, 5],
     );
 
-    expect(runtime.getNextWatchDelay()).toBe(3500);
+    expect(runtime.getNextWatchDelay()).toBeGreaterThanOrEqual(2_000);
+    expect(runtime.getNextWatchDelay()).toBeLessThan(5_000);
+    expect(runtime.randomizeCoords()).toEqual({
+      latitude: expect.any(Number),
+      longitude: expect.any(Number),
+    });
   });
 
   it("keeps the random walk inside noiseRadius", () => {
@@ -65,6 +97,7 @@ describe("createSimpleGeoRuntime", () => {
           noiseRadius,
         },
         [6, 10],
+        createSeededRandom(),
       );
 
       for (let index = 0; index < 500; index += 1) {
@@ -112,7 +145,6 @@ describe("createSimpleGeoRuntime", () => {
   });
 
   it("converges warm-up accuracy over successive samples", () => {
-    vi.spyOn(Math, "random").mockReturnValue(0.5);
     const runtime = createSimpleGeoRuntime(
       {
         latitude: 52.2297,
@@ -121,6 +153,7 @@ describe("createSimpleGeoRuntime", () => {
         noiseRadius: 50,
       },
       [6, 10],
+      () => 0.5,
     );
 
     const first = runtime.walkAccuracy();

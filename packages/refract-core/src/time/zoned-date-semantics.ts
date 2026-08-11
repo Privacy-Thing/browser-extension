@@ -166,8 +166,19 @@ const parseIsoLocalFields = (
 const isIsoDateOnly = (value: string): boolean =>
   /^(?:[+-]\d{6}|\d{4})-\d{2}-\d{2}$/.test(value);
 
+const EXPLICIT_ZONE_SUFFIX = /(?:[zZ]|[+-]\d{2}:?\d{2}|[gG][mM][tT][+-]\d{4})$/;
+
+const stripZoneDescription = (value: string): string => {
+  if (!value.endsWith(")")) return value;
+  const openingParenthesis = value.lastIndexOf("(");
+  if (openingParenthesis === -1) return value;
+  const description = value.slice(openingParenthesis + 1, -1);
+  if (description.includes("(") || description.includes(")")) return value;
+  return value.slice(0, openingParenthesis).trimEnd();
+};
+
 const hasExplicitTimeZone = (value: string): boolean =>
-  /(?:z|[+-]\d{2}:?\d{2}|gmt[+-]\d{4})(?:\s*\([^)]*\))?$/i.test(value);
+  EXPLICIT_ZONE_SUFFIX.test(stripZoneDescription(value));
 
 export const isLocalDateString = (value: string): boolean => {
   const trimmed = value.trim();

@@ -1,8 +1,9 @@
-/* eslint-disable sonarjs/pseudo-random */
+import { privateCryptoRandomUnit } from "../runtime/primordials";
 import type { RuntimeSnapshot } from "../types/snapshot";
 
 type GeoSource = RuntimeSnapshot["geo"];
 type WatchDelayRange = [number, number];
+export type RandomUnit = () => number;
 type NullableCoordinateFields = Pick<
   GeolocationCoordinates,
   "altitude" | "altitudeAccuracy" | "heading" | "speed"
@@ -104,39 +105,44 @@ type SimpleGeoState = {
   paceHoldRemaining: number;
   callbackDelayMinMs: number;
   callbackDelayRangeMs: number;
+  randomUnit: RandomUnit;
 };
 
-const createSimpleGeoState = (geo: GeoSource): SimpleGeoState => {
+const createSimpleGeoState = (
+  geo: GeoSource,
+  randomUnit: RandomUnit,
+): SimpleGeoState => {
   const center = normalizeCoordinates(geo.latitude, geo.longitude);
   return {
     geo,
     center,
     currentAccuracy: geo.accuracy,
-    currentHeading: Math.random() * 2 * Math.PI,
+    currentHeading: randomUnit() * 2 * Math.PI,
     lastLat: center.latitude,
     lastLng: center.longitude,
     sampleCount: 0,
-    warmupSamples: 3 + Math.floor(Math.random() * 5),
-    warmupInitialMultiplier: 2 + Math.random() * 2,
-    paceMultiplier: 0.5 + Math.random(),
-    paceHoldRemaining: 3 + Math.floor(Math.random() * 5),
-    callbackDelayMinMs: 5 + Math.random() * 15,
-    callbackDelayRangeMs: 25 + Math.random() * 90,
+    warmupSamples: 3 + Math.floor(randomUnit() * 5),
+    warmupInitialMultiplier: 2 + randomUnit() * 2,
+    paceMultiplier: 0.5 + randomUnit(),
+    paceHoldRemaining: 3 + Math.floor(randomUnit() * 5),
+    callbackDelayMinMs: 5 + randomUnit() * 15,
+    callbackDelayRangeMs: 25 + randomUnit() * 90,
+    randomUnit,
   };
 };
 
 /** Box-Muller transform for Gaussian-distributed noise. */
-const gaussianNoise = (scale: number): number => {
-  const u1 = Math.max(1e-10, Math.random());
-  const u2 = Math.random();
+const gaussianNoise = (scale: number, randomUnit: RandomUnit): number => {
+  const u1 = Math.max(1e-10, randomUnit());
+  const u2 = randomUnit();
   return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2) * scale;
 };
 
 const getStepMeters = (state: SimpleGeoState, radiusMeters: number): number => {
   state.paceHoldRemaining -= 1;
   if (state.paceHoldRemaining <= 0) {
-    state.paceMultiplier = 0.15 + Math.random() * 1.35;
-    state.paceHoldRemaining = 3 + Math.floor(Math.random() * 5);
+    state.paceMultiplier = 0.15 + state.randomUnit() * 1.35;
+    state.paceHoldRemaining = 3 + Math.floor(state.randomUnit() * 5);
   }
   const accuracyFactor = state.currentAccuracy / Math.max(1, state.geo.accuracy);
   return (
@@ -206,7 +212,7 @@ const randomizeCoords = (
   if (radiusMeters <= 0) return { ...state.center };
 
   const stepMeters = getStepMeters(state, radiusMeters);
-  state.currentHeading += (Math.random() - 0.5) * 1.2;
+  state.currentHeading += (state.randomUnit() - 0.5) * 1.2;
   const stepped = moveCoordinate(
     state.lastLat,
     state.lastLng,
@@ -216,7 +222,7 @@ const randomizeCoords = (
   const noisy = moveCoordinate(
     stepped.latitude,
     stepped.longitude,
-    gaussianNoise(stepMeters * 0.15),
+    gaussianNoise(stepMeters * 0.15, state.randomUnit),
     state.currentHeading + Math.PI / 2,
   );
   const next = clampToRadius(
@@ -230,7 +236,7 @@ const randomizeCoords = (
 };
 
 const walkAccuracy = (state: SimpleGeoState): number => {
-  const step = (Math.random() - 0.5) * 6;
+  const step = (state.randomUnit() - 0.5) * 6;
   state.currentAccuracy = Math.max(
     state.geo.accuracy * 0.5,
     Math.min(state.geo.accuracy * 1.5, state.currentAccuracy + step),
@@ -247,8 +253,9 @@ const walkAccuracy = (state: SimpleGeoState): number => {
 export const createSimpleGeoRuntime = (
   geo: GeoSource,
   watchPositionDelay: WatchDelayRange,
+  randomUnit: RandomUnit = privateCryptoRandomUnit,
 ) => {
-  const state = createSimpleGeoState(geo);
+  const state = createSimpleGeoState(geo, randomUnit);
   return {
     randomizeCoords: () => randomizeCoords(state),
     walkAccuracy: () => walkAccuracy(state),
@@ -261,15 +268,14 @@ export const createSimpleGeoRuntime = (
     getNextWatchDelay: (): number => {
       const minSeconds = watchPositionDelay[0];
       const maxSeconds = watchPositionDelay[1];
-      return (minSeconds + Math.random() * Math.max(0, maxSeconds - minSeconds)) * 1000;
+      return (minSeconds + randomUnit() * Math.max(0, maxSeconds - minSeconds)) * 1000;
     },
     getCallbackDelay: (): number => {
-      const base =
-        state.callbackDelayMinMs + Math.random() * state.callbackDelayRangeMs;
-      return Math.random() < 0.05 ? base * (2 + Math.random()) : base;
+      const base = state.callbackDelayMinMs + randomUnit() * state.callbackDelayRangeMs;
+      return randomUnit() < 0.05 ? base * (2 + randomUnit()) : base;
     },
     getMeasurementDelay: (): number =>
-      50 + Math.random() * Math.min(450, state.currentAccuracy * 10),
+      50 + randomUnit() * Math.min(450, state.currentAccuracy * 10),
     shouldUseCachedPosition: (
       cachedPositionTimestamp: number,
       cachedPositionExpires: number,

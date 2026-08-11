@@ -53,4 +53,43 @@ describe("CrossPathChecker", () => {
       api: "Navigator.prototype.language",
     });
   });
+
+  it("matches Client Hints only at the intended API boundaries", () => {
+    const patches: DetectedPatch[] = [
+      {
+        api: "PrefixNavigatorUAData.prototype.brandsFactory",
+        browser: "chromium",
+        diffType: "changed",
+        vanillaDescriptor: {},
+        spoofedDescriptor: {},
+      },
+      {
+        api: "NavigatorUAData.prototype.brands",
+        browser: "chromium",
+        diffType: "changed",
+        vanillaDescriptor: {},
+        spoofedDescriptor: {},
+      },
+    ];
+
+    const findings = CrossPathChecker.check(patches, {
+      firefoxSnapshotAvailable: true,
+    });
+
+    expect(findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          api: "PrefixNavigatorUAData.prototype.brandsFactory",
+          severity: "INFO",
+        }),
+      ]),
+    );
+    expect(findings).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          api: "NavigatorUAData.prototype.brands",
+        }),
+      ]),
+    );
+  });
 });
