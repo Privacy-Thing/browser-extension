@@ -1,5 +1,5 @@
 ---
-name: privacything-runtime-semantics-change
+name: runtime-semantics-change
 description: Implement or review a validated change to Privacy Thing spoofing semantics across Chromium main, Chromium early-inline, Firefox early and workers. Use when editing shared runtime behavior, an injected browser surface, bootstrap-dependent semantics, native masking, permissions, locale/time, geolocation, or worker parity.
 ---
 
@@ -7,7 +7,7 @@ description: Implement or review a validated change to Privacy Thing spoofing se
 
 Use this skill when the desired semantic change or root cause is known. For unresolved
 leaks and failing runtime tests, use the sibling
-[`privacything-runtime-triage`](../privacything-runtime-triage/SKILL.md) skill first.
+[`runtime-triage`](../runtime-triage/SKILL.md) skill first.
 
 Before editing, read [references/parity-matrix.md](references/parity-matrix.md) and the
 runtime invariants in the repository `AGENTS.md`.

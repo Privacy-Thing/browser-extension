@@ -64,7 +64,7 @@ pnpm exec task test:api-conformance -- --json --html --github-summary
 
 ## Firefox runtime E2E
 
-Use the sibling [runtime triage skill](../../privacything-runtime-triage/SKILL.md) and
+Use the sibling [runtime triage skill](../../runtime-triage/SKILL.md) and
 read its `references/firefox-e2e.md`. Build with `build:firefox:runtime-test`; an
 ordinary Firefox artifact is not equivalent.
 

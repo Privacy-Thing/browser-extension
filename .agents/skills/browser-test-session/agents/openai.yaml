@@ -3,4 +3,4 @@ interface:
   short_description: "Run a reusable extension browser test session"
   icon_small: "../../../favicon.svg"
   icon_large: "../../../favicon.svg"
-  default_prompt: "Use $privacything-browser-test-session to keep an isolated browser session alive while verifying this change."
+  default_prompt: "Use $browser-test-session to keep an isolated browser session alive while verifying this change."

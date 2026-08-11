@@ -3,4 +3,4 @@ interface:
   short_description: "Change spoofing semantics across runtimes"
   icon_small: "../../../favicon.svg"
   icon_large: "../../../favicon.svg"
-  default_prompt: "Use $privacything-runtime-semantics-change to implement this validated runtime change across every affected entry point."
+  default_prompt: "Use $runtime-semantics-change to implement this validated runtime change across every affected entry point."

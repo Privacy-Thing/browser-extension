@@ -1,5 +1,5 @@
 ---
-name: privacything-browser-test-session
+name: browser-test-session
 description: Run an isolated, reusable browser session for iterative Privacy Thing extension verification. Use when manually exercising extension UI or runtime behavior across edits, reproducing a site-specific issue, keeping a browser/profile alive between checks, or choosing the lightest valid Storybook, Chromium, Firefox, or focused Playwright path. Do not use for a single automated test command that needs no interactive session.
 ---
 
