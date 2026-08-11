@@ -1075,10 +1075,10 @@ export const openPopupPage = async (
   activePage?: Page,
 ): Promise<Page> => {
   const popupUrl = new URL(`chrome-extension://${extensionId}/src/ui/popup/index.html`);
+  const popupPage = await context.newPage();
+  await popupPage.goto(popupUrl.toString());
   if (activePage) {
-    const serviceWorker =
-      context.serviceWorkers()[0] ?? (await context.waitForEvent("serviceworker"));
-    const targetTabId = await serviceWorker.evaluate(async (targetUrl) => {
+    const targetTabId = await popupPage.evaluate(async (targetUrl) => {
       const tabs = await chrome.tabs.query({});
       return tabs
         .filter((tab) => tab.url === targetUrl && typeof tab.id === "number")
@@ -1087,10 +1087,9 @@ export const openPopupPage = async (
     }, activePage.url());
     if (targetTabId !== undefined) {
       popupUrl.searchParams.set("tabId", String(targetTabId));
+      await popupPage.goto(popupUrl.toString());
     }
   }
-  const popupPage = await context.newPage();
-  await popupPage.goto(popupUrl.toString());
   await bringActivePageToFront(context, popupPage, activePage);
   await waitForPopupReady(popupPage);
   return popupPage;

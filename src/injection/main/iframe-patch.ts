@@ -6,6 +6,11 @@ import {
   maskAsNative,
 } from "@privacy-brand/refract-core/native/native-mask";
 
+import {
+  isIframeSrcAttribute,
+  isIframeSrcdocAttribute,
+  sameOriginSeedHostname,
+} from "@/injection/main/iframe-navigation-seed";
 import { createIframeScheduler } from "@/injection/main/iframe-patch-scheduler";
 import { IframeRealmInstaller } from "@/injection/main/iframe-realm-installer";
 import { isTopOrSameOriginFrame } from "@/injection/main/worker-patch";
@@ -34,7 +39,7 @@ class IframeDomInstaller {
   readonly #patchedInsertProtos = new WeakSet<object>();
   readonly #patchedLoadFrames = new WeakSet<HTMLIFrameElement>();
   readonly #patchedRangeProtos = new WeakSet<object>();
-  readonly #patchedSrcdocProtos = new WeakSet<object>();
+  readonly #patchedNavigationProtos = new WeakSet<object>();
   readonly #patchedWindowProtos = new WeakSet<object>();
   readonly #patchInsertedNode: (node: Node) => void;
   #rangeInsertActive = false;
@@ -168,12 +173,13 @@ class IframeDomInstaller {
     );
   }
 
-  #seedFrameNavigation(frame: HTMLIFrameElement): void {
+  #seedFrameNavigation(frame: HTMLIFrameElement, sourceHostname?: string): void {
     try {
       const childWindow = frame.contentWindow;
       if (childWindow) {
         writeRuntimeWindowSeed(this.#snapshot, childWindow, {
           preserveExistingSeed: true,
+          ...(sourceHostname ? { sourceHostname } : {}),
         });
       }
     } catch {
@@ -181,29 +187,45 @@ class IframeDomInstaller {
     }
   }
 
-  #isSrcdocAttribute(value: unknown): value is string {
-    return (
-      typeof value === "string" &&
-      value.length === 6 &&
-      (value[0] === "s" || value[0] === "S") &&
-      (value[1] === "r" || value[1] === "R") &&
-      (value[2] === "c" || value[2] === "C") &&
-      (value[3] === "d" || value[3] === "D") &&
-      (value[4] === "o" || value[4] === "O") &&
-      (value[5] === "c" || value[5] === "C")
-    );
+  #seedSameOriginNavigation(frame: HTMLIFrameElement, value: unknown): void {
+    try {
+      const { baseURI, location } = frame.ownerDocument;
+      const sourceHostname = sameOriginSeedHostname(value, baseURI, location.origin);
+      if (sourceHostname !== null) this.#seedFrameNavigation(frame, sourceHostname);
+    } catch {
+      // Invalid or opaque destinations are resolved by their own runtime.
+    }
   }
 
   #installSrcdocSeedHooks(targetWin: Window): void {
     const installer = this;
     const iframeGlobal = targetWin as Window & typeof globalThis;
     const iframePrototype = iframeGlobal.HTMLIFrameElement?.prototype;
-    if (iframePrototype && !this.#patchedSrcdocProtos.has(iframePrototype)) {
-      const descriptor = Object.getOwnPropertyDescriptor(iframePrototype, "srcdoc");
-      if (descriptor?.set) {
-        const nativeSetSrcdoc = descriptor.set;
+    if (iframePrototype && !this.#patchedNavigationProtos.has(iframePrototype)) {
+      const srcDescriptor = Object.getOwnPropertyDescriptor(iframePrototype, "src");
+      if (srcDescriptor?.set) {
+        const nativeSetSrc = srcDescriptor.set;
+        Object.defineProperty(iframePrototype, "src", {
+          ...srcDescriptor,
+          set: maskAsNative(
+            function (this: HTMLIFrameElement, value: string): void {
+              installer.#seedSameOriginNavigation(this, value);
+              Reflect.apply(nativeSetSrc, this, [value]);
+            },
+            nativeSetSrc.toString(),
+            nativeSetSrc.length,
+          ),
+        });
+      }
+
+      const srcdocDescriptor = Object.getOwnPropertyDescriptor(
+        iframePrototype,
+        "srcdoc",
+      );
+      if (srcdocDescriptor?.set) {
+        const nativeSetSrcdoc = srcdocDescriptor.set;
         Object.defineProperty(iframePrototype, "srcdoc", {
-          ...descriptor,
+          ...srcdocDescriptor,
           set: maskAsNative(
             function (this: HTMLIFrameElement, value: string): void {
               installer.#seedFrameNavigation(this);
@@ -214,7 +236,7 @@ class IframeDomInstaller {
           ),
         });
       }
-      this.#patchedSrcdocProtos.add(iframePrototype);
+      this.#patchedNavigationProtos.add(iframePrototype);
     }
 
     const elementPrototype = iframeGlobal.Element?.prototype;
@@ -241,11 +263,12 @@ class IframeDomInstaller {
         qualifiedName: string,
         value: string,
       ): void {
-        if (
-          this instanceof iframeGlobal.HTMLIFrameElement &&
-          installer.#isSrcdocAttribute(qualifiedName)
-        ) {
-          installer.#seedFrameNavigation(this);
+        if (this instanceof iframeGlobal.HTMLIFrameElement) {
+          if (isIframeSrcdocAttribute(qualifiedName)) {
+            installer.#seedFrameNavigation(this);
+          } else if (isIframeSrcAttribute(qualifiedName)) {
+            installer.#seedSameOriginNavigation(this, value);
+          }
         }
         Reflect.apply(nativeSetAttribute, this, [qualifiedName, value]);
       };
@@ -266,12 +289,12 @@ class IframeDomInstaller {
         qualifiedName: string,
         value: string,
       ): void {
-        if (
-          namespace === null &&
-          this instanceof iframeGlobal.HTMLIFrameElement &&
-          installer.#isSrcdocAttribute(qualifiedName)
-        ) {
-          installer.#seedFrameNavigation(this);
+        if (namespace === null && this instanceof iframeGlobal.HTMLIFrameElement) {
+          if (isIframeSrcdocAttribute(qualifiedName)) {
+            installer.#seedFrameNavigation(this);
+          } else if (isIframeSrcAttribute(qualifiedName)) {
+            installer.#seedSameOriginNavigation(this, value);
+          }
         }
         Reflect.apply(nativeSetAttributeNs, this, [namespace, qualifiedName, value]);
       };

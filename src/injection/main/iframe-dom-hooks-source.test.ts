@@ -32,4 +32,13 @@ describe("iframe DOM insertion hooks source", () => {
     expect(realmSource).toContain("#patchedNavProtos.has(navPrototype)");
     expect(realmSource).toContain("#patchedNavProtos.add(navPrototype);");
   });
+
+  it("seeds same-origin iframe navigations before the native write", () => {
+    expect(domSource).toContain("sameOriginSeedHostname(");
+    expect(domSource).toContain("installer.#seedSameOriginNavigation(this, value);");
+    expect(domSource).toContain("Reflect.apply(nativeSetSrc, this, [value]);");
+    expect(
+      domSource.indexOf("installer.#seedSameOriginNavigation(this, value);"),
+    ).toBeLessThan(domSource.indexOf("Reflect.apply(nativeSetSrc, this, [value]);"));
+  });
 });
