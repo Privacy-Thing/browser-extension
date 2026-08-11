@@ -34,6 +34,8 @@ describe("iframe DOM insertion hooks source", () => {
   });
 
   it("seeds same-origin iframe navigations before the native write", () => {
+    expect(domSource).toContain('BUILD_BROWSER_TARGET !== "chromium"');
+    expect(domSource).toContain('BUILD_BROWSER_TARGET === "chromium"');
     expect(domSource).toContain("sameOriginSeedHostname(");
     expect(domSource).toContain("installer.#seedSameOriginNavigation(this, value);");
     expect(domSource).toContain("Reflect.apply(nativeSetSrc, this, [value]);");

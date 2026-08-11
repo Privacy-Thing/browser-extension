@@ -14,6 +14,7 @@ import {
 import { createIframeScheduler } from "@/injection/main/iframe-patch-scheduler";
 import { IframeRealmInstaller } from "@/injection/main/iframe-realm-installer";
 import { isTopOrSameOriginFrame } from "@/injection/main/worker-patch";
+import { BUILD_BROWSER_TARGET } from "@/shared/build-flags";
 import type { RuntimeSnapshot } from "@/shared/types";
 
 type NativeInsertMethods = {
@@ -188,6 +189,8 @@ class IframeDomInstaller {
   }
 
   #seedSameOriginNavigation(frame: HTMLIFrameElement, value: unknown): void {
+    if (BUILD_BROWSER_TARGET !== "chromium") return;
+
     try {
       const { baseURI, location } = frame.ownerDocument;
       const sourceHostname = sameOriginSeedHostname(value, baseURI, location.origin);
@@ -203,7 +206,7 @@ class IframeDomInstaller {
     const iframePrototype = iframeGlobal.HTMLIFrameElement?.prototype;
     if (iframePrototype && !this.#patchedNavigationProtos.has(iframePrototype)) {
       const srcDescriptor = Object.getOwnPropertyDescriptor(iframePrototype, "src");
-      if (srcDescriptor?.set) {
+      if (BUILD_BROWSER_TARGET === "chromium" && srcDescriptor?.set) {
         const nativeSetSrc = srcDescriptor.set;
         Object.defineProperty(iframePrototype, "src", {
           ...srcDescriptor,
