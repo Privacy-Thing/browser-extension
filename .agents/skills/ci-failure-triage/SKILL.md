@@ -1,5 +1,5 @@
 ---
-name: privacything-ci-failure-triage
+name: ci-failure-triage
 description: Inspect a concrete Privacy Thing GitHub Actions failure, isolate the first real failing job, and route it to the correct repository-specific fix family. Use when given a run URL, run ID, failing check, or request to diagnose or repair CI; do not use for an unrelated local test failure without Actions context.
 ---
 

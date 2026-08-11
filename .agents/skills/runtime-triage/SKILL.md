@@ -1,5 +1,5 @@
 ---
-name: privacything-runtime-triage
+name: runtime-triage
 description: Diagnose Privacy Thing runtime leaks, wrong spoofed values, first-inline misses, realm parity gaps, X-Ray mismatches, and Firefox runtime Playwright failures. Use when a site or test exposes host values, runtime behavior differs by browser or realm, or the root cause of a bootstrap/runtime failure is not yet proven.
 ---
 
@@ -7,7 +7,7 @@ description: Diagnose Privacy Thing runtime leaks, wrong spoofed values, first-i
 
 Use this skill to establish the failure family before changing product code. If the
 cause is already validated and the task is to implement the semantic fix, use the
-sibling [`privacything-runtime-semantics-change`](../privacything-runtime-semantics-change/SKILL.md)
+sibling [`runtime-semantics-change`](../runtime-semantics-change/SKILL.md)
 skill.
 
 ## Start from exact evidence

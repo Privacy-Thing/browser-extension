@@ -1,0 +1,6 @@
+interface:
+  display_name: "Privacy Thing File PR"
+  short_description: "Commit, push, and open a review-ready PR"
+  icon_small: "../../../favicon.svg"
+  icon_large: "../../../favicon.svg"
+  default_prompt: "Use $file-pr to commit the completed task changes and open a ready-for-review pull request."

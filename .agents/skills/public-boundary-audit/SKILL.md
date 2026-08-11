@@ -1,5 +1,5 @@
 ---
-name: privacything-public-boundary-audit
+name: public-boundary-audit
 description: Audit Privacy Thing changes crossing from private development into the public source repository. Use before publishing or syncing a source snapshot, changing fork-facing workflows, preparing a public source archive, or reviewing retired product identifiers, public links, licenses, generated files, credentials, and repository metadata.
 ---
 
@@ -15,7 +15,7 @@ vulnerability analysis belongs to the available security-review skills.
 3. Run the report-only mechanical audit:
 
    ```sh
-   node .agents/skills/privacything-public-boundary-audit/scripts/audit-public-boundary.mjs
+   node .agents/skills/public-boundary-audit/scripts/audit-public-boundary.mjs
    ```
 
 4. Read [references/compatibility-allowlist.md](references/compatibility-allowlist.md)
@@ -45,7 +45,7 @@ Use `--strict` only when the current warnings have been reviewed and the audit i
 intended as a gate:
 
 ```sh
-node .agents/skills/privacything-public-boundary-audit/scripts/audit-public-boundary.mjs --strict
+node .agents/skills/public-boundary-audit/scripts/audit-public-boundary.mjs --strict
 ```
 
 ## Report

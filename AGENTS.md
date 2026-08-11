@@ -18,15 +18,17 @@ cross-browser behavior and low overhead. `CLAUDE.md` links to this file.
 
 Read the matching skill before acting when a task fits its trigger:
 
-- [runtime triage](.agents/skills/privacything-runtime-triage/SKILL.md) for unresolved
+- [runtime triage](.agents/skills/runtime-triage/SKILL.md) for unresolved
   leaks, first-call misses, realm differences and Firefox runtime failures;
-- [runtime semantics change](.agents/skills/privacything-runtime-semantics-change/SKILL.md)
+- [runtime semantics change](.agents/skills/runtime-semantics-change/SKILL.md)
   for implementing or reviewing a validated injected-runtime change;
-- [browser test session](.agents/skills/privacything-browser-test-session/SKILL.md) for
+- [browser test session](.agents/skills/browser-test-session/SKILL.md) for
   iterative manual browser verification with an isolated, reusable extension profile;
-- [CI failure triage](.agents/skills/privacything-ci-failure-triage/SKILL.md) for a
+- [CI failure triage](.agents/skills/ci-failure-triage/SKILL.md) for a
   concrete GitHub Actions run or failing check;
-- [public boundary audit](.agents/skills/privacything-public-boundary-audit/SKILL.md) for
+- [file PR](.agents/skills/file-pr/SKILL.md) for committing the completed
+  task scope, pushing its branch and opening a ready-for-review pull request;
+- [public boundary audit](.agents/skills/public-boundary-audit/SKILL.md) for
   public snapshots, fork workflows, source archives and legacy identifier review.
 
 Skills contain procedures; the invariants below always apply even when no skill is

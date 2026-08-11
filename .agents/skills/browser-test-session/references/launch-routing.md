@@ -73,7 +73,7 @@ The task forwards arguments to the Firefox runtime runner:
 pnpm task test:e2e:runtime:firefox -- --grep '<test name>' --workers=1
 ```
 
-Use the sibling `privacything-runtime-triage` skill when the Firefox runtime failure is
+Use the sibling `runtime-triage` skill when the Firefox runtime failure is
 not yet classified.
 
 ## Session rules
