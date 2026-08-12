@@ -25,7 +25,15 @@ const captures = [
     capture: { kind: "viewport" },
     expectedWidth: 2560,
     expectedHeight: 1800,
-    requiredText: ["Regional Presets", "Warsaw", "New York", "Sydney"],
+    requiredText: [
+      "Regional Presets",
+      "Warsaw",
+      "Sydney",
+      "Tokyo",
+      "São Paulo",
+      "Singapore",
+      "Cape Town",
+    ],
   },
   {
     name: "edit-regional-preset",
@@ -96,12 +104,7 @@ const captures = [
     expectedWidth: 1440,
     expectedHeight: 1200,
     captureStyle: ".gw-popup-workspace { outline: none !important; }",
-    requiredText: [
-      "cnn.com",
-      "Protection details",
-      "Geolocation",
-      "Canvas",
-    ],
+    requiredText: ["cnn.com", "Protection details", "Geolocation", "Canvas"],
   },
   {
     name: "x-ray",

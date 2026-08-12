@@ -10,6 +10,7 @@ import {
   STORY_GLOBAL_FALLBACK,
   STORY_LOCATIONS,
   STORY_RULES,
+  STORY_SHOWCASE_LOCATIONS,
   STORY_TRUSTED_SITES,
 } from "./options-story-fixtures";
 
@@ -258,7 +259,7 @@ const LocationsSurface = () => {
   return (
     <StorySettingsProvider
       value={{
-        profiles: STORY_LOCATIONS,
+        profiles: STORY_SHOWCASE_LOCATIONS,
         profilesSearch,
         setProfilesSearch,
         profileUsage: countLocationRuleUsage(STORY_RULES),
