@@ -28,7 +28,7 @@ describe("XRay Storybook fixtures", () => {
 
     expect(state).toMatchObject({
       ok: true,
-      hostname: "maps.example.test",
+      hostname: "allegro.pl",
       accessedCategories: { geolocation: true, canvas: true, serviceWorker: true },
       queryCounts: { canvas: 4, webGL: 5 },
     });

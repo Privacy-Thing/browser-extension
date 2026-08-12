@@ -1,3 +1,5 @@
+import "@/ui/options/options.css";
+
 import type { Meta, StoryObj } from "@storybook/react";
 import { useMemo, useRef, useState } from "react";
 import { expect, fn, userEvent, waitFor, within } from "storybook/test";
@@ -14,15 +16,23 @@ import {
 import { defaultSharedSpoofing } from "@/shared/fingerprint-spoofing";
 import { DEFAULT_PREFERENCES } from "@/shared/settings-defaults";
 import type { SpoofingBrowserTarget } from "@/shared/spoofing-surfaces";
-import type { DomainRule, SharedSpoofingConfig } from "@/shared/types";
+import type {
+  DomainRule,
+  SharedSpoofingConfig,
+  SurfaceOverrides,
+} from "@/shared/types";
 import { Button } from "@/ui/components/ui/button";
 import { Tabs } from "@/ui/components/ui/tabs";
 import { t } from "@/ui/i18n";
 import { OPTIONS_HOVER_REACTION, OPTIONS_THING_TIMING } from "@/ui/options/brand-thing";
 import { GlobalFallbackRuleDialog } from "@/ui/options/components/modals/GlobalFallbackRuleDialog";
+import { LocationEditorModal } from "@/ui/options/components/modals/LocationEditorModal";
+import { RuleDialog } from "@/ui/options/components/modals/RuleDialog";
 import { TrustedSiteDialog } from "@/ui/options/components/modals/TrustedSiteDialog";
 import { WelcomeWizard } from "@/ui/options/components/onboarding/WelcomeWizard";
 import { AdvancedTab } from "@/ui/options/components/tabs/AdvancedTab";
+import type { ContainerRow } from "@/ui/options/components/tabs/containers-table";
+import { ContainersView } from "@/ui/options/components/tabs/containers-view";
 import { LocationsTab } from "@/ui/options/components/tabs/LocationsTab";
 import { OptionsTab } from "@/ui/options/components/tabs/OptionsTab";
 import { RulesTab } from "@/ui/options/components/tabs/RulesTab";
@@ -37,11 +47,12 @@ import { ThemeProvider } from "@/ui/shared/ThemeProvider";
 installChromeBoundary();
 
 type OptionsStoryState =
-  "rules" | "profiles" | "trusted-sites" | "options" | "advanced";
+  "rules" | "profiles" | "containers" | "trusted-sites" | "options" | "advanced";
 
 const tabLabels: Record<OptionsStoryState, string> = {
   rules: t.options.tabs.rules,
   profiles: t.options.tabs.locations,
+  containers: "Containers",
   "trusted-sites": t.options.tabs.trustedSites,
   options: t.options.tabs.options,
   advanced: t.options.tabs.advanced,
@@ -61,6 +72,7 @@ const OptionsSurfaceShell = ({
       brandThingTiming={OPTIONS_THING_TIMING}
       brandThingHoverReaction={OPTIONS_HOVER_REACTION}
       trackBrandThingPointer
+      reduceBrandMotion
       hideTitle
       headerAside={
         <nav
@@ -92,7 +104,7 @@ const RulesSurface = ({ rules = STORY_RULES }: { rules?: readonly DomainRule[] }
   const [rulesFilter, setRulesFilter] = useState("");
   const [linkedRuleLocationId, setRuleLocationFilter] = useState<string | null>(null);
   const [selectedRulePatterns, setSelectedRulePatterns] = useState(new Set<string>());
-  const [previewHostname, setPreviewHostname] = useState("browserleaks.com");
+  const [previewHostname, setPreviewHostname] = useState("cnn.com");
   const viewModels = useMemo(
     () =>
       buildRuleViewModels(rules, STORY_LOCATIONS, rulesFilter, linkedRuleLocationId),
@@ -148,6 +160,98 @@ const RulesSurface = ({ rules = STORY_RULES }: { rules?: readonly DomainRule[] }
   );
 };
 
+const DomainRuleEditorSurface = () => {
+  const [rulesFilter, setRulesFilter] = useState("");
+  const [linkedRuleLocationId, setRuleLocationFilter] = useState<string | null>(null);
+  const [selectedRulePatterns, setSelectedRulePatterns] = useState(new Set<string>());
+  const [previewHostname, setPreviewHostname] = useState("cloudflare.com");
+  const [ruleDialogOpened, setRuleDialogOpened] = useState(true);
+  const [ruleEnabled, setRuleEnabled] = useState(true);
+  const [rulePattern, setRulePattern] = useState("cloudflare.com");
+  const [ruleProfileId, setRuleProfileId] = useState("new-york");
+  const [ruleRelaxCsp, setRuleRelaxCsp] = useState(false);
+  const [ruleSurfaceOverrides, setRuleSurfaceOverrides] = useState<
+    SurfaceOverrides | undefined
+  >({ canvas: true, webGL: true, audio: false });
+  const viewModels = useMemo(
+    () =>
+      buildRuleViewModels(
+        STORY_RULES,
+        STORY_LOCATIONS,
+        rulesFilter,
+        linkedRuleLocationId,
+      ),
+    [linkedRuleLocationId, rulesFilter],
+  );
+  const visibleRuleKeys = viewModels.map(({ rule }) => rule.pattern);
+
+  return (
+    <StorySettingsProvider
+      value={{
+        rulesFilter,
+        setRulesFilter,
+        profiles: STORY_LOCATIONS,
+        globalFallbackRule: STORY_GLOBAL_FALLBACK,
+        openFallbackDialog: fn(),
+        linkedRuleLocationId,
+        setRuleLocationFilter,
+        selectedRulePatterns,
+        ruleProfileOptions: STORY_LOCATIONS.map(({ id, label }) => ({
+          value: id,
+          label,
+        })),
+        assignBulkLocation: fn(async () => undefined),
+        handleBulkDelete: fn(async () => undefined),
+        viewModels,
+        allRuleKeys: STORY_RULES.map(({ pattern }) => pattern),
+        bulkSelectionState: getVisibleSelectionState(
+          visibleRuleKeys,
+          selectedRulePatterns,
+        ),
+        visibleRuleKeys,
+        setSelectedRulePatterns,
+        openRuleDialog: () => setRuleDialogOpened(true),
+        handleDeleteRule: fn(async () => true),
+        highlightedAnchorId: null,
+        getRuleAnchor,
+        previewHostname,
+        setPreviewHostname,
+        preview: resolveRulePreview({
+          hostname: previewHostname,
+          cookieStoreId: undefined,
+          rules: STORY_RULES,
+          locations: STORY_LOCATIONS,
+          trustedSites: STORY_TRUSTED_SITES,
+          globalFallbackRule: STORY_GLOBAL_FALLBACK,
+        }),
+        ruleDialogOpened,
+        closeRuleDialog: () => setRuleDialogOpened(false),
+        ruleDialogMode: "edit",
+        handleRuleSubmit: async (event) => event.preventDefault(),
+        editingRulePattern: "cloudflare.com",
+        editingRuleSeedKey: "storybook-cloudflare",
+        rotateRuleIdentity: fn(async () => true),
+        ruleEnabled,
+        setRuleEnabled,
+        rulePattern,
+        setRulePattern,
+        ruleProfileId,
+        setRuleProfileId,
+        ruleRelaxCsp,
+        setRuleRelaxCsp,
+        ruleSurfaceOverrides,
+        setRuleSurfaceOverrides,
+        trustedSites: STORY_TRUSTED_SITES,
+      }}
+    >
+      <OptionsSurfaceShell activeTab="rules">
+        <RulesTab />
+      </OptionsSurfaceShell>
+      <RuleDialog />
+    </StorySettingsProvider>
+  );
+};
+
 const LocationsSurface = () => {
   const [profilesSearch, setProfilesSearch] = useState("");
 
@@ -170,6 +274,144 @@ const LocationsSurface = () => {
         <LocationsTab />
       </OptionsSurfaceShell>
     </StorySettingsProvider>
+  );
+};
+
+const PresetEditorSurface = () => {
+  const [profilesSearch, setProfilesSearch] = useState("");
+  const [profileDialogOpened, setProfileDialogOpened] = useState(true);
+
+  return (
+    <ThemeProvider>
+      <StorySettingsProvider
+        value={{
+          profiles: STORY_LOCATIONS,
+          profilesSearch,
+          setProfilesSearch,
+          profileUsage: countLocationRuleUsage(STORY_RULES),
+          handleOpenProfileEditor: fn(),
+          handleAddProfile: fn(async () => undefined),
+          openGenerator: fn(),
+          highlightedAnchorId: null,
+          getLocationAnchor,
+          navigateToAnchor: fn(),
+          editingProfileIndex: 0,
+          pendingEditorDraft: null,
+          profileDialogOpened,
+          profileEditorSessionId: 1,
+          setProfileDialogOpened,
+          saveInFlight: false,
+          handleDuplicateProfile: fn(async () => true),
+          handleRemoveProfile: fn(async () => true),
+          handlePersistProfile: fn(async () => true),
+          osmConsent: "granted",
+          openOsmDialog: fn(),
+          regionalPresetUsage: new Map(),
+        }}
+      >
+        <OptionsSurfaceShell activeTab="profiles">
+          <LocationsTab />
+        </OptionsSurfaceShell>
+        <LocationEditorModal />
+      </StorySettingsProvider>
+    </ThemeProvider>
+  );
+};
+
+const CONTAINER_FIXTURES: readonly (readonly [
+  string,
+  string,
+  string,
+  string | null,
+  string,
+])[] = [
+  ["firefox-container-1", "Personal", "#37adff", "warsaw", "Warsaw"],
+  ["firefox-container-2", "Work", "#ff9f00", "new-york", "New York"],
+  ["firefox-container-3", "Shopping", "#af51f5", "warsaw", "Warsaw"],
+  ["firefox-container-4", "Banking", "#00c79a", null, "No preset"],
+];
+
+const CONTAINER_ROWS: ContainerRow[] = [
+  {
+    id: "default-rule",
+    kind: "default-rule",
+    cookieStoreId: null,
+    name: "Default Rule",
+    description: "Used when no site or container rule matches.",
+    badgeLabel: null,
+    iconUrl: "",
+    colorCode: "",
+    isOrphaned: false,
+    isInactive: false,
+    assignmentLocationId: "warsaw",
+    assignmentLabel: "Warsaw",
+    container: null,
+  },
+  ...CONTAINER_FIXTURES.map(
+    ([cookieStoreId, name, colorCode, locationId, locationLabel]) => ({
+      id: cookieStoreId,
+      kind: "container" as const,
+      cookieStoreId,
+      name,
+      description: null,
+      badgeLabel: null,
+      iconUrl: "",
+      colorCode,
+      isOrphaned: false,
+      isInactive: false,
+      assignmentLocationId: locationId,
+      assignmentLabel: locationLabel,
+      container: {
+        cookieStoreId,
+        name,
+        icon: "briefcase" as const,
+        iconUrl: "",
+        color: "blue" as const,
+        colorCode,
+      },
+    }),
+  ),
+];
+
+const FirefoxContainersSurface = () => {
+  const [filterQuery, setFilterQuery] = useState("");
+  const [showInactive, setShowInactive] = useState(true);
+
+  return (
+    <OptionsSurfaceShell activeTab="containers">
+      <ContainersView
+        status="ready"
+        rows={CONTAINER_ROWS}
+        filterQuery={filterQuery}
+        setFilterQuery={setFilterQuery}
+        showInactive={showInactive}
+        setShowInactive={setShowInactive}
+        showEmptyTitle={false}
+        emptyDescription="No containers match this filter."
+        create={fn()}
+        deleteRow={fn(async () => undefined)}
+        editRow={fn()}
+        openFallback={fn()}
+        refresh={fn(async () => undefined)}
+        editor={{
+          open: false,
+          mode: "edit",
+          draft: {
+            name: "Work",
+            color: "orange",
+            icon: "briefcase",
+            enabled: true,
+            locationId: "new-york",
+            surfaceOverrides: undefined,
+          },
+          profiles: STORY_LOCATIONS,
+          saveInFlight: false,
+          onOpenChange: fn(),
+          onDraftChange: fn(),
+          onSave: fn(),
+        }}
+      />
+    </OptionsSurfaceShell>
   );
 };
 
@@ -435,6 +677,10 @@ export const Rules: Story = {
   render: () => <RulesSurface />,
 };
 
+export const DomainRuleEditor: Story = {
+  render: () => <DomainRuleEditorSurface />,
+};
+
 export const RulesInteractionTest: Story = {
   ...Rules,
   tags: ["!dev", "!autodocs"],
@@ -442,12 +688,12 @@ export const RulesInteractionTest: Story = {
     const canvas = within(canvasElement);
     await userEvent.type(
       canvas.getByRole("textbox", { name: t.rules.filterLabel }),
-      "browserleaks",
+      "cloudflare",
     );
-    await expect(canvas.getAllByText("browserleaks.com")[0]).toBeVisible();
+    await expect(canvas.getAllByText("cloudflare.com")[0]).toBeVisible();
     await expect(
       canvas.getByRole("textbox", { name: t.rules.filterLabel }),
-    ).toHaveValue("browserleaks");
+    ).toHaveValue("cloudflare");
   },
 };
 
@@ -467,12 +713,15 @@ export const RulesFlatListTest: Story = {
     });
     await expect(editButtons).toHaveLength(STORY_RULES.length);
 
-    // Sorted by preset label first: New York before Warsaw.
+    // Sorted by preset label first: New York before Warsaw, then by hostname.
     await expect(editButtons[0]).toHaveAccessibleName(
-      t.rules.editRuleAriaLabel("browserleaks.com"),
+      t.rules.editRuleAriaLabel("cloudflare.com"),
     );
     await expect(editButtons[1]).toHaveAccessibleName(
-      t.rules.editRuleAriaLabel("*.example.com"),
+      t.rules.editRuleAriaLabel("allegro.pl"),
+    );
+    await expect(editButtons[2]).toHaveAccessibleName(
+      t.rules.editRuleAriaLabel("cnn.com"),
     );
 
     await expect(canvas.queryByText(/Rule group/)).toBeNull();
@@ -656,6 +905,14 @@ export const RulesSelectInactiveTest: Story = selectionStory(
 
 export const Locations: Story = {
   render: () => <LocationsSurface />,
+};
+
+export const RegionalPresetEditor: Story = {
+  render: () => <PresetEditorSurface />,
+};
+
+export const FirefoxContainers: Story = {
+  render: () => <FirefoxContainersSurface />,
 };
 
 export const LocationsInteractionTest: Story = {

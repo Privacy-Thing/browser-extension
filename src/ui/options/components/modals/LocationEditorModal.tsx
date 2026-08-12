@@ -212,7 +212,7 @@ const LocationEditorSession = (props: EditorSessionProps) => {
       closeLabel={t.common.actions.close}
       busy={saveInFlight}
       preventCloseWhenBusy
-      contentClassName="sm:max-w-4xl"
+      contentClassName="sm:max-w-[68rem]"
       scrollableBody
       footerClassName="sm:justify-between"
       footer={<EditorFooter {...viewProps} />}

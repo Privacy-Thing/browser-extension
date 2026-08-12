@@ -65,11 +65,11 @@ const activeSnapshot: RuntimeSnapshot = {
 
 const activeState = (): Extract<GetXRayStateResponse, { ok: true }> => ({
   ok: true,
-  hostname: "maps.example.test",
+  hostname: "allegro.pl",
   snapshot: activeSnapshot,
   displayedProfileLabel: "Warsaw, Poland",
   locationId: "location-warsaw",
-  rulePattern: "maps.example.test",
+  rulePattern: "allegro.pl",
   assessments: buildSurfaceAssessments({
     source: "site-rule",
     snapshot: activeSnapshot,
@@ -127,7 +127,7 @@ const activeState = (): Extract<GetXRayStateResponse, { ok: true }> => ({
       {
         source: "exact-rule",
         status: "won",
-        pattern: "maps.example.test",
+        pattern: "allegro.pl",
         locationId: "location-warsaw",
       },
       { source: "suffix-rule", status: "no-match" },

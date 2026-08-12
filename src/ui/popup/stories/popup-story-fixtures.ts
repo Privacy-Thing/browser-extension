@@ -95,7 +95,7 @@ const createNotification = (
       ? `extension:update:${storyNotification.id}`
       : `${scope}:${kind}`,
   severity: kind === "significant-update" ? "info" : "needs-action",
-  ...(scope === "site" ? { hostname: "browserleaks.com" } : {}),
+  ...(scope === "site" ? { hostname: "cnn.com" } : {}),
   ...(kind === "significant-update"
     ? {
         channel: storyNotification.channel,
@@ -147,7 +147,7 @@ const getRuleVariant = (active: boolean): VariantFields =>
     enabled: active,
     runtimeExpected: active,
     currentRule: {
-      pattern: "browserleaks.com",
+      pattern: "cnn.com",
       locationId: "warsaw",
       enabled: active,
       type: "exact",
@@ -159,8 +159,8 @@ const getRuleVariant = (active: boolean): VariantFields =>
       winningSource: active ? "rule" : "none",
       hasMatch: true,
       hasExactRule: true,
-      matchedRulePattern: "browserleaks.com",
-      displayedRulePattern: "browserleaks.com",
+      matchedRulePattern: "cnn.com",
+      displayedRulePattern: "cnn.com",
       locationProfileActive: active,
       locationId: "warsaw",
       locationLabel: "Warsaw",
@@ -237,7 +237,7 @@ const getVariantFields = (
       currentTab: {
         winningSource: "trusted-site",
         hasMatch: true,
-        matchedTrustedSitePattern: "browserleaks.com",
+        matchedTrustedSitePattern: "cnn.com",
         matchedTrustedSiteEnabled: true,
       },
     });
@@ -309,7 +309,7 @@ const buildStoryRuntime = ({
   const effectiveSummary = buildEffectiveSummary({
     generation: 1,
     source: variant.source,
-    pattern: variant.source === "site-rule" ? "browserleaks.com" : null,
+    pattern: variant.source === "site-rule" ? "cnn.com" : null,
     enabled: globalProtectionsOff ? false : variant.enabled,
     editable: variant.currentRule.canEdit ?? false,
     toggleable: variant.currentRule.canToggle ?? false,
@@ -391,15 +391,15 @@ export const createPopupStoryState = (
   const globalProtectionsOff = context === "global-protections-off";
   if (globalProtectionsOff && kind === "rule-active") {
     Object.assign(variant.currentRule, {
-      pattern: "*.browserleaks.com",
+      pattern: "*.cnn.com",
       type: "suffix",
       isExplicit: false,
     });
     Object.assign(variant.currentTab, {
       hasExactRule: false,
-      matchedRulePattern: "*.browserleaks.com",
-      displayedRulePattern: "*.browserleaks.com",
-      matchedTrustedSitePattern: "*.browserleaks.com",
+      matchedRulePattern: "*.cnn.com",
+      displayedRulePattern: "*.cnn.com",
+      matchedTrustedSitePattern: "*.cnn.com",
       matchedTrustedSiteEnabled: false,
     });
   }
@@ -447,8 +447,8 @@ export const createPopupStoryState = (
     },
     currentTab: {
       supported: true,
-      hostname: "browserleaks.com",
-      url: "https://browserleaks.com/javascript",
+      hostname: "cnn.com",
+      url: "https://cnn.com/world",
       locationLabel: null,
       locationId: null,
       locationProfileActive: false,
@@ -456,7 +456,7 @@ export const createPopupStoryState = (
       matchedRulePattern: null,
       hasExactRule: false,
       canCleanDomain: true,
-      pendingRulePattern: "browserleaks.com",
+      pendingRulePattern: "cnn.com",
       hasMatch: false,
       activeContainer: null,
       winningSource: "none",

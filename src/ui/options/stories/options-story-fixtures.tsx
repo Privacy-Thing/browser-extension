@@ -51,16 +51,22 @@ export const STORY_LOCATIONS: Location[] = [
 
 export const STORY_RULES: DomainRule[] = [
   {
-    pattern: "browserleaks.com",
+    pattern: "cloudflare.com",
     enabled: true,
     locationId: "new-york",
-    ruleSeedKey: "storybook-browserleaks",
+    ruleSeedKey: "storybook-cloudflare",
   },
   {
-    pattern: "*.example.com",
+    pattern: "allegro.pl",
     enabled: true,
     locationId: "warsaw",
-    ruleSeedKey: "storybook-example",
+    ruleSeedKey: "storybook-allegro",
+  },
+  {
+    pattern: "cnn.com",
+    enabled: true,
+    locationId: "warsaw",
+    ruleSeedKey: "storybook-cnn",
   },
 ];
 
@@ -109,7 +115,10 @@ export const installChromeBoundary = (): void => {
     runtime: {
       id: "storybook",
       getManifest: () => ({ version: "0.0.0-storybook" }),
-      getURL: (path: string) => `chrome-extension://storybook/${path}`,
+      getURL: (path: string) =>
+        typeof location === "undefined"
+          ? `chrome-extension://storybook/${path}`
+          : new URL(path, `${location.origin}/`).href,
       sendMessage: async () => null,
     },
     storage: {

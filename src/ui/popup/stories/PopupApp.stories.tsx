@@ -675,8 +675,8 @@ const PopupStoryHarness = ({
                               "",
                             )
                           : workspace === "rule-conflict-confirm"
-                            ? t.popup.ruleConflictConfirm("browserleaks.com")
-                            : t.popup.deleteConfirmDescription("browserleaks.com"),
+                            ? t.popup.ruleConflictConfirm("cnn.com")
+                            : t.popup.deleteConfirmDescription("cnn.com"),
                       confirmActionLabel:
                         workspace === "cleanup-confirm"
                           ? t.popup.cleanupConfirmLabel
@@ -756,6 +756,16 @@ type Story = StoryObj<typeof meta>;
 
 export const Interactive: Story = {};
 
+export const ProtectionDetailsSidecar: Story = {
+  args: {
+    variant: "rule-active",
+    context: "baseline",
+    workspace: "protection-details",
+    viewport: "browser",
+    showWorkbench: false,
+  },
+};
+
 export const InteractionTest: Story = {
   ...Interactive,
   tags: ["!dev", "!autodocs"],
@@ -765,12 +775,10 @@ export const InteractionTest: Story = {
 
     await userEvent.selectOptions(workspace, "rule-form");
     await expect(workspace).toHaveValue("rule-form");
-    await expect(
-      canvas.getByRole("dialog", { name: "browserleaks.com" }),
-    ).toBeVisible();
+    await expect(canvas.getByRole("dialog", { name: "cnn.com" })).toBeVisible();
     await userEvent.keyboard("{Escape}");
     await expect(
-      canvas.queryByRole("dialog", { name: "browserleaks.com" }),
+      canvas.queryByRole("dialog", { name: "cnn.com" }),
     ).not.toBeInTheDocument();
   },
 };

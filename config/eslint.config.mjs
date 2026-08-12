@@ -175,7 +175,10 @@ export default [
   {
     // Developer scripts may contain page-context callbacks passed to Playwright.
     // They therefore need both Node and browser globals during static linting.
-    files: ["scripts/run-performance-audit.mjs"],
+    files: [
+      "scripts/capture-website-screenshots.mjs",
+      "scripts/run-performance-audit.mjs",
+    ],
     languageOptions: {
       globals: {
         ...globals.browser,

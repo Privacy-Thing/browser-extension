@@ -70,6 +70,7 @@
     "start:firefox": "pnpm exec task start:firefox",
     "storybook": "pnpm exec task storybook",
     "storybook:build": "storybook build -o build/storybook-static",
+    "screenshots:website": "pnpm storybook:build && node scripts/capture-website-screenshots.mjs",
     "test:storybook": "vitest run --config vitest.storybook.config.ts",
     "test:api-conformance": "pnpm exec task test:api-conformance",
     "benchmark:tests": "node scripts/benchmark-test-suite.mjs"

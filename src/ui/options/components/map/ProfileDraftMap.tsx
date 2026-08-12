@@ -305,6 +305,7 @@ type MapInitOptions = {
 const initializeMap = async (
   options: MapInitOptions,
 ): Promise<maplibreglType.Map | null> => {
+  delete options.container.dataset.mapReady;
   const [mapModule, style] = await Promise.all([
     loadMapLibreModule(),
     loadMapStyle(options.theme),
@@ -344,6 +345,9 @@ const initializeMap = async (
     options.refs.marker.current = marker;
     syncMapViewport({ forceReset: true, map, refs: options.refs, runtime });
     requestMapResize(map);
+    map.once("idle", () => {
+      if (!options.isDisposed()) options.container.dataset.mapReady = "true";
+    });
   });
   return map;
 };
