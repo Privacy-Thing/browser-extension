@@ -1,4 +1,9 @@
 import {
+  DEFAULT_FEATURE_FLAGS,
+  normalizeFeatureFlags,
+  type FeatureFlags,
+} from "@/shared/feature-flags";
+import {
   normalizeWorkerMode,
   type SharedWorkerHandlingMode,
 } from "@/shared/fingerprint-types";
@@ -23,6 +28,7 @@ import type { OsmConsentState, ThemeAccentPreset, ThemeMode } from "@/shared/typ
  * (sharedSpoofing, globalFallbackRule).
  */
 export type Preferences = {
+  featureFlags: FeatureFlags;
   debugMode: boolean;
   watchPositionDelay: [number, number];
   osmConsent: OsmConsentState;
@@ -53,6 +59,7 @@ export const MIN_RANDOM_RADIUS_KM = 1;
 export const MAX_RANDOM_RADIUS_KM = 99;
 
 export const DEFAULT_PREFERENCES: Preferences = {
+  featureFlags: DEFAULT_FEATURE_FLAGS,
   debugMode: false,
   watchPositionDelay: DEFAULT_WATCH_DELAY,
   osmConsent: "unknown",
@@ -98,6 +105,7 @@ export const normalizePreferences = (raw: unknown): Preferences => {
   const source = asRecord(raw);
 
   return {
+    featureFlags: normalizeFeatureFlags(source.featureFlags),
     debugMode:
       typeof source.debugMode === "boolean"
         ? source.debugMode

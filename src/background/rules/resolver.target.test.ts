@@ -924,6 +924,34 @@ describe("resolveProfileSnapshot container priority", () => {
     expect(snapshot).toBeNull();
   });
 
+  it("enables Temporal only behind the flag and effective Time & Locale", () => {
+    const build = (timeLocale: boolean) =>
+      resolveProfileSnapshotBase({
+        browserFingerprintSource: undefined,
+        fingerprintEnabled: true,
+        temporalApiEnabled: true,
+        containerAssignments: [],
+        cookieStoreId: undefined,
+        debugMode: false,
+        globalFallbackRule: {
+          enabled: true,
+          locationId: "warsaw",
+          ruleSeedKey: "glb123",
+          authKey: "abcd1234",
+        },
+        hostname: "example.com",
+        profiles: [locationWarsaw],
+        rules: [],
+        sharedSpoofing: { timeLocale },
+        sharedWorkerHandlingMode: "native",
+        trustedSites: [],
+        watchPositionDelay: [60, 500],
+      });
+
+    expect(build(true)?.temporalApiEnabled).toBe(true);
+    expect(build(false)?.temporalApiEnabled).toBeUndefined();
+  });
+
   it("preserves the persisted fallback authKey verbatim and never mints one", () => {
     const resolve = (globalFallbackRule: GlobalFallbackRule | undefined) =>
       resolveProfileSnapshot(

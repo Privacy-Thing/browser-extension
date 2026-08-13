@@ -6,6 +6,11 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ## [Unreleased]
 
+### Added
+
+- Add an opt-in Temporal API protection flag with Time & Locale spoofing across
+  page, iframe, Firefox early-bootstrap, and worker runtimes.
+
 ### Changed
 
 - License the public source under AGPL-3.0-or-later with section 7 terms and a

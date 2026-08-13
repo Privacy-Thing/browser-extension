@@ -174,6 +174,9 @@ type PersistSettingsPayload = {
     };
   };
   trustedSites?: TrustedSite[];
+  featureFlags?: {
+    temporalApi?: boolean;
+  };
 };
 
 type PersistLocModelPayload = {
@@ -589,6 +592,11 @@ export const readWorkerSnapshot = async (
   languages: string[];
   locale: string;
   timeZone: string;
+  temporal: {
+    defaultTimeZone: string;
+    explicitTimeZone: string;
+    timeZoneIdSource: string;
+  } | null;
   hardwareConcurrency: number;
   userAgent: string;
   appVersion: string;
@@ -635,6 +643,11 @@ export const readWorkerSnapshot = async (
     languages: string[];
     locale: string;
     timeZone: string;
+    temporal: {
+      defaultTimeZone: string;
+      explicitTimeZone: string;
+      timeZoneIdSource: string;
+    } | null;
     hardwareConcurrency: number;
     userAgent: string;
     appVersion: string;
@@ -865,6 +878,7 @@ export const readEarlySnapshot = async (
   language: string;
   userAgent: string;
   timeZone: string;
+  temporalTimeZone: string | null;
   webdriver: boolean;
   permission: string;
 }> => {
@@ -873,6 +887,7 @@ export const readEarlySnapshot = async (
     language: string;
     userAgent: string;
     timeZone: string;
+    temporalTimeZone: string | null;
     webdriver: boolean;
     permission: string;
   };

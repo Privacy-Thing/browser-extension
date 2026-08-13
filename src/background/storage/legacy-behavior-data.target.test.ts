@@ -82,7 +82,11 @@ describe("retired profile compatibility data", () => {
     expect(state[PREFERENCES_STORAGE_KEY]).toEqual(
       expect.objectContaining({
         debugMode: true,
-        featureFlags: { behavioralProfiles: true, futureFlag: true },
+        featureFlags: {
+          behavioralProfiles: true,
+          futureFlag: true,
+          temporalApi: false,
+        },
         behavioralProfilesEnabled: true,
       }),
     );
@@ -108,7 +112,9 @@ describe("retired profile compatibility data", () => {
 
     expect(state[LEGACY_BEHAVIOR_KEY]).toEqual(profiles);
     expect(state[PREFERENCES_STORAGE_KEY]).toEqual(
-      expect.objectContaining({ featureFlags: { behavioralProfiles: true } }),
+      expect.objectContaining({
+        featureFlags: { behavioralProfiles: true, temporalApi: false },
+      }),
     );
     expect(state[LOCATIONS_STORAGE_KEY]).toEqual([
       expect.objectContaining({ behaviorProfileId: "legacy-profile" }),
@@ -120,7 +126,7 @@ describe("retired profile compatibility data", () => {
     state[LOCATIONS_STORAGE_KEY] = [{ ...warsaw, behaviorProfileId: "legacy-profile" }];
     state[PREFERENCES_STORAGE_KEY] = {
       ...DEFAULT_PREFERENCES,
-      featureFlags: { behavioralProfiles: true },
+      featureFlags: { behavioralProfiles: true, temporalApi: true },
       behavioralProfilesEnabled: true,
     };
     state[LEGACY_BEHAVIOR_KEY] = [{ id: "legacy-profile" }];
@@ -128,7 +134,9 @@ describe("retired profile compatibility data", () => {
     await clearLegacyBehavior();
 
     expect(state).not.toHaveProperty(LEGACY_BEHAVIOR_KEY);
-    expect(state[PREFERENCES_STORAGE_KEY]).not.toHaveProperty("featureFlags");
+    expect(state[PREFERENCES_STORAGE_KEY]).toHaveProperty("featureFlags", {
+      temporalApi: true,
+    });
     expect(state[PREFERENCES_STORAGE_KEY]).not.toHaveProperty(
       "behavioralProfilesEnabled",
     );

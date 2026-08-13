@@ -4,6 +4,7 @@ import {
   readLegacyBehavior,
   type LegacyBehaviorData,
 } from "@/background/storage/legacy-behavior-data";
+import { normalizeFeatureFlags, type FeatureFlags } from "@/shared/feature-flags";
 import { SHARED_WORKER_MODES } from "@/shared/fingerprint-types";
 import { normalizeLocationLocales } from "@/shared/locale-catalog";
 import {
@@ -68,6 +69,11 @@ const settingsCommandSchema = z
       .optional(),
     osmConsent: z.enum(OSM_CONSENT_VALUES).optional(),
     browserFingerprintSpoofingEnabled: z.boolean().optional(),
+    featureFlags: z
+      .object({
+        temporalApi: z.boolean().optional(),
+      })
+      .optional(),
     sharedWorkerHandlingMode: z.enum(SHARED_WORKER_MODES).optional(),
     sharedWorkerCompatibilityMode: z.boolean().optional(),
     sharedSpoofing: sharedSpoofingSchema.optional(),
@@ -260,6 +266,7 @@ export const validateImportedSettings = (
   watchPositionDelay: [number, number];
   osmConsent: OsmConsentState;
   browserFingerprintSpoofingEnabled: boolean;
+  featureFlags: FeatureFlags;
   sharedWorkerHandlingMode: SharedWorkerHandlingMode;
   sharedWorkerCompatibilityMode: boolean;
   sharedSpoofing?: SharedSpoofingConfig | undefined;
@@ -323,6 +330,7 @@ export const validateImportedSettings = (
     osmConsent: preferences.osmConsent,
     legacyBehavior,
     browserFingerprintSpoofingEnabled: preferences.browserFingerprintSpoofingEnabled,
+    featureFlags: normalizeFeatureFlags(settings.featureFlags),
     sharedWorkerHandlingMode: preferences.sharedWorkerHandlingMode,
     sharedWorkerCompatibilityMode: preferences.sharedWorkerCompatibilityMode,
     ...(sharedSpoofing ? { sharedSpoofing } : {}),

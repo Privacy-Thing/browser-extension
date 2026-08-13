@@ -3,4 +3,5 @@
  */
 
 export * from "./shared-model-types.js";
+export * from "./feature-flags.js";
 export type * from "./extension-contract-types.js";

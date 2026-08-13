@@ -64,7 +64,11 @@ const registerAudio = (support: WorkerRuntimeSupport): void => {
 };
 
 const installWorkerRuntime = (snapshot: RuntimeSnapshot): void => {
-  const support = createWorkerSupport(snapshot, __RF_WORKER_LOG_TYPE__);
+  const support = createWorkerSupport(snapshot, {
+    guard: __RF_WORKER_GUARD__,
+    messageType: __RF_WORKER_ACK__,
+    runtimeLogType: __RF_WORKER_LOG_TYPE__,
+  });
   if (__REFRACT_WORKER_URL__) installWorkerLocation(__REFRACT_WORKER_URL__);
   installWorkerNavigator(snapshot, support);
   installWorkerClientHints(snapshot, support);

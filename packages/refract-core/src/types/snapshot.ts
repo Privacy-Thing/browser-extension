@@ -88,6 +88,7 @@ export type RuntimeSnapshot = {
   sharedWorkerCompatibilityMode?: boolean;
   geolocationEnabled?: boolean | undefined;
   timeLocaleEnabled?: boolean | undefined;
+  temporalApiEnabled?: boolean | undefined;
   fingerprint?: BrowserFingerprint;
   logEventName?: string;
   blockServiceWorkerRegistration?: boolean;
@@ -100,6 +101,7 @@ export type FirefoxTimeLocaleState = {
   formattingLanguage?: string;
   formattingLanguages?: readonly string[];
   timeZone: string;
+  temporalApiEnabled?: boolean | undefined;
   /** @deprecated Compatibility payload for pre-epoch-fix Firefox runtimes. */
   offsetMinutes: number;
 };

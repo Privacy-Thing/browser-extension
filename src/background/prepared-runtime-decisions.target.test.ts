@@ -67,6 +67,7 @@ const buildPrepared = ({
     debugMode: false,
     watchPositionDelay: [60, 500],
     fingerprintEnabled,
+    featureFlags: { temporalApi: false },
     sharedWorkerHandlingMode: "native",
     sharedSpoofing: undefined,
     browserFingerprintSource: {

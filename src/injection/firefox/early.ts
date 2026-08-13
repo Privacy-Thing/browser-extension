@@ -393,6 +393,7 @@ import type { XRaySurfaceCategory } from "@/shared/types";
   let timeLocaleData: TimeLocaleData | null = null;
   type TimeLocaleData = FirefoxTimeLocaleState;
   let latestShimState: FirefoxShimState | null = null;
+  let syncTemporalPatch = (): void => undefined;
   let timeLocaleStateReceived = false;
   const geolocationBridge = createFxGeoBridge({
     markerKey: `${__PT_SHIM_GUARD_KEY__}:geolocation`,
@@ -446,6 +447,7 @@ import type { XRaySurfaceCategory } from "@/shared/types";
       fingerprintStatus: state.fingerprintStatus,
     });
     shimState.integrity.ensureAll();
+    syncTemporalPatch();
     return true;
   });
   const applyState = (state: FirefoxShimState): boolean =>
@@ -696,7 +698,7 @@ import type { XRaySurfaceCategory } from "@/shared/types";
   // Lazy hooks on Date/Intl/geo APIs serve as a safety net for late-arriving state.
   syncBootstrapState();
 
-  installFxEarlyModules({
+  const earlyModules = installFxEarlyModules({
     emitLog: emitFirefoxRuntimeLog,
     geoBridge: geolocationBridge,
     getState: () => latestShimState,
@@ -705,4 +707,6 @@ import type { XRaySurfaceCategory } from "@/shared/types";
     runtimeState: shimState,
     syncBootstrap: syncBootstrapState,
   });
+  syncTemporalPatch = earlyModules.syncTemporal;
+  syncTemporalPatch();
 })();

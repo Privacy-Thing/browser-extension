@@ -88,6 +88,7 @@ export const useOptionsModel = (
     spoofingHighlighted,
     surfaces: buildSpoofingSurfaces({
       browserTarget,
+      featureFlags: settings.featureFlags,
       sharedSpoofing: activeSpoofing,
     }),
     browserTarget,

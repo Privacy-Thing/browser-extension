@@ -7,6 +7,10 @@
           language: navigator.language,
           userAgent: navigator.userAgent,
           timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          temporalTimeZone:
+            typeof globalThis.Temporal === "object"
+              ? globalThis.Temporal.Now.timeZoneId()
+              : null,
           webdriver: navigator.webdriver,
           permission: "pending",
         };

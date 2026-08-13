@@ -1,3 +1,5 @@
+import type { FeatureFlags } from "@/shared/feature-flags";
+
 type MethodRuntimeTarget = "main" | "early" | "firefox" | "worker";
 
 export type SpoofingSurfaceGroup =
@@ -25,6 +27,8 @@ type MethodCatalogEntry = {
    * is not tied to a single documented injection path.
    */
   runtimeTargets?: readonly MethodRuntimeTarget[];
+  featureFlag?: keyof FeatureFlags;
+  nativeCapability?: "temporalApi";
 };
 
 /**
@@ -54,6 +58,90 @@ const SURFACE_METHODS = {
     {
       id: "intl.DateTimeFormat.formatToParts",
       labelKey: "intlDateTimeFormatFormatToParts",
+    },
+    {
+      id: "temporal.Now.instant",
+      labelKey: "temporalNowInstant",
+      featureFlag: "temporalApi",
+      nativeCapability: "temporalApi",
+    },
+    {
+      id: "temporal.Now.timeZoneId",
+      labelKey: "temporalNowTimeZoneId",
+      featureFlag: "temporalApi",
+      nativeCapability: "temporalApi",
+    },
+    {
+      id: "temporal.Now.plainDateTimeISO",
+      labelKey: "temporalNowPlainDateTimeISO",
+      featureFlag: "temporalApi",
+      nativeCapability: "temporalApi",
+    },
+    {
+      id: "temporal.Now.zonedDateTimeISO",
+      labelKey: "temporalNowZonedDateTimeISO",
+      featureFlag: "temporalApi",
+      nativeCapability: "temporalApi",
+    },
+    {
+      id: "temporal.Now.plainDateISO",
+      labelKey: "temporalNowPlainDateISO",
+      featureFlag: "temporalApi",
+      nativeCapability: "temporalApi",
+    },
+    {
+      id: "temporal.Now.plainTimeISO",
+      labelKey: "temporalNowPlainTimeISO",
+      featureFlag: "temporalApi",
+      nativeCapability: "temporalApi",
+    },
+    {
+      id: "temporal.Duration.toLocaleString",
+      labelKey: "temporalDurationToLocaleString",
+      featureFlag: "temporalApi",
+      nativeCapability: "temporalApi",
+    },
+    {
+      id: "temporal.Instant.toLocaleString",
+      labelKey: "temporalInstantToLocaleString",
+      featureFlag: "temporalApi",
+      nativeCapability: "temporalApi",
+    },
+    {
+      id: "temporal.PlainDate.toLocaleString",
+      labelKey: "temporalPlainDateToLocaleString",
+      featureFlag: "temporalApi",
+      nativeCapability: "temporalApi",
+    },
+    {
+      id: "temporal.PlainDateTime.toLocaleString",
+      labelKey: "temporalPlainDateTimeToLocaleString",
+      featureFlag: "temporalApi",
+      nativeCapability: "temporalApi",
+    },
+    {
+      id: "temporal.PlainMonthDay.toLocaleString",
+      labelKey: "temporalPlainMonthDayToLocaleString",
+      featureFlag: "temporalApi",
+      nativeCapability: "temporalApi",
+    },
+    {
+      id: "temporal.PlainTime.toLocaleString",
+      labelKey: "temporalPlainTimeToLocaleString",
+      featureFlag: "temporalApi",
+      nativeCapability: "temporalApi",
+    },
+    {
+      id: "temporal.PlainYearMonth.toLocaleString",
+      labelKey: "temporalPlainYearMonthToLocaleString",
+      featureFlag: "temporalApi",
+      nativeCapability: "temporalApi",
+    },
+    {
+      id: "temporal.ZonedDateTime.toLocaleString",
+      labelKey: "temporalZonedDateTimeToLocaleString",
+      featureFlag: "temporalApi",
+      nativeCapability: "temporalApi",
     },
   ],
   canvas: [
@@ -335,6 +423,10 @@ export const SPOOFING_SURFACES = [
 
 /** One entry from `SPOOFING_SURFACES`, including settings and XRay metadata. */
 export type SurfaceDefinition = (typeof SPOOFING_SURFACES)[number];
+export type SurfaceCatalogMethod = SurfaceDefinition["methods"][number] & {
+  featureFlag?: keyof FeatureFlags;
+  nativeCapability?: "temporalApi";
+};
 /** Stable storage/API key for a spoofing surface. */
 export type SpoofingSurfaceKey = SurfaceDefinition["key"];
 /** Stable presentation group owned by the central surface catalog. */

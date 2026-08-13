@@ -61,6 +61,19 @@ export const advanced = {
     copyLinkLabel: "debug mode",
   },
 
+  experimental: {
+    title: "Experimental",
+    description:
+      "Try protections for browser APIs that are still rolling out. These switches are available in every release channel.",
+    copyLinkLabel: "experimental settings",
+    temporalApi: {
+      title: "Temporal API",
+      description:
+        "Protect Temporal date, time, locale, and default time-zone behavior when this browser provides the native API. No polyfill is installed.",
+      copyLinkLabel: "Temporal API",
+    },
+  },
+
   privacy: {
     title: "Privacy",
     description: `${BRAND_DISPLAY_NAME} runs on your device and does not send your browsing data anywhere. The only optional network requests happen when you use location search or map previews while setting up regional presets.`,

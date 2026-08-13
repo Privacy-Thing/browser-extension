@@ -33,6 +33,7 @@ import {
   TEST_COOKIE_FRAGMENT,
   TEST_PRESENT_VALUE,
 } from "./harness/probe-state";
+import { readTemporalE2ESnapshot } from "./temporal-e2e.helpers";
 
 const FIREFOX_HEADLESS = process.env.FIREFOX_HEADLESS !== "0";
 const DIST_FIREFOX_DIR = path.resolve(process.cwd(), "build", "firefox");
@@ -2447,6 +2448,46 @@ const warmUpFirefoxSpoofing = async (
 
 export const registerFxCoreTests = () => {
   test.describe.configure({ timeout: 120_000 });
+
+  test("applies opt-in Temporal defaults in Firefox while preserving explicit arguments", async ({
+    context,
+    serverUrl,
+  }) => {
+    const page = await prepareFirefoxHostPage(context);
+    await gotoFirefoxHostUrl(page, serverUrl);
+    await waitForFxBridge(page);
+
+    const saveSettingsResult = await requestFxSettingsBridge<SaveSettingsResponse>(
+      page,
+      FXT_BRIDGE_EVENTS.saveSimpleSettings,
+      FXT_BRIDGE_EVENTS.saveSimpleSettingsResult,
+      { featureFlags: { temporalApi: true } },
+    );
+    expect(saveSettingsResult.ok).toBe(true);
+    if (!saveSettingsResult.ok) {
+      throw new Error(saveSettingsResult.error);
+    }
+
+    await page.goto("about:blank", { waitUntil: "domcontentloaded" });
+    await gotoFirefoxHostUrl(page, serverUrl);
+    await waitForHostProbeReady(page);
+    await waitForSpoofedSnapshot(page, { allowReload: true });
+    const snapshot = await readTemporalE2ESnapshot(page);
+
+    expect(snapshot.supported, "Firefox E2E requires native Temporal").toBe(true);
+    if (!snapshot.supported) {
+      return;
+    }
+
+    expect(snapshot.defaultTimeZone).toBe("Europe/Warsaw");
+    expect(snapshot.explicitTimeZone).toBe("UTC");
+    expect(snapshot.implicitInstantLocale).toBe(snapshot.profileInstantLocale);
+    expect(snapshot.explicitInstantLocale).toBe(snapshot.nativeExplicitLocale);
+    expect(snapshot.instantOptionsAfterCall).toBe(snapshot.instantOptionsBeforeCall);
+    expect(snapshot.implicitZonedLocale).toBe(snapshot.profileZonedLocale);
+    expect(snapshot.explicitZonedLocale).not.toBe(snapshot.profileZonedLocale);
+    expect(snapshot.timeZoneIdSource).toContain("[native code]");
+  });
 
   test("emits Firefox-style Accept-Language on matched navigations", async ({
     context,

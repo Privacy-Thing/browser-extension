@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState, type RefObject } from "react";
 
 import { EXTENSION_COMMAND_TYPES } from "@/shared/extension-contract";
+import type { FeatureFlags } from "@/shared/feature-flags";
 import type {
   ContainerAssignment,
   DomainRule,
@@ -43,6 +44,7 @@ export type PendingSettings = Partial<{
   watchPositionDelay: [number, number];
   osmConsent: OsmConsentState;
   browserFingerprintSpoofingEnabled: boolean;
+  featureFlags: Partial<FeatureFlags>;
   sharedWorkerHandlingMode: SharedWorkerHandlingMode;
   sharedWorkerCompatibilityMode: boolean;
   sharedSpoofing: SharedSpoofingConfig | undefined;
@@ -65,6 +67,7 @@ export type SettingsPersistenceRefs = {
   browserFingerprintSpoofingEnabled: RefObject<boolean>;
   containerAssignments: RefObject<readonly ContainerAssignment[]>;
   debugMode: RefObject<boolean>;
+  featureFlags: RefObject<FeatureFlags>;
   generatedLocationRandomizationRadiusKm: RefObject<number>;
   globalFallbackRule: RefObject<GlobalFallbackRule | undefined>;
   highContrastMode: RefObject<boolean>;
@@ -215,6 +218,7 @@ const applySettingsResponse = (
   setters.setWatchPositionDelay(response.watchPositionDelay);
   setters.setOsmConsent(response.osmConsent);
   setters.setFingerprintSpoofing(response.browserFingerprintSpoofingEnabled);
+  setters.setFeatureFlags(response.featureFlags);
   setters.setWorkerMode(response.sharedWorkerHandlingMode);
   setters.setWorkerCompat(response.sharedWorkerCompatibilityMode);
   setters.setTrustedSites(response.trustedSites);

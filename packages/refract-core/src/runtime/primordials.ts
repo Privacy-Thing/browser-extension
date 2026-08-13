@@ -35,6 +35,7 @@ const nativeDeleteProperty = Reflect.deleteProperty;
 const nativeReflectGet = Reflect.get;
 const nativeReflectOwnKeys = Reflect.ownKeys;
 const nativeSetAdd = Set.prototype.add;
+const nativeSetForEach = Set.prototype.forEach;
 const nativeSetHas = Set.prototype.has;
 const nativeStringIncludes = String.prototype.includes;
 const nativeSymbolFor = Symbol.for;
@@ -195,6 +196,13 @@ export const privateReflectOwnKeys = (target: object): PropertyKey[] =>
 
 export const privateSetAdd = <T>(target: Set<T>, value: T): void => {
   nativeReflectApply(nativeSetAdd, target, [value]);
+};
+
+export const privateSetForEach = <T>(
+  target: Set<T>,
+  callback: (value: T) => void,
+): void => {
+  nativeReflectApply(nativeSetForEach, target, [callback]);
 };
 
 export const privateSetHas = <T>(target: ReadonlySet<T>, value: T): boolean =>

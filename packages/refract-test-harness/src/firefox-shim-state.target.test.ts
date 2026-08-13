@@ -272,6 +272,20 @@ describe("buildFirefoxShimState", () => {
     });
   });
 
+  it("round-trips the Temporal flag inside ready Time & Locale state", () => {
+    const snapshot = {
+      ...createRuntimeSnapshot(Date.parse("2026-01-15T12:00:00.000Z")),
+      temporalApiEnabled: true,
+    } satisfies RuntimeSnapshot;
+
+    const state = buildFirefoxShimState(snapshot, { revision: 123 });
+    expect(state.timeLocale).toMatchObject({ temporalApiEnabled: true });
+    expect(
+      toSnapshotFromFxState(state, { baseEpochMs: snapshot.date.baseEpochMs })
+        ?.temporalApiEnabled,
+    ).toBe(true);
+  });
+
   it("marks geolocation absent when the runtime snapshot disables geolocation spoofing", () => {
     const snapshot = {
       ...createRuntimeSnapshot(Date.parse("2026-01-15T12:00:00.000Z")),

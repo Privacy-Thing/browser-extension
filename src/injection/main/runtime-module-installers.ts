@@ -44,6 +44,7 @@ import {
 import { installWebGLPatch } from "@/injection/main/webgl-patch";
 import { installWebRTCPatch } from "@/injection/main/webrtc-patch";
 import { installWorkerPatch } from "@/injection/main/worker-patch";
+import { installTemporalApiPatch } from "@/injection/temporal-api-patch";
 import type { XRaySurfaceCategory } from "@/shared/types";
 
 type RuntimeModules = Partial<Record<RefractModuleName, ModuleInstaller>>;
@@ -101,6 +102,9 @@ const createEarlyModules = (): RuntimeModules => {
       if (state.snapshot!.timeLocaleEnabled !== false) {
         installIntlPatch(state.snapshot!, integrityContext(state));
       }
+    }),
+    temporal: wrapInstaller("timeLocale", (state) => {
+      installTemporalApiPatch(state.snapshot!, globalThis, integrityContext(state));
     }),
     navigator: wrapInstaller("timeLocale", (state) => {
       if (state.snapshot!.timeLocaleEnabled !== false) {

@@ -8,6 +8,13 @@ import {
 
 import type { XRaySurfaceCategory, SpoofingSurfaceMethodId } from "@/shared/types";
 
+export type SurfaceUsageSnapshot = {
+  sourceId: string;
+  categories: readonly XRaySurfaceCategory[];
+  counts: Partial<Record<XRaySurfaceCategory, number>>;
+  methodCounts: Partial<Record<SpoofingSurfaceMethodId, number>>;
+};
+
 /**
  * Module-scope accumulator for surface categories accessed by the page.
  * Kept in a closure — never attached to `window` — to avoid observable globals.
@@ -76,6 +83,25 @@ const emitSurfaceUsage = (): void => {
     );
   } catch {
     // Ignore dispatch errors — non-critical diagnostic channel
+  }
+};
+
+/** Relays a full absolute counter snapshot produced by another runtime realm. */
+export const emitSurfaceUsageSnapshot = ({
+  sourceId,
+  categories,
+  counts,
+  methodCounts,
+}: SurfaceUsageSnapshot): void => {
+  if (typeof document === "undefined") return;
+  try {
+    document.dispatchEvent(
+      new CustomEvent(__PT_SURFACE_USAGE_TYPE__, {
+        detail: JSON.stringify({ sourceId, categories, counts, methodCounts }),
+      }),
+    );
+  } catch {
+    // Ignore dispatch errors — non-critical diagnostic channel.
   }
 };
 

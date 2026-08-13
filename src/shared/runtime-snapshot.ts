@@ -98,6 +98,8 @@ export const isRuntimeSnapshot = (value: unknown): value is RuntimeSnapshot => {
       typeof value.geolocationEnabled === "boolean") &&
     (value.timeLocaleEnabled === undefined ||
       typeof value.timeLocaleEnabled === "boolean") &&
+    (value.temporalApiEnabled === undefined ||
+      typeof value.temporalApiEnabled === "boolean") &&
     (value.fingerprint === undefined || isRecord(value.fingerprint)) &&
     (value.logEventName === undefined || typeof value.logEventName === "string") &&
     (value.blockServiceWorkerRegistration === undefined ||

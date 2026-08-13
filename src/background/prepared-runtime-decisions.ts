@@ -11,6 +11,7 @@ import {
 } from "@/background/rules/resolver";
 import type { SnapshotBuildOptions } from "@/background/rules/resolver-options";
 import type { BrowserFingerprintSource } from "@/shared/browser-fingerprint";
+import type { FeatureFlags } from "@/shared/feature-flags";
 import { resolveRuleSources } from "@/shared/rule-resolution";
 import { normalizeRuleSeedKey } from "@/shared/rule-seed";
 import { hasRuntimePayload } from "@/shared/runtime-snapshot";
@@ -40,6 +41,7 @@ export type PreparedRuntimeInputs = {
   debugMode: boolean;
   watchPositionDelay: [number, number];
   fingerprintEnabled: boolean;
+  featureFlags: FeatureFlags;
   sharedWorkerHandlingMode: SharedWorkerHandlingMode;
   sharedSpoofing: SharedSpoofingConfig | undefined;
   browserFingerprintSource: BrowserFingerprintSource | undefined;
@@ -141,6 +143,7 @@ const toSnapshotBuildOptions = (
 ): SnapshotBuildOptions => ({
   browserFingerprintSource: inputs.browserFingerprintSource,
   fingerprintEnabled: inputs.fingerprintEnabled,
+  temporalApiEnabled: inputs.featureFlags.temporalApi,
   debugMode: inputs.debugMode,
   sharedSpoofing: inputs.sharedSpoofing,
   sharedWorkerHandlingMode: inputs.sharedWorkerHandlingMode,

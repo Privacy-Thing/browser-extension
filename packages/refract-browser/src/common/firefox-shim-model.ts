@@ -15,6 +15,7 @@ export type FirefoxTimeLocaleState = {
   formattingLanguage?: string;
   formattingLanguages?: readonly string[];
   timeZone: string;
+  temporalApiEnabled?: boolean | undefined;
   offsetMinutes: number;
 };
 
@@ -123,6 +124,7 @@ const buildTimeLocaleState = (
     formattingLanguages:
       snapshot.locale.formattingLanguages ?? snapshot.locale.languages,
     timeZone: snapshot.locale.timeZone,
+    ...(snapshot.temporalApiEnabled === true ? { temporalApiEnabled: true } : {}),
     offsetMinutes: getTimeZoneOffsetMinutes(
       snapshot.locale.timeZone,
       snapshot.date.baseEpochMs,
@@ -234,6 +236,8 @@ export const isFirefoxTimeLocaleState = (
       (Array.isArray(value.formattingLanguages) &&
         value.formattingLanguages.every((entry) => typeof entry === "string"))) &&
     typeof value.timeZone === "string" &&
+    (value.temporalApiEnabled === undefined ||
+      typeof value.temporalApiEnabled === "boolean") &&
     typeof value.offsetMinutes === "number" &&
     Number.isFinite(value.offsetMinutes)
   );
@@ -408,6 +412,9 @@ export const toSnapshotFromFxState = (
     watchPositionDelay: geoState?.watchPositionDelay ?? [60, 500],
     ...(geolocationEnabled === false ? { geolocationEnabled: false } : {}),
     ...(timeLocaleEnabled === false ? { timeLocaleEnabled: false } : {}),
+    ...(timeLocaleState?.temporalApiEnabled === true
+      ? { temporalApiEnabled: true }
+      : {}),
     ...(state.fingerprintStatus === "ready" && state.fingerprint
       ? { fingerprint: state.fingerprint }
       : {}),

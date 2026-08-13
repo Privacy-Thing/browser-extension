@@ -53,6 +53,26 @@ describe("buildSpoofingSurfaces", () => {
 
     expect(surfaces.some((surface) => surface.key === "battery")).toBe(false);
   });
+
+  it.each([
+    { enabled: false, nativeTemporalApi: false, expected: 10 },
+    { enabled: false, nativeTemporalApi: true, expected: 10 },
+    { enabled: true, nativeTemporalApi: false, expected: 10 },
+    { enabled: true, nativeTemporalApi: true, expected: 24 },
+  ])(
+    "shows $expected Time & Locale APIs for flag=$enabled and native=$nativeTemporalApi",
+    ({ enabled, nativeTemporalApi, expected }) => {
+      const surfaces = buildSpoofingSurfaces({
+        browserTarget: "chromium",
+        featureFlags: { temporalApi: enabled },
+        nativeTemporalApi,
+        sharedSpoofing: undefined,
+      });
+      expect(
+        surfaces.find((surface) => surface.key === "timeLocale")?.methods,
+      ).toHaveLength(expected);
+    },
+  );
 });
 
 describe("OptionsTab copy", () => {
@@ -70,7 +90,7 @@ describe("OptionsTab copy", () => {
       "Show call count on extension badge",
     );
     expect(t.optionsPage.badgeQueryCount.includeDateCalls.label).toBe(
-      "Include Date API calls",
+      "Include Date and Temporal API calls",
     );
   });
 });

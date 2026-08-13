@@ -1,3 +1,9 @@
+import type { SurfaceMethodQueryCounts, XRaySurfaceCategory } from "@/shared/types";
+
+const nativeArrayIsArray = Array.isArray;
+const nativeNumberIsFinite = Number.isFinite;
+const nativeObjectValues = Object.values;
+
 /**
  * Private worker → parent acknowledgement that the Refract runtime finished
  * installing inside a constructed Worker before the original page script
@@ -114,5 +120,72 @@ export const isWorkerEvidenceMessage = (
       candidate.status === "unconfirmed" ||
       candidate.status === "unrecoverable") &&
     typeof candidate.realmId === "string"
+  );
+};
+
+export type WorkerUsageMessage = {
+  type: string;
+  guard: string;
+  kind: "surface-usage";
+  categories: XRaySurfaceCategory[];
+  counts: Partial<Record<XRaySurfaceCategory, number>>;
+  methodCounts: SurfaceMethodQueryCounts;
+};
+
+type WorkerUsageInput = Omit<WorkerUsageMessage, "kind" | "type"> & {
+  messageType: string;
+};
+
+export const createWorkerUsageMessage = ({
+  guard,
+  messageType,
+  categories,
+  counts,
+  methodCounts,
+}: WorkerUsageInput): WorkerUsageMessage => ({
+  type: messageType,
+  guard,
+  kind: "surface-usage",
+  categories,
+  counts,
+  methodCounts,
+});
+
+const isCountRecord = (value: unknown): value is Record<string, number> => {
+  if (typeof value !== "object" || value === null || nativeArrayIsArray(value)) {
+    return false;
+  }
+  const counts = nativeObjectValues(value);
+  for (let index = 0; index < counts.length; index += 1) {
+    const count = counts[index];
+    if (typeof count !== "number" || !nativeNumberIsFinite(count) || count < 0) {
+      return false;
+    }
+  }
+  return true;
+};
+
+const isStringArray = (value: unknown): value is string[] => {
+  if (!nativeArrayIsArray(value)) return false;
+  for (let index = 0; index < value.length; index += 1) {
+    if (typeof value[index] !== "string") return false;
+  }
+  return true;
+};
+
+export const isWorkerUsageMessage = (
+  data: unknown,
+  guard: string,
+  messageType: string,
+): data is WorkerUsageMessage => {
+  if (typeof data !== "object" || data === null) return false;
+  const candidate = data as Record<string, unknown>;
+  return (
+    candidate.type === messageType &&
+    candidate.guard === guard &&
+    candidate.kind === "surface-usage" &&
+    isStringArray(candidate.categories) &&
+    isCountRecord(candidate.counts) &&
+    isCountRecord(candidate.methodCounts)
   );
 };

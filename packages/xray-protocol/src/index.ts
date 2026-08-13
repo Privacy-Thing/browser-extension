@@ -41,6 +41,20 @@ export const SurfaceMethodIdSchema = z.enum([
   "intl.resolvedOptions",
   "intl.DateTimeFormat.format",
   "intl.DateTimeFormat.formatToParts",
+  "temporal.Now.instant",
+  "temporal.Now.timeZoneId",
+  "temporal.Now.plainDateTimeISO",
+  "temporal.Now.zonedDateTimeISO",
+  "temporal.Now.plainDateISO",
+  "temporal.Now.plainTimeISO",
+  "temporal.Duration.toLocaleString",
+  "temporal.Instant.toLocaleString",
+  "temporal.PlainDate.toLocaleString",
+  "temporal.PlainDateTime.toLocaleString",
+  "temporal.PlainMonthDay.toLocaleString",
+  "temporal.PlainTime.toLocaleString",
+  "temporal.PlainYearMonth.toLocaleString",
+  "temporal.ZonedDateTime.toLocaleString",
   "canvas.getImageData",
   "canvas.toDataURL",
   "canvas.toBlob",
@@ -372,6 +386,7 @@ export const RuntimeSnapshotSchema = z.object({
   sharedWorkerCompatibilityMode: z.boolean().optional(),
   geolocationEnabled: z.boolean().optional(),
   timeLocaleEnabled: z.boolean().optional(),
+  temporalApiEnabled: z.boolean().optional(),
   fingerprint: z.any().optional(),
   logEventName: z.string().optional(),
   blockServiceWorkerRegistration: z.boolean().optional(),
@@ -405,6 +420,7 @@ export type RuntimeSnapshot = {
   sharedWorkerCompatibilityMode?: boolean;
   geolocationEnabled?: boolean | undefined;
   timeLocaleEnabled?: boolean | undefined;
+  temporalApiEnabled?: boolean | undefined;
   fingerprint?: any;
   logEventName?: string;
   blockServiceWorkerRegistration?: boolean;

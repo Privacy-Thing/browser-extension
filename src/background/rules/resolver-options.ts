@@ -34,6 +34,7 @@ export type SnapshotBuildOptions = {
   sharedSpoofing: SharedSpoofingConfig | undefined;
   sharedWorkerHandlingMode: SharedWorkerHandlingMode;
   watchPositionDelay: [number, number];
+  temporalApiEnabled?: boolean;
 };
 
 export type ToRuntimeSnapshotOptions = SnapshotBuildOptions & {

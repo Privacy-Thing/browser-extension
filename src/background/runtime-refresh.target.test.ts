@@ -49,6 +49,12 @@ describe("shouldSyncPreload", () => {
     ).toBe(true);
   });
 
+  it("refreshes preload and reloads tabs for feature flag changes", () => {
+    const command = { featureFlags: { temporalApi: true } };
+    expect(shouldSyncPreload(command)).toBe(true);
+    expect(shouldReloadRuntimeTabs(command)).toBe(true);
+  });
+
   it("ignores simple settings that do not change runtime snapshots", () => {
     expect(
       shouldSyncPreload({

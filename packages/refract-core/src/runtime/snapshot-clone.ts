@@ -32,6 +32,7 @@ const canonicalFields = [
   "sharedWorkerCompatibilityMode",
   "geolocationEnabled",
   "timeLocaleEnabled",
+  "temporalApiEnabled",
   "fingerprint",
   "hardwareConcurrency",
   "deviceMemory",

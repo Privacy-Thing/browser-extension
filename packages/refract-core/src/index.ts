@@ -28,6 +28,7 @@ export * from "./time/firefox-date-time-format-constructor";
 export * from "./time/firefox-date-time-format-runtime";
 export * from "./time/firefox-default-locale-intl-constructors";
 export * from "./time/firefox-time-locale";
+export * from "./time/temporal-api-patch";
 export * from "./fingerprint/surface-guards";
 export * from "./fingerprint/webgl-error";
 export * from "./fingerprint/canvas-noise";

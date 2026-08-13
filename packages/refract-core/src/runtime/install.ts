@@ -19,6 +19,7 @@ const installationOrder: RefractModuleName[] = [
   "date",
   "date-intl",
   "intl",
+  "temporal",
   "navigator",
   "navigator-fingerprint",
   "client-hints",

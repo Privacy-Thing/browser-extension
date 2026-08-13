@@ -56,6 +56,13 @@ describe("isRuntimeSnapshot", () => {
     ).toBe(true);
   });
 
+  it("validates and clones the optional Temporal runtime gate", () => {
+    const snapshot = createRuntimeSnapshot({ temporalApiEnabled: true });
+    expect(isRuntimeSnapshot(snapshot)).toBe(true);
+    expect(cloneRuntimeSnapshot(snapshot).temporalApiEnabled).toBe(true);
+    expect(isRuntimeSnapshot({ ...snapshot, temporalApiEnabled: "yes" })).toBe(false);
+  });
+
   it("validates private arrays without invoking page-owned array hooks", () => {
     const snapshot = cloneRuntimeSnapshot({
       geo: { latitude: 10, longitude: 20, accuracy: 30, noiseRadius: 40 },

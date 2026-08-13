@@ -11,6 +11,7 @@ import {
   installUsageListener,
   markSurfaceUsed,
 } from "@privacy-brand/refract-browser/common/surface-usage-emitter";
+import { attachWorkerUsageRelay } from "@privacy-brand/refract-browser/common/worker-surface-usage-relay";
 import {
   createNavigatorReaders,
   installNavigatorGetters,
@@ -43,6 +44,7 @@ import type {
 } from "@privacy-brand/refract-core/runtime/state";
 import { installFxDateIntl } from "@privacy-brand/refract-core/time/firefox-date-intl-patch";
 import { installLocaleGetters } from "@privacy-brand/refract-core/time/locale-getters";
+import { installTemporalApiPatch as installCoreTemporalApiPatch } from "@privacy-brand/refract-core/time/temporal-api-patch";
 
 import { installFxClientHints } from "@/injection/firefox/client-hints-patch";
 import { registerFxDateIntegrity } from "@/injection/firefox/date-integrity";
@@ -62,6 +64,7 @@ import {
   registerPermIntegrity,
   type RuntimeIntegrityContext,
 } from "@/injection/main/surface-integrity";
+import { registerTemporalAnchors } from "@/injection/temporal-api-patch";
 import type { XRaySurfaceCategory, SpoofingSurfaceMethodId } from "@/shared/types";
 
 type FxEarlyModuleDeps = {
@@ -76,6 +79,7 @@ type FxEarlyModuleDeps = {
 
 class FxEarlyModuleInstaller {
   readonly #deps: FxEarlyModuleDeps;
+  #sharedWorkerCounter = 0;
 
   constructor(deps: FxEarlyModuleDeps) {
     this.#deps = deps;
@@ -92,6 +96,7 @@ class FxEarlyModuleInstaller {
       registerPermIntegrity(integrity, globalThis);
     });
     this.#installDateIntl();
+    this.#installTemporal();
     this.#installLocale();
     this.#installNavigator();
     this.#installPermissions();
@@ -99,6 +104,10 @@ class FxEarlyModuleInstaller {
     this.#installDedicatedWorkers();
     this.#installSharedWorker();
     this.#installServiceWorker();
+  }
+
+  syncTemporal(): void {
+    this.#installTemporal();
   }
 
   #integrity() {
@@ -149,6 +158,32 @@ class FxEarlyModuleInstaller {
       });
       registerFxDateIntegrity(integrity, Date);
       this.#registerIntlIntegrity(integrity);
+    });
+  }
+
+  #installTemporal(): void {
+    this.#deps.syncBootstrap();
+    if (this.#deps.getTimeLocale()?.temporalApiEnabled !== true) return;
+    this.#installModule("timeLocale", "temporal", () => {
+      const anchors = installCoreTemporalApiPatch({
+        targetGlobal: globalThis,
+        defaults: () => {
+          const state = this.#deps.getTimeLocale();
+          return state?.temporalApiEnabled === true
+            ? {
+                languages: state.formattingLanguages ?? state.languages,
+                timeZone: state.timeZone,
+              }
+            : null;
+        },
+        onAccess: (methodId) => {
+          this.#deps.syncBootstrap();
+          if (shouldReportFxTimeLocale(this.#deps.getState())) {
+            markSurfaceUsed("timeLocale", methodId);
+          }
+        },
+      });
+      registerTemporalAnchors(this.#integrity(), anchors);
     });
   }
 
@@ -417,11 +452,16 @@ class FxEarlyModuleInstaller {
             options,
             installer.#deps.getState,
           );
-          return Reflect.construct(
+          const worker = Reflect.construct(
             NativeSharedWorker,
             [scriptURL, nativeOptions as string | WorkerOptions],
             target,
           ) as SharedWorker;
+          attachWorkerUsageRelay(worker.port, {
+            guard: __PT_SHIM_GUARD_KEY__,
+            sourceId: `sharedworker:${++installer.#sharedWorkerCounter}`,
+          });
+          return worker;
         },
         createNativeSource("SharedWorker"),
         1,
@@ -520,6 +560,14 @@ class FxEarlyModuleInstaller {
   }
 }
 
-export const installFxEarlyModules = (deps: FxEarlyModuleDeps): void => {
-  new FxEarlyModuleInstaller(deps).install();
+export type FxEarlyModuleControl = {
+  syncTemporal(): void;
+};
+
+export const installFxEarlyModules = (
+  deps: FxEarlyModuleDeps,
+): FxEarlyModuleControl => {
+  const installer = new FxEarlyModuleInstaller(deps);
+  installer.install();
+  return { syncTemporal: () => installer.syncTemporal() };
 };

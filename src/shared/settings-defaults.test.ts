@@ -15,6 +15,10 @@ describe("DEFAULT_PREFERENCES", () => {
   it("keeps motion enabled by default", () => {
     expect(DEFAULT_PREFERENCES.reduceMotion).toBe(false);
   });
+
+  it("keeps Temporal API support off by default", () => {
+    expect(DEFAULT_PREFERENCES.featureFlags.temporalApi).toBe(false);
+  });
 });
 
 describe("normalizePreferences", () => {
@@ -30,6 +34,15 @@ describe("normalizePreferences", () => {
       normalizePreferences({ browserFingerprintSpoofingEnabled: false })
         .browserFingerprintSpoofingEnabled,
     ).toBe(false);
+  });
+
+  it("normalizes known feature flags independently", () => {
+    expect(
+      normalizePreferences({ featureFlags: { temporalApi: true } }).featureFlags,
+    ).toEqual({ temporalApi: true });
+    expect(
+      normalizePreferences({ featureFlags: { temporalApi: "yes" } }).featureFlags,
+    ).toEqual({ temporalApi: false });
   });
 
   it("defaults spoofing to on for missing or non-false values", () => {

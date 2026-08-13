@@ -2,6 +2,7 @@ import { createWorkerSource } from "@privacy-brand/refract-browser/common/worker
 import { attachWorkerAckRelay } from "@privacy-brand/refract-browser/common/worker-bootstrap-ack-relay";
 import { constructRevokedBlob } from "@privacy-brand/refract-browser/common/worker-construction";
 import { attachWorkerLogRelay } from "@privacy-brand/refract-browser/common/worker-runtime-log-relay";
+import { attachWorkerUsageRelay } from "@privacy-brand/refract-browser/common/worker-surface-usage-relay";
 
 import { defineNativeGetter } from "../native/native-getter";
 import { createNativeSource, maskAsNative } from "../native/native-mask";
@@ -127,6 +128,7 @@ type WorkerRelayInput = {
   worker: Worker;
   snapshot: RuntimeSnapshot;
   attemptId: string;
+  sourceId: string;
   scriptURL: string | URL;
 };
 
@@ -135,9 +137,14 @@ const attachWorkerRelays = ({
   worker,
   snapshot,
   attemptId,
+  sourceId,
   scriptURL,
 }: WorkerRelayInput): void => {
   attachWorkerLogRelay(snapshot, worker);
+  attachWorkerUsageRelay(worker, {
+    guard: __PT_SHIM_GUARD_KEY__,
+    sourceId,
+  });
   attachWorkerAckRelay(worker, {
     guard: __PT_SHIM_GUARD_KEY__,
     onBootstrapFailed: options.markWorkerSurfaceFailed,
@@ -182,11 +189,13 @@ const createPatchedWorker = (
         URL.revokeObjectURL.bind(URL),
         (url) => new NativeWorker(url, workerOptions),
       );
+      const sequence = ++attemptCounter;
       attachWorkerRelays({
         options,
         worker,
         snapshot: bootstrap.snapshot,
-        attemptId: `worker-${++attemptCounter}`,
+        attemptId: `worker-${sequence}`,
+        sourceId: `worker:${sequence}`,
         scriptURL,
       });
       return worker;
