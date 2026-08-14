@@ -320,40 +320,30 @@ export const getTemporalApiAnchors = (
   return anchors;
 };
 
-type VerifiedTemporalAnchor = {
-  anchor: TemporalApiAnchor;
-  method: TemporalMethod;
-  proof: symbol;
-};
+type VerifiedTemporalAnchor = readonly [method: TemporalMethod, proof: symbol];
 
 const verifyTemporalApiAnchors = (
   anchors: readonly TemporalApiAnchor[],
   ownershipKey: string,
   verify: symbol,
-): { complete: boolean; verified: VerifiedTemporalAnchor[] } => {
+): VerifiedTemporalAnchor[] => {
   const verified: VerifiedTemporalAnchor[] = [];
-  let complete = true;
   for (const anchor of anchors) {
     const method = privateOwnDescriptor(anchor.target, anchor.key)?.value;
     const proof = privateSymbolFor(`${ownershipKey}:${anchor.methodId}`);
-    if (typeof method !== "function") {
-      complete = false;
-      continue;
-    }
+    if (typeof method !== "function") continue;
     try {
       if (
         privateReflectApply(method as TemporalMethod, verify, []) === proof &&
         privateOwnDescriptor(anchor.target, anchor.key)?.value === method
       ) {
-        verified.push({ anchor, method: method as TemporalMethod, proof });
-      } else {
-        complete = false;
+        verified.push([method as TemporalMethod, proof]);
       }
     } catch {
-      complete = false;
+      // Unowned or conflicting methods are omitted from the verified set.
     }
   }
-  return { complete, verified };
+  return verified;
 };
 
 const commitTemporalDefaults = (
@@ -361,7 +351,7 @@ const commitTemporalDefaults = (
   commit: symbol,
   defaults: TemporalApiDefaults | null,
 ): boolean => {
-  for (const { method, proof } of verified) {
+  for (const [method, proof] of verified) {
     try {
       if (privateReflectApply(method, commit, [defaults]) !== proof) return false;
     } catch {
@@ -375,7 +365,7 @@ const disableTemporalAnchors = (
   verified: readonly VerifiedTemporalAnchor[],
   commit: symbol,
 ): void => {
-  for (const { method } of verified) {
+  for (const [method] of verified) {
     try {
       privateReflectApply(method, commit, [null]);
     } catch {
@@ -395,20 +385,19 @@ export const adoptTemporalApiPatch = (
   ownershipKey: string,
 ): TemporalApiAnchor[] => {
   const anchors = getTemporalApiAnchors(targetGlobal);
-  if (anchors.length === 0) return [];
   const verify = privateSymbolFor(`${ownershipKey}:verify`);
   const commit = privateSymbolFor(`${ownershipKey}:commit`);
-  const ownership = verifyTemporalApiAnchors(anchors, ownershipKey, verify);
+  const verified = verifyTemporalApiAnchors(anchors, ownershipKey, verify);
   if (
-    ownership.complete &&
-    commitTemporalDefaults(ownership.verified, commit, defaults)
+    verified.length === anchors.length &&
+    commitTemporalDefaults(verified, commit, defaults)
   ) {
     return anchors;
   }
 
   // A mixed set is not safe to adopt. Disable every wrapper that did prove
   // ownership so the full runtime can install one active reporting layer.
-  disableTemporalAnchors(ownership.verified, commit);
+  disableTemporalAnchors(verified, commit);
   return [];
 };
 
