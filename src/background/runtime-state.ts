@@ -369,6 +369,7 @@ class BackgroundRuntimeState<TPreparedDecisions> {
     }
     if (Object.hasOwn(values, "featureFlags")) {
       this.featureFlags = values.featureFlags!;
+      this.effectiveSnapshotCache.clear();
       this.invalidateDecisions();
     }
     if (Object.hasOwn(values, "sharedWorkerHandlingMode")) {
