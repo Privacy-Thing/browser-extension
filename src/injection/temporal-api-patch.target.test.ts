@@ -73,4 +73,25 @@ describe("injected Temporal API adapter", () => {
     ).toEqual([]);
     expect(Temporal.Now.timeZoneId).toBe(nativeTimeZoneId);
   });
+
+  it("adopts early wrappers without replacing or double-counting them", () => {
+    const Temporal = createTemporal();
+    installTemporalApiPatch(snapshot, { Temporal });
+    const earlyTimeZoneId = Temporal.Now.timeZoneId;
+    mocks.markSurfaceUsed.mockReset();
+    const registrar = createIntegrityRegistry();
+
+    const anchors = installTemporalApiPatch(
+      snapshot,
+      { Temporal },
+      { registrar, realmId: "test" },
+      true,
+    );
+
+    expect(anchors).toHaveLength(2);
+    expect(Temporal.Now.timeZoneId).toBe(earlyTimeZoneId);
+    expect(Temporal.Now.timeZoneId()).toBe("Europe/Warsaw");
+    expect(mocks.markSurfaceUsed).toHaveBeenCalledTimes(1);
+    expect(registrar.ensureSurface("timeLocale")).toHaveLength(2);
+  });
 });

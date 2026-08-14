@@ -172,16 +172,26 @@ export const FX_GEO_SHIM_MAX_BYTES = 130 * 1024;
  * Raised to 164 KB: opt-in Temporal protection adds the shared 14-method
  * installer, regenerated worker payload, and absolute worker method-counter
  * relay. Release-style output is ~163.7 KB raw.
+ *
+ * Raised to 165 KB: the obfuscated-ID CI build reached 168,207 B, 15 B above
+ * the previous 164 KB budget plus 256 B tolerance. This leaves about 1 KB of
+ * headroom for per-build identifier variance without hiding a feature-sized
+ * regression.
  */
 // The Firefox runtime includes the validated worker/SharedWorker policy
 // transport. Preserve a hard budget while allowing per-build obfuscated IDs.
-export const FX_MAIN_WORLD_MAX_BYTES = 164 * 1024;
+export const FX_MAIN_WORLD_MAX_BYTES = 165 * 1024;
 
 /**
  * Chromium early inline script (synchronously injected before page scripts run).
  * Keep this tight — it blocks the first inline read path.
+ *
+ * Raised to 12 KB: opt-in Temporal protection now installs synchronously in the
+ * top-frame early entrypoint to cover the first inline call, then hands ownership
+ * to the full runtime without a second wrapper. Release-style output is ~11.9 KB
+ * raw (4.6 KB gzip); no Temporal polyfill is bundled.
  */
-export const CHROME_EARLY_MAX_BYTES = 8 * 1024;
+export const CHROME_EARLY_MAX_BYTES = 12 * 1024;
 
 /**
  * Chromium runtime page-world script (full Refract runtime).

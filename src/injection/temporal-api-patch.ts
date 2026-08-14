@@ -1,5 +1,6 @@
 import { markSurfaceUsed } from "@privacy-brand/refract-browser/common/surface-usage-emitter";
 import {
+  getTemporalApiAnchors,
   installTemporalApiPatch as installCoreTemporalApiPatch,
   type TemporalApiAnchor,
   type TemporalApiGlobal,
@@ -32,6 +33,7 @@ export const installTemporalApiPatch = (
   snapshot: RuntimeSnapshot,
   targetGlobal: TemporalApiGlobal = globalThis,
   integrity?: RuntimeIntegrityContext,
+  adoptCurrent = false,
 ): TemporalApiAnchor[] => {
   if (
     snapshot.timeLocaleEnabled === false ||
@@ -40,14 +42,16 @@ export const installTemporalApiPatch = (
   ) {
     return [];
   }
-  const anchors = installCoreTemporalApiPatch({
-    targetGlobal,
-    defaults: {
-      languages: snapshot.locale.formattingLanguages ?? snapshot.locale.languages,
-      timeZone: snapshot.locale.timeZone,
-    },
-    onAccess: (methodId) => markSurfaceUsed("timeLocale", methodId),
-  });
+  const anchors = adoptCurrent
+    ? getTemporalApiAnchors(targetGlobal)
+    : installCoreTemporalApiPatch({
+        targetGlobal,
+        defaults: {
+          languages: snapshot.locale.formattingLanguages ?? snapshot.locale.languages,
+          timeZone: snapshot.locale.timeZone,
+        },
+        onAccess: (methodId) => markSurfaceUsed("timeLocale", methodId),
+      });
   registerTemporalAnchors(integrity, anchors);
   return anchors;
 };

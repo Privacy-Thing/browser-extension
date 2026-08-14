@@ -259,6 +259,46 @@ const installLocaleMethods = (
   }
 };
 
+const addAvailableAnchor = (
+  anchors: TemporalApiAnchor[],
+  target: object,
+  key: string,
+  methodId: TemporalApiMethodId,
+): void => {
+  if (typeof privateOwnDescriptor(target, key)?.value === "function") {
+    anchors.push({ target, key, methodId });
+  }
+};
+
+/** Returns the currently available Temporal method descriptors without wrapping them. */
+export const getTemporalApiAnchors = (
+  targetGlobal: TemporalApiGlobal,
+): TemporalApiAnchor[] => {
+  const temporalValue = (targetGlobal as { Temporal?: unknown }).Temporal;
+  if (!isRecord(temporalValue)) return [];
+  const temporal = temporalValue as TemporalNamespaceLike;
+  const anchors: TemporalApiAnchor[] = [];
+  const now = temporal.Now;
+  if (isRecord(now)) {
+    addAvailableAnchor(anchors, now, "instant", "temporal.Now.instant");
+    addAvailableAnchor(anchors, now, "timeZoneId", "temporal.Now.timeZoneId");
+    for (const key of NOW_TIME_ZONE_METHODS) {
+      addAvailableAnchor(anchors, now, key, `temporal.Now.${key}`);
+    }
+  }
+  for (const typeName of LOCALE_TYPES) {
+    const constructor = temporal[typeName] as TemporalConstructorLike | undefined;
+    if (!isRecord(constructor?.prototype)) continue;
+    addAvailableAnchor(
+      anchors,
+      constructor.prototype,
+      "toLocaleString",
+      `temporal.${typeName}.toLocaleString`,
+    );
+  }
+  return anchors;
+};
+
 export const installTemporalApiPatch = (
   options: TemporalApiPatchOptions,
 ): TemporalApiAnchor[] => {

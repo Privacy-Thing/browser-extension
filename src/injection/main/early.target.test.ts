@@ -1,8 +1,12 @@
 // @vitest-environment jsdom
 
-import { writeConfigElement } from "@privacy-brand/refract-browser/common/runtime-config";
+import {
+  hasEarlyTemporalOwner,
+  writeConfigElement,
+} from "@privacy-brand/refract-browser/common/runtime-config";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { SURFACE_USAGE_TYPE } from "@/shared/build-id-test-values";
 import type { RuntimeSnapshot } from "@/shared/types";
 
 const createSnapshot = (): RuntimeSnapshot => ({
@@ -38,6 +42,7 @@ describe("main-world early bootstrap entrypoint", () => {
     document.head.innerHTML = "";
     document.body.innerHTML = "";
     window.name = "";
+    vi.unstubAllGlobals();
     errorFactoryMocks.installPrototypePatch.mockReset();
   });
 
@@ -62,5 +67,33 @@ describe("main-world early bootstrap entrypoint", () => {
           (value as { authKey?: unknown }).authKey === snapshot.authKey,
       );
     expect(exposedSnapshots).toEqual([]);
+  });
+
+  it("installs and hands off ownership of top-frame Temporal methods", async () => {
+    const usageEvents: string[] = [];
+    const recordUsage = (event: Event) => {
+      usageEvents.push((event as CustomEvent).detail as string);
+    };
+    document.addEventListener(SURFACE_USAGE_TYPE, recordUsage);
+    const Temporal = {
+      Now: {
+        timeZoneId: () => "UTC",
+      },
+    };
+    vi.stubGlobal("Temporal", Temporal);
+    writeConfigElement(document, {
+      ...createSnapshot(),
+      temporalApiEnabled: true,
+    });
+
+    await import("@/injection/main/early");
+
+    expect(Temporal.Now.timeZoneId()).toBe("Europe/Warsaw");
+    await Promise.resolve();
+    expect(hasEarlyTemporalOwner(document)).toBe(true);
+    expect(JSON.parse(usageEvents.at(-1)!) as { sourceId: string }).toMatchObject({
+      sourceId: "runtime:temporal-early",
+    });
+    document.removeEventListener(SURFACE_USAGE_TYPE, recordUsage);
   });
 });

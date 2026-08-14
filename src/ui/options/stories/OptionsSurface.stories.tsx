@@ -237,6 +237,7 @@ const TrustedSitesSurface = () => {
 const AdvancedSurface = () => {
   const [debugMode, setDebugMode] = useState(false);
   const [panicMode, setPanicMode] = useState(false);
+  const [featureFlags, setFeatureFlags] = useState(DEFAULT_PREFERENCES.featureFlags);
   const importSettingsRef = useRef<HTMLInputElement>(null);
 
   return (
@@ -244,6 +245,8 @@ const AdvancedSurface = () => {
       value={{
         debugMode,
         setDebugMode,
+        featureFlags,
+        setFeatureFlags,
         settingsLoaded: true,
         panicMode,
         handleSetPanicMode: async (value) => setPanicMode(value),
@@ -331,6 +334,7 @@ const OptionsSettingsSurface = ({
           setShowBadgeQueryCount,
           includeDateCallsInBadgeCount: countDateCalls,
           setCountDateCalls,
+          featureFlags: DEFAULT_PREFERENCES.featureFlags,
           defaultNoiseRadius,
           setDefaultNoiseRadius,
           randomizeGeneratedLocationByDefault: randomizeDefault,

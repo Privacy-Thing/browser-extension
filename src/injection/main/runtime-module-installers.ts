@@ -68,7 +68,7 @@ const wrapInstaller =
     }
   };
 
-const createEarlyModules = (): RuntimeModules => {
+const createEarlyModules = (temporalOwnedByEarly: boolean): RuntimeModules => {
   if (__PT_BROWSER_TARGET__ === "firefox") return {};
   return {
     geolocation: wrapInstaller("geolocation", (state) => {
@@ -104,7 +104,12 @@ const createEarlyModules = (): RuntimeModules => {
       }
     }),
     temporal: wrapInstaller("timeLocale", (state) => {
-      installTemporalApiPatch(state.snapshot!, globalThis, integrityContext(state));
+      installTemporalApiPatch(
+        state.snapshot!,
+        globalThis,
+        integrityContext(state),
+        temporalOwnedByEarly,
+      );
     }),
     navigator: wrapInstaller("timeLocale", (state) => {
       if (state.snapshot!.timeLocaleEnabled !== false) {
@@ -228,11 +233,11 @@ const createWorkerModules = (): RuntimeModules =>
         }),
       };
 
-export const createRuntimeModules = (): RuntimeModules => ({
+export const createRuntimeModules = (temporalOwnedByEarly = false): RuntimeModules => ({
   "surface-usage": wrapInstaller(null, (state) => {
     installUsageListener(() => state.snapshot?.authKey);
   }),
-  ...createEarlyModules(),
+  ...createEarlyModules(temporalOwnedByEarly),
   ...createFpModules(),
   ...createWorkerModules(),
 });
