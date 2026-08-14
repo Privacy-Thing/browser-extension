@@ -22,6 +22,7 @@ import { OPTIONS_HOVER_REACTION, OPTIONS_THING_TIMING } from "@/ui/options/brand
 import { GlobalFallbackRuleDialog } from "@/ui/options/components/modals/GlobalFallbackRuleDialog";
 import { TrustedSiteDialog } from "@/ui/options/components/modals/TrustedSiteDialog";
 import { WelcomeWizard } from "@/ui/options/components/onboarding/WelcomeWizard";
+import { AboutTab } from "@/ui/options/components/tabs/AboutTab";
 import { AdvancedTab } from "@/ui/options/components/tabs/AdvancedTab";
 import { LocationsTab } from "@/ui/options/components/tabs/LocationsTab";
 import { OptionsTab } from "@/ui/options/components/tabs/OptionsTab";
@@ -37,7 +38,7 @@ import { ThemeProvider } from "@/ui/shared/ThemeProvider";
 installChromeBoundary();
 
 type OptionsStoryState =
-  "rules" | "profiles" | "trusted-sites" | "options" | "advanced";
+  "rules" | "profiles" | "trusted-sites" | "options" | "advanced" | "about";
 
 const tabLabels: Record<OptionsStoryState, string> = {
   rules: t.options.tabs.rules,
@@ -45,6 +46,7 @@ const tabLabels: Record<OptionsStoryState, string> = {
   "trusted-sites": t.options.tabs.trustedSites,
   options: t.options.tabs.options,
   advanced: t.options.tabs.advanced,
+  about: t.options.tabs.about,
 };
 
 const OptionsSurfaceShell = ({
@@ -268,6 +270,22 @@ const AdvancedSurface = () => {
     </StorySettingsProvider>
   );
 };
+
+const AboutSurface = () => (
+  <StorySettingsProvider
+    value={{
+      highlightedAnchorId: null,
+      navigateToAnchor: fn(),
+      releaseChannel: "local",
+      settingsSubpageView: "none",
+      version: "0.9.2-storybook",
+    }}
+  >
+    <OptionsSurfaceShell activeTab="about">
+      <AboutTab />
+    </OptionsSurfaceShell>
+  </StorySettingsProvider>
+);
 
 const OptionsSettingsSurface = ({
   browserTarget,
@@ -701,6 +719,31 @@ export const TrustedSitesTest: Story = {
 
 export const Advanced: Story = {
   render: () => <AdvancedSurface />,
+};
+
+export const About: Story = {
+  render: () => <AboutSurface />,
+};
+
+export const AboutProjectLinksTest: Story = {
+  ...About,
+  tags: ["!dev", "!autodocs"],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await expect(canvas.getByRole("link", { name: "Website" })).toHaveAttribute(
+      "href",
+      "https://privacything.com",
+    );
+    await expect(canvas.getByRole("link", { name: "Source" })).toHaveAttribute(
+      "href",
+      "https://github.com/Privacy-Thing/browser-extension",
+    );
+    await expect(canvas.getByRole("link", { name: "Report bug" })).toHaveAttribute(
+      "href",
+      "https://github.com/Privacy-Thing/browser-extension/issues/new?template=bug_report.yml",
+    );
+  },
 };
 
 export const OptionsChromium: Story = {

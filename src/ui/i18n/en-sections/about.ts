@@ -144,10 +144,15 @@ export const about = {
     },
   },
 
-  playground: {
-    title: "Playground",
-    description: `Preview how ${BRAND_DISPLAY_NAME} would present any saved regional preset on websites, including locale, time zone, date output, and coordinates.`,
-    openButton: "Open Playground",
+  projectLinks: {
+    description: `${BRAND_DISPLAY_NAME} lives outside the extension too. Visit the website, browse the code, or let me know when something isn’t working.`,
+    websiteLabel: "Website",
+    websiteUrl: "https://privacything.com",
+    sourceLabel: "Source",
+    sourceUrl: "https://github.com/Privacy-Thing/browser-extension",
+    reportBugLabel: "Report bug",
+    reportBugUrl:
+      "https://github.com/Privacy-Thing/browser-extension/issues/new?template=bug_report.yml",
   },
 
   usage: {

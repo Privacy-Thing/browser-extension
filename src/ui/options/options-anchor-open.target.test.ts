@@ -661,6 +661,26 @@ describe("Options deeplink auto-open", () => {
     expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalled();
   });
 
+  it("shows the website, source, and bug-report links in About", async () => {
+    window.history.replaceState(null, "", `/#${PAGE_ANCHORS.about}`);
+
+    root = await renderWithRoot(createElement(App));
+
+    await waitForElement('[data-panel="about"]');
+    const links = Array.from(document.querySelectorAll<HTMLAnchorElement>("a"));
+    const hrefFor = (label: string) =>
+      links.find((link) => link.textContent?.includes(label))?.href;
+
+    expect(hrefFor("Website")).toBe("https://privacything.com/");
+    expect(hrefFor("Source")).toBe(
+      "https://github.com/Privacy-Thing/browser-extension",
+    );
+    expect(hrefFor("Report bug")).toBe(
+      "https://github.com/Privacy-Thing/browser-extension/issues/new?template=bug_report.yml",
+    );
+    expect(document.body.textContent).not.toContain("Open Playground");
+  });
+
   it("opens a normal privacy anchor instead of forcing incomplete onboarding", async () => {
     installChromeMock({
       ...baseSettingsResponse,

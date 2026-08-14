@@ -27,6 +27,37 @@
           "Opening a notification marks it as read. It remains available until you dismiss it."
         ]
       }
+    },
+    {
+      "id": "experimental-temporal-api",
+      "channel": "release",
+      "introducedInVersion": "0.9.2",
+      "title": {
+        "en": "Temporal API protection is ready to try"
+      },
+      "message": {
+        "en": [
+          "{{brand}} can now protect native Temporal calls, covering date, time, locale, and default time-zone behavior alongside the rest of your setup.",
+          "It’s experimental and off by default. To try it, open Settings → Advanced → Experimental and turn on Temporal API. It only works when your browser already provides Temporal—{{brand}} doesn’t add a polyfill.",
+          "Want to know more? You can read about the Temporal API on Mozilla Developer Network using the link below."
+        ]
+      },
+      "actionUrl": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal"
+    },
+    {
+      "id": "privacy-thing-open-source",
+      "channel": "release",
+      "introducedInVersion": "0.9.2",
+      "title": {
+        "en": "{{brand}} is now open source!"
+      },
+      "message": {
+        "en": [
+          "{{brand}} is open source now. The code lives on GitHub under AGPL-3.0-or-later, with the project’s additional terms. Have a look around and see how it all works under the hood.",
+          "Found a regular bug? Open an issue and tell me what happened. Security or detection problems should still go through GitHub’s private reporting form."
+        ]
+      },
+      "actionUrl": "https://github.com/Privacy-Thing/browser-extension"
     }
   ]
 }

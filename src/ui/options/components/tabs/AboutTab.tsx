@@ -4,7 +4,7 @@ import { WebhWordmark } from "@/ui/branding/WebhWordmark";
 import { cn } from "@/ui/components/lib/utils";
 import { SettingsHelpCard } from "@/ui/components/SettingsHelpCard";
 import { Button } from "@/ui/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/ui/components/ui/card";
+import { Card, CardContent } from "@/ui/components/ui/card";
 import { Separator } from "@/ui/components/ui/separator";
 import { TabsContent } from "@/ui/components/ui/tabs";
 import { t } from "@/ui/i18n";
@@ -454,26 +454,47 @@ const AssetsSection = () => {
 };
 
 const AboutSidebar = () => {
-  const { highlightedAnchorId, navigateToAnchor } = useSettings();
+  const { highlightedAnchorId } = useSettings();
+  const projectLinks = [
+    {
+      label: t.about.projectLinks.websiteLabel,
+      url: t.about.projectLinks.websiteUrl,
+      icon: "fa-globe",
+    },
+    {
+      label: t.about.projectLinks.sourceLabel,
+      url: t.about.projectLinks.sourceUrl,
+      icon: "fa-code-branch",
+    },
+    {
+      label: t.about.projectLinks.reportBugLabel,
+      url: t.about.projectLinks.reportBugUrl,
+      icon: "fa-bug",
+    },
+  ];
   return (
     <div className="col-span-12 lg:col-span-4 flex flex-col gap-4">
       <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">{t.about.playground.title}</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
+        <CardContent className="flex flex-col gap-4 pt-6">
           <p className="text-sm text-muted-foreground">
-            {t.about.playground.description}
+            {t.about.projectLinks.description}
           </p>
-          <Button
-            className="w-fit self-center"
-            onClick={() =>
-              navigateToAnchor(PAGE_ANCHORS.playground, { highlight: false })
-            }
-          >
-            {icon("fa-rocket")}
-            {t.about.playground.openButton}
-          </Button>
+          <div className="grid grid-cols-3 gap-2">
+            {projectLinks.map((link) => (
+              <Button
+                key={link.url}
+                asChild
+                size="sm"
+                variant="secondary"
+                className="w-full min-w-0 px-2"
+              >
+                <a href={link.url} target="_blank" rel="noopener noreferrer">
+                  {icon(link.icon)}
+                  {link.label}
+                </a>
+              </Button>
+            ))}
+          </div>
         </CardContent>
       </Card>
       <SettingsHelpCard

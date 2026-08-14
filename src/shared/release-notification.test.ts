@@ -71,6 +71,30 @@ describe("extension notification catalog", () => {
     expect(getVersionNotices("beta", "0.10.0")).toEqual([]);
   });
 
+  it("includes the approved 0.9.2 Temporal and open-source announcements", () => {
+    const notifications = getVersionNotices("release", "0.9.2");
+
+    expect(notifications).toEqual([
+      expect.objectContaining({
+        id: "experimental-temporal-api",
+        title: "Temporal API protection is ready to try",
+        actionUrl:
+          "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal",
+      }),
+      expect.objectContaining({
+        id: "privacy-thing-open-source",
+        title: "Privacy Thing is now open source!",
+        actionUrl: "https://github.com/Privacy-Thing/browser-extension",
+      }),
+    ]);
+    expect(notifications[0]?.message[1]).toContain(
+      "Settings → Advanced → Experimental",
+    );
+    expect(notifications[0]?.message.at(-1)).toBe(
+      "Want to know more? You can read about the Temporal API on Mozilla Developer Network using the link below.",
+    );
+  });
+
   it("rejects invalid entries and duplicate IDs", () => {
     const validEntry = {
       id: "release-note",
