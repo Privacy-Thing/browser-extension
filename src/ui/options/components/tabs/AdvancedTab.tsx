@@ -87,6 +87,66 @@ const RuntimeCard = () => {
   );
 };
 
+const ExperimentalCard = () => {
+  const {
+    featureFlags,
+    highlightedAnchorId,
+    scheduleAutosave,
+    setFeatureFlags,
+    settingsLoaded,
+  } = useSettings();
+  return (
+    <Card
+      id={SECTION_ANCHORS.advanced.experimental}
+      data-anchor-id={SECTION_ANCHORS.advanced.experimental}
+      className={cn(
+        "gw-anchor-target scroll-mt-7",
+        highlightedAnchorId === SECTION_ANCHORS.advanced.experimental &&
+          "gw-anchor-highlighted",
+      )}
+    >
+      <CardContent className="pt-6 flex flex-col gap-6">
+        <div>
+          <AnchorHeading
+            anchorId={SECTION_ANCHORS.advanced.experimental}
+            label={t.common.copyLinkTo(t.advanced.experimental.copyLinkLabel)}
+          >
+            <h2 className="text-xl font-semibold">{t.advanced.experimental.title}</h2>
+          </AnchorHeading>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {t.advanced.experimental.description}
+          </p>
+        </div>
+        <SettingsControlCard
+          anchorId={SETTING_ANCHORS.advanced.temporalApi}
+          copyLabel={t.common.copyLinkTo(
+            t.advanced.experimental.temporalApi.copyLinkLabel,
+          )}
+          title={settingTitle(t.advanced.experimental.temporalApi.title)}
+          description={t.advanced.experimental.temporalApi.description}
+          focusControlOnTitleClick
+          highlighted={highlightedAnchorId === SETTING_ANCHORS.advanced.temporalApi}
+          action={
+            <Switch
+              aria-labelledby={getSettingTitleId(SETTING_ANCHORS.advanced.temporalApi)}
+              aria-describedby={getSettingDescriptionId(
+                SETTING_ANCHORS.advanced.temporalApi,
+              )}
+              checked={featureFlags.temporalApi}
+              disabled={!settingsLoaded}
+              onCheckedChange={(checked) => {
+                const next = { ...featureFlags, temporalApi: checked };
+                setFeatureFlags(next);
+                scheduleAutosave({ featureFlags: { temporalApi: checked } });
+              }}
+            />
+          }
+        />
+      </CardContent>
+    </Card>
+  );
+};
+
 const PanicControl = () => {
   const { panicMode, handleSetPanicMode, highlightedAnchorId } = useSettings();
   return (
@@ -263,6 +323,7 @@ const AdvancedOverview = () => {
     <div className="grid grid-cols-12 gap-5">
       <div className="col-span-12 lg:col-span-8 flex flex-col gap-5">
         <RuntimeCard />
+        <ExperimentalCard />
         <DangerCard />
       </div>
       <div className="col-span-12 lg:col-span-4">

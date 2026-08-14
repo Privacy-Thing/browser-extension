@@ -3,6 +3,7 @@ export * from "./worker-bootstrap";
 export * from "./worker-fingerprint-inline";
 export * from "./worker-webgl-inline";
 export * from "./worker-runtime-log-relay";
+export * from "./worker-surface-usage-relay";
 export * from "./surface-error-emitter";
 export * from "./surface-usage-emitter";
 export * from "./debug-logger";

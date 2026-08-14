@@ -119,6 +119,7 @@ const buildCachedValues = (trustedSites: TrustedSite[]) => ({
   watchPositionDelay: [60, 500] as [number, number],
   osmConsent: "unknown" as const,
   browserFingerprintSpoofingEnabled: false,
+  featureFlags: { temporalApi: false },
   sharedWorkerHandlingMode: "native" as const,
   sharedWorkerCompatibilityMode: true,
   sharedSpoofingLoaded: true,
@@ -162,7 +163,7 @@ describe("createSettingsHandlers", () => {
     getHighContrastMode.mockResolvedValue(false);
   });
 
-  it("omits retired profile data from new exports", async () => {
+  it("exports active feature flags but omits retired profile data", async () => {
     const { exportSettings } = createSettingsHandlers(createDeps());
 
     const response = await exportSettings();
@@ -170,7 +171,7 @@ describe("createSettingsHandlers", () => {
 
     expect(exported).not.toHaveProperty("behavioralProfiles");
     expect(exported).not.toHaveProperty("behavioralProfilesEnabled");
-    expect(exported).not.toHaveProperty("featureFlags");
+    expect(exported.featureFlags).toEqual({ temporalApi: false });
     expect(exported.locations).toEqual([]);
   });
 
@@ -320,6 +321,40 @@ describe("createSettingsHandlers", () => {
     expect(response.ok).toBe(true);
     expect(syncPreloadedState).toHaveBeenCalledOnce();
     expect(reloadTabs).toHaveBeenCalledWith([7, 8]);
+  });
+
+  it("merges and applies Temporal feature flag changes", async () => {
+    const reloadTabs = vi.fn(async (_tabIds: readonly number[]) => undefined);
+    const setCachedValues = vi.fn();
+    const { saveSimpleSettings } = createSettingsHandlers({
+      ensureStorageMigration: async () => undefined,
+      syncPreloadedState: async () => undefined,
+      resyncActiveHeaderRules: async () => undefined,
+      refreshFxInjectionMode: async () => undefined,
+      getActiveTabContexts: () => [{ tabId: 9, hostname: "example.com" }],
+      reloadTabs,
+      getCachedValues: () => buildCachedValues([]),
+      setCachedValues,
+    });
+
+    const response = await saveSimpleSettings({
+      type: EXTENSION_COMMAND_TYPES.saveSimpleSettings,
+      featureFlags: { temporalApi: true },
+    });
+
+    expect(response).toEqual(
+      expect.objectContaining({
+        ok: true,
+        featureFlags: { temporalApi: true },
+      }),
+    );
+    expect(savePreferences).toHaveBeenCalledWith({
+      featureFlags: { temporalApi: true },
+    });
+    expect(setCachedValues).toHaveBeenCalledWith(
+      expect.objectContaining({ featureFlags: { temporalApi: true } }),
+    );
+    expect(reloadTabs).toHaveBeenCalledWith([9]);
   });
 
   it("preserves shared spoofing when browser surface protections are turned off", async () => {

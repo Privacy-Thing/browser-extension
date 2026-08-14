@@ -283,6 +283,13 @@ describe("getPreferences / savePreferences", () => {
     expect(loaded.osmConsent).toBe("denied");
   });
 
+  it("merges partial feature-flag updates", async () => {
+    await savePreferences({ featureFlags: { temporalApi: true } });
+    await savePreferences({ debugMode: true });
+
+    expect((await getPreferences()).featureFlags).toEqual({ temporalApi: true });
+  });
+
   it("does not lose fields under concurrent partial writes", async () => {
     await Promise.all([
       savePreferences({ debugMode: true }),

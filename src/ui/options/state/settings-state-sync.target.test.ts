@@ -43,6 +43,7 @@ describe("applySettingsPayload", () => {
       watchPositionDelay: [120, 240],
       osmConsent: "granted",
       browserFingerprintSpoofingEnabled: true,
+      featureFlags: { temporalApi: true },
       sharedWorkerHandlingMode: "spoof",
       sharedWorkerCompatibilityMode: false,
       sharedSpoofing: undefined,
@@ -66,6 +67,7 @@ describe("applySettingsPayload", () => {
       setOsmConsent: createSetter<GetSettingsResponse["osmConsent"]>(),
       setFingerprintSpoofing:
         createSetter<GetSettingsResponse["browserFingerprintSpoofingEnabled"]>(),
+      setFeatureFlags: createSetter<GetSettingsResponse["featureFlags"]>(),
       setWorkerMode: createSetter<GetSettingsResponse["sharedWorkerHandlingMode"]>(),
       setWorkerCompat:
         createSetter<GetSettingsResponse["sharedWorkerCompatibilityMode"]>(),
@@ -99,6 +101,7 @@ describe("applySettingsPayload", () => {
     expect(setters.setTrustedSites).toHaveBeenCalledWith(payload.trustedSites);
     expect(setters.setThemeMode).toHaveBeenCalledWith("dark");
     expect(setters.setWorkerCompat).toHaveBeenCalledWith(false);
+    expect(setters.setFeatureFlags).toHaveBeenCalledWith({ temporalApi: true });
     expect(setters.setGlobalFallbackRule).toHaveBeenCalledWith(undefined);
     expect(setters.setDefaultNoiseRadius).toHaveBeenCalledWith(120);
     expect(setters.setRandomizeDefault).toHaveBeenCalledWith(false);

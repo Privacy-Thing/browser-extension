@@ -13,6 +13,8 @@ import {
   withDefaultTimeZone,
 } from "@privacy-brand/refract-core/time/intl-defaults";
 import { createResolvedTransform } from "@privacy-brand/refract-core/time/intl-resolved-options";
+import { installTemporalApiPatch } from "@privacy-brand/refract-core/time/temporal-api-patch";
+import type { TemporalApiGlobal } from "@privacy-brand/refract-core/time/temporal-api-patch";
 import {
   constructZonedDate,
   createNativeDateReaders,
@@ -247,6 +249,33 @@ const installWorkerDate = (
   registerDate(PatchedDate, descriptors, support);
 };
 
+export const installWorkerTemporal = (
+  snapshot: RuntimeSnapshot,
+  support: WorkerRuntimeSupport,
+  targetGlobal: TemporalApiGlobal = globalThis,
+): void => {
+  if (snapshot.temporalApiEnabled !== true || !snapshot.locale) return;
+  const anchors = installTemporalApiPatch({
+    targetGlobal,
+    defaults: {
+      languages: snapshot.locale.formattingLanguages ?? snapshot.locale.languages,
+      timeZone: snapshot.locale.timeZone,
+    },
+    onAccess: (methodId) => {
+      support.markSurfaceUsed("timeLocale", methodId);
+      support.loggers.localeOnce(methodId, []);
+    },
+  });
+  for (const anchor of anchors) {
+    support.register({
+      target: anchor.target,
+      key: anchor.key,
+      surfaceId: "timeLocale",
+      methodId: anchor.methodId,
+    });
+  }
+};
+
 export const installWorkerTime = (
   snapshot: RuntimeSnapshot,
   support: WorkerRuntimeSupport,
@@ -254,4 +283,5 @@ export const installWorkerTime = (
   if (snapshot.timeLocaleEnabled === false) return;
   installWorkerDate(snapshot, support);
   installWorkerIntl(snapshot, support);
+  installWorkerTemporal(snapshot, support);
 };

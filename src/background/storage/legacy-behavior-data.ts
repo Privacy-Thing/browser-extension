@@ -82,11 +82,12 @@ export const keepLegacyPrefs = (
     return preferences;
   }
 
+  const storedFlags = asRecord(source.featureFlags) ?? {};
+  const activeFlags = asRecord(preferences.featureFlags) ?? {};
+
   return {
     ...preferences,
-    ...(Object.hasOwn(source, "featureFlags")
-      ? { featureFlags: source.featureFlags }
-      : {}),
+    featureFlags: { ...storedFlags, ...activeFlags },
     ...(Object.hasOwn(source, LEGACY_FLAT_FLAG_KEY)
       ? { [LEGACY_FLAT_FLAG_KEY]: source[LEGACY_FLAT_FLAG_KEY] }
       : {}),
@@ -161,7 +162,12 @@ export const clearLegacyBehavior = async (): Promise<void> => {
   const preferences = asRecord(stored[PREFERENCES_KEY]);
   const cleanPreferences = preferences ? { ...preferences } : null;
   if (cleanPreferences) {
-    delete cleanPreferences.featureFlags;
+    const flags = asRecord(cleanPreferences.featureFlags);
+    if (flags) {
+      const nextFlags = { ...flags };
+      delete nextFlags[LEGACY_FLAG_KEY];
+      cleanPreferences.featureFlags = nextFlags;
+    }
     delete cleanPreferences[LEGACY_FLAT_FLAG_KEY];
   }
 

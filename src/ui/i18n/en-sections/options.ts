@@ -109,9 +109,9 @@ export const optionsPage = {
     label: "Show call count on extension badge",
     description: `Show how many browser API calls ${BRAND_DISPLAY_NAME} handled on the extension badge instead of the text label.`,
     includeDateCalls: {
-      label: "Include Date API calls",
+      label: "Include Date and Temporal API calls",
       description:
-        "Include Date.* calls in the badge number. Turn this off to keep frequent date checks from inflating the count.",
+        "Include Date.* and Temporal.* calls in the badge number. Turn this off to keep frequent time checks from inflating the count.",
     },
   },
   copyLinkHelpLabel: "options help",

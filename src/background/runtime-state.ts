@@ -1,6 +1,7 @@
 import { createSnapshotCache } from "@/background/effective-snapshot-cache";
 import type { UserScriptRuleEntry } from "@/background/firefox-user-scripts";
 import { createRewriteTracker } from "@/background/shared-worker-rewrite";
+import type { FeatureFlags } from "@/shared/feature-flags";
 import type {
   ContainerAssignment,
   ControlState,
@@ -27,6 +28,7 @@ export type CachedSettings = {
   watchPositionDelay: [number, number] | null;
   osmConsent: OsmConsentState | null;
   browserFingerprintSpoofingEnabled: boolean | null;
+  featureFlags: FeatureFlags | null;
   sharedWorkerHandlingMode: SharedWorkerHandlingMode | null;
   sharedWorkerCompatibilityMode: boolean | null;
   sharedSpoofingLoaded: boolean;
@@ -53,6 +55,7 @@ export type MutableCachedSettings = Partial<{
   watchPositionDelay: [number, number];
   osmConsent: OsmConsentState;
   browserFingerprintSpoofingEnabled: boolean;
+  featureFlags: FeatureFlags;
   sharedWorkerHandlingMode: SharedWorkerHandlingMode;
   sharedWorkerCompatibilityMode: boolean;
   sharedSpoofing: SharedSpoofingConfig | undefined;
@@ -78,6 +81,7 @@ export type CachedSettingsState = {
   watchPositionDelay: [number, number];
   osmConsent: OsmConsentState;
   browserFingerprintSpoofingEnabled: boolean;
+  featureFlags: FeatureFlags;
   sharedWorkerHandlingMode: SharedWorkerHandlingMode;
   sharedWorkerCompatibilityMode: boolean;
   sharedSpoofing: SharedSpoofingConfig | undefined;
@@ -109,6 +113,7 @@ class BackgroundRuntimeState<TPreparedDecisions> {
   private watchDelay: [number, number] | null = null;
   private osmConsent: OsmConsentState | null = null;
   private fingerprintEnabled: boolean | null = null;
+  private featureFlags: FeatureFlags | null = null;
   private workerMode: SharedWorkerHandlingMode | null = null;
   private workerCompatibility: boolean | null = null;
   private spoofingLoaded = false;
@@ -269,6 +274,7 @@ class BackgroundRuntimeState<TPreparedDecisions> {
     watchPositionDelay: this.watchDelay,
     osmConsent: this.osmConsent,
     browserFingerprintSpoofingEnabled: this.fingerprintEnabled,
+    featureFlags: this.featureFlags,
     sharedWorkerHandlingMode: this.workerMode,
     sharedWorkerCompatibilityMode: this.workerCompatibility,
     sharedSpoofingLoaded: this.spoofingLoaded,
@@ -297,6 +303,7 @@ class BackgroundRuntimeState<TPreparedDecisions> {
       this.watchDelay === null ||
       this.osmConsent === null ||
       this.fingerprintEnabled === null ||
+      this.featureFlags === null ||
       this.workerMode === null ||
       this.workerCompatibility === null ||
       this.highContrast === null ||
@@ -322,6 +329,7 @@ class BackgroundRuntimeState<TPreparedDecisions> {
       watchPositionDelay: this.watchDelay,
       osmConsent: this.osmConsent,
       browserFingerprintSpoofingEnabled: this.fingerprintEnabled,
+      featureFlags: this.featureFlags,
       sharedWorkerHandlingMode: this.workerMode,
       sharedWorkerCompatibilityMode: this.workerCompatibility,
       sharedSpoofing: this.sharedSpoofing,
@@ -358,6 +366,11 @@ class BackgroundRuntimeState<TPreparedDecisions> {
     if (Object.hasOwn(values, "osmConsent")) this.osmConsent = values.osmConsent!;
     if (Object.hasOwn(values, "browserFingerprintSpoofingEnabled")) {
       this.fingerprintEnabled = values.browserFingerprintSpoofingEnabled!;
+    }
+    if (Object.hasOwn(values, "featureFlags")) {
+      this.featureFlags = values.featureFlags!;
+      this.effectiveSnapshotCache.clear();
+      this.invalidateDecisions();
     }
     if (Object.hasOwn(values, "sharedWorkerHandlingMode")) {
       this.workerMode = values.sharedWorkerHandlingMode!;

@@ -72,6 +72,7 @@ export type RefractModuleName =
   | "date"
   | "date-intl"
   | "intl"
+  | "temporal"
   | "geolocation"
   | "permissions"
   | "screen"

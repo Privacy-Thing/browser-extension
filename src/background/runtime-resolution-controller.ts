@@ -149,6 +149,7 @@ const buildFallbackDecision = async (
   const snapshot = resolveProfileSnapshot({
     browserFingerprintSource: await readFingerprintSource(),
     fingerprintEnabled: state.browserFingerprintSpoofingEnabled,
+    temporalApiEnabled: state.featureFlags.temporalApi,
     containerAssignments: state.containerAssignments,
     cookieStoreId,
     debugMode: state.debugMode,

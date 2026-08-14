@@ -1,5 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
 
+import type { FeatureFlags } from "@/shared/feature-flags";
 import type {
   ContainerAssignment,
   DomainRule,
@@ -23,6 +24,7 @@ type SettingsStatePayload = {
   watchPositionDelay: [number, number];
   osmConsent: OsmConsentState;
   browserFingerprintSpoofingEnabled: boolean;
+  featureFlags: FeatureFlags;
   sharedWorkerHandlingMode: SharedWorkerHandlingMode;
   sharedWorkerCompatibilityMode: boolean;
   sharedSpoofing?: SharedSpoofingConfig | undefined;
@@ -49,6 +51,7 @@ export type SettingsStateSetters = {
   setWatchPositionDelay: StateSetter<[number, number]>;
   setOsmConsent: StateSetter<OsmConsentState>;
   setFingerprintSpoofing: StateSetter<boolean>;
+  setFeatureFlags: StateSetter<FeatureFlags>;
   setWorkerMode: StateSetter<SharedWorkerHandlingMode>;
   setWorkerCompat: StateSetter<boolean>;
   setSharedSpoofing: StateSetter<SharedSpoofingConfig | undefined>;
@@ -77,6 +80,7 @@ export const applySettingsPayload = (
   setters.setWatchPositionDelay(payload.watchPositionDelay);
   setters.setOsmConsent(payload.osmConsent);
   setters.setFingerprintSpoofing(payload.browserFingerprintSpoofingEnabled);
+  setters.setFeatureFlags(payload.featureFlags);
   setters.setWorkerMode(payload.sharedWorkerHandlingMode);
   setters.setWorkerCompat(payload.sharedWorkerCompatibilityMode);
   setters.setSharedSpoofing(payload.sharedSpoofing);

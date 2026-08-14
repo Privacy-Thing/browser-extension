@@ -19,6 +19,30 @@ export const SURFACE_METHOD_LABELS: Record<SpoofingSurfaceMethodId, string> = {
   "intl.DateTimeFormat.format": t.sidebar.accessed.methods.intlDateTimeFormatFormat,
   "intl.DateTimeFormat.formatToParts":
     t.sidebar.accessed.methods.intlDateTimeFormatFormatToParts,
+  "temporal.Now.instant": t.sidebar.accessed.methods.temporalNowInstant,
+  "temporal.Now.timeZoneId": t.sidebar.accessed.methods.temporalNowTimeZoneId,
+  "temporal.Now.plainDateTimeISO":
+    t.sidebar.accessed.methods.temporalNowPlainDateTimeISO,
+  "temporal.Now.zonedDateTimeISO":
+    t.sidebar.accessed.methods.temporalNowZonedDateTimeISO,
+  "temporal.Now.plainDateISO": t.sidebar.accessed.methods.temporalNowPlainDateISO,
+  "temporal.Now.plainTimeISO": t.sidebar.accessed.methods.temporalNowPlainTimeISO,
+  "temporal.Duration.toLocaleString":
+    t.sidebar.accessed.methods.temporalDurationToLocaleString,
+  "temporal.Instant.toLocaleString":
+    t.sidebar.accessed.methods.temporalInstantToLocaleString,
+  "temporal.PlainDate.toLocaleString":
+    t.sidebar.accessed.methods.temporalPlainDateToLocaleString,
+  "temporal.PlainDateTime.toLocaleString":
+    t.sidebar.accessed.methods.temporalPlainDateTimeToLocaleString,
+  "temporal.PlainMonthDay.toLocaleString":
+    t.sidebar.accessed.methods.temporalPlainMonthDayToLocaleString,
+  "temporal.PlainTime.toLocaleString":
+    t.sidebar.accessed.methods.temporalPlainTimeToLocaleString,
+  "temporal.PlainYearMonth.toLocaleString":
+    t.sidebar.accessed.methods.temporalPlainYearMonthToLocaleString,
+  "temporal.ZonedDateTime.toLocaleString":
+    t.sidebar.accessed.methods.temporalZonedDateTimeToLocaleString,
   "canvas.getImageData": t.sidebar.accessed.methods.canvasGetImageData,
   "canvas.toDataURL": t.sidebar.accessed.methods.canvasToDataURL,
   "canvas.toBlob": t.sidebar.accessed.methods.canvasToBlob,

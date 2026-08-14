@@ -14,6 +14,7 @@
     "./common/worker-fingerprint-inline": "./src/common/worker-fingerprint-inline.ts",
     "./common/worker-webgl-inline": "./src/common/worker-webgl-inline.ts",
     "./common/worker-runtime-log-relay": "./src/common/worker-runtime-log-relay.ts",
+    "./common/worker-surface-usage-relay": "./src/common/worker-surface-usage-relay.ts",
     "./common/worker-bootstrap-ack-relay": "./src/common/worker-bootstrap-ack-relay.ts",
     "./common/surface-error-emitter": "./src/common/surface-error-emitter.ts",
     "./common/surface-usage-emitter": "./src/common/surface-usage-emitter.ts",

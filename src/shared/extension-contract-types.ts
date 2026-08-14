@@ -3,6 +3,7 @@
  */
 
 import type { EXTENSION_COMMAND_TYPES } from "./extension-contract.js";
+import type { FeatureFlags } from "./feature-flags.js";
 import type {
   LegacySpoofingInput,
   SharedWorkerHandlingMode,
@@ -62,6 +63,7 @@ export type ExtensionCommand =
       watchPositionDelay?: [number, number];
       osmConsent?: OsmConsentState;
       browserFingerprintSpoofingEnabled?: boolean;
+      featureFlags?: Partial<FeatureFlags>;
       sharedWorkerHandlingMode?: SharedWorkerHandlingMode;
       sharedWorkerCompatibilityMode?: boolean;
       sharedSpoofing?: SharedSpoofingConfig | undefined;
@@ -405,6 +407,7 @@ export type GetSettingsResponse = {
   watchPositionDelay: [number, number];
   osmConsent: OsmConsentState;
   browserFingerprintSpoofingEnabled: boolean;
+  featureFlags: FeatureFlags;
   sharedWorkerHandlingMode: SharedWorkerHandlingMode;
   sharedWorkerCompatibilityMode: boolean;
   sharedSpoofing?: SharedSpoofingConfig | undefined;
@@ -429,6 +432,7 @@ export type SaveSettingsResponse =
       watchPositionDelay: [number, number];
       osmConsent: OsmConsentState;
       browserFingerprintSpoofingEnabled: boolean;
+      featureFlags: FeatureFlags;
       sharedWorkerHandlingMode: SharedWorkerHandlingMode;
       sharedWorkerCompatibilityMode: boolean;
       sharedSpoofing?: SharedSpoofingConfig | undefined;
@@ -471,6 +475,7 @@ export type ResetSettingsResponse = {
   watchPositionDelay: [number, number];
   osmConsent: OsmConsentState;
   browserFingerprintSpoofingEnabled: boolean;
+  featureFlags: FeatureFlags;
   sharedWorkerHandlingMode: SharedWorkerHandlingMode;
   sharedWorkerCompatibilityMode: boolean;
   sharedSpoofing?: SharedSpoofingConfig | undefined;
@@ -501,6 +506,7 @@ export type ImportSettingsResponse =
       watchPositionDelay: [number, number];
       osmConsent: OsmConsentState;
       browserFingerprintSpoofingEnabled: boolean;
+      featureFlags: FeatureFlags;
       sharedWorkerHandlingMode: SharedWorkerHandlingMode;
       sharedWorkerCompatibilityMode: boolean;
       sharedSpoofing?: SharedSpoofingConfig | undefined;

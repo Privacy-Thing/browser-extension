@@ -18,6 +18,7 @@ import type {
   SurfaceProtectionReason,
 } from "@privacy-brand/xray-protocol";
 
+import type { FeatureFlags } from "./feature-flags.js";
 import type {
   BrowserClientHintBrand,
   BrowserClientHints,
@@ -307,6 +308,7 @@ export type RuntimeSnapshot = {
   sharedWorkerCompatibilityMode?: boolean;
   geolocationEnabled?: boolean | undefined;
   timeLocaleEnabled?: boolean | undefined;
+  temporalApiEnabled?: boolean | undefined;
   fingerprint?: BrowserFingerprint;
   logEventName?: string;
   blockServiceWorkerRegistration?: boolean;
@@ -337,8 +339,8 @@ export type ExportedSettings = {
   sharedSpoofing?: SharedSpoofingConfig | undefined;
   /** Legacy import-only alias accepted for backward compatibility. */
   experimentalActiveSpoofing?: LegacySpoofingInput | undefined;
-  /** Legacy import-only data preserved locally but never used or exported. */
-  featureFlags?: Record<string, boolean>;
+  /** Active flags are exported; unknown keys remain import-only legacy data. */
+  featureFlags?: Partial<FeatureFlags> & Record<string, boolean>;
   /** Legacy import-only flag preserved locally but never used or exported. */
   behavioralProfilesEnabled?: boolean;
   /** Legacy import-only data preserved locally but never used or exported. */

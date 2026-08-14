@@ -23,6 +23,8 @@ import {
   saveTrustedSites,
 } from "@/background/storage/trusted-sites";
 import type { EXTENSION_COMMAND_TYPES } from "@/shared/extension-contract";
+import { normalizeFeatureFlags } from "@/shared/feature-flags";
+import type { FeatureFlags } from "@/shared/feature-flags";
 import { normalizeWorkerMode } from "@/shared/fingerprint-types";
 import { matchTrustedSite } from "@/shared/rule-resolution";
 import type { Preferences } from "@/shared/settings-defaults";
@@ -48,6 +50,7 @@ type ResolvedSimpleSettings = {
   nextWatchPositionDelay: [number, number];
   nextOsmConsent: OsmConsentState;
   nextFingerprintEnabled: boolean;
+  nextFeatureFlags: FeatureFlags;
   nextWorkerMode: SharedWorkerHandlingMode;
   nextWorkerCompatibility: boolean;
   nextSharedSpoofing: SharedSpoofingConfig | undefined;
@@ -144,6 +147,10 @@ const resolveSettings = async (
     cachedValues.browserFingerprintSpoofingEnabled,
     currentPreferences.browserFingerprintSpoofingEnabled,
   );
+  const nextFeatureFlags = normalizeFeatureFlags({
+    ...currentPreferences.featureFlags,
+    ...nextCommand.featureFlags,
+  });
   const commandWorkerMode =
     nextCommand.sharedWorkerHandlingMode ??
     (Object.hasOwn(nextCommand, "sharedWorkerCompatibilityMode")
@@ -177,6 +184,7 @@ const resolveSettings = async (
     nextWatchPositionDelay,
     nextOsmConsent,
     nextFingerprintEnabled,
+    nextFeatureFlags,
     nextWorkerMode,
     nextWorkerCompatibility: nextWorkerMode === "native",
     nextSharedSpoofing,
@@ -217,6 +225,7 @@ const resolveSettings = async (
 const buildPreferencesPatch = (
   nextCommand: ValidatedSettingsCommand,
   nextWorkerMode: SharedWorkerHandlingMode,
+  nextFeatureFlags: FeatureFlags,
 ): Partial<Preferences> => {
   const patch: Partial<Preferences> = {};
   for (const key of [
@@ -247,6 +256,9 @@ const buildPreferencesPatch = (
   ) {
     patch.sharedWorkerHandlingMode = nextWorkerMode;
     patch.sharedWorkerCompatibilityMode = nextWorkerMode === "native";
+  }
+  if (Object.hasOwn(nextCommand, "featureFlags")) {
+    patch.featureFlags = nextFeatureFlags;
   }
   return patch;
 };
@@ -313,6 +325,7 @@ const cacheResolvedSettings = (
     watchPositionDelay: settings.nextWatchPositionDelay,
     osmConsent: settings.nextOsmConsent,
     browserFingerprintSpoofingEnabled: settings.nextFingerprintEnabled,
+    featureFlags: settings.nextFeatureFlags,
     sharedWorkerHandlingMode: settings.nextWorkerMode,
     sharedWorkerCompatibilityMode: settings.nextWorkerCompatibility,
     sharedSpoofing: settings.nextSharedSpoofing,
@@ -335,6 +348,7 @@ const buildSaveResponse = (settings: ResolvedSimpleSettings): SaveSettingsRespon
   watchPositionDelay: settings.nextWatchPositionDelay,
   osmConsent: settings.nextOsmConsent,
   browserFingerprintSpoofingEnabled: settings.nextFingerprintEnabled,
+  featureFlags: settings.nextFeatureFlags,
   sharedWorkerHandlingMode: settings.nextWorkerMode,
   sharedWorkerCompatibilityMode: settings.nextWorkerCompatibility,
   trustedSites: settings.nextTrustedSites,
@@ -374,7 +388,11 @@ export const saveSimpleSettings = async (
     );
     await persistSettings({
       nextCommand,
-      preferencesPatch: buildPreferencesPatch(nextCommand, settings.nextWorkerMode),
+      preferencesPatch: buildPreferencesPatch(
+        nextCommand,
+        settings.nextWorkerMode,
+        settings.nextFeatureFlags,
+      ),
       settings,
     });
     cacheResolvedSettings(deps, settings);

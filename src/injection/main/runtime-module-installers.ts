@@ -44,6 +44,7 @@ import {
 import { installWebGLPatch } from "@/injection/main/webgl-patch";
 import { installWebRTCPatch } from "@/injection/main/webrtc-patch";
 import { installWorkerPatch } from "@/injection/main/worker-patch";
+import { installTemporalApiPatch } from "@/injection/temporal-api-patch";
 import type { XRaySurfaceCategory } from "@/shared/types";
 
 type RuntimeModules = Partial<Record<RefractModuleName, ModuleInstaller>>;
@@ -67,7 +68,7 @@ const wrapInstaller =
     }
   };
 
-const createEarlyModules = (): RuntimeModules => {
+const createEarlyModules = (temporalOwnedByEarly: boolean): RuntimeModules => {
   if (__PT_BROWSER_TARGET__ === "firefox") return {};
   return {
     geolocation: wrapInstaller("geolocation", (state) => {
@@ -101,6 +102,14 @@ const createEarlyModules = (): RuntimeModules => {
       if (state.snapshot!.timeLocaleEnabled !== false) {
         installIntlPatch(state.snapshot!, integrityContext(state));
       }
+    }),
+    temporal: wrapInstaller("timeLocale", (state) => {
+      installTemporalApiPatch(
+        state.snapshot!,
+        globalThis,
+        integrityContext(state),
+        temporalOwnedByEarly,
+      );
     }),
     navigator: wrapInstaller("timeLocale", (state) => {
       if (state.snapshot!.timeLocaleEnabled !== false) {
@@ -224,11 +233,11 @@ const createWorkerModules = (): RuntimeModules =>
         }),
       };
 
-export const createRuntimeModules = (): RuntimeModules => ({
+export const createRuntimeModules = (temporalOwnedByEarly = false): RuntimeModules => ({
   "surface-usage": wrapInstaller(null, (state) => {
     installUsageListener(() => state.snapshot?.authKey);
   }),
-  ...createEarlyModules(),
+  ...createEarlyModules(temporalOwnedByEarly),
   ...createFpModules(),
   ...createWorkerModules(),
 });

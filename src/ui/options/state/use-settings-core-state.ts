@@ -23,6 +23,7 @@ export const usePreferenceState = () => {
     DEFAULT_PREFERENCES.watchPositionDelay,
   );
   const [debugMode, setDebugMode] = useState(DEFAULT_PREFERENCES.debugMode);
+  const [featureFlags, setFeatureFlags] = useState(DEFAULT_PREFERENCES.featureFlags);
   const [osmConsent, setOsmConsent] = useState(DEFAULT_PREFERENCES.osmConsent);
   // Canonical defaults prevent a slow load from briefly presenting spoofing as off.
   const [isFingerprintSpoofingOn, setFingerprintSpoofing] = useState(
@@ -53,6 +54,7 @@ export const usePreferenceState = () => {
   return {
     browserFingerprintSpoofingEnabled: isFingerprintSpoofingOn,
     debugMode,
+    featureFlags,
     globalFallbackRule,
     highContrastMode,
     includeDateCallsInBadgeCount: countDateCalls,
@@ -60,6 +62,7 @@ export const usePreferenceState = () => {
     osmConsent,
     setFingerprintSpoofing,
     setDebugMode,
+    setFeatureFlags,
     setGlobalFallbackRule,
     setHighContrastMode,
     setCountDateCalls,
@@ -89,6 +92,7 @@ export const usePreferenceRefs = (state: SettingsPreferenceState) => ({
     state.browserFingerprintSpoofingEnabled,
   ),
   debugModeRef: useLatestRef(state.debugMode),
+  featureFlagsRef: useLatestRef(state.featureFlags),
   globalFallbackRuleRef: useLatestRef(state.globalFallbackRule),
   highContrastModeRef: useLatestRef(state.highContrastMode),
   includeDateCallsInBadgeCountRef: useLatestRef(state.includeDateCallsInBadgeCount),

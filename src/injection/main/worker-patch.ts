@@ -7,6 +7,7 @@ import { markSurfaceUsed } from "@privacy-brand/refract-browser/common/surface-u
 import { attachWorkerAckRelay } from "@privacy-brand/refract-browser/common/worker-bootstrap-ack-relay";
 import { constructRevokedBlob } from "@privacy-brand/refract-browser/common/worker-construction";
 import { attachWorkerLogRelay } from "@privacy-brand/refract-browser/common/worker-runtime-log-relay";
+import { attachWorkerUsageRelay } from "@privacy-brand/refract-browser/common/worker-surface-usage-relay";
 import { requireNewTarget } from "@privacy-brand/refract-core/native/constructor-wiring";
 import {
   createNativeSource,
@@ -388,8 +389,13 @@ class WorkerPatchInstaller {
   }
 
   #attachDedicatedEvidence(worker: Worker, scriptURL: string | URL): void {
-    const attemptId = `worker-${++this.#workerAttemptCounter}`;
+    const sequence = ++this.#workerAttemptCounter;
+    const attemptId = `worker-${sequence}`;
     attachWorkerLogRelay(this.#snapshot, worker);
+    attachWorkerUsageRelay(worker, {
+      guard: __PT_SHIM_GUARD_KEY__,
+      sourceId: `worker:${sequence}`,
+    });
     attachWorkerAckRelay(worker, {
       guard: __PT_SHIM_GUARD_KEY__,
       onBootstrapFailed: () => markSurfaceFailed("worker"),
@@ -530,6 +536,10 @@ class WorkerPatchInstaller {
     strictMode: boolean,
   ): void {
     attachWorkerLogRelay(this.#snapshot, worker.port);
+    attachWorkerUsageRelay(worker.port, {
+      guard: __PT_SHIM_GUARD_KEY__,
+      sourceId: `sharedworker:${++this.#workerAttemptCounter}`,
+    });
     worker.addEventListener(
       "error",
       (event) => {

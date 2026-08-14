@@ -180,7 +180,7 @@ export const getBadgeQueryCount = (
     let sourceDateCalls = 0;
     const methodCounts = sourceMethods?.get(sourceKey);
     for (const [methodId, count] of methodCounts?.entries() ?? []) {
-      if (methodId.startsWith("date.")) {
+      if (methodId.startsWith("date.") || methodId.startsWith("temporal.")) {
         sourceDateCalls += count;
       }
     }

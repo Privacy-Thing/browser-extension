@@ -11,6 +11,7 @@ import {
   getProbeHostUrl,
   openPopupPage,
   readSettings,
+  readEarlySnapshot,
   readNavigatorIdentity,
   saveLocationModel,
   saveSimpleSettings,
@@ -20,6 +21,7 @@ import {
   readWorkerSnapshot,
 } from "./extension-test.helpers";
 import { expect, test } from "./fixtures";
+import { readTemporalE2ESnapshot } from "./temporal-e2e.helpers";
 
 test("spoofs runtime values on a matched page", async ({
   context,
@@ -77,6 +79,74 @@ test("spoofs runtime values on a matched page", async ({
   expect(values.permissions.geolocationPrototypeName).toBe("PermissionStatus");
   expect(values.geo?.latitude).toBeCloseTo(52.2297, 2);
   expect(values.geo?.longitude).toBeCloseTo(21.0122, 2);
+});
+
+test("applies opt-in Temporal defaults while preserving explicit arguments", async ({
+  context,
+  extensionId,
+  serverUrl,
+}) => {
+  await assignDomainProfile(context, extensionId, serverUrl, "Warsaw");
+
+  const optionsPage = await context.newPage();
+  await optionsPage.goto(`chrome-extension://${extensionId}/src/ui/options/index.html`);
+  await saveSimpleSettings(optionsPage, {
+    featureFlags: { temporalApi: true },
+  });
+  await optionsPage.close();
+
+  const page = await context.newPage();
+  // Prime the tab's resolved decision before testing the synchronous
+  // window.name carrier on the next navigation. A brand-new about:blank tab
+  // has no cached decision, so onBeforeNavigate cannot deterministically beat
+  // the document's first inline script under CI load.
+  await page.goto(getProbeHostUrl(serverUrl));
+  await page.locator("#collect").click();
+  expect((await readSnapshot(page)).timeZone).toBe("Europe/Warsaw");
+
+  await page.goto(new URL("/inline-first", serverUrl).toString());
+  const earlySnapshot = await readEarlySnapshot(page);
+  expect(earlySnapshot.temporalTimeZone).toBe("Europe/Warsaw");
+
+  const frame = page
+    .frames()
+    .find((candidate) => /\/inline-frame$/.test(candidate.url()));
+  if (!frame) {
+    throw new Error("Expected the early-inline Temporal probe iframe.");
+  }
+  const frameSnapshot = await readTemporalE2ESnapshot(frame);
+  expect(frameSnapshot.supported, "Chromium iframe requires native Temporal").toBe(
+    true,
+  );
+  if (frameSnapshot.supported) {
+    expect(frameSnapshot.defaultTimeZone).toBe("Europe/Warsaw");
+    expect(frameSnapshot.explicitTimeZone).toBe("UTC");
+  }
+
+  await page.goto(getProbeHostUrl(serverUrl));
+  const snapshot = await readTemporalE2ESnapshot(page);
+
+  expect(snapshot.supported, "Chromium E2E requires native Temporal").toBe(true);
+  if (!snapshot.supported) {
+    return;
+  }
+
+  expect(snapshot.defaultTimeZone).toBe("Europe/Warsaw");
+  expect(snapshot.explicitTimeZone).toBe("UTC");
+  expect(snapshot.implicitInstantLocale).toBe(snapshot.profileInstantLocale);
+  expect(snapshot.explicitInstantLocale).toBe(snapshot.nativeExplicitLocale);
+  expect(snapshot.instantOptionsAfterCall).toBe(snapshot.instantOptionsBeforeCall);
+  expect(snapshot.implicitZonedLocale).toBe(snapshot.profileZonedLocale);
+  expect(snapshot.explicitZonedLocale).not.toBe(snapshot.profileZonedLocale);
+  expect(snapshot.timeZoneIdSource).toContain("[native code]");
+
+  await page.locator("#collect-worker").click();
+  const workerSnapshot = await readWorkerSnapshot(page);
+  expect(workerSnapshot.temporal).toEqual({
+    defaultTimeZone: "Europe/Warsaw",
+    explicitTimeZone: "UTC",
+    timeZoneIdSource: expect.stringContaining("[native code]"),
+  });
 });
 
 test("emits weighted Accept-Language on matched navigations", async ({

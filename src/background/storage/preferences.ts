@@ -41,7 +41,14 @@ export const savePreferences = (patch: Partial<Preferences>): Promise<void> => {
     .then(async () => {
       const stored = await chrome.storage.local.get(PREFERENCES_STORAGE_KEY);
       const current = normalizePreferences(stored[PREFERENCES_STORAGE_KEY]);
-      const next = normalizePreferences({ ...current, ...patch });
+      const next = normalizePreferences({
+        ...current,
+        ...patch,
+        featureFlags: {
+          ...current.featureFlags,
+          ...patch.featureFlags,
+        },
+      });
       await chrome.storage.local.set({
         [PREFERENCES_STORAGE_KEY]: keepLegacyPrefs(
           stored[PREFERENCES_STORAGE_KEY],

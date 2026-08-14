@@ -28,6 +28,7 @@ import {
 import {
   cleanupRuntimeWindowSeed,
   getRuntimeReadyEvent,
+  hasEarlyTemporalOwner,
   finalizeRuntimeEnabled,
   installPostInitCleanup,
   isRuntimeDisabled,
@@ -94,7 +95,10 @@ const markRuntimeApplied = (): void => {
 };
 
 /** Installs the MAIN-world runtime once and returns its shared state. */
-const install = (snapshot: RuntimeSnapshot | null): RefractRuntimeState | null => {
+const install = (
+  snapshot: RuntimeSnapshot | null,
+  temporalOwnedByEarly = false,
+): RefractRuntimeState | null => {
   if (runtimeInstalled) {
     return getRefractRuntimeState(globalThis, __PT_SHIM_GUARD_KEY__) ?? null;
   }
@@ -107,7 +111,7 @@ const install = (snapshot: RuntimeSnapshot | null): RefractRuntimeState | null =
       symbolKey: __PT_SHIM_GUARD_KEY__,
       version: "1.0.0",
     },
-    createRuntimeModules(),
+    createRuntimeModules(temporalOwnedByEarly),
   );
 };
 
@@ -184,7 +188,7 @@ const installWhenReady = (): void => {
     if (runtimeInstalled) {
       syncRuntimePatchState(snapshot);
     } else {
-      install(snapshot);
+      install(snapshot, hasEarlyTemporalOwner(document));
     }
     removeConfigElement();
     markRuntimeApplied();

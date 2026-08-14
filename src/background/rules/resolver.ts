@@ -317,6 +317,7 @@ export const toRuntimeSnapshot = ({
   ruleSeedKey,
   sharedSpoofing,
   sharedWorkerHandlingMode,
+  temporalApiEnabled,
   watchPositionDelay,
 }: ToRuntimeSnapshotOptions): RuntimeSnapshot => {
   const baseEpochMs = Date.now();
@@ -384,6 +385,7 @@ export const toRuntimeSnapshot = ({
     ...(workerMode === "native" ? {} : { sharedWorkerCompatibilityMode: false }),
     ...(geoEnabled ? {} : { geolocationEnabled: false }),
     ...(timeLocaleEnabled ? {} : { timeLocaleEnabled: false }),
+    ...(timeLocaleEnabled && temporalApiEnabled ? { temporalApiEnabled: true } : {}),
     ...(blockServiceWorkers ? { blockServiceWorkerRegistration: true } : {}),
     geo: {
       latitude: profile?.latitude ?? 0,

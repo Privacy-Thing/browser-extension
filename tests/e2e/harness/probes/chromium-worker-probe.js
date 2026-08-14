@@ -125,6 +125,17 @@ self.addEventListener(
         languages: navigator.languages,
         locale: Intl.DateTimeFormat().resolvedOptions().locale,
         timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        temporal:
+          typeof globalThis.Temporal === "object"
+            ? {
+                defaultTimeZone: globalThis.Temporal.Now.timeZoneId(),
+                explicitTimeZone:
+                  globalThis.Temporal.Now.zonedDateTimeISO("UTC").timeZoneId,
+                timeZoneIdSource: Function.prototype.toString.call(
+                  globalThis.Temporal.Now.timeZoneId,
+                ),
+              }
+            : null,
         hardwareConcurrency: navigator.hardwareConcurrency,
         userAgent: navigator.userAgent,
         appVersion: navigator.appVersion,

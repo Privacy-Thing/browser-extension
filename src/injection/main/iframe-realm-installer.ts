@@ -28,6 +28,7 @@ import {
   type RuntimeIntegrityContext,
 } from "@/injection/main/surface-integrity";
 import { installWebGLPatch } from "@/injection/main/webgl-patch";
+import { installTemporalApiPatch } from "@/injection/temporal-api-patch";
 import { BUILD_BROWSER_TARGET } from "@/shared/build-flags";
 import type { XRaySurfaceCategory, RuntimeSnapshot } from "@/shared/types";
 
@@ -80,7 +81,7 @@ export class IframeRealmInstaller {
     if (navPrototype) this.#patchedNavProtos.add(navPrototype);
     const integrity = this.#createIntegrity(frame, win);
     this.#installSurfaces(iframeGlobal, win, navPrototype, integrity);
-    this.#installDateIntl(win);
+    this.#installDateIntl(iframeGlobal, integrity);
   }
 
   #createIntegrity(frame: HTMLIFrameElement, win: Window): RuntimeIntegrityContext {
@@ -192,8 +193,14 @@ export class IframeRealmInstaller {
     });
   }
 
-  #installDateIntl(win: Window): void {
+  #installDateIntl(
+    win: Window & typeof globalThis,
+    integrity: RuntimeIntegrityContext,
+  ): void {
     this.#registerSources(win);
+    this.#installSurface("timeLocale", () =>
+      installTemporalApiPatch(this.#snapshot, win, integrity),
+    );
     registerNativeSource(Date, createNativeSource("Date"));
     registerNativeSource(Date.prototype.toString, createNativeSource("toString"));
     Object.defineProperty(win, "Date", {

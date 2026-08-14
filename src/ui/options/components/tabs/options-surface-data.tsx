@@ -1,10 +1,11 @@
 import type { ReactNode } from "react";
 
+import { hasNativeTemporalApi, type FeatureFlags } from "@/shared/feature-flags";
 import {
   CONFIGURABLE_SURFACES,
   isSurfaceSupported,
-  type ConfigurableSurface,
   type ConfigurableSurfaceKey,
+  type SurfaceCatalogMethod,
   type SpoofingBrowserTarget,
 } from "@/shared/spoofing-surfaces";
 import type { SharedSpoofingConfig } from "@/shared/types";
@@ -18,7 +19,7 @@ export type SpoofingSurface = {
   description: ReactNode;
   checked: boolean;
   supported?: boolean;
-  methods: ConfigurableSurface["methods"];
+  methods: readonly SurfaceCatalogMethod[];
 };
 
 export const FULL_WIDTH_SURFACES: readonly ConfigurableSurfaceKey[] = [
@@ -146,9 +147,13 @@ const SURFACE_COPY: Record<
 
 export const buildSpoofingSurfaces = ({
   browserTarget,
+  featureFlags,
+  nativeTemporalApi = hasNativeTemporalApi(),
   sharedSpoofing,
 }: {
   browserTarget: SpoofingBrowserTarget;
+  featureFlags?: FeatureFlags;
+  nativeTemporalApi?: boolean;
   sharedSpoofing: SharedSpoofingConfig | undefined;
 }): SpoofingSurface[] =>
   CONFIGURABLE_SURFACES.map((surface) => {
@@ -163,7 +168,12 @@ export const buildSpoofingSurfaces = ({
           ? true
           : Boolean(sharedSpoofing?.[surface.key] ?? surface.defaultEnabled),
       supported: isSurfaceSupported(surface, browserTarget),
-      methods: surface.methods,
+      methods: (surface.methods as readonly SurfaceCatalogMethod[]).filter(
+        (method: SurfaceCatalogMethod) =>
+          method.featureFlag === undefined ||
+          (featureFlags?.[method.featureFlag] === true &&
+            (method.nativeCapability !== "temporalApi" || nativeTemporalApi)),
+      ),
     } satisfies SpoofingSurface;
   }).filter((surface) => surface.supported !== false);
 

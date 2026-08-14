@@ -123,11 +123,12 @@ describe("surface-method-count-tracker", () => {
     clearSurfaceAccess(202);
   });
 
-  it("excludes only Date method calls from the badge count when requested", () => {
-    recordSurfaceCounts(203, { timeLocale: 6, canvas: 2 });
+  it("excludes Date and Temporal method calls from the badge count when requested", () => {
+    recordSurfaceCounts(203, { timeLocale: 8, canvas: 2 });
     recordMethodCounts(203, {
       "date.now": 3,
       "date.toString": 1,
+      "temporal.Now.instant": 2,
       "intl.constructor": 2,
       "canvas.toDataURL": 2,
     });
