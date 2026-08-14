@@ -50,6 +50,7 @@ export const sharedDefine = {
   __PT_RUNTIME_DISABLED_ATTR__: JSON.stringify("data-truntimedisabled"),
   __PT_LOG_EVENT_TYPE__: JSON.stringify("tLogEvt"),
   __PT_SHIM_GUARD_KEY__: JSON.stringify("tGuard"),
+  __PT_TEMPORAL_HANDOFF_KEY__: JSON.stringify("tTemporalHandoff"),
   __PT_WORKER_PATCH_GUARD_KEY__: JSON.stringify("tWorkerPatch"),
   __PT_SW_PATCH_GUARD_KEY__: JSON.stringify("tServiceWorkerPatch"),
   __PT_FX_STATIC_CANDIDATES_KEY__: JSON.stringify("tFirefoxStaticState"),

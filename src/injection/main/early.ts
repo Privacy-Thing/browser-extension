@@ -54,7 +54,7 @@ const bootload = (): void => {
         },
         onAccess: (methodId) => markSurfaceUsed("timeLocale", methodId),
       },
-      [__PT_SHIM_GUARD_KEY__, __PT_SW_PATCH_GUARD_KEY__],
+      __PT_TEMPORAL_HANDOFF_KEY__,
     );
   }
 

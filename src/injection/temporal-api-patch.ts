@@ -45,12 +45,10 @@ export const installTemporalApiPatch = (
           timeZone: locale.timeZone,
         }
       : null;
-  const adoptedAnchors = verifyEarlyOwnership
-    ? adoptCoreTemporalApiPatch(targetGlobal, defaults, [
-        __PT_SHIM_GUARD_KEY__,
-        __PT_SW_PATCH_GUARD_KEY__,
-      ])
-    : [];
+  const adoptedAnchors =
+    __PT_BROWSER_TARGET__ === "chromium" && verifyEarlyOwnership
+      ? adoptCoreTemporalApiPatch(targetGlobal, defaults, __PT_TEMPORAL_HANDOFF_KEY__)
+      : [];
   if (adoptedAnchors.length > 0) {
     if (!defaults) return [];
     registerTemporalAnchors(integrity, adoptedAnchors);

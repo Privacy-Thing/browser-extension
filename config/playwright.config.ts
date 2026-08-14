@@ -16,6 +16,7 @@ const PW_BUILD_GLOBAL_DEFAULTS = {
   __PT_RUNTIME_DISABLED_ATTR__: "data-pt-runtime-disabled-playwright",
   __PT_LOG_EVENT_TYPE__: "pt:log-event-playwright",
   __PT_SHIM_GUARD_KEY__: "__pt_shim_guard_playwright__",
+  __PT_TEMPORAL_HANDOFF_KEY__: "__pt_temporal_handoff_playwright__",
   __PT_WORKER_PATCH_GUARD_KEY__: "__pt_worker_patch_playwright__",
   __PT_SW_PATCH_GUARD_KEY__: "__pt_service_worker_patch_playwright__",
   __PT_FIREFOX_STATE_PORT_ID__: "pt-firefox-state-port-playwright",

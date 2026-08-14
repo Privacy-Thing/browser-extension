@@ -243,8 +243,8 @@ describe("Temporal API patch", () => {
   it("adopts early wrappers, updates defaults, and does not count the handshake", () => {
     const fixture = createTemporalFixture();
     const onAccess = vi.fn<(methodId: TemporalApiMethodId) => void>();
-    const ownership = ["temporal-request-test", "temporal-proof-test"] as const;
-    installTemporalApiPatch(
+    const ownership = "temporal-handoff-test";
+    const earlyAnchors = installTemporalApiPatch(
       {
         targetGlobal: { Temporal: fixture.temporal },
         defaults: { languages: ["en-GB"], timeZone: "Europe/London" },
@@ -253,6 +253,16 @@ describe("Temporal API patch", () => {
       ownership,
     );
     const earlyTimeZoneId = fixture.temporal.Now.timeZoneId;
+    expect(
+      earlyAnchors.flatMap(({ target, key }) => {
+        const method = Object.getOwnPropertyDescriptor(target, key)?.value as object;
+        return Reflect.ownKeys(method).filter(
+          (property) =>
+            typeof property === "symbol" &&
+            Symbol.keyFor(property)?.startsWith(ownership),
+        );
+      }),
+    ).toEqual([]);
 
     const anchors = adoptTemporalApiPatch(
       { Temporal: fixture.temporal },
@@ -286,19 +296,51 @@ describe("Temporal API patch", () => {
       adoptTemporalApiPatch(
         { Temporal: fixture.temporal },
         { languages: ["pl-PL"], timeZone: "Europe/Warsaw" },
-        ["visible-request-test", "independent-proof-test"],
+        "forged-handoff-test",
       ),
     ).toEqual([]);
     expect(fixture.temporal.Now.timeZoneId).toBe(forgedTimeZoneId);
   });
 
+  it("rejects a mixed handoff when any available anchor was replaced", () => {
+    const fixture = createTemporalFixture();
+    const ownership = "temporal-mixed-handoff-test";
+    installTemporalApiPatch(
+      {
+        targetGlobal: { Temporal: fixture.temporal },
+        defaults: { languages: ["en-GB"], timeZone: "Europe/London" },
+      },
+      ownership,
+    );
+    const earlyTimeZoneId = fixture.temporal.Now.timeZoneId;
+    const plainDate = fixture.temporal["PlainDate"] as { prototype: object };
+    const replacement = function toLocaleString() {
+      return "page replacement";
+    };
+    Object.defineProperty(plainDate.prototype, "toLocaleString", {
+      configurable: true,
+      value: replacement,
+      writable: true,
+    });
+
+    expect(
+      adoptTemporalApiPatch(
+        { Temporal: fixture.temporal },
+        { languages: ["pl-PL"], timeZone: "Europe/Warsaw" },
+        ownership,
+      ),
+    ).toEqual([]);
+    expect(fixture.temporal.Now.timeZoneId).toBe(earlyTimeZoneId);
+    expect((fixture.temporal.Now.timeZoneId as () => unknown)()).toBe("Native/Zone");
+    expect(
+      Object.getOwnPropertyDescriptor(plainDate.prototype, "toLocaleString")?.value,
+    ).toBe(replacement);
+  });
+
   it("deactivates stale early wrappers when the accepted snapshot disables them", () => {
     const fixture = createTemporalFixture();
     const onAccess = vi.fn<(methodId: TemporalApiMethodId) => void>();
-    const ownership = [
-      "temporal-disable-request-test",
-      "temporal-disable-proof-test",
-    ] as const;
+    const ownership = "temporal-disable-handoff-test";
     installTemporalApiPatch(
       {
         targetGlobal: { Temporal: fixture.temporal },

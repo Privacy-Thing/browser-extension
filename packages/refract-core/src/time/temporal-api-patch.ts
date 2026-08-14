@@ -56,7 +56,7 @@ export type TemporalApiDefaults = {
   timeZone: string;
 };
 
-export type TemporalApiOwnershipKeys = readonly [requestKey: string, proofKey: string];
+export type TemporalApiOwnershipKey = string;
 
 const NOW_TIME_ZONE_METHODS = [
   "plainDateTimeISO",
@@ -104,7 +104,11 @@ const installations = createPrivateWeakMap<object, TemporalApiAnchor[]>();
 type TemporalApiPatchState = {
   defaults: TemporalApiPatchOptions["defaults"] | null;
   onAccess: TemporalApiPatchOptions["onAccess"] | undefined;
-  ownership: { proof: symbol; request: symbol } | null;
+  ownership: {
+    commit: symbol;
+    proofKey: string;
+    verify: symbol;
+  } | null;
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -169,11 +173,17 @@ const installMethod = ({
   }
 
   const nativeMethod = descriptor.value as TemporalMethod;
+  const ownershipProof = state.ownership
+    ? privateSymbolFor(`${state.ownership.proofKey}:${methodId}`)
+    : null;
   const holder = {
     [key](this: unknown, ...args: unknown[]) {
-      if (state.ownership && this === state.ownership.request) {
+      if (state.ownership && this === state.ownership.verify) {
+        return ownershipProof;
+      }
+      if (state.ownership && this === state.ownership.commit) {
         state.defaults = args[0] as TemporalApiDefaults | null;
-        return state.ownership.proof;
+        return ownershipProof;
       }
       if (state.defaults !== null) state.onAccess?.(methodId);
       return createCall(nativeMethod, args, this);
@@ -313,34 +323,77 @@ export const getTemporalApiAnchors = (
 };
 
 /**
- * Verifies and updates wrappers installed by an earlier bundle without trusting
- * page-visible DOM state. The proof key is independent from the request key, so
- * a function that merely observes the request cannot synthesize a valid claim.
+ * Verifies every available wrapper installed by an earlier bundle before
+ * updating its defaults. The handoff key belongs only to the two injected
+ * bundles and is not reused by a page-visible marker or transport channel.
  */
 export const adoptTemporalApiPatch = (
   targetGlobal: TemporalApiGlobal,
   defaults: TemporalApiDefaults | null,
-  ownership: TemporalApiOwnershipKeys,
+  ownershipKey: TemporalApiOwnershipKey,
 ): TemporalApiAnchor[] => {
-  const temporal = (targetGlobal as { Temporal?: TemporalNamespaceLike }).Temporal;
-  const now = temporal?.Now;
-  if (!isRecord(now)) return [];
-  const method = privateOwnDescriptor(now, "timeZoneId")?.value;
-  if (typeof method !== "function") return [];
-  const request = privateSymbolFor(ownership[0]);
-  const proof = privateSymbolFor(ownership[1]);
-  try {
-    return privateReflectApply(method, request, [defaults]) === proof
-      ? getTemporalApiAnchors(targetGlobal)
-      : [];
-  } catch {
-    return [];
+  const anchors = getTemporalApiAnchors(targetGlobal);
+  if (anchors.length === 0) return [];
+  const verify = privateSymbolFor(`${ownershipKey}:verify`);
+  const commit = privateSymbolFor(`${ownershipKey}:commit`);
+  const verified: Array<{ anchor: TemporalApiAnchor; method: TemporalMethod }> = [];
+  let complete = true;
+
+  for (const anchor of anchors) {
+    const method = privateOwnDescriptor(anchor.target, anchor.key)?.value;
+    const proof = privateSymbolFor(`${ownershipKey}:${anchor.methodId}`);
+    if (typeof method !== "function") {
+      complete = false;
+      continue;
+    }
+    try {
+      if (privateReflectApply(method as TemporalMethod, verify, []) === proof) {
+        verified.push({ anchor, method: method as TemporalMethod });
+      } else {
+        complete = false;
+      }
+    } catch {
+      complete = false;
+    }
   }
+
+  complete =
+    complete &&
+    verified.every(
+      ({ anchor, method }) =>
+        privateOwnDescriptor(anchor.target, anchor.key)?.value === method,
+    );
+  if (complete) {
+    for (const { anchor, method } of verified) {
+      const proof = privateSymbolFor(`${ownershipKey}:${anchor.methodId}`);
+      try {
+        if (privateReflectApply(method, commit, [defaults]) !== proof) {
+          complete = false;
+          break;
+        }
+      } catch {
+        complete = false;
+        break;
+      }
+    }
+  }
+  if (complete) return anchors;
+
+  // A mixed set is not safe to adopt. Disable every wrapper that did prove
+  // ownership so the full runtime can install one active reporting layer.
+  for (const { method } of verified) {
+    try {
+      privateReflectApply(method, commit, [null]);
+    } catch {
+      // A conflicting page function must not prevent the remaining cleanup.
+    }
+  }
+  return [];
 };
 
 export const installTemporalApiPatch = (
   options: TemporalApiPatchOptions,
-  ownership?: TemporalApiOwnershipKeys,
+  ownershipKey?: TemporalApiOwnershipKey,
 ): TemporalApiAnchor[] => {
   const temporalValue = (options.targetGlobal as { Temporal?: unknown }).Temporal;
   if (!isRecord(temporalValue)) return [];
@@ -350,10 +403,11 @@ export const installTemporalApiPatch = (
   const state: TemporalApiPatchState = {
     defaults: options.defaults,
     onAccess: options.onAccess,
-    ownership: ownership
+    ownership: ownershipKey
       ? {
-          proof: privateSymbolFor(ownership[1]),
-          request: privateSymbolFor(ownership[0]),
+          commit: privateSymbolFor(`${ownershipKey}:commit`),
+          proofKey: ownershipKey,
+          verify: privateSymbolFor(`${ownershipKey}:verify`),
         }
       : null,
   };
