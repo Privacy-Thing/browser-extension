@@ -2,7 +2,6 @@ import { readEarlySnapshot } from "@privacy-brand/refract-browser/chromium";
 import "@privacy-brand/refract-core/runtime/primordials";
 import {
   cleanupRuntimeWindowSeed,
-  markEarlyTemporalOwner,
   readWindowSeedSnapshot,
   readRuntimeConfigElement,
   finalizeRuntimeEnabled,
@@ -14,10 +13,7 @@ import {
   setSurfaceUsageSourceId,
 } from "@privacy-brand/refract-browser/common/surface-usage-emitter";
 import { installGeoErrorPrototype } from "@privacy-brand/refract-core/geolocation/geolocation-error-factory";
-import {
-  getTemporalApiAnchors,
-  installTemporalApiPatch,
-} from "@privacy-brand/refract-core/time/temporal-api-patch";
+import { installTemporalApiPatch } from "@privacy-brand/refract-core/time/temporal-api-patch";
 
 const bootload = (): void => {
   const { snapshot, channel } = readEarlySnapshot({
@@ -49,20 +45,17 @@ const bootload = (): void => {
     snapshot.locale
   ) {
     setSurfaceUsageSourceId("runtime:temporal-early");
-    const anchors = installTemporalApiPatch({
-      targetGlobal: globalThis,
-      defaults: {
-        languages: snapshot.locale.formattingLanguages ?? snapshot.locale.languages,
-        timeZone: snapshot.locale.timeZone,
+    installTemporalApiPatch(
+      {
+        targetGlobal: globalThis,
+        defaults: {
+          languages: snapshot.locale.formattingLanguages ?? snapshot.locale.languages,
+          timeZone: snapshot.locale.timeZone,
+        },
+        onAccess: (methodId) => markSurfaceUsed("timeLocale", methodId),
       },
-      onAccess: (methodId) => markSurfaceUsed("timeLocale", methodId),
-    });
-    if (
-      anchors.length > 0 &&
-      anchors.length === getTemporalApiAnchors(globalThis).length
-    ) {
-      markEarlyTemporalOwner(document);
-    }
+      [__PT_SHIM_GUARD_KEY__, __PT_SW_PATCH_GUARD_KEY__],
+    );
   }
 
   globalThis.dispatchEvent(new CustomEvent(getRuntimeReadyEvent()));

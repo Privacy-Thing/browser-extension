@@ -133,22 +133,6 @@ export const findConfigElement = (
 export const findRuntimeConfigElement = (): HTMLScriptElement | null =>
   typeof document === "undefined" ? null : findConfigElement(document);
 
-/** Marks that Chromium's early MAIN entrypoint already owns Temporal methods. */
-export const markEarlyTemporalOwner = (
-  targetDocument: Document | null | undefined,
-): boolean => {
-  const element = findConfigElement(targetDocument);
-  if (!element) return false;
-  element.setAttribute(RUNTIME_MARKER_ATTR, "");
-  return true;
-};
-
-/** Reads the transient early-Temporal ownership bit from the existing handoff. */
-export const hasEarlyTemporalOwner = (
-  targetDocument: Document | null | undefined,
-): boolean =>
-  findConfigElement(targetDocument)?.hasAttribute(RUNTIME_MARKER_ATTR) === true;
-
 export const markRuntimeDisabled = (
   targetDocument: Document | null | undefined = typeof document === "undefined"
     ? null

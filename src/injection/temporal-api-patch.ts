@@ -1,6 +1,6 @@
 import { markSurfaceUsed } from "@privacy-brand/refract-browser/common/surface-usage-emitter";
 import {
-  getTemporalApiAnchors,
+  adoptTemporalApiPatch as adoptCoreTemporalApiPatch,
   installTemporalApiPatch as installCoreTemporalApiPatch,
   type TemporalApiAnchor,
   type TemporalApiGlobal,
@@ -33,25 +33,35 @@ export const installTemporalApiPatch = (
   snapshot: RuntimeSnapshot,
   targetGlobal: TemporalApiGlobal = globalThis,
   integrity?: RuntimeIntegrityContext,
-  adoptCurrent = false,
+  verifyEarlyOwnership = false,
 ): TemporalApiAnchor[] => {
-  if (
-    snapshot.timeLocaleEnabled === false ||
-    snapshot.temporalApiEnabled !== true ||
-    !snapshot.locale
-  ) {
-    return [];
+  const locale = snapshot.locale;
+  const defaults =
+    snapshot.timeLocaleEnabled !== false &&
+    snapshot.temporalApiEnabled === true &&
+    locale
+      ? {
+          languages: locale.formattingLanguages ?? locale.languages,
+          timeZone: locale.timeZone,
+        }
+      : null;
+  const adoptedAnchors = verifyEarlyOwnership
+    ? adoptCoreTemporalApiPatch(targetGlobal, defaults, [
+        __PT_SHIM_GUARD_KEY__,
+        __PT_SW_PATCH_GUARD_KEY__,
+      ])
+    : [];
+  if (adoptedAnchors.length > 0) {
+    if (!defaults) return [];
+    registerTemporalAnchors(integrity, adoptedAnchors);
+    return adoptedAnchors;
   }
-  const anchors = adoptCurrent
-    ? getTemporalApiAnchors(targetGlobal)
-    : installCoreTemporalApiPatch({
-        targetGlobal,
-        defaults: {
-          languages: snapshot.locale.formattingLanguages ?? snapshot.locale.languages,
-          timeZone: snapshot.locale.timeZone,
-        },
-        onAccess: (methodId) => markSurfaceUsed("timeLocale", methodId),
-      });
+  if (!defaults) return [];
+  const anchors = installCoreTemporalApiPatch({
+    targetGlobal,
+    defaults,
+    onAccess: (methodId) => markSurfaceUsed("timeLocale", methodId),
+  });
   registerTemporalAnchors(integrity, anchors);
   return anchors;
 };

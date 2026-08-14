@@ -22,6 +22,9 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ### Fixed
 
+- Verify Chromium's early Temporal ownership privately before the main runtime
+  adopts wrappers, and synchronize late locale and time-zone snapshots.
+- Preserve cached Temporal feature-flag changes across overlapping settings writes.
 - Seed dynamically navigated same-origin iframes before their document starts so
   browser surfaces do not briefly expose native values while background bootstrap
   is still resolving.
