@@ -34,6 +34,7 @@ vi.mock("@privacy-brand/refract-browser/common/runtime-config", () => ({
   cleanupRuntimeWindowSeed: vi.fn(),
   finalizeRuntimeEnabled: vi.fn(),
   getRuntimeReadyEvent: vi.fn(() => "gw:runtime-ready"),
+  hasEarlyTemporalOwner: vi.fn(() => false),
   installPostInitCleanup: vi.fn(() => ({ stop: vi.fn() })),
   isRuntimeDisabled: vi.fn(() => false),
   observeConfigInsertion: vi.fn(() => () => undefined),
