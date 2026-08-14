@@ -304,11 +304,13 @@ describe("Temporal API patch", () => {
 
   it("rejects a mixed handoff when any available anchor was replaced", () => {
     const fixture = createTemporalFixture();
+    const onAccess = vi.fn<(methodId: TemporalApiMethodId) => void>();
     const ownership = "temporal-mixed-handoff-test";
     installTemporalApiPatch(
       {
         targetGlobal: { Temporal: fixture.temporal },
         defaults: { languages: ["en-GB"], timeZone: "Europe/London" },
+        onAccess,
       },
       ownership,
     );
@@ -335,6 +337,18 @@ describe("Temporal API patch", () => {
     expect(
       Object.getOwnPropertyDescriptor(plainDate.prototype, "toLocaleString")?.value,
     ).toBe(replacement);
+
+    const rearmedAnchors = installTemporalApiPatch({
+      targetGlobal: { Temporal: fixture.temporal },
+      defaults: { languages: ["pl-PL"], timeZone: "Europe/Warsaw" },
+      onAccess,
+    });
+
+    expect(rearmedAnchors).toHaveLength(14);
+    expect(fixture.temporal.Now.timeZoneId).not.toBe(earlyTimeZoneId);
+    expect((fixture.temporal.Now.timeZoneId as () => unknown)()).toBe("Europe/Warsaw");
+    expect(onAccess).toHaveBeenCalledWith("temporal.Now.timeZoneId");
+    expect(onAccess).toHaveBeenCalledTimes(1);
   });
 
   it("deactivates stale early wrappers when the accepted snapshot disables them", () => {

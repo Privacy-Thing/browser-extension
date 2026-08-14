@@ -9,6 +9,7 @@ import {
   privateReflectGet,
   privateSetPrototype,
   privateSymbolFor,
+  privateWeakMapDelete,
   privateWeakMapGet,
   privateWeakMapSet,
 } from "../runtime/primordials";
@@ -398,6 +399,8 @@ export const adoptTemporalApiPatch = (
   // A mixed set is not safe to adopt. Disable every wrapper that did prove
   // ownership so the full runtime can install one active reporting layer.
   disableTemporalAnchors(verified, commit);
+  const temporal = (targetGlobal as { Temporal?: unknown }).Temporal;
+  if (isRecord(temporal)) privateWeakMapDelete(installations, temporal);
   return [];
 };
 
