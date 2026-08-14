@@ -1,9 +1,6 @@
 // @vitest-environment jsdom
 
-import {
-  hasEarlyTemporalOwner,
-  writeConfigElement,
-} from "@privacy-brand/refract-browser/common/runtime-config";
+import { writeConfigElement } from "@privacy-brand/refract-browser/common/runtime-config";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { SURFACE_USAGE_TYPE } from "@/shared/build-id-test-values";
@@ -90,7 +87,6 @@ describe("main-world early bootstrap entrypoint", () => {
 
     expect(Temporal.Now.timeZoneId()).toBe("Europe/Warsaw");
     await Promise.resolve();
-    expect(hasEarlyTemporalOwner(document)).toBe(true);
     expect(JSON.parse(usageEvents.at(-1)!) as { sourceId: string }).toMatchObject({
       sourceId: "runtime:temporal-early",
     });

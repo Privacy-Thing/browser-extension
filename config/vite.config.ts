@@ -119,6 +119,7 @@ const DEV_FRIENDLY_IDS = {
   disabledMarkerAttr: "data-gwruntimedisabled",
   logEventType: "gw_log_event",
   shimGuardKey: "gw_shim_guard",
+  temporalHandoffKey: "gw_temporal_handoff",
   workerPatchGuardKey: "gw_worker_patch",
   serviceWorkerPatchGuardKey: "gw_service_worker_patch",
   firefoxStaticStateCandidatesSymbolKey: "gw_firefox_static_state_candidates",
@@ -144,6 +145,7 @@ const BUILD_IDS = shouldObfuscateIds
       disabledMarkerAttr: `data-${nextDomAttrId("runtime-disabled")}`,
       logEventType: nextBuildId("log-event"),
       shimGuardKey: nextBuildId("shim-guard"),
+      temporalHandoffKey: nextBuildId("temporal-handoff"),
       workerPatchGuardKey: nextBuildId("worker-patch-guard"),
       serviceWorkerPatchGuardKey: nextBuildId("service-worker-patch-guard"),
       firefoxStaticStateCandidatesSymbolKey: nextBuildId(
@@ -171,6 +173,7 @@ const BUILD_ID_DEFINITIONS = {
   __PT_RUNTIME_DISABLED_ATTR__: BUILD_IDS.disabledMarkerAttr,
   __PT_LOG_EVENT_TYPE__: BUILD_IDS.logEventType,
   __PT_SHIM_GUARD_KEY__: BUILD_IDS.shimGuardKey,
+  __PT_TEMPORAL_HANDOFF_KEY__: BUILD_IDS.temporalHandoffKey,
   __PT_WORKER_PATCH_GUARD_KEY__: BUILD_IDS.workerPatchGuardKey,
   __PT_SW_PATCH_GUARD_KEY__: BUILD_IDS.serviceWorkerPatchGuardKey,
   __PT_FX_STATIC_CANDIDATES_KEY__: BUILD_IDS.firefoxStaticStateCandidatesSymbolKey,

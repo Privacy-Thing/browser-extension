@@ -28,7 +28,6 @@ import {
 import {
   cleanupRuntimeWindowSeed,
   getRuntimeReadyEvent,
-  hasEarlyTemporalOwner,
   finalizeRuntimeEnabled,
   installPostInitCleanup,
   isRuntimeDisabled,
@@ -95,10 +94,7 @@ const markRuntimeApplied = (): void => {
 };
 
 /** Installs the MAIN-world runtime once and returns its shared state. */
-const install = (
-  snapshot: RuntimeSnapshot | null,
-  temporalOwnedByEarly = false,
-): RefractRuntimeState | null => {
+const install = (snapshot: RuntimeSnapshot | null): RefractRuntimeState | null => {
   if (runtimeInstalled) {
     return getRefractRuntimeState(globalThis, __PT_SHIM_GUARD_KEY__) ?? null;
   }
@@ -111,7 +107,7 @@ const install = (
       symbolKey: __PT_SHIM_GUARD_KEY__,
       version: "1.0.0",
     },
-    createRuntimeModules(temporalOwnedByEarly),
+    createRuntimeModules(BUILD_BROWSER_TARGET === "chromium"),
   );
 };
 
@@ -188,7 +184,7 @@ const installWhenReady = (): void => {
     if (runtimeInstalled) {
       syncRuntimePatchState(snapshot);
     } else {
-      install(snapshot, hasEarlyTemporalOwner(document));
+      install(snapshot);
     }
     removeConfigElement();
     markRuntimeApplied();

@@ -357,6 +357,37 @@ describe("createSettingsHandlers", () => {
     expect(reloadTabs).toHaveBeenCalledWith([9]);
   });
 
+  it("preserves a newer cached Temporal flag during an unrelated save", async () => {
+    const cachedValues = buildCachedValues([]);
+    cachedValues.featureFlags = { temporalApi: true };
+    const setCachedValues = vi.fn();
+    const { saveSimpleSettings } = createSettingsHandlers({
+      ensureStorageMigration: async () => undefined,
+      syncPreloadedState: async () => undefined,
+      resyncActiveHeaderRules: async () => undefined,
+      refreshFxInjectionMode: async () => undefined,
+      getActiveTabContexts: () => [],
+      reloadTabs: async () => undefined,
+      getCachedValues: () => cachedValues,
+      setCachedValues,
+    });
+
+    const response = await saveSimpleSettings({
+      type: EXTENSION_COMMAND_TYPES.saveSimpleSettings,
+      themeMode: "dark",
+    });
+
+    expect(response).toEqual(
+      expect.objectContaining({
+        ok: true,
+        featureFlags: { temporalApi: true },
+      }),
+    );
+    expect(setCachedValues).toHaveBeenCalledWith(
+      expect.objectContaining({ featureFlags: { temporalApi: true } }),
+    );
+  });
+
   it("preserves shared spoofing when browser surface protections are turned off", async () => {
     const syncPreloadedState = vi.fn<() => Promise<void>>(async () => undefined);
     const resyncActiveHeaderRules = vi.fn<() => Promise<void>>(async () => undefined);

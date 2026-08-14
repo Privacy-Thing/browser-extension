@@ -8,6 +8,8 @@ import {
   privateReflectApply,
   privateReflectGet,
   privateSetPrototype,
+  privateSymbolFor,
+  privateWeakMapDelete,
   privateWeakMapGet,
   privateWeakMapSet,
 } from "../runtime/primordials";
@@ -98,16 +100,26 @@ const DATE_TIME_OPTION_KEYS = [
 
 const installations = createPrivateWeakMap<object, TemporalApiAnchor[]>();
 
+type TemporalApiPatchState = {
+  defaults: TemporalApiPatchOptions["defaults"] | null;
+  onAccess: TemporalApiPatchOptions["onAccess"] | undefined;
+  ownership: {
+    commit: symbol;
+    proofKey: string;
+    verify: symbol;
+  } | null;
+};
+
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
 
 const isObjectLike = (value: unknown): value is object =>
   (typeof value === "object" && value !== null) || typeof value === "function";
 
-const resolveDefaults = (
-  options: TemporalApiPatchOptions,
-): TemporalApiDefaults | null =>
-  typeof options.defaults === "function" ? options.defaults() : options.defaults;
+const resolveDefaults = (state: TemporalApiPatchState): TemporalApiDefaults | null => {
+  const defaults = state.defaults;
+  return typeof defaults === "function" ? defaults() : defaults;
+};
 
 const createZonedOptions = (options: unknown, timeZone: string): unknown => {
   if (options === undefined) return { timeZone };
@@ -140,7 +152,7 @@ type InstallMethodOptions = {
     args: unknown[],
     receiver: unknown,
   ) => unknown;
-  onAccess: TemporalApiPatchOptions["onAccess"];
+  state: TemporalApiPatchState;
 };
 
 const installMethod = ({
@@ -148,7 +160,7 @@ const installMethod = ({
   key,
   methodId,
   createCall,
-  onAccess,
+  state,
 }: InstallMethodOptions): TemporalApiAnchor | null => {
   const descriptor = privateOwnDescriptor(target, key);
   if (
@@ -160,9 +172,19 @@ const installMethod = ({
   }
 
   const nativeMethod = descriptor.value as TemporalMethod;
+  const ownershipProof = state.ownership
+    ? privateSymbolFor(`${state.ownership.proofKey}:${methodId}`)
+    : null;
   const holder = {
     [key](this: unknown, ...args: unknown[]) {
-      onAccess?.(methodId);
+      if (state.ownership) {
+        if (this === state.ownership.verify) return ownershipProof;
+        if (this === state.ownership.commit) {
+          state.defaults = args[0] as TemporalApiDefaults | null;
+          return ownershipProof;
+        }
+      }
+      if (state.defaults !== null) state.onAccess?.(methodId);
       return createCall(nativeMethod, args, this);
     },
   };
@@ -179,7 +201,7 @@ const installMethod = ({
 
 const installNowMethods = (
   temporal: TemporalNamespaceLike,
-  options: TemporalApiPatchOptions,
+  state: TemporalApiPatchState,
   anchors: TemporalApiAnchor[],
 ): void => {
   const now = temporal.Now;
@@ -190,7 +212,7 @@ const installNowMethods = (
     key: "instant",
     methodId: "temporal.Now.instant",
     createCall: (nativeMethod, args) => privateReflectApply(nativeMethod, now, args),
-    onAccess: options.onAccess,
+    state,
   });
   if (instantAnchor) anchors.push(instantAnchor);
 
@@ -200,9 +222,9 @@ const installNowMethods = (
     methodId: "temporal.Now.timeZoneId",
     createCall: (nativeMethod, args) => {
       const nativeResult = privateReflectApply(nativeMethod, now, args);
-      return resolveDefaults(options)?.timeZone ?? nativeResult;
+      return resolveDefaults(state)?.timeZone ?? nativeResult;
     },
-    onAccess: options.onAccess,
+    state,
   });
   if (timeZoneAnchor) anchors.push(timeZoneAnchor);
 
@@ -212,7 +234,7 @@ const installNowMethods = (
       key,
       methodId: `temporal.Now.${key}`,
       createCall: (nativeMethod, args) => {
-        const defaults = resolveDefaults(options);
+        const defaults = resolveDefaults(state);
         return privateReflectApply(
           nativeMethod,
           now,
@@ -221,7 +243,7 @@ const installNowMethods = (
             : args,
         );
       },
-      onAccess: options.onAccess,
+      state,
     });
     if (anchor) anchors.push(anchor);
   }
@@ -229,7 +251,7 @@ const installNowMethods = (
 
 const installLocaleMethods = (
   temporal: TemporalNamespaceLike,
-  options: TemporalApiPatchOptions,
+  state: TemporalApiPatchState,
   anchors: TemporalApiAnchor[],
 ): void => {
   for (const typeName of LOCALE_TYPES) {
@@ -242,7 +264,7 @@ const installLocaleMethods = (
       key: "toLocaleString",
       methodId,
       createCall(nativeMethod, args, receiver) {
-        const defaults = resolveDefaults(options);
+        const defaults = resolveDefaults(state);
         if (!defaults) return privateReflectApply(nativeMethod, receiver, args);
         const nextArgs = [...args];
         if (nextArgs.length === 0 || nextArgs[0] === undefined) {
@@ -253,7 +275,7 @@ const installLocaleMethods = (
         }
         return privateReflectApply(nativeMethod, receiver, nextArgs);
       },
-      onAccess: options.onAccess,
+      state,
     });
     if (anchor) anchors.push(anchor);
   }
@@ -299,17 +321,112 @@ export const getTemporalApiAnchors = (
   return anchors;
 };
 
+type VerifiedTemporalAnchor = readonly [method: TemporalMethod, proof: symbol];
+
+const verifyTemporalApiAnchors = (
+  anchors: readonly TemporalApiAnchor[],
+  ownershipKey: string,
+  verify: symbol,
+): VerifiedTemporalAnchor[] => {
+  const verified: VerifiedTemporalAnchor[] = [];
+  for (const anchor of anchors) {
+    const method = privateOwnDescriptor(anchor.target, anchor.key)?.value;
+    const proof = privateSymbolFor(`${ownershipKey}:${anchor.methodId}`);
+    if (typeof method !== "function") continue;
+    try {
+      if (
+        privateReflectApply(method as TemporalMethod, verify, []) === proof &&
+        privateOwnDescriptor(anchor.target, anchor.key)?.value === method
+      ) {
+        verified.push([method as TemporalMethod, proof]);
+      }
+    } catch {
+      // Unowned or conflicting methods are omitted from the verified set.
+    }
+  }
+  return verified;
+};
+
+const commitTemporalDefaults = (
+  verified: readonly VerifiedTemporalAnchor[],
+  commit: symbol,
+  defaults: TemporalApiDefaults | null,
+): boolean => {
+  for (const [method, proof] of verified) {
+    try {
+      if (privateReflectApply(method, commit, [defaults]) !== proof) return false;
+    } catch {
+      return false;
+    }
+  }
+  return true;
+};
+
+const disableTemporalAnchors = (
+  verified: readonly VerifiedTemporalAnchor[],
+  commit: symbol,
+): void => {
+  for (const [method] of verified) {
+    try {
+      privateReflectApply(method, commit, [null]);
+    } catch {
+      // A conflicting page function must not prevent the remaining cleanup.
+    }
+  }
+};
+
+/**
+ * Verifies every available wrapper installed by an earlier bundle before
+ * updating its defaults. The handoff key belongs only to the two injected
+ * bundles and is not reused by a page-visible marker or transport channel.
+ */
+export const adoptTemporalApiPatch = (
+  targetGlobal: TemporalApiGlobal,
+  defaults: TemporalApiDefaults | null,
+  ownershipKey: string,
+): TemporalApiAnchor[] => {
+  const anchors = getTemporalApiAnchors(targetGlobal);
+  const verify = privateSymbolFor(`${ownershipKey}:verify`);
+  const commit = privateSymbolFor(`${ownershipKey}:commit`);
+  const verified = verifyTemporalApiAnchors(anchors, ownershipKey, verify);
+  if (
+    verified.length === anchors.length &&
+    commitTemporalDefaults(verified, commit, defaults)
+  ) {
+    return anchors;
+  }
+
+  // A mixed set is not safe to adopt. Disable every wrapper that did prove
+  // ownership so the full runtime can install one active reporting layer.
+  disableTemporalAnchors(verified, commit);
+  const temporal = (targetGlobal as { Temporal?: unknown }).Temporal;
+  if (isRecord(temporal)) privateWeakMapDelete(installations, temporal);
+  return [];
+};
+
 export const installTemporalApiPatch = (
   options: TemporalApiPatchOptions,
+  ownershipKey?: string,
 ): TemporalApiAnchor[] => {
   const temporalValue = (options.targetGlobal as { Temporal?: unknown }).Temporal;
   if (!isRecord(temporalValue)) return [];
   const temporal = temporalValue as TemporalNamespaceLike;
   const existing = privateWeakMapGet(installations, temporal);
   if (existing) return existing;
+  const state: TemporalApiPatchState = {
+    defaults: options.defaults,
+    onAccess: options.onAccess,
+    ownership: ownershipKey
+      ? {
+          commit: privateSymbolFor(`${ownershipKey}:commit`),
+          proofKey: ownershipKey,
+          verify: privateSymbolFor(`${ownershipKey}:verify`),
+        }
+      : null,
+  };
   const anchors: TemporalApiAnchor[] = [];
-  installNowMethods(temporal, options, anchors);
-  installLocaleMethods(temporal, options, anchors);
+  installNowMethods(temporal, state, anchors);
+  installLocaleMethods(temporal, state, anchors);
   if (anchors.length > 0) {
     privateWeakMapSet(installations, temporal, anchors);
   }

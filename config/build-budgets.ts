@@ -286,5 +286,10 @@ export const CHROME_EARLY_MAX_BYTES = 12 * 1024;
  * 14-method installer, descriptor integrity anchors, regenerated worker
  * payload, and worker-to-X-Ray usage relay. Release-style output is
  * ~186.3 KiB raw.
+ *
+ * Raised to 188 KB: post-merge review replaces the page-visible Temporal
+ * ownership signal with a private challenge and keeps early wrapper defaults
+ * synchronized with the final snapshot. Release-style output is ~187.7 KiB
+ * raw; the Chromium early entrypoint remains below its existing 12 KB target.
  */
-export const CHROME_RUNTIME_MAX_BYTES = 187 * 1024;
+export const CHROME_RUNTIME_MAX_BYTES = 188 * 1024;

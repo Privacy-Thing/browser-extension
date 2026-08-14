@@ -149,6 +149,7 @@ const resolveSettings = async (
   );
   const nextFeatureFlags = normalizeFeatureFlags({
     ...currentPreferences.featureFlags,
+    ...(cachedValues.featureFlags ?? {}),
     ...nextCommand.featureFlags,
   });
   const commandWorkerMode =

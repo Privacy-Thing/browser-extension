@@ -180,15 +180,17 @@ test("supports browser history navigation to and from the playground", async ({
   const page = await context.newPage();
   await page.goto(`chrome-extension://${extensionId}/src/ui/options/index.html`);
 
-  await openSettingsTab(page, "about");
+  await openSettingsTab(page, "profiles");
   await page.getByRole("button", { name: /open playground/i }).click();
   await expect(page).toHaveURL(
     new RegExp(`#${escapeForRegex(PAGE_ANCHORS.playground)}$`),
   );
 
   await page.goBack();
-  await expect(page).toHaveURL(new RegExp(`#${escapeForRegex(PAGE_ANCHORS.about)}$`));
-  await expect(page.locator('[data-tab="about"]')).toHaveAttribute(
+  await expect(page).toHaveURL(
+    new RegExp(`#${escapeForRegex(PAGE_ANCHORS.profiles)}$`),
+  );
+  await expect(page.locator('[data-tab="profiles"]')).toHaveAttribute(
     "aria-selected",
     "true",
   );

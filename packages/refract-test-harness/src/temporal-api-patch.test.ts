@@ -1,4 +1,5 @@
 import {
+  adoptTemporalApiPatch,
   installTemporalApiPatch,
   type TemporalApiMethodId,
 } from "@privacy-brand/refract-core/time/temporal-api-patch";
@@ -237,6 +238,137 @@ describe("Temporal API patch", () => {
     expect(fixture.temporal.Now.timeZoneId).toBe(installedTimeZoneId);
     (fixture.temporal.Now.timeZoneId as () => unknown)();
     expect(onAccess).toHaveBeenCalledTimes(1);
+  });
+
+  it("adopts early wrappers, updates defaults, and does not count the handshake", () => {
+    const fixture = createTemporalFixture();
+    const onAccess = vi.fn<(methodId: TemporalApiMethodId) => void>();
+    const ownership = "temporal-handoff-test";
+    const earlyAnchors = installTemporalApiPatch(
+      {
+        targetGlobal: { Temporal: fixture.temporal },
+        defaults: { languages: ["en-GB"], timeZone: "Europe/London" },
+        onAccess,
+      },
+      ownership,
+    );
+    const earlyTimeZoneId = fixture.temporal.Now.timeZoneId;
+    expect(
+      earlyAnchors.flatMap(({ target, key }) => {
+        const method = Object.getOwnPropertyDescriptor(target, key)?.value as object;
+        return Reflect.ownKeys(method).filter(
+          (property) =>
+            typeof property === "symbol" &&
+            Symbol.keyFor(property)?.startsWith(ownership),
+        );
+      }),
+    ).toEqual([]);
+
+    const anchors = adoptTemporalApiPatch(
+      { Temporal: fixture.temporal },
+      { languages: ["pl-PL"], timeZone: "Europe/Warsaw" },
+      ownership,
+    );
+
+    expect(anchors).toHaveLength(14);
+    expect(fixture.temporal.Now.timeZoneId).toBe(earlyTimeZoneId);
+    expect(onAccess).not.toHaveBeenCalled();
+    expect((fixture.temporal.Now.timeZoneId as () => unknown)()).toBe("Europe/Warsaw");
+    expect(fixture.instances.get("PlainDate")!.toLocaleString()).toEqual({
+      args: [["pl-PL"]],
+      typeName: "PlainDate",
+    });
+    expect(onAccess).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejects a forged claim that can only echo the private request", () => {
+    const fixture = createTemporalFixture();
+    const forgedTimeZoneId = function (this: unknown) {
+      return this;
+    };
+    Object.defineProperty(fixture.temporal.Now, "timeZoneId", {
+      configurable: true,
+      value: forgedTimeZoneId,
+      writable: true,
+    });
+
+    expect(
+      adoptTemporalApiPatch(
+        { Temporal: fixture.temporal },
+        { languages: ["pl-PL"], timeZone: "Europe/Warsaw" },
+        "forged-handoff-test",
+      ),
+    ).toEqual([]);
+    expect(fixture.temporal.Now.timeZoneId).toBe(forgedTimeZoneId);
+  });
+
+  it("rejects a mixed handoff when any available anchor was replaced", () => {
+    const fixture = createTemporalFixture();
+    const onAccess = vi.fn<(methodId: TemporalApiMethodId) => void>();
+    const ownership = "temporal-mixed-handoff-test";
+    installTemporalApiPatch(
+      {
+        targetGlobal: { Temporal: fixture.temporal },
+        defaults: { languages: ["en-GB"], timeZone: "Europe/London" },
+        onAccess,
+      },
+      ownership,
+    );
+    const earlyTimeZoneId = fixture.temporal.Now.timeZoneId;
+    const plainDate = fixture.temporal["PlainDate"] as { prototype: object };
+    const replacement = function toLocaleString() {
+      return "page replacement";
+    };
+    Object.defineProperty(plainDate.prototype, "toLocaleString", {
+      configurable: true,
+      value: replacement,
+      writable: true,
+    });
+
+    expect(
+      adoptTemporalApiPatch(
+        { Temporal: fixture.temporal },
+        { languages: ["pl-PL"], timeZone: "Europe/Warsaw" },
+        ownership,
+      ),
+    ).toEqual([]);
+    expect(fixture.temporal.Now.timeZoneId).toBe(earlyTimeZoneId);
+    expect((fixture.temporal.Now.timeZoneId as () => unknown)()).toBe("Native/Zone");
+    expect(
+      Object.getOwnPropertyDescriptor(plainDate.prototype, "toLocaleString")?.value,
+    ).toBe(replacement);
+
+    const rearmedAnchors = installTemporalApiPatch({
+      targetGlobal: { Temporal: fixture.temporal },
+      defaults: { languages: ["pl-PL"], timeZone: "Europe/Warsaw" },
+      onAccess,
+    });
+
+    expect(rearmedAnchors).toHaveLength(14);
+    expect(fixture.temporal.Now.timeZoneId).not.toBe(earlyTimeZoneId);
+    expect((fixture.temporal.Now.timeZoneId as () => unknown)()).toBe("Europe/Warsaw");
+    expect(onAccess).toHaveBeenCalledWith("temporal.Now.timeZoneId");
+    expect(onAccess).toHaveBeenCalledTimes(1);
+  });
+
+  it("deactivates stale early wrappers when the accepted snapshot disables them", () => {
+    const fixture = createTemporalFixture();
+    const onAccess = vi.fn<(methodId: TemporalApiMethodId) => void>();
+    const ownership = "temporal-disable-handoff-test";
+    installTemporalApiPatch(
+      {
+        targetGlobal: { Temporal: fixture.temporal },
+        defaults: { languages: ["pl-PL"], timeZone: "Europe/Warsaw" },
+        onAccess,
+      },
+      ownership,
+    );
+
+    expect(
+      adoptTemporalApiPatch({ Temporal: fixture.temporal }, null, ownership),
+    ).toHaveLength(14);
+    expect((fixture.temporal.Now.timeZoneId as () => unknown)()).toBe("Native/Zone");
+    expect(onAccess).not.toHaveBeenCalled();
   });
 
   it("is a safe no-op for missing and partial Temporal implementations", () => {

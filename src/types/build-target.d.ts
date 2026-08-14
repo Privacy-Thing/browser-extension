@@ -11,6 +11,7 @@ declare const __PT_RUNTIME_PAYLOAD_ATTR__: string;
 declare const __PT_RUNTIME_DISABLED_ATTR__: string;
 declare const __PT_LOG_EVENT_TYPE__: string;
 declare const __PT_SHIM_GUARD_KEY__: string;
+declare const __PT_TEMPORAL_HANDOFF_KEY__: string;
 declare const __PT_WORKER_PATCH_GUARD_KEY__: string;
 declare const __PT_SW_PATCH_GUARD_KEY__: string;
 declare const __PT_FX_STATIC_CANDIDATES_KEY__: string;

@@ -1,7 +1,9 @@
 import { createIntegrityRegistry } from "@privacy-brand/refract-core/integrity/surface-integrity-registry";
+import { installTemporalApiPatch as installCoreTemporalApiPatch } from "@privacy-brand/refract-core/time/temporal-api-patch";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { installTemporalApiPatch } from "@/injection/temporal-api-patch";
+import { BUILD_BROWSER_TARGET } from "@/shared/build-flags";
 import type { RuntimeSnapshot } from "@/shared/types";
 
 const mocks = vi.hoisted(() => ({ markSurfaceUsed: vi.fn() }));
@@ -74,24 +76,45 @@ describe("injected Temporal API adapter", () => {
     expect(Temporal.Now.timeZoneId).toBe(nativeTimeZoneId);
   });
 
-  it("adopts early wrappers without replacing or double-counting them", () => {
-    const Temporal = createTemporal();
-    installTemporalApiPatch(snapshot, { Temporal });
-    const earlyTimeZoneId = Temporal.Now.timeZoneId;
-    mocks.markSurfaceUsed.mockReset();
-    const registrar = createIntegrityRegistry();
+  it.runIf(BUILD_BROWSER_TARGET === "chromium")(
+    "privately adopts early wrappers and synchronizes newer defaults",
+    () => {
+      const Temporal = createTemporal();
+      installCoreTemporalApiPatch(
+        {
+          targetGlobal: { Temporal },
+          defaults: { languages: ["en-GB"], timeZone: "Europe/London" },
+          onAccess: (methodId) => mocks.markSurfaceUsed("timeLocale", methodId),
+        },
+        __PT_TEMPORAL_HANDOFF_KEY__,
+      );
+      const earlyTimeZoneId = Temporal.Now.timeZoneId;
+      mocks.markSurfaceUsed.mockReset();
+      const registrar = createIntegrityRegistry();
 
-    const anchors = installTemporalApiPatch(
-      snapshot,
-      { Temporal },
-      { registrar, realmId: "test" },
-      true,
-    );
+      const anchors = installTemporalApiPatch(
+        snapshot,
+        { Temporal },
+        { registrar, realmId: "test" },
+        true,
+      );
+
+      expect(anchors).toHaveLength(2);
+      expect(Temporal.Now.timeZoneId).toBe(earlyTimeZoneId);
+      expect(Temporal.Now.timeZoneId()).toBe("Europe/Warsaw");
+      expect(mocks.markSurfaceUsed).toHaveBeenCalledTimes(1);
+      expect(registrar.ensureSurface("timeLocale")).toHaveLength(2);
+    },
+  );
+
+  it("installs protection when the current method cannot prove early ownership", () => {
+    const Temporal = createTemporal();
+    const nativeTimeZoneId = Temporal.Now.timeZoneId;
+
+    const anchors = installTemporalApiPatch(snapshot, { Temporal }, undefined, true);
 
     expect(anchors).toHaveLength(2);
-    expect(Temporal.Now.timeZoneId).toBe(earlyTimeZoneId);
+    expect(Temporal.Now.timeZoneId).not.toBe(nativeTimeZoneId);
     expect(Temporal.Now.timeZoneId()).toBe("Europe/Warsaw");
-    expect(mocks.markSurfaceUsed).toHaveBeenCalledTimes(1);
-    expect(registrar.ensureSurface("timeLocale")).toHaveLength(2);
   });
 });
