@@ -56,8 +56,6 @@ export type TemporalApiDefaults = {
   timeZone: string;
 };
 
-export type TemporalApiOwnershipKey = string;
-
 const NOW_TIME_ZONE_METHODS = [
   "plainDateTimeISO",
   "zonedDateTimeISO",
@@ -178,12 +176,12 @@ const installMethod = ({
     : null;
   const holder = {
     [key](this: unknown, ...args: unknown[]) {
-      if (state.ownership && this === state.ownership.verify) {
-        return ownershipProof;
-      }
-      if (state.ownership && this === state.ownership.commit) {
-        state.defaults = args[0] as TemporalApiDefaults | null;
-        return ownershipProof;
+      if (state.ownership) {
+        if (this === state.ownership.verify) return ownershipProof;
+        if (this === state.ownership.commit) {
+          state.defaults = args[0] as TemporalApiDefaults | null;
+          return ownershipProof;
+        }
       }
       if (state.defaults !== null) state.onAccess?.(methodId);
       return createCall(nativeMethod, args, this);
@@ -322,23 +320,19 @@ export const getTemporalApiAnchors = (
   return anchors;
 };
 
-/**
- * Verifies every available wrapper installed by an earlier bundle before
- * updating its defaults. The handoff key belongs only to the two injected
- * bundles and is not reused by a page-visible marker or transport channel.
- */
-export const adoptTemporalApiPatch = (
-  targetGlobal: TemporalApiGlobal,
-  defaults: TemporalApiDefaults | null,
-  ownershipKey: TemporalApiOwnershipKey,
-): TemporalApiAnchor[] => {
-  const anchors = getTemporalApiAnchors(targetGlobal);
-  if (anchors.length === 0) return [];
-  const verify = privateSymbolFor(`${ownershipKey}:verify`);
-  const commit = privateSymbolFor(`${ownershipKey}:commit`);
-  const verified: Array<{ anchor: TemporalApiAnchor; method: TemporalMethod }> = [];
-  let complete = true;
+type VerifiedTemporalAnchor = {
+  anchor: TemporalApiAnchor;
+  method: TemporalMethod;
+  proof: symbol;
+};
 
+const verifyTemporalApiAnchors = (
+  anchors: readonly TemporalApiAnchor[],
+  ownershipKey: string,
+  verify: symbol,
+): { complete: boolean; verified: VerifiedTemporalAnchor[] } => {
+  const verified: VerifiedTemporalAnchor[] = [];
+  let complete = true;
   for (const anchor of anchors) {
     const method = privateOwnDescriptor(anchor.target, anchor.key)?.value;
     const proof = privateSymbolFor(`${ownershipKey}:${anchor.methodId}`);
@@ -347,8 +341,11 @@ export const adoptTemporalApiPatch = (
       continue;
     }
     try {
-      if (privateReflectApply(method as TemporalMethod, verify, []) === proof) {
-        verified.push({ anchor, method: method as TemporalMethod });
+      if (
+        privateReflectApply(method as TemporalMethod, verify, []) === proof &&
+        privateOwnDescriptor(anchor.target, anchor.key)?.value === method
+      ) {
+        verified.push({ anchor, method: method as TemporalMethod, proof });
       } else {
         complete = false;
       }
@@ -356,31 +353,28 @@ export const adoptTemporalApiPatch = (
       complete = false;
     }
   }
+  return { complete, verified };
+};
 
-  complete =
-    complete &&
-    verified.every(
-      ({ anchor, method }) =>
-        privateOwnDescriptor(anchor.target, anchor.key)?.value === method,
-    );
-  if (complete) {
-    for (const { anchor, method } of verified) {
-      const proof = privateSymbolFor(`${ownershipKey}:${anchor.methodId}`);
-      try {
-        if (privateReflectApply(method, commit, [defaults]) !== proof) {
-          complete = false;
-          break;
-        }
-      } catch {
-        complete = false;
-        break;
-      }
+const commitTemporalDefaults = (
+  verified: readonly VerifiedTemporalAnchor[],
+  commit: symbol,
+  defaults: TemporalApiDefaults | null,
+): boolean => {
+  for (const { method, proof } of verified) {
+    try {
+      if (privateReflectApply(method, commit, [defaults]) !== proof) return false;
+    } catch {
+      return false;
     }
   }
-  if (complete) return anchors;
+  return true;
+};
 
-  // A mixed set is not safe to adopt. Disable every wrapper that did prove
-  // ownership so the full runtime can install one active reporting layer.
+const disableTemporalAnchors = (
+  verified: readonly VerifiedTemporalAnchor[],
+  commit: symbol,
+): void => {
   for (const { method } of verified) {
     try {
       privateReflectApply(method, commit, [null]);
@@ -388,12 +382,39 @@ export const adoptTemporalApiPatch = (
       // A conflicting page function must not prevent the remaining cleanup.
     }
   }
+};
+
+/**
+ * Verifies every available wrapper installed by an earlier bundle before
+ * updating its defaults. The handoff key belongs only to the two injected
+ * bundles and is not reused by a page-visible marker or transport channel.
+ */
+export const adoptTemporalApiPatch = (
+  targetGlobal: TemporalApiGlobal,
+  defaults: TemporalApiDefaults | null,
+  ownershipKey: string,
+): TemporalApiAnchor[] => {
+  const anchors = getTemporalApiAnchors(targetGlobal);
+  if (anchors.length === 0) return [];
+  const verify = privateSymbolFor(`${ownershipKey}:verify`);
+  const commit = privateSymbolFor(`${ownershipKey}:commit`);
+  const ownership = verifyTemporalApiAnchors(anchors, ownershipKey, verify);
+  if (
+    ownership.complete &&
+    commitTemporalDefaults(ownership.verified, commit, defaults)
+  ) {
+    return anchors;
+  }
+
+  // A mixed set is not safe to adopt. Disable every wrapper that did prove
+  // ownership so the full runtime can install one active reporting layer.
+  disableTemporalAnchors(ownership.verified, commit);
   return [];
 };
 
 export const installTemporalApiPatch = (
   options: TemporalApiPatchOptions,
-  ownershipKey?: TemporalApiOwnershipKey,
+  ownershipKey?: string,
 ): TemporalApiAnchor[] => {
   const temporalValue = (options.targetGlobal as { Temporal?: unknown }).Temporal;
   if (!isRecord(temporalValue)) return [];
