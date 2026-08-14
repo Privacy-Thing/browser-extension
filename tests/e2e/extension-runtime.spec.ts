@@ -96,6 +96,14 @@ test("applies opt-in Temporal defaults while preserving explicit arguments", asy
   await optionsPage.close();
 
   const page = await context.newPage();
+  // Prime the tab's resolved decision before testing the synchronous
+  // window.name carrier on the next navigation. A brand-new about:blank tab
+  // has no cached decision, so onBeforeNavigate cannot deterministically beat
+  // the document's first inline script under CI load.
+  await page.goto(getProbeHostUrl(serverUrl));
+  await page.locator("#collect").click();
+  expect((await readSnapshot(page)).timeZone).toBe("Europe/Warsaw");
+
   await page.goto(new URL("/inline-first", serverUrl).toString());
   const earlySnapshot = await readEarlySnapshot(page);
   expect(earlySnapshot.temporalTimeZone).toBe("Europe/Warsaw");
