@@ -6,8 +6,7 @@ body:
     attributes:
       value: |
         Do not report security issues here. A spoofing bypass, a detection leak or
-        anything that lets a page identify the extension goes through
-        [private reporting](https://github.com/Privacy-Thing/browser-extension/security/advisories/new)
+        anything that lets a page identify the extension goes through [private reporting](https://github.com/Privacy-Thing/browser-extension/security/advisories/new)
         instead — see `SECURITY.md`.
 
   - type: textarea
