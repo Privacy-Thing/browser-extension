@@ -73,6 +73,15 @@ describe("popup style contract", () => {
     );
   });
 
+  it("keeps programmatic sidecar focus from drawing a browser outline", () => {
+    const sidecarFocus = declarationsForSelector(
+      styles["workspace.css"]!,
+      ".gw-popup-sheet:focus",
+    );
+
+    expect(sidecarFocus.get("outline")).toBe("none");
+  });
+
   it("keeps theme selectors in the token boundary and avoids cascade escapes", () => {
     for (const [file, css] of Object.entries(styles)) {
       expect(css, file).not.toContain("!important");

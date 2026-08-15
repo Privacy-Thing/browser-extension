@@ -9,6 +9,10 @@
   color: var(--gw-popup-sheet-foreground);
 }
 
+.gw-popup-sheet:focus {
+  outline: none;
+}
+
 .gw-popup-sheet-header {
   position: relative;
   z-index: 2;

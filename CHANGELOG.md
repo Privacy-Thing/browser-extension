@@ -7,6 +7,7 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 ## [Unreleased]
 
 - Fixed Chromium popups staying at sidecar width after the sidecar closes.
+- Removed the unintended bright focus outline from automatically opened popup sidecars.
 
 ## [0.9.2.1] - 2026-08-15
 
