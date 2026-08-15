@@ -15,6 +15,28 @@ const collectOverlaidScripts = (workflow: string) =>
     (match[1] ?? "").trim().split(/\s+/),
   );
 
+const getWorkflowJob = (workflow: string, jobName: string) => {
+  const marker = `  ${jobName}:\n`;
+  const start = workflow.indexOf(marker);
+
+  if (start < 0) {
+    throw new Error(`Missing workflow job: ${jobName}`);
+  }
+
+  const bodyStart = start + marker.length;
+  const remainder = workflow.slice(bodyStart);
+  const nextJob = /^ {2}[a-z][a-z0-9-]*:\n/m.exec(remainder);
+  const bodyEnd = nextJob ? bodyStart + nextJob.index : workflow.length;
+
+  return workflow.slice(bodyStart, bodyEnd);
+};
+
+const collectBetaLookups = (job: string) =>
+  [...job.matchAll(BETA_ARTIFACT_LOOKUP_RE)].map((match) => [
+    match.groups?.["suffix"],
+    match.groups?.["directory"],
+  ]);
+
 describe("publish workflow", () => {
   // A release built from an older tag keeps that tag's tree. Overlaying main's
   // copy of a script that imports repo-local modules pairs a new importer with
@@ -47,17 +69,16 @@ describe("publish workflow", () => {
 
   it("locates beta artifacts in the packagers' output directory", () => {
     const workflow = fs.readFileSync(WORKFLOW_PATH, "utf8");
-    const lookups = [...workflow.matchAll(BETA_ARTIFACT_LOOKUP_RE)].map(
-      (match) => [match.groups?.["suffix"], match.groups?.["directory"]],
-    );
+    const githubBeta = getWorkflowJob(workflow, "github-beta");
+    const cwsBeta = getWorkflowJob(workflow, "cws-beta");
 
-    expect(lookups).toEqual([
+    expect(collectBetaLookups(githubBeta)).toEqual([
       ["chromium.zip", "build/artifacts"],
       ["firefox.zip", "build/artifacts"],
       ["firefox.xpi", "build/artifacts"],
       ["source.zip", "build/artifacts"],
-      ["chromium.zip", "build/artifacts"],
     ]);
+    expect(collectBetaLookups(cwsBeta)).toEqual([["chromium.zip", "build/artifacts"]]);
     expect(workflow).not.toContain("find artifacts ");
   });
 
