@@ -1,3 +1,8 @@
+html.gw-popup-document {
+  width: var(--gw-popup-width);
+  min-width: var(--gw-popup-width);
+}
+
 html.gw-popup-document,
 html.gw-popup-document body,
 html.gw-popup-document #app {
@@ -12,7 +17,11 @@ html.gw-popup-document[data-popup-workspace-open="true"] #app {
 }
 
 html.gw-popup-document[data-popup-has-window-accent="true"] {
-  background: linear-gradient(180deg, var(--gw-popup-window-accent-glow), var(--gw-popup-window-accent));
+  background: linear-gradient(
+    180deg,
+    var(--gw-popup-window-accent-glow),
+    var(--gw-popup-window-accent)
+  );
 }
 
 html.gw-popup-document body {
@@ -21,7 +30,13 @@ html.gw-popup-document body {
   min-width: var(--gw-popup-width);
   color: hsl(var(--foreground));
   background: var(--gw-popup-canvas);
-  font-family: ui-sans-serif, -apple-system, "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+  font-family:
+    ui-sans-serif,
+    -apple-system,
+    "Segoe UI Variable Display",
+    "Segoe UI",
+    system-ui,
+    sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -30,6 +45,8 @@ html.gw-popup-document[data-popup-has-window-accent="true"] body {
   background: transparent;
 }
 
+html.gw-popup-document[data-popup-sizing-state="requesting-sidecar"],
+html.gw-popup-document[data-popup-sizing-state="sidecar"],
 html.gw-popup-document body[data-popup-sizing-state="requesting-sidecar"],
 html.gw-popup-document body[data-popup-sizing-state="sidecar"] {
   width: var(--gw-popup-expanded-width);

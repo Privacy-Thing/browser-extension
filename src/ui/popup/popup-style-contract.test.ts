@@ -19,6 +19,19 @@ const styles = Object.fromEntries(
     readFileSync(new URL(`./styles/${file}`, import.meta.url), "utf8"),
   ]),
 );
+const popupHtml = readFileSync(new URL("./index.html", import.meta.url), "utf8");
+
+const declarationsForSelector = (css: string, selector: string) => {
+  const declarations = new Map<string, string>();
+  const root = postcss.parse(css);
+  root.walkRules((rule) => {
+    if (!rule.selectors.includes(selector)) return;
+    rule.walkDecls((declaration) => {
+      declarations.set(declaration.prop, declaration.value);
+    });
+  });
+  return declarations;
+};
 
 describe("popup style contract", () => {
   it("scopes document sizing to the real popup page", () => {
@@ -33,6 +46,31 @@ describe("popup style contract", () => {
         }
       }
     });
+  });
+
+  it("drives popup autosizing from the root document width", () => {
+    const compact = declarationsForSelector(
+      styles["layout.css"]!,
+      "html.gw-popup-document",
+    );
+    const requestingSidecar = declarationsForSelector(
+      styles["layout.css"]!,
+      'html.gw-popup-document[data-popup-sizing-state="requesting-sidecar"]',
+    );
+    const sidecar = declarationsForSelector(
+      styles["layout.css"]!,
+      'html.gw-popup-document[data-popup-sizing-state="sidecar"]',
+    );
+
+    expect(compact.get("width")).toBe("var(--gw-popup-width)");
+    expect(compact.get("min-width")).toBe("var(--gw-popup-width)");
+    expect(requestingSidecar.get("width")).toBe("var(--gw-popup-expanded-width)");
+    expect(requestingSidecar.get("min-width")).toBe("var(--gw-popup-expanded-width)");
+    expect(sidecar.get("width")).toBe("var(--gw-popup-expanded-width)");
+    expect(sidecar.get("min-width")).toBe("var(--gw-popup-expanded-width)");
+    expect(popupHtml).toMatch(
+      /html,\s*html body\s*\{[^}]*width: 360px;[^}]*min-width: 360px;/,
+    );
   });
 
   it("keeps theme selectors in the token boundary and avoids cascade escapes", () => {
