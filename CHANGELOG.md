@@ -6,6 +6,8 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ## [Unreleased]
 
+- Fixed Chromium popups staying at sidecar width after the sidecar closes.
+
 ## [0.9.2.1] - 2026-08-15
 
 - Refreshed extension metadata (hardware profiles, Chrome versions, locale data) from upstream sources to keep spoofed fingerprints current.
@@ -35,4 +37,3 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 - Seed dynamically navigated same-origin iframes before their document starts so
   browser surfaces do not briefly expose native values while background bootstrap
   is still resolving.
-
