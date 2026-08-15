@@ -7,11 +7,35 @@ const WORKFLOW_PATH = path.resolve(".github/workflows/publish.yml");
 const SYNC_WORKFLOW_PATH = path.resolve(".github/workflows/sync-privacy-policy.yml");
 const CROSS_CHECKOUT_PATTERN = /git checkout origin\/main -- (.+)/g;
 const RELATIVE_IMPORT_PATTERN = /\bfrom\s+"\.\.?\//;
+const BETA_ARTIFACT_LOOKUP_RE =
+  /find (?<directory>\S+) -maxdepth 1 -name '\*-(?<suffix>chromium\.zip|firefox\.zip|firefox\.xpi|source\.zip)'/g;
 
 const collectOverlaidScripts = (workflow: string) =>
   [...workflow.matchAll(CROSS_CHECKOUT_PATTERN)].flatMap((match) =>
     (match[1] ?? "").trim().split(/\s+/),
   );
+
+const getWorkflowJob = (workflow: string, jobName: string) => {
+  const marker = `  ${jobName}:\n`;
+  const start = workflow.indexOf(marker);
+
+  if (start < 0) {
+    throw new Error(`Missing workflow job: ${jobName}`);
+  }
+
+  const bodyStart = start + marker.length;
+  const remainder = workflow.slice(bodyStart);
+  const nextJob = /^ {2}[a-z][a-z0-9-]*:\n/m.exec(remainder);
+  const bodyEnd = nextJob ? bodyStart + nextJob.index : workflow.length;
+
+  return workflow.slice(bodyStart, bodyEnd);
+};
+
+const collectBetaLookups = (job: string) =>
+  [...job.matchAll(BETA_ARTIFACT_LOOKUP_RE)].map((match) => [
+    match.groups?.["suffix"],
+    match.groups?.["directory"],
+  ]);
 
 describe("publish workflow", () => {
   // A release built from an older tag keeps that tag's tree. Overlaying main's
@@ -41,6 +65,21 @@ describe("publish workflow", () => {
     expect(collectOverlaidScripts(workflow)).not.toContain(
       "scripts/package-source-code.mjs",
     );
+  });
+
+  it("locates beta artifacts in the packagers' output directory", () => {
+    const workflow = fs.readFileSync(WORKFLOW_PATH, "utf8");
+    const githubBeta = getWorkflowJob(workflow, "github-beta");
+    const cwsBeta = getWorkflowJob(workflow, "cws-beta");
+
+    expect(collectBetaLookups(githubBeta)).toEqual([
+      ["chromium.zip", "build/artifacts"],
+      ["firefox.zip", "build/artifacts"],
+      ["firefox.xpi", "build/artifacts"],
+      ["source.zip", "build/artifacts"],
+    ]);
+    expect(collectBetaLookups(cwsBeta)).toEqual([["chromium.zip", "build/artifacts"]]);
+    expect(workflow).not.toContain("find artifacts ");
   });
 
   it("keeps untrusted dispatch and release values out of shell source", () => {
