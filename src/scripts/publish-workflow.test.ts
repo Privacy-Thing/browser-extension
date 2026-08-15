@@ -7,6 +7,8 @@ const WORKFLOW_PATH = path.resolve(".github/workflows/publish.yml");
 const SYNC_WORKFLOW_PATH = path.resolve(".github/workflows/sync-privacy-policy.yml");
 const CROSS_CHECKOUT_PATTERN = /git checkout origin\/main -- (.+)/g;
 const RELATIVE_IMPORT_PATTERN = /\bfrom\s+"\.\.?\//;
+const BETA_ARTIFACT_LOOKUP_RE =
+  /find (?<directory>\S+) -maxdepth 1 -name '\*-(?<suffix>chromium\.zip|firefox\.zip|firefox\.xpi|source\.zip)'/g;
 
 const collectOverlaidScripts = (workflow: string) =>
   [...workflow.matchAll(CROSS_CHECKOUT_PATTERN)].flatMap((match) =>
@@ -41,6 +43,22 @@ describe("publish workflow", () => {
     expect(collectOverlaidScripts(workflow)).not.toContain(
       "scripts/package-source-code.mjs",
     );
+  });
+
+  it("locates beta artifacts in the packagers' output directory", () => {
+    const workflow = fs.readFileSync(WORKFLOW_PATH, "utf8");
+    const lookups = [...workflow.matchAll(BETA_ARTIFACT_LOOKUP_RE)].map(
+      (match) => [match.groups?.["suffix"], match.groups?.["directory"]],
+    );
+
+    expect(lookups).toEqual([
+      ["chromium.zip", "build/artifacts"],
+      ["firefox.zip", "build/artifacts"],
+      ["firefox.xpi", "build/artifacts"],
+      ["source.zip", "build/artifacts"],
+      ["chromium.zip", "build/artifacts"],
+    ]);
+    expect(workflow).not.toContain("find artifacts ");
   });
 
   it("keeps untrusted dispatch and release values out of shell source", () => {

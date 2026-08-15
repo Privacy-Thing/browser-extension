@@ -447,10 +447,10 @@ jobs:
 
       - name: Locate beta release files
         run: |
-          CHROMIUM_ZIP_PATH="$(find artifacts -maxdepth 1 -name '*-chromium.zip' | head -n 1)"
-          FIREFOX_ZIP_PATH="$(find artifacts -maxdepth 1 -name '*-firefox.zip' | head -n 1)"
-          FIREFOX_XPI_PATH="$(find artifacts -maxdepth 1 -name '*-firefox.xpi' | head -n 1)"
-          SOURCE_ARCHIVE_PATH="$(find artifacts -maxdepth 1 -name '*-source.zip' | head -n 1)"
+          CHROMIUM_ZIP_PATH="$(find build/artifacts -maxdepth 1 -name '*-chromium.zip' | head -n 1)"
+          FIREFOX_ZIP_PATH="$(find build/artifacts -maxdepth 1 -name '*-firefox.zip' | head -n 1)"
+          FIREFOX_XPI_PATH="$(find build/artifacts -maxdepth 1 -name '*-firefox.xpi' | head -n 1)"
+          SOURCE_ARCHIVE_PATH="$(find build/artifacts -maxdepth 1 -name '*-source.zip' | head -n 1)"
 
           if [ -z "${CHROMIUM_ZIP_PATH}" ] || [ -z "${FIREFOX_ZIP_PATH}" ] || [ -z "${FIREFOX_XPI_PATH}" ] || [ -z "${SOURCE_ARCHIVE_PATH}" ]; then
             echo "Could not locate one or more beta artifacts."
@@ -853,7 +853,7 @@ jobs:
       - name: Locate beta Chromium ZIP
         if: steps.config.outputs.configured == 'true'
         run: |
-          CHROMIUM_ZIP_PATH="$(find artifacts -maxdepth 1 -name '*-chromium.zip' | head -n 1)"
+          CHROMIUM_ZIP_PATH="$(find build/artifacts -maxdepth 1 -name '*-chromium.zip' | head -n 1)"
           if [ -z "${CHROMIUM_ZIP_PATH}" ]; then
             echo "Could not locate beta Chromium ZIP."
             exit 1
