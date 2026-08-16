@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "@privacy-brand/tooling-shared": "workspace:*",
-    "@mdn/browser-compat-data": "^8.0.10",
+    "@mdn/browser-compat-data": "^8.0.11",
     "@playwright/test": "1.58.2"
   }
 }
