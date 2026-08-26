@@ -815,6 +815,13 @@ export const AdvancedInteractionTest: Story = {
     });
     await userEvent.click(debugSwitch);
     await expect(debugSwitch).toBeChecked();
+
+    const fencingSwitch = canvas.getByRole("switch", {
+      name: t.advanced.experimental.domainFencing.title,
+    });
+    await expect(fencingSwitch).not.toBeChecked();
+    await userEvent.click(fencingSwitch);
+    await expect(fencingSwitch).toBeChecked();
   },
 };
 
