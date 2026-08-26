@@ -59,6 +59,12 @@ export type BrowserFingerprint = {
       }
     | undefined;
   spoofingToggles?: FingerprintToggles | undefined;
+  /**
+   * Domain-fencing marker present only on shared multi-domain carriers.
+   * Consuming realms finalize per-site noise seeds and strip it before
+   * installing the runtime.
+   */
+  fencing?: { key: string } | undefined;
 };
 
 export type RuntimeSnapshot = {

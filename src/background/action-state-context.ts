@@ -28,6 +28,7 @@ import {
   selectToolbarNotice,
 } from "@/background/toolbar-notification-state";
 import { readFingerprintSource } from "@/shared/browser-fingerprint";
+import type { FeatureFlags } from "@/shared/feature-flags";
 import { isSuggestionNotice } from "@/shared/popup-notification-kinds";
 import { isNoticeAttention } from "@/shared/popup-notification-state";
 import type {
@@ -53,6 +54,7 @@ export type ActionCachedState = {
   debugMode: boolean;
   watchPositionDelay: [number, number];
   browserFingerprintSpoofingEnabled: boolean;
+  featureFlags: FeatureFlags;
   sharedWorkerHandlingMode: SharedWorkerHandlingMode;
   sharedSpoofing: SharedSpoofingConfig | undefined;
   globalFallbackRule: GlobalFallbackRule | undefined;
@@ -170,6 +172,7 @@ const resolveActionModel = (
         containerAssignments: cached.containerAssignments,
         cookieStoreId,
         debugMode: cached.debugMode,
+        domainFencingEnabled: cached.featureFlags.domainFencing,
         globalFallbackRule: cached.globalFallbackRule,
         hostname,
         profiles: cached.profiles,

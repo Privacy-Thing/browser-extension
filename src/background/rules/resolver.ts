@@ -4,6 +4,7 @@
  */
 
 import type {
+  DomainFencingRequest,
   ProfileSnapshotOptions,
   SnapshotBuildOptions,
   RuleSnapshotOptions,
@@ -18,6 +19,13 @@ import {
   type BrowserFingerprintSource,
   detectBrowserFamily,
 } from "@/shared/browser-fingerprint";
+import { BUILD_BROWSER_TARGET } from "@/shared/build-flags";
+import {
+  deriveFenceBaseKey,
+  deriveFencedSeedKey,
+  getSiteKey,
+  type FingerprintFencing,
+} from "@/shared/domain-fencing";
 import {
   buildSimpleFpExtras,
   resolveGeoSurface,
@@ -266,6 +274,48 @@ const resolveNativeEnvironment = (
   };
 };
 
+type FencingPlan = {
+  /** Seed used for noise / hardware / version derivation. */
+  seedKey: string | null;
+  /** Marker for realm-side finalization on shared or Firefox channels. */
+  marker: FingerprintFencing | undefined;
+};
+
+/**
+ * Resolves how domain fencing applies to this snapshot build.
+ *
+ * - No request or no usable identity seed → base seed, no marker.
+ * - Hostname known on Chromium → derive the fenced seed here; every Chromium
+ *   delivery channel is background-resolved per hostname, so the snapshot can
+ *   carry fully fenced values (noise, hardware selection, version rotation).
+ * - Otherwise (multi-domain template, or any Firefox build) → keep the base
+ *   seed and attach a marker; the consuming realm finalizes noise seeds via
+ *   `applyFencedNoiseSeeds`. Firefox stays marker-based even with a hostname
+ *   because its static/userScripts and `window.name` catalog channels can only
+ *   fence in-realm — background parity would otherwise diverge from them.
+ *
+ * `authKey` is never involved (invariant #4): fencing derives only from the
+ * rotatable `ruleSeedKey`.
+ */
+const resolveFencingPlan = (
+  domainFencing: DomainFencingRequest | undefined,
+  baseSeedKey: string | null,
+): FencingPlan => {
+  if (!domainFencing || !baseSeedKey) {
+    return { seedKey: baseSeedKey, marker: undefined };
+  }
+
+  const fenceBaseKey = deriveFenceBaseKey(baseSeedKey);
+  if (domainFencing.hostname !== undefined && BUILD_BROWSER_TARGET === "chromium") {
+    return {
+      seedKey: deriveFencedSeedKey(fenceBaseKey, getSiteKey(domainFencing.hostname)),
+      marker: undefined,
+    };
+  }
+
+  return { seedKey: baseSeedKey, marker: { key: fenceBaseKey } };
+};
+
 type SurfaceGateOptions = Pick<
   ToRuntimeSnapshotOptions,
   | "fingerprintEnabled"
@@ -310,6 +360,7 @@ const resolveSurfaceGates = ({
 export const toRuntimeSnapshot = ({
   authKey,
   browserFingerprintSource,
+  domainFencing,
   fingerprintEnabled,
   debugMode,
   profile,
@@ -329,7 +380,8 @@ export const toRuntimeSnapshot = ({
     nativeLanguages,
     nativeTimeZone,
   } = resolveNativeEnvironment(browserFingerprintSource);
-  const fingerprintSeedKey = readRuleSeedKey(ruleSeedKey);
+  const fencingPlan = resolveFencingPlan(domainFencing, readRuleSeedKey(ruleSeedKey));
+  const fingerprintSeedKey = fencingPlan.seedKey;
   const fingerprint = createBrowserFingerprint(
     {
       userAgent: nativeFingerprint?.userAgent,
@@ -377,6 +429,10 @@ export const toRuntimeSnapshot = ({
     ruleOverrides,
     sharedSpoofing,
   });
+  const fencedFingerprint =
+    extendedFingerprint && fencingPlan.marker
+      ? { ...extendedFingerprint, fencing: fencingPlan.marker }
+      : extendedFingerprint;
 
   return {
     debugMode,
@@ -409,7 +465,7 @@ export const toRuntimeSnapshot = ({
         60_000,
       timeZone: effectiveTimeZone,
     },
-    ...(extendedFingerprint ? { fingerprint: extendedFingerprint } : {}),
+    ...(fencedFingerprint ? { fingerprint: fencedFingerprint } : {}),
     ...(authKey ? { authKey } : {}),
   };
 };
@@ -467,6 +523,7 @@ const normalizeFallback = (
 
 type SnapshotBuildParams = SnapshotBuildOptions & {
   profiles: readonly Location[];
+  domainFencing: DomainFencingRequest | undefined;
 };
 
 /**
@@ -485,7 +542,7 @@ const resolveFallbackSnapshot = (
   normalizedFallback: GlobalFallbackRule | undefined,
   params: SnapshotBuildParams,
 ): RuntimeSnapshot | null => {
-  const { profiles, ...buildOptions } = params;
+  const { profiles, domainFencing, ...buildOptions } = params;
   const { fingerprintEnabled } = buildOptions;
   const fingerprintFallback =
     normalizedFallback && normalizedFallback.enabled !== false && fingerprintEnabled
@@ -508,6 +565,7 @@ const resolveFallbackSnapshot = (
       profile: containerLocation,
       ruleOverrides: identityContainer.fingerprintSurfaceOverrides,
       ruleSeedKey: identityContainer.ruleSeedKey,
+      domainFencing,
     });
     return hasRuntimePayload(containerSnapshot) ? containerSnapshot : null;
   }
@@ -519,6 +577,7 @@ const resolveFallbackSnapshot = (
     ...buildOptions,
     profile: fallbackLocation,
     rule: fallbackRule,
+    domainFencing,
   });
   return hasRuntimePayload(snapshot) ? snapshot : null;
 };
@@ -554,6 +613,7 @@ const resolveFallbackSnapshot = (
 export const resolveProfileSnapshot = ({
   containerAssignments,
   cookieStoreId,
+  domainFencingEnabled,
   globalFallbackRule,
   hostname,
   profiles,
@@ -561,6 +621,9 @@ export const resolveProfileSnapshot = ({
   trustedSites,
   ...buildOptions
 }: ProfileSnapshotOptions): RuntimeSnapshot | null => {
+  // Fencing applies only to fallback/container identities; domain rules are
+  // explicit per-domain configuration and keep their static identity.
+  const domainFencing = domainFencingEnabled ? { hostname } : undefined;
   const normalizedFallback = normalizeFallback(globalFallbackRule);
   const resolvedSources = resolveRuleSources({
     hostname,
@@ -580,6 +643,7 @@ export const resolveProfileSnapshot = ({
     return resolveFallbackSnapshot(resolvedSources, normalizedFallback, {
       ...buildOptions,
       profiles,
+      domainFencing,
     });
   }
 
@@ -600,6 +664,7 @@ export const resolveProfileSnapshot = ({
           profile: location,
           ruleOverrides: activeIdentity.assignment.fingerprintSurfaceOverrides,
           ruleSeedKey: activeIdentity.ruleSeedKey,
+          domainFencing,
         });
 
   // `blockServiceWorkerRegistration` is resolved inside `toRuntimeSnapshot`

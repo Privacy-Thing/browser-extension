@@ -129,7 +129,7 @@ const baseSettingsResponse: GetSettingsResponse = {
   watchPositionDelay: [60, 500],
   osmConsent: "denied",
   browserFingerprintSpoofingEnabled: true,
-  featureFlags: { temporalApi: false },
+  featureFlags: { temporalApi: false, domainFencing: false },
   sharedWorkerHandlingMode: "native",
   sharedWorkerCompatibilityMode: true,
   sharedSpoofing: undefined,

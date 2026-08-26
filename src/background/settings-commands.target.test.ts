@@ -119,7 +119,7 @@ const buildCachedValues = (trustedSites: TrustedSite[]) => ({
   watchPositionDelay: [60, 500] as [number, number],
   osmConsent: "unknown" as const,
   browserFingerprintSpoofingEnabled: false,
-  featureFlags: { temporalApi: false },
+  featureFlags: { temporalApi: false, domainFencing: false },
   sharedWorkerHandlingMode: "native" as const,
   sharedWorkerCompatibilityMode: true,
   sharedSpoofingLoaded: true,
@@ -171,7 +171,7 @@ describe("createSettingsHandlers", () => {
 
     expect(exported).not.toHaveProperty("behavioralProfiles");
     expect(exported).not.toHaveProperty("behavioralProfilesEnabled");
-    expect(exported.featureFlags).toEqual({ temporalApi: false });
+    expect(exported.featureFlags).toEqual({ temporalApi: false, domainFencing: false });
     expect(exported.locations).toEqual([]);
   });
 
@@ -345,21 +345,23 @@ describe("createSettingsHandlers", () => {
     expect(response).toEqual(
       expect.objectContaining({
         ok: true,
-        featureFlags: { temporalApi: true },
+        featureFlags: { temporalApi: true, domainFencing: false },
       }),
     );
     expect(savePreferences).toHaveBeenCalledWith({
-      featureFlags: { temporalApi: true },
+      featureFlags: { temporalApi: true, domainFencing: false },
     });
     expect(setCachedValues).toHaveBeenCalledWith(
-      expect.objectContaining({ featureFlags: { temporalApi: true } }),
+      expect.objectContaining({
+        featureFlags: { temporalApi: true, domainFencing: false },
+      }),
     );
     expect(reloadTabs).toHaveBeenCalledWith([9]);
   });
 
   it("preserves a newer cached Temporal flag during an unrelated save", async () => {
     const cachedValues = buildCachedValues([]);
-    cachedValues.featureFlags = { temporalApi: true };
+    cachedValues.featureFlags = { temporalApi: true, domainFencing: false };
     const setCachedValues = vi.fn();
     const { saveSimpleSettings } = createSettingsHandlers({
       ensureStorageMigration: async () => undefined,
@@ -380,11 +382,13 @@ describe("createSettingsHandlers", () => {
     expect(response).toEqual(
       expect.objectContaining({
         ok: true,
-        featureFlags: { temporalApi: true },
+        featureFlags: { temporalApi: true, domainFencing: false },
       }),
     );
     expect(setCachedValues).toHaveBeenCalledWith(
-      expect.objectContaining({ featureFlags: { temporalApi: true } }),
+      expect.objectContaining({
+        featureFlags: { temporalApi: true, domainFencing: false },
+      }),
     );
   });
 

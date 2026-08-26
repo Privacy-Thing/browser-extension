@@ -3,6 +3,7 @@
  * so content bootstrap can avoid a background round-trip on hot navigations.
  */
 
+import { applySnapshotFencing } from "@/shared/domain-fencing";
 import { matchRule } from "@/shared/domain-match";
 import { STORAGE_PRELOADED_STATE } from "@/shared/extension-contract";
 import { isRuntimeSnapshot } from "@/shared/runtime-snapshot";
@@ -96,7 +97,7 @@ export const resolvePreloadedSnapshot = (
     blockServiceWorkerRegistration: entry.blockServiceWorkerRegistration,
   };
 
-  return isRuntimeSnapshot(snapshot) ? snapshot : null;
+  return isRuntimeSnapshot(snapshot) ? applySnapshotFencing(snapshot, hostname) : null;
 };
 
 /**

@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createPreparedDecisions } from "@/background/prepared-runtime-decisions";
 import { resolveProfileSnapshot } from "@/background/rules/resolver";
+import { BUILD_BROWSER_TARGET } from "@/shared/build-flags";
+import { applySnapshotFencing } from "@/shared/domain-fencing";
 import type {
   ContainerAssignment,
   ControlState,
@@ -52,12 +54,14 @@ const buildPrepared = ({
   globalFallbackRule,
   containerAssignments = [],
   fingerprintEnabled = true,
+  domainFencing = false,
 }: {
   rules?: DomainRule[];
   trustedSites?: TrustedSite[];
   globalFallbackRule?: GlobalFallbackRule;
   containerAssignments?: ContainerAssignment[];
   fingerprintEnabled?: boolean;
+  domainFencing?: boolean;
 }) =>
   createPreparedDecisions({
     rules,
@@ -67,7 +71,7 @@ const buildPrepared = ({
     debugMode: false,
     watchPositionDelay: [60, 500],
     fingerprintEnabled,
-    featureFlags: { temporalApi: false },
+    featureFlags: { temporalApi: false, domainFencing },
     sharedWorkerHandlingMode: "native",
     sharedSpoofing: undefined,
     browserFingerprintSource: {
@@ -95,6 +99,7 @@ const resolveBaseline = (
   globalFallbackRule?: GlobalFallbackRule,
   containerAssignments: ContainerAssignment[] = [],
   trustedSites: TrustedSite[] = [],
+  domainFencingEnabled = false,
 ) =>
   resolveProfileSnapshot({
     browserFingerprintSource: {
@@ -115,6 +120,7 @@ const resolveBaseline = (
     containerAssignments,
     cookieStoreId,
     debugMode: false,
+    domainFencingEnabled,
     globalFallbackRule,
     hostname,
     profiles,
@@ -332,5 +338,72 @@ describe("createPreparedDecisions", () => {
     expect(
       prepared.getFxWindowSeed("firefox-container-1")?.containerState?.authKey,
     ).toBe("c0ffee11");
+  });
+
+  it("fences fallback identities per site when the experiment is on", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-15T12:00:00.000Z"));
+    const fallback = {
+      enabled: true,
+      locationId: "warsaw",
+      ruleSeedKey: "glb123",
+      authKey: "fa11bac0",
+    };
+    const prepared = buildPrepared({
+      globalFallbackRule: fallback,
+      domainFencing: true,
+    });
+    const first = prepared.resolveDecision("shop.example.com");
+    const second = prepared.resolveDecision("news.other.org");
+    const baseline = resolveBaseline(
+      "shop.example.com",
+      undefined,
+      [],
+      fallback,
+      [],
+      [],
+      true,
+    );
+
+    expect(first.fencesIdentity).toBe(true);
+    expect(first.snapshot?.locale.timeZone).toBe(baseline?.locale.timeZone);
+    expect(first.snapshot?.authKey).toBe("fa11bac0");
+    expect(comparableSnapshot(first.snapshot)).toEqual(comparableSnapshot(baseline));
+
+    if (BUILD_BROWSER_TARGET === "chromium") {
+      expect(first.snapshot?.fingerprint?.fencing).toBeUndefined();
+      expect(first.snapshot?.fingerprint?.canvasNoiseSeed).not.toBe(
+        second.snapshot?.fingerprint?.canvasNoiseSeed,
+      );
+    } else {
+      expect(first.snapshot?.fingerprint?.fencing?.key).toEqual(
+        second.snapshot?.fingerprint?.fencing?.key,
+      );
+      const fencedFirst = applySnapshotFencing(first.snapshot!, "shop.example.com");
+      const fencedSecond = applySnapshotFencing(second.snapshot!, "news.other.org");
+      expect(fencedFirst.fingerprint?.canvasNoiseSeed).not.toBe(
+        fencedSecond.fingerprint?.canvasNoiseSeed,
+      );
+    }
+  });
+
+  it("does not fence explicit domain rules", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-15T12:00:00.000Z"));
+    const rules = [
+      {
+        pattern: "shop.example.com",
+        locationId: "warsaw",
+        enabled: true,
+        ruleSeedKey: "rule01",
+      },
+    ];
+    const prepared = buildPrepared({ rules, domainFencing: true });
+    const decision = prepared.resolveDecision("shop.example.com");
+    const baseline = resolveBaseline("shop.example.com", undefined, rules);
+
+    expect(decision.fencesIdentity).toBeFalsy();
+    expect(decision.snapshot?.fingerprint?.fencing).toBeUndefined();
+    expect(comparableSnapshot(decision.snapshot)).toEqual(comparableSnapshot(baseline));
   });
 });

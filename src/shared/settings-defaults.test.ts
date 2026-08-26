@@ -19,6 +19,10 @@ describe("DEFAULT_PREFERENCES", () => {
   it("keeps Temporal API support off by default", () => {
     expect(DEFAULT_PREFERENCES.featureFlags.temporalApi).toBe(false);
   });
+
+  it("keeps domain fencing off by default", () => {
+    expect(DEFAULT_PREFERENCES.featureFlags.domainFencing).toBe(false);
+  });
 });
 
 describe("normalizePreferences", () => {
@@ -39,10 +43,13 @@ describe("normalizePreferences", () => {
   it("normalizes known feature flags independently", () => {
     expect(
       normalizePreferences({ featureFlags: { temporalApi: true } }).featureFlags,
-    ).toEqual({ temporalApi: true });
+    ).toEqual({ temporalApi: true, domainFencing: false });
     expect(
       normalizePreferences({ featureFlags: { temporalApi: "yes" } }).featureFlags,
-    ).toEqual({ temporalApi: false });
+    ).toEqual({ temporalApi: false, domainFencing: false });
+    expect(
+      normalizePreferences({ featureFlags: { domainFencing: true } }).featureFlags,
+    ).toEqual({ temporalApi: false, domainFencing: true });
   });
 
   it("defaults spoofing to on for missing or non-false values", () => {

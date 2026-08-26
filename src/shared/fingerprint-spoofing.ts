@@ -11,6 +11,7 @@
  */
 
 import type { BrowserFamily } from "@/shared/browser-fingerprint";
+import { deriveSurfaceNoiseSeed, xorshift32 } from "@/shared/fingerprint-seeds";
 import {
   capDeviceMemory,
   resolveHardwareProfile,
@@ -31,53 +32,18 @@ import type {
   SharedWorkerHandlingMode,
 } from "@/shared/types";
 
-export type SimpleEngineSeedParts = {
-  ruleSeedKey: string;
-};
-
-// ---------------------------------------------------------------------------
-// Deterministic hash (FNV-1a 32-bit)
-// ---------------------------------------------------------------------------
-
-export const fnv1a32 = (input: string): number => {
-  let hash = 2166136261;
-  for (let i = 0; i < input.length; i++) {
-    hash ^= input.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return hash >>> 0;
-};
-
-// ---------------------------------------------------------------------------
-// Seeded PRNG (xorshift32) — lightweight, fast, deterministic
-// ---------------------------------------------------------------------------
-
-export const xorshift32 = (seed: number): (() => number) => {
-  let state = seed | 0 || 1;
-  return () => {
-    state ^= state << 13;
-    state ^= state >>> 17;
-    state ^= state << 5;
-    return (state >>> 0) / 4294967296;
-  };
-};
-
-// ---------------------------------------------------------------------------
-// Simple-engine noise generation
-// ---------------------------------------------------------------------------
-
-/**
- * XOR offset used to derive audio noise seed from canvas noise seed.
- * Arbitrary odd constant ensures canvas and audio PRNG sequences diverge
- * while both remain deterministic from the same base seed.
- */
-const SURFACE_SEED_NAMES = {
-  audio: "audio",
-  canvas: "canvas",
-  device: "device",
-  screen: "screen",
-  webgl: "webgl",
-} as const;
+// Seed primitives live in the dependency-light `fingerprint-seeds` leaf module
+// (importable from injected realms without the generated catalogs). Re-exported
+// here so existing background/UI consumers keep a single import site.
+export {
+  createIdentitySeed,
+  createNoiseSeed,
+  deriveSurfaceNoiseSeed,
+  FINGERPRINT_SEED_VERSION,
+  fnv1a32,
+  xorshift32,
+  type SimpleEngineSeedParts,
+} from "@/shared/fingerprint-seeds";
 
 type DeviceShape = {
   hardwareConcurrency: number;
@@ -125,35 +91,10 @@ const VERIFIED_MEMORY_VALUES: Partial<Record<BrowserFamily, readonly number[]>> 
   chromium: [2, 4, 8, 16, 32],
 };
 
-export const FINGERPRINT_SEED_VERSION = "fp-v1";
-const FP_V1_NAMESPACE = ["geo", "warp"].join("");
-const FP_SEED_NAMESPACES = {
-  noise: `${FP_V1_NAMESPACE}-fp`,
-  surface: `${FP_V1_NAMESPACE}-fp-surface`,
-} as const;
-
 export const canSpoofDeviceMemory = (
   browserFamily: BrowserFamily | undefined,
 ): boolean =>
   browserFamily !== undefined && VERIFIED_MEMORY_VALUES[browserFamily] !== undefined;
-
-/**
- * Creates a deterministic base seed from the explicit rule identity only.
- */
-export const createIdentitySeed = (parts: SimpleEngineSeedParts): string =>
-  parts.ruleSeedKey.trim().toLowerCase();
-
-/**
- * Creates a deterministic base seed from the explicit rule identity only.
- */
-export const createNoiseSeed = (parts: SimpleEngineSeedParts): number =>
-  fnv1a32(`${FP_SEED_NAMESPACES.noise}-${createIdentitySeed(parts)}`);
-
-export const deriveSurfaceNoiseSeed = (
-  baseSeed: number,
-  surface: keyof typeof SURFACE_SEED_NAMES,
-): number =>
-  fnv1a32(`${FP_SEED_NAMESPACES.surface}-${baseSeed}-${SURFACE_SEED_NAMES[surface]}`);
 
 export const chooseDeviceShape = (
   seed: number,

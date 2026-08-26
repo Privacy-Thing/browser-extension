@@ -72,6 +72,12 @@ export const advanced = {
         "Protect Temporal date, time, locale, and default time-zone behavior when this browser provides the native API. No polyfill is installed.",
       copyLinkLabel: "Temporal API",
     },
+    domainFencing: {
+      title: "Domain fencing",
+      description:
+        "Give every website its own stable variation of the Default Rule's generated browser data, so sites cannot link you by an identical fingerprint. Your manually chosen regional preset stays the same everywhere.",
+      copyLinkLabel: "domain fencing",
+    },
   },
 
   privacy: {

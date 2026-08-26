@@ -54,6 +54,7 @@ import {
   registerPermIntegrity,
 } from "@/injection/main/surface-integrity";
 import { BUILD_BROWSER_TARGET } from "@/shared/build-flags";
+import { applySnapshotFencing } from "@/shared/domain-fencing";
 import type { SpoofingSurfaceKey } from "@/shared/spoofing-surfaces";
 import type { RuntimeSnapshot, SpoofingSurfaceMethodId } from "@/shared/types";
 
@@ -221,11 +222,16 @@ const readSnapshot = (): {
   return { snapshot: latestRuntimeSnapshot, source: null };
 };
 
-const installSnapshot = (snapshot: RuntimeSnapshot): void => {
+const installSnapshot = (snapshot: RuntimeSnapshot): RuntimeSnapshot => {
+  const realmSnapshot = applySnapshotFencing(
+    snapshot,
+    globalThis.location?.hostname ?? "",
+  );
   finalizeRuntimeEnabled();
-  latestRuntimeSnapshot = snapshot;
-  syncSnapshotToDom(snapshot);
+  latestRuntimeSnapshot = realmSnapshot;
+  syncSnapshotToDom(realmSnapshot);
   globalThis.dispatchEvent(new CustomEvent(__PT_RUNTIME_READY_EVENT_NAME__));
+  return realmSnapshot;
 };
 
 const installSnapshotObserver = (): void => {
@@ -604,24 +610,24 @@ export const installEarlyRuntime = (): void => {
   earlyRuntimeInstalled = true;
   installUsageListener(() => latestRuntimeSnapshot?.authKey);
 
-  installSnapshot(snapshot);
+  const realmSnapshot = installSnapshot(snapshot);
   const lateSeedCleanup = installPostInitCleanup(
     () => cleanupRuntimeWindowSeed(window),
     window,
   );
-  installSeedPersistence(snapshot, lateSeedCleanup.stop);
-  installEarlySurfaces(snapshot, {
-    geolocation: () => installGeolocationPatch(snapshot),
+  installSeedPersistence(realmSnapshot, lateSeedCleanup.stop);
+  installEarlySurfaces(realmSnapshot, {
+    geolocation: () => installGeolocationPatch(realmSnapshot),
     integrity: {
       registrar: earlyIntegrityRegistry,
       realmId: DOCUMENT_REALM_ID,
     },
-    locale: () => installLocalePatch(snapshot),
-    navigator: () => installNavigatorPatch(snapshot),
+    locale: () => installLocalePatch(realmSnapshot),
+    navigator: () => installNavigatorPatch(realmSnapshot),
     permissions: () => {
-      installPermissionsPatch(snapshot);
+      installPermissionsPatch(realmSnapshot);
     },
-    serviceWorker: () => installServiceWorker(snapshot),
+    serviceWorker: () => installServiceWorker(realmSnapshot),
   });
   earlyIntegrityRegistry.ensureAll();
   // This marker is the cross-world readiness bridge for tooling. Playwright's

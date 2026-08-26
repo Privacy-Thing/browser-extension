@@ -72,6 +72,7 @@ const settingsCommandSchema = z
     featureFlags: z
       .object({
         temporalApi: z.boolean().optional(),
+        domainFencing: z.boolean().optional(),
       })
       .optional(),
     sharedWorkerHandlingMode: z.enum(SHARED_WORKER_MODES).optional(),

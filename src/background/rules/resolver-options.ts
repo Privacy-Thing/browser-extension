@@ -37,12 +37,26 @@ export type SnapshotBuildOptions = {
   temporalApiEnabled?: boolean;
 };
 
+/**
+ * Instruction to build a domain-fenced snapshot for a fallback/container
+ * identity (domain rules never fence — they are explicit per-domain config).
+ *
+ * With `hostname` set, per-hostname build paths derive the fenced seed
+ * directly (Chromium; Firefox keeps the marker so all its channels converge in
+ * the page realm). Without `hostname` (shared multi-domain templates) the
+ * snapshot carries a `fencing` marker for realm-side finalization.
+ */
+export type DomainFencingRequest = {
+  hostname?: string | undefined;
+};
+
 export type ToRuntimeSnapshotOptions = SnapshotBuildOptions & {
   /** Persisted per-rule nonce. Never minted here — see `createAuthKey`. */
   authKey: string | undefined;
   profile: Location | null | undefined;
   ruleOverrides: SurfaceOverrides | undefined;
   ruleSeedKey: string | undefined;
+  domainFencing?: DomainFencingRequest | undefined;
 };
 
 export type RuleSnapshotOptions = SnapshotBuildOptions & {
@@ -51,11 +65,14 @@ export type RuleSnapshotOptions = SnapshotBuildOptions & {
     | Pick<DomainRule, "fingerprintSurfaceOverrides" | "ruleSeedKey" | "authKey">
     | null
     | undefined;
+  domainFencing?: DomainFencingRequest | undefined;
 };
 
 export type ProfileSnapshotOptions = SnapshotBuildOptions & {
   containerAssignments: readonly ContainerAssignment[];
   cookieStoreId: string | undefined;
+  /** Feature flag: fence fallback/container identities per eTLD+1. */
+  domainFencingEnabled: boolean | undefined;
   globalFallbackRule: GlobalFallbackRule | undefined;
   hostname: string;
   profiles: readonly Location[];

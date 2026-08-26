@@ -199,6 +199,7 @@ const resolveProfileSnapshot = (
     containerAssignments: withContainerSeeds(containerAssignments),
     cookieStoreId,
     debugMode,
+    domainFencingEnabled: false,
     globalFallbackRule: withFallbackSeed(globalFallbackRule),
     hostname,
     profiles,
@@ -437,6 +438,7 @@ describe("resolveProfileSnapshot container priority", () => {
       containerAssignments: [],
       cookieStoreId: undefined,
       debugMode: true,
+      domainFencingEnabled: false,
       globalFallbackRule: undefined,
       hostname: "shop.example.com",
       profiles: [locationWarsaw],
@@ -870,6 +872,7 @@ describe("resolveProfileSnapshot container priority", () => {
       containerAssignments: [],
       cookieStoreId: undefined,
       debugMode: false,
+      domainFencingEnabled: false,
       globalFallbackRule: {
         enabled: true,
         ruleSeedKey: "glb123",
@@ -902,6 +905,7 @@ describe("resolveProfileSnapshot container priority", () => {
       containerAssignments: [],
       cookieStoreId: undefined,
       debugMode: false,
+      domainFencingEnabled: false,
       globalFallbackRule: {
         enabled: true,
         locationId: "warsaw",
@@ -933,6 +937,7 @@ describe("resolveProfileSnapshot container priority", () => {
         containerAssignments: [],
         cookieStoreId: undefined,
         debugMode: false,
+        domainFencingEnabled: false,
         globalFallbackRule: {
           enabled: true,
           locationId: "warsaw",
@@ -1669,6 +1674,7 @@ describe("resolveProfileSnapshot hierarchical spoofing toggles", () => {
       containerAssignments: [],
       cookieStoreId: undefined,
       debugMode: false,
+      domainFencingEnabled: false,
       globalFallbackRule: undefined,
       hostname: "example.com",
       profiles: [location],

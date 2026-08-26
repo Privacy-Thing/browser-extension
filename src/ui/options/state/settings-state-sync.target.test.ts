@@ -43,7 +43,7 @@ describe("applySettingsPayload", () => {
       watchPositionDelay: [120, 240],
       osmConsent: "granted",
       browserFingerprintSpoofingEnabled: true,
-      featureFlags: { temporalApi: true },
+      featureFlags: { temporalApi: true, domainFencing: false },
       sharedWorkerHandlingMode: "spoof",
       sharedWorkerCompatibilityMode: false,
       sharedSpoofing: undefined,
@@ -101,7 +101,10 @@ describe("applySettingsPayload", () => {
     expect(setters.setTrustedSites).toHaveBeenCalledWith(payload.trustedSites);
     expect(setters.setThemeMode).toHaveBeenCalledWith("dark");
     expect(setters.setWorkerCompat).toHaveBeenCalledWith(false);
-    expect(setters.setFeatureFlags).toHaveBeenCalledWith({ temporalApi: true });
+    expect(setters.setFeatureFlags).toHaveBeenCalledWith({
+      temporalApi: true,
+      domainFencing: false,
+    });
     expect(setters.setGlobalFallbackRule).toHaveBeenCalledWith(undefined);
     expect(setters.setDefaultNoiseRadius).toHaveBeenCalledWith(120);
     expect(setters.setRandomizeDefault).toHaveBeenCalledWith(false);

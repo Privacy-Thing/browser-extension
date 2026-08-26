@@ -142,6 +142,33 @@ const ExperimentalCard = () => {
             />
           }
         />
+        <SettingsControlCard
+          anchorId={SETTING_ANCHORS.advanced.domainFencing}
+          copyLabel={t.common.copyLinkTo(
+            t.advanced.experimental.domainFencing.copyLinkLabel,
+          )}
+          title={settingTitle(t.advanced.experimental.domainFencing.title)}
+          description={t.advanced.experimental.domainFencing.description}
+          focusControlOnTitleClick
+          highlighted={highlightedAnchorId === SETTING_ANCHORS.advanced.domainFencing}
+          action={
+            <Switch
+              aria-labelledby={getSettingTitleId(
+                SETTING_ANCHORS.advanced.domainFencing,
+              )}
+              aria-describedby={getSettingDescriptionId(
+                SETTING_ANCHORS.advanced.domainFencing,
+              )}
+              checked={featureFlags.domainFencing}
+              disabled={!settingsLoaded}
+              onCheckedChange={(checked) => {
+                const next = { ...featureFlags, domainFencing: checked };
+                setFeatureFlags(next);
+                scheduleAutosave({ featureFlags: { domainFencing: checked } });
+              }}
+            />
+          }
+        />
       </CardContent>
     </Card>
   );

@@ -6,6 +6,11 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ## [Unreleased]
 
+- Added an experimental Domain fencing option that gives each website its own
+  stable variation of the Default Rule's generated browser data, so sites cannot
+  link visits through an identical fingerprint. Manually chosen regional presets
+  stay the same everywhere.
+
 ## [0.9.2.6] - 2026-08-25
 
 - Refreshed extension metadata (hardware profiles, Chrome versions, locale data) from upstream sources to keep spoofed fingerprints current.

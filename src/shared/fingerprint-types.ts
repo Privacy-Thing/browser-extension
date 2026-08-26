@@ -129,6 +129,12 @@ export type BrowserFingerprint = {
     | undefined;
   /** Per-surface on/off switches — absent means all enabled. */
   spoofingToggles?: FingerprintToggles | undefined;
+  /**
+   * Domain-fencing marker present only on shared multi-domain carriers.
+   * Consuming realms finalize per-site noise seeds and strip it before
+   * installing the runtime — see `@/shared/domain-fencing`.
+   */
+  fencing?: { key: string } | undefined;
 };
 
 /**

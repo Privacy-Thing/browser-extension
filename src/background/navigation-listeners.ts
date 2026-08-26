@@ -9,6 +9,7 @@ type NavigationTabContext = { tabId: number; hostname: string; cookieStoreId?: s
 type RuntimeDecision = {
   snapshot: ResolveSnapshotResponse["snapshot"];
   trustedSiteMatched: boolean;
+  fencesIdentity?: boolean;
 };
 
 export type NavigationDeps = {
@@ -81,6 +82,11 @@ export type NavigationDeps = {
     trigger?: "on-before-request" | "on-before-navigate" | "on-committed-about-blank";
     navigationUrl?: string;
   }) => Promise<void>;
+  syncFenceDnrRule?: (
+    hostname: string,
+    snapshot: ResolveSnapshotResponse["snapshot"],
+    fencesIdentity: boolean,
+  ) => Promise<void>;
 };
 
 const registerFirefoxRequest = (deps: NavigationDeps): void => {
@@ -147,6 +153,11 @@ const registerBeforeNavigate = (deps: NavigationDeps): void => {
         deps
           .seedChromiumSnapshot(details.tabId, details.frameId, cachedDecision)
           .catch(() => undefined);
+        void deps.syncFenceDnrRule?.(
+          hostname,
+          cachedDecision.snapshot,
+          cachedDecision.fencesIdentity === true,
+        );
         return;
       }
     }
@@ -191,7 +202,14 @@ const registerBeforeNavigate = (deps: NavigationDeps): void => {
         return;
       }
 
-      await deps.seedChromiumSnapshot(details.tabId, details.frameId, decision);
+      await Promise.all([
+        deps.seedChromiumSnapshot(details.tabId, details.frameId, decision),
+        deps.syncFenceDnrRule?.(
+          hostname,
+          decision.snapshot,
+          decision.fencesIdentity === true,
+        ) ?? Promise.resolve(),
+      ]);
     })();
   });
 };
