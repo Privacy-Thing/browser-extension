@@ -46,83 +46,25 @@ const RULE_SEED_LENGTH = 6;
 const RULE_SEED_SPACE = 36 ** RULE_SEED_LENGTH;
 
 /**
- * Compact list of common multi-label registrable suffixes ("public suffixes").
- * Not a full PSL (payload cost); exotic suffixes degrade gracefully to a
- * slightly coarser site key, which is an accepted experiment trade-off.
+ * Second-level tokens that, under a two-letter TLD, form a multi-label
+ * registrable suffix (`co.uk`, `com.au`). Not a full PSL; unknown combos
+ * degrade to a two-label site key.
  */
-const MULTI_LABEL_SUFFIXES = new Set<string>([
-  // ccTLD second-level registrations
-  ...["co", "org", "ac", "gov", "me", "net", "ltd", "plc", "sch"].map(
-    (label) => `${label}.uk`,
+const CC_TLD_SLD = new Set(
+  "ac|ad|asn|biz|co|com|ed|edu|firm|gen|geek|go|gob|gov|govt|gr|gv|id|idv|in|ind|info|lg|ltd|me|med|muni|my|ne|net|nic|nom|or|org|pe|plc|re|res|sch|school|web".split(
+    "|",
   ),
-  ...["com", "net", "org", "edu", "gov", "id", "asn"].map((label) => `${label}.au`),
-  ...["co", "net", "org", "govt", "ac", "gen", "geek", "school"].map(
-    (label) => `${label}.nz`,
+);
+
+/**
+ * Private / CentralNic suffixes whose tenants are distinct sites. These are
+ * not ccTLD+SLD pairs, so the two-letter TLD heuristic cannot recover them.
+ */
+const PRIVATE_SUFFIXES = new Set(
+  "uk.com|uk.net|us.com|eu.com|github.io|gitlab.io|blogspot.com|appspot.com|herokuapp.com|netlify.app|vercel.app|web.app|firebaseapp.com|azurewebsites.net|cloudfunctions.net|pages.dev|workers.dev|wordpress.com|neocities.org|readthedocs.io|onrender.com|fly.dev|glitch.me|codesandbox.io".split(
+    "|",
   ),
-  ...["co", "ne", "or", "ac", "ad", "ed", "go", "gr", "lg"].map(
-    (label) => `${label}.jp`,
-  ),
-  ...["co", "ne", "or", "re", "go", "ac", "pe"].map((label) => `${label}.kr`),
-  ...["com", "net", "org", "gov", "edu", "ac"].map((label) => `${label}.cn`),
-  ...["com", "net", "org", "edu", "gov", "idv"].map((label) => `${label}.hk`),
-  ...["com", "net", "org", "edu", "gov", "idv"].map((label) => `${label}.tw`),
-  ...["com", "net", "org", "gov", "edu"].map((label) => `${label}.br`),
-  ...["com", "org", "net", "gob", "edu"].map((label) => `${label}.mx`),
-  ...["com", "net", "org", "gob", "edu"].map((label) => `${label}.ar`),
-  ...["co", "net", "org", "firm", "gen", "ind", "nic", "ac", "edu", "res", "gov"].map(
-    (label) => `${label}.in`,
-  ),
-  ...["com", "net", "org", "gov", "edu"].map((label) => `${label}.tr`),
-  ...["co", "net", "org", "gov", "edu", "ac", "web"].map((label) => `${label}.za`),
-  ...["com", "net", "org", "edu", "gov"].map((label) => `${label}.sg`),
-  ...["com", "net", "org", "edu", "gov"].map((label) => `${label}.my`),
-  ...["com", "net", "org", "edu", "gov"].map((label) => `${label}.ph`),
-  ...["com", "net", "org", "edu", "gov"].map((label) => `${label}.vn`),
-  ...["co", "or", "ac", "go", "web", "my"].map((label) => `${label}.id`),
-  ...["co", "in", "or", "ac", "go", "net"].map((label) => `${label}.th`),
-  ...["com", "net", "org", "edu", "gov", "info", "biz"].map((label) => `${label}.pl`),
-  ...["com", "net", "org", "edu", "gov", "in"].map((label) => `${label}.ua`),
-  ...["co", "org", "net", "ac", "gov", "muni"].map((label) => `${label}.il`),
-  ...["com", "net", "org", "edu", "gov", "med", "sch"].map((label) => `${label}.sa`),
-  ...["com", "net", "org", "edu", "gov"].map((label) => `${label}.eg`),
-  ...["com", "net", "org", "edu", "gov"].map((label) => `${label}.ng`),
-  ...["co", "or", "ne", "go", "ac"].map((label) => `${label}.ke`),
-  ...["com", "net", "org", "edu", "gov"].map((label) => `${label}.bd`),
-  ...["com", "net", "org", "edu", "gov"].map((label) => `${label}.pk`),
-  ...["com", "net", "org", "edu", "gob"].map((label) => `${label}.pe`),
-  ...["com", "net", "org", "edu", "gov"].map((label) => `${label}.co`),
-  ...["co", "or", "gv", "ac"].map((label) => `${label}.at`),
-  ...["com", "nom", "org", "gob", "edu"].map((label) => `${label}.es`),
-  ...["com", "net", "org", "edu", "gov"].map((label) => `${label}.gr`),
-  ...["com", "edu", "gov", "org", "net"].map((label) => `${label}.pt`),
-  // CentralNic-style commercial suffixes
-  "uk.com",
-  "uk.net",
-  "us.com",
-  "eu.com",
-  // Popular hosting platforms (private suffixes): distinct tenants are
-  // distinct parties, so they must not share one fenced identity.
-  "github.io",
-  "gitlab.io",
-  "blogspot.com",
-  "appspot.com",
-  "herokuapp.com",
-  "netlify.app",
-  "vercel.app",
-  "web.app",
-  "firebaseapp.com",
-  "azurewebsites.net",
-  "cloudfunctions.net",
-  "pages.dev",
-  "workers.dev",
-  "wordpress.com",
-  "neocities.org",
-  "readthedocs.io",
-  "onrender.com",
-  "fly.dev",
-  "glitch.me",
-  "codesandbox.io",
-]);
+);
 
 const IPV4_PATTERN = /^\d{1,3}(?:\.\d{1,3}){3}$/;
 
@@ -142,8 +84,14 @@ export const getSiteKey = (hostname: string): string => {
   }
 
   const lastTwo = labels.slice(-2).join(".");
-  const registrableLabelCount = MULTI_LABEL_SUFFIXES.has(lastTwo) ? 3 : 2;
-  return labels.slice(-registrableLabelCount).join(".");
+  const sld = labels[labels.length - 2];
+  const tld = labels[labels.length - 1];
+  const ccTldSld =
+    typeof sld === "string" &&
+    typeof tld === "string" &&
+    tld.length === 2 &&
+    CC_TLD_SLD.has(sld);
+  return labels.slice(PRIVATE_SUFFIXES.has(lastTwo) || ccTldSld ? -3 : -2).join(".");
 };
 
 /**

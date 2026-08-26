@@ -128,7 +128,7 @@ describe("resolvePreloadedSnapshot", () => {
     expect(snapshot?.geo.latitude).toBe(9);
   });
 
-  it("finalizes a fencing marker on the fallback preload for the current host", () => {
+  it("preserves a fencing marker on the fallback preload for page-world finalization", () => {
     const snapshot = resolvePreloadedSnapshot("shop.example.com", {
       entries: [
         {
@@ -146,8 +146,8 @@ describe("resolvePreloadedSnapshot", () => {
       trustedSites: [],
     });
 
-    expect(snapshot?.fingerprint?.fencing).toBeUndefined();
-    expect(snapshot?.fingerprint?.canvasNoiseSeed).not.toBe(111);
+    expect(snapshot?.fingerprint?.fencing).toEqual({ key: "opaque-fence-key" });
+    expect(snapshot?.fingerprint?.canvasNoiseSeed).toBe(111);
   });
 
   it("does not let a global fallback preload activate on trusted sites", () => {

@@ -21,6 +21,8 @@ describe("getSiteKey", () => {
     expect(getSiteKey("www.example.co.uk")).toBe("example.co.uk");
     expect(getSiteKey("shop.example.com.au")).toBe("example.com.au");
     expect(getSiteKey("deep.sub.example.co.jp")).toBe("example.co.jp");
+    expect(getSiteKey("docs.example.govt.nz")).toBe("example.govt.nz");
+    expect(getSiteKey("mail.example.uk.com")).toBe("example.uk.com");
   });
 
   it("treats hosting-platform tenants as distinct sites", () => {

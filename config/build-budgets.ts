@@ -114,8 +114,14 @@ export const CHROME_BOOT_GZIP_BYTES = Math.round(5.2 * 1024);
  * Raised to 130 KB: opt-in native Temporal protection adds 14 descriptor-safe
  * wrappers, dynamic Firefox defaults, integrity anchors, and worker-to-X-Ray
  * usage transport. Release-style output is ~129.1 KB raw.
+ *
+ * Raised to 133 KB: experimental Domain fencing finalizes shared-carrier noise
+ * seeds in the Firefox first-inline runtime. The suffix table is a packed
+ * heuristic (not a full PSL) so this stays a ~2 KB feature-sized bump rather
+ * than pulling the original explicit suffix list. Release-style output is
+ * ~132.0 KB raw.
  */
-export const FX_GEO_SHIM_MAX_BYTES = 130 * 1024;
+export const FX_GEO_SHIM_MAX_BYTES = 133 * 1024;
 
 /**
  * Firefox main-world script (full runtime injected into the page).
@@ -177,10 +183,14 @@ export const FX_GEO_SHIM_MAX_BYTES = 130 * 1024;
  * the previous 164 KB budget plus 256 B tolerance. This leaves about 1 KB of
  * headroom for per-build identifier variance without hiding a feature-sized
  * regression.
+ *
+ * Raised to 168 KB: experimental Domain fencing applies per-site noise-seed
+ * finalization in the Firefox main runtime and worker bootstrap. Content
+ * bootstrap stays out of that module. Release-style output is ~166.5 KB raw.
  */
 // The Firefox runtime includes the validated worker/SharedWorker policy
 // transport. Preserve a hard budget while allowing per-build obfuscated IDs.
-export const FX_MAIN_WORLD_MAX_BYTES = 165 * 1024;
+export const FX_MAIN_WORLD_MAX_BYTES = 168 * 1024;
 
 /**
  * Chromium early inline script (synchronously injected before page scripts run).
@@ -291,5 +301,11 @@ export const CHROME_EARLY_MAX_BYTES = 12 * 1024;
  * ownership signal with a private challenge and keeps early wrapper defaults
  * synchronized with the final snapshot. Release-style output is ~187.7 KiB
  * raw; the Chromium early entrypoint remains below its existing 12 KB target.
+ *
+ * Raised to 191 KB: experimental Domain fencing finalizes `"*"` carrier noise
+ * seeds in the Chromium page runtime and worker wrapper. The Chromium
+ * content-bootstrap budget is unchanged because isolated-world preload leaves
+ * the marker for page-world finalization. Release-style output is ~189.9 KB
+ * raw.
  */
-export const CHROME_RUNTIME_MAX_BYTES = 188 * 1024;
+export const CHROME_RUNTIME_MAX_BYTES = 191 * 1024;
