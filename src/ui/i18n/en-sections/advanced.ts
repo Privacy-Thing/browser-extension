@@ -75,7 +75,7 @@ export const advanced = {
     domainFencing: {
       title: "Domain fencing",
       description:
-        "Give every website its own stable variation of the Default Rule's generated browser data, so sites cannot link you by an identical fingerprint. Your manually chosen regional preset stays the same everywhere.",
+        "When the Default Rule or a Firefox container applies, each site gets its own stable fingerprint. Your regional preset stays the same.",
       copyLinkLabel: "domain fencing",
     },
   },

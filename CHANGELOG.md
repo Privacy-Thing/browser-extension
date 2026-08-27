@@ -6,13 +6,12 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ## [Unreleased]
 
-- Added an experimental Domain fencing option that gives each website its own
-  stable variation of the Default Rule's generated browser data, so sites cannot
-  link visits through an identical fingerprint. Manually chosen regional presets
-  stay the same everywhere. Fencing is computed per host in the background on
-  Chrome and Firefox. The shared Default Rule preload keeps the unfenced
-  baseline fingerprint so first-inline never falls through to the real
-  browser; host-bound rows then carry the per-site variation.
+- Added an experimental Domain fencing option. When the Default Rule or a
+  Firefox container applies, each site gets its own stable fingerprint.
+  Manually chosen regional presets stay the same. Per-site fingerprints are
+  computed in the background on Chrome and Firefox. The shared Default Rule
+  preload keeps the baseline fingerprint so first-inline never falls through
+  to the real browser; host-bound rows then carry the per-site variation.
 
 ## [0.9.2.6] - 2026-08-25
 
