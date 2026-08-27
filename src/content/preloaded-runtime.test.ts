@@ -128,6 +128,49 @@ describe("resolvePreloadedSnapshot", () => {
     expect(snapshot?.geo.latitude).toBe(9);
   });
 
+  it("passes the shared star preload fingerprint through without re-finalizing", () => {
+    const snapshot = resolvePreloadedSnapshot("shop.example.com", {
+      entries: [
+        {
+          pattern: "*",
+          blockServiceWorkerRegistration: false,
+          snapshot: {
+            ...createSnapshot(9),
+            fingerprint: {
+              canvasNoiseSeed: 42,
+            },
+          },
+        },
+      ],
+      trustedSites: [],
+    });
+
+    expect(snapshot?.fingerprint?.canvasNoiseSeed).toBe(42);
+    expect(snapshot?.geo.latitude).toBe(9);
+  });
+
+  it("ignores an unknown leftover fencing field on preload snapshots", () => {
+    const snapshot = resolvePreloadedSnapshot("shop.example.com", {
+      entries: [
+        {
+          pattern: "*",
+          blockServiceWorkerRegistration: false,
+          snapshot: {
+            ...createSnapshot(9),
+            fingerprint: {
+              canvasNoiseSeed: 111,
+              fencing: { key: "opaque-fence-key" },
+            },
+          } as RuntimeSnapshot,
+        },
+      ],
+      trustedSites: [],
+    });
+
+    expect(snapshot?.fingerprint?.canvasNoiseSeed).toBe(111);
+    expect(snapshot?.geo.latitude).toBe(9);
+  });
+
   it("does not let a global fallback preload activate on trusted sites", () => {
     const snapshot = resolvePreloadedSnapshot("github.com", {
       entries: [

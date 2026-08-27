@@ -210,11 +210,7 @@ test("does not cluster build identifiers at the start of firefox page-world bund
   }
 });
 
-// ---------------------------------------------------------------------------
-// Artifact budget tests (spec §5.5)
-// ---------------------------------------------------------------------------
-
-test(`main-world-early.js is within the ${FX_GEO_SHIM_MAX_BYTES / 1024} KB post-migration budget`, async () => {
+test(`main-world-early.js is within the ${FX_GEO_SHIM_MAX_BYTES / 1024} KB budget`, async () => {
   const geoShimPath = path.resolve(
     process.cwd(),
     "build",
@@ -224,8 +220,7 @@ test(`main-world-early.js is within the ${FX_GEO_SHIM_MAX_BYTES / 1024} KB post-
   const geoShim = await readFile(geoShimPath);
   expect(
     geoShim.byteLength,
-    `main-world-early.js is ${geoShim.byteLength} B — exceeds ${FX_GEO_SHIM_MAX_BYTES} B budget + ${BUNDLE_SIZE_TOLERANCE} B tolerance. ` +
-      "Migration required: move shared spoofing logic to @privacy-brand/refract-core.",
+    `main-world-early.js is ${geoShim.byteLength} B — exceeds ${FX_GEO_SHIM_MAX_BYTES} B budget + ${BUNDLE_SIZE_TOLERANCE} B tolerance`,
   ).toBeLessThanOrEqual(FX_GEO_SHIM_MAX_BYTES + BUNDLE_SIZE_TOLERANCE);
 });
 

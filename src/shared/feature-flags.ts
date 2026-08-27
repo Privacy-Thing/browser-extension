@@ -1,9 +1,11 @@
 export type FeatureFlags = {
   temporalApi: boolean;
+  domainFencing: boolean;
 };
 
 export const DEFAULT_FEATURE_FLAGS: FeatureFlags = {
   temporalApi: false,
+  domainFencing: false,
 };
 
 const asRecord = (value: unknown): Record<string, unknown> =>
@@ -16,6 +18,10 @@ export const normalizeFeatureFlags = (value: unknown): FeatureFlags => {
       typeof source.temporalApi === "boolean"
         ? source.temporalApi
         : DEFAULT_FEATURE_FLAGS.temporalApi,
+    domainFencing:
+      typeof source.domainFencing === "boolean"
+        ? source.domainFencing
+        : DEFAULT_FEATURE_FLAGS.domainFencing,
   };
 };
 

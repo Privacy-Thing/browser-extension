@@ -86,6 +86,7 @@ describe("retired profile compatibility data", () => {
           behavioralProfiles: true,
           futureFlag: true,
           temporalApi: false,
+          domainFencing: false,
         },
         behavioralProfilesEnabled: true,
       }),
@@ -113,7 +114,11 @@ describe("retired profile compatibility data", () => {
     expect(state[LEGACY_BEHAVIOR_KEY]).toEqual(profiles);
     expect(state[PREFERENCES_STORAGE_KEY]).toEqual(
       expect.objectContaining({
-        featureFlags: { behavioralProfiles: true, temporalApi: false },
+        featureFlags: {
+          behavioralProfiles: true,
+          temporalApi: false,
+          domainFencing: false,
+        },
       }),
     );
     expect(state[LOCATIONS_STORAGE_KEY]).toEqual([

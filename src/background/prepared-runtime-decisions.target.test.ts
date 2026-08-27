@@ -1,3 +1,4 @@
+import { resolveFxSeedForHost } from "@privacy-brand/refract-browser/common/firefox-shim-state";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createPreparedDecisions } from "@/background/prepared-runtime-decisions";
@@ -52,12 +53,14 @@ const buildPrepared = ({
   globalFallbackRule,
   containerAssignments = [],
   fingerprintEnabled = true,
+  domainFencing = false,
 }: {
   rules?: DomainRule[];
   trustedSites?: TrustedSite[];
   globalFallbackRule?: GlobalFallbackRule;
   containerAssignments?: ContainerAssignment[];
   fingerprintEnabled?: boolean;
+  domainFencing?: boolean;
 }) =>
   createPreparedDecisions({
     rules,
@@ -67,7 +70,7 @@ const buildPrepared = ({
     debugMode: false,
     watchPositionDelay: [60, 500],
     fingerprintEnabled,
-    featureFlags: { temporalApi: false },
+    featureFlags: { temporalApi: false, domainFencing },
     sharedWorkerHandlingMode: "native",
     sharedSpoofing: undefined,
     browserFingerprintSource: {
@@ -95,6 +98,7 @@ const resolveBaseline = (
   globalFallbackRule?: GlobalFallbackRule,
   containerAssignments: ContainerAssignment[] = [],
   trustedSites: TrustedSite[] = [],
+  domainFencingEnabled = false,
 ) =>
   resolveProfileSnapshot({
     browserFingerprintSource: {
@@ -115,6 +119,7 @@ const resolveBaseline = (
     containerAssignments,
     cookieStoreId,
     debugMode: false,
+    domainFencingEnabled,
     globalFallbackRule,
     hostname,
     profiles,
@@ -332,5 +337,237 @@ describe("createPreparedDecisions", () => {
     expect(
       prepared.getFxWindowSeed("firefox-container-1")?.containerState?.authKey,
     ).toBe("c0ffee11");
+  });
+
+  it("fences fallback identities per site when the experiment is on", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-15T12:00:00.000Z"));
+    const fallback = {
+      enabled: true,
+      locationId: "warsaw",
+      ruleSeedKey: "glb123",
+      authKey: "fa11bac0",
+    };
+    const prepared = buildPrepared({
+      globalFallbackRule: fallback,
+      domainFencing: true,
+    });
+    const first = prepared.resolveDecision("shop.example.com");
+    const second = prepared.resolveDecision("news.other.org");
+    const baseline = resolveBaseline(
+      "shop.example.com",
+      undefined,
+      [],
+      fallback,
+      [],
+      [],
+      true,
+    );
+
+    expect(first.fencesIdentity).toBe(true);
+    expect(first.snapshot?.locale.timeZone).toBe(baseline?.locale.timeZone);
+    expect(first.snapshot?.authKey).toBe("fa11bac0");
+    expect(comparableSnapshot(first.snapshot)).toEqual(comparableSnapshot(baseline));
+    expect(first.snapshot?.fingerprint?.canvasNoiseSeed).not.toBe(
+      second.snapshot?.fingerprint?.canvasNoiseSeed,
+    );
+    expect(first.snapshot?.fingerprint?.clientHints?.fullVersionList).not.toEqual(
+      second.snapshot?.fingerprint?.clientHints?.fullVersionList,
+    );
+    const sameSite = prepared.resolveDecision("www.example.com");
+    expect(sameSite.snapshot?.fingerprint?.canvasNoiseSeed).toBe(
+      first.snapshot?.fingerprint?.canvasNoiseSeed,
+    );
+  });
+
+  it("keeps the unfenced Default Rule fingerprint on the shared star template", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-15T12:00:00.000Z"));
+    const fallback = {
+      enabled: true,
+      locationId: "warsaw",
+      ruleSeedKey: "glb123",
+      authKey: "fa11bac0",
+    };
+    const prepared = buildPrepared({
+      globalFallbackRule: fallback,
+      domainFencing: true,
+    });
+    const star = prepared.getPreloadedEntries().find((entry) => entry.pattern === "*");
+    expect(star?.snapshot.fingerprint?.canvasNoiseSeed).toEqual(expect.any(Number));
+    expect(star?.snapshot.locale.timeZone).toBe("Europe/Warsaw");
+
+    prepared.resolveDecision("shop.example.com");
+    const entries = prepared.getPreloadedEntries();
+    expect(entries.map((entry) => entry.pattern)).toEqual(["*", "*example.com"]);
+    const starAfter = entries.find((entry) => entry.pattern === "*");
+    const fenced = entries.find((entry) => entry.pattern === "*example.com");
+    expect(starAfter?.snapshot.fingerprint?.canvasNoiseSeed).toBe(
+      star?.snapshot.fingerprint?.canvasNoiseSeed,
+    );
+    expect(fenced?.snapshot.fingerprint?.canvasNoiseSeed).not.toBe(
+      star?.snapshot.fingerprint?.canvasNoiseSeed,
+    );
+  });
+
+  it("does not let a fenced catalog row poison other sites", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-15T12:00:00.000Z"));
+    const fallback = {
+      enabled: true,
+      locationId: "warsaw",
+      ruleSeedKey: "glb123",
+      authKey: "fa11bac0",
+    };
+    const prepared = buildPrepared({
+      globalFallbackRule: fallback,
+      domainFencing: true,
+    });
+    const example = prepared.resolveDecision("shop.example.com");
+    const catalog = prepared.getFxWindowSeed(undefined, "shop.example.com");
+    expect(catalog).not.toBeNull();
+    const star = catalog?.entries.find((entry) => entry.pattern === "*");
+    const fenced = catalog?.entries.find((entry) => entry.pattern === "*example.com");
+    expect(star?.state.fingerprint?.canvasNoiseSeed).toEqual(expect.any(Number));
+    expect(star?.state.fingerprint?.canvasNoiseSeed).not.toBe(
+      example.snapshot?.fingerprint?.canvasNoiseSeed,
+    );
+    expect(fenced?.state.fingerprint?.canvasNoiseSeed).toBe(
+      example.snapshot?.fingerprint?.canvasNoiseSeed,
+    );
+
+    const otherFromCatalog = resolveFxSeedForHost("news.other.org", catalog!);
+    expect(otherFromCatalog?.fingerprint?.canvasNoiseSeed).toBe(
+      star?.state.fingerprint?.canvasNoiseSeed,
+    );
+    expect(otherFromCatalog?.fingerprint?.canvasNoiseSeed).not.toBe(
+      example.snapshot?.fingerprint?.canvasNoiseSeed,
+    );
+
+    const other = prepared.resolveDecision("news.other.org");
+    expect(other.snapshot?.fingerprint?.canvasNoiseSeed).not.toBe(
+      example.snapshot?.fingerprint?.canvasNoiseSeed,
+    );
+  });
+
+  it("keeps container fenced rows on the container identity", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-15T12:00:00.000Z"));
+    const fallback = {
+      enabled: true,
+      locationId: "warsaw",
+      ruleSeedKey: "glb123",
+      authKey: "fa11bac0",
+    };
+    const assignments = [
+      {
+        cookieStoreId: "firefox-container-1",
+        locationId: "berlin",
+        enabled: true,
+        ruleSeedKey: "cseed1",
+        authKey: "c0ffee11",
+      },
+    ];
+    const prepared = buildPrepared({
+      globalFallbackRule: fallback,
+      containerAssignments: assignments,
+      domainFencing: true,
+    });
+    const fallbackDecision = prepared.resolveDecision("shop.example.com");
+    const containerDecision = prepared.resolveDecision(
+      "shop.example.com",
+      "firefox-container-1",
+    );
+    expect(containerDecision.snapshot?.authKey).toBe("c0ffee11");
+    expect(containerDecision.snapshot?.fingerprint?.canvasNoiseSeed).not.toBe(
+      fallbackDecision.snapshot?.fingerprint?.canvasNoiseSeed,
+    );
+
+    const containerSeed = prepared.getFxWindowSeed(
+      "firefox-container-1",
+      "shop.example.com",
+    );
+    const fenced = containerSeed?.entries.find(
+      (entry) => entry.pattern === "*example.com",
+    );
+    expect(fenced?.state.authKey).toBe("c0ffee11");
+    expect(fenced?.state.fingerprint?.canvasNoiseSeed).toBe(
+      containerDecision.snapshot?.fingerprint?.canvasNoiseSeed,
+    );
+    expect(fenced?.state.fingerprint?.canvasNoiseSeed).not.toBe(
+      fallbackDecision.snapshot?.fingerprint?.canvasNoiseSeed,
+    );
+  });
+
+  it("keeps container fenced rows when Default Rule is disabled", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-15T12:00:00.000Z"));
+    const assignments = [
+      {
+        cookieStoreId: "firefox-container-1",
+        locationId: "berlin",
+        enabled: true,
+        ruleSeedKey: "cseed1",
+        authKey: "c0ffee11",
+      },
+    ];
+    const prepared = buildPrepared({
+      containerAssignments: assignments,
+      domainFencing: true,
+    });
+    const decision = prepared.resolveDecision(
+      "shop.example.com",
+      "firefox-container-1",
+    );
+    expect(decision.fencesIdentity).toBe(true);
+    expect(decision.snapshot?.authKey).toBe("c0ffee11");
+    expect(decision.snapshot?.fingerprint?.canvasNoiseSeed).toEqual(expect.any(Number));
+
+    const containerSeed = prepared.getFxWindowSeed(
+      "firefox-container-1",
+      "shop.example.com",
+    );
+    expect(containerSeed).not.toBeNull();
+    expect(
+      containerSeed?.entries.find((entry) => entry.pattern === "*"),
+    ).toBeUndefined();
+    const fenced = containerSeed?.entries.find(
+      (entry) => entry.pattern === "*example.com",
+    );
+    expect(fenced?.state.authKey).toBe("c0ffee11");
+    expect(fenced?.state.fingerprint?.canvasNoiseSeed).toBe(
+      decision.snapshot?.fingerprint?.canvasNoiseSeed,
+    );
+    expect(containerSeed?.containerState?.fingerprint?.canvasNoiseSeed).toEqual(
+      expect.any(Number),
+    );
+    expect(containerSeed?.containerState?.fingerprint?.canvasNoiseSeed).not.toBe(
+      decision.snapshot?.fingerprint?.canvasNoiseSeed,
+    );
+
+    const fromCatalog = resolveFxSeedForHost("shop.example.com", containerSeed!);
+    expect(fromCatalog?.fingerprint?.canvasNoiseSeed).toBe(
+      decision.snapshot?.fingerprint?.canvasNoiseSeed,
+    );
+    expect(fromCatalog?.authKey).toBe("c0ffee11");
+  });
+
+  it("does not fence explicit domain rules", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-15T12:00:00.000Z"));
+    const rules = [
+      {
+        pattern: "shop.example.com",
+        locationId: "warsaw",
+        enabled: true,
+        ruleSeedKey: "rule01",
+      },
+    ];
+    const prepared = buildPrepared({ rules, domainFencing: true });
+    const decision = prepared.resolveDecision("shop.example.com");
+    const baseline = resolveBaseline("shop.example.com", undefined, rules);
+
+    expect(decision.fencesIdentity).toBeFalsy();
+    expect(comparableSnapshot(decision.snapshot)).toEqual(comparableSnapshot(baseline));
   });
 });

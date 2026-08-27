@@ -13,6 +13,7 @@ import { createSettingsApi } from "@/background/background-settings-api";
 import { createCachedStateLoader } from "@/background/cached-settings-loader";
 import { createCleanupHandlers } from "@/background/cleanup-commands";
 import { syncDynamicHeaderRules } from "@/background/dnr";
+import { syncFenceDnrRule } from "@/background/dnr-domain-fencing";
 import { createFxBootstrap } from "@/background/firefox-bootstrap-controller";
 import { firefoxBrowserApi } from "@/background/firefox-browser-api";
 import { configureFxTestCookie } from "@/background/firefox-test-cookie";
@@ -564,6 +565,7 @@ registerNavListeners({
   refreshActionState,
   buildFirefoxSeedRedirect: maybeBuildFxRedirect,
   injectFirefoxSeed: injectFxWindowSeed,
+  syncFenceDnrRule,
 });
 
 registerRuntimeObservers({

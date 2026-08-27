@@ -11,6 +11,7 @@ import {
   seedWindowSnapshot,
   setMainWorldSnapshot,
 } from "@/background/main-world-injection";
+import { persistPreloadSafe } from "@/background/preload-persist";
 import type {
   PreparedRuntimeDecisions,
   ResolutionDecision,
@@ -153,6 +154,7 @@ const buildFallbackDecision = async (
     containerAssignments: state.containerAssignments,
     cookieStoreId,
     debugMode: state.debugMode,
+    domainFencingEnabled: state.featureFlags.domainFencing,
     globalFallbackRule: state.globalFallbackRule,
     hostname,
     profiles: state.profiles,
@@ -167,9 +169,18 @@ const buildFallbackDecision = async (
     // eslint-disable-next-line sonarjs/pseudo-random
     snapshot.logEventName = `_${Math.random().toString(36).slice(2, 10)}`;
   }
+  const activeIdentity = resolveActiveIdentity(
+    hostname,
+    cookieStoreId,
+    state.rules,
+    state.containerAssignments,
+  );
   return {
     snapshot,
     trustedSiteMatched: Boolean(matchTrustedSite(hostname, state.trustedSites)),
+    fencesIdentity: Boolean(
+      snapshot && state.featureFlags.domainFencing && activeIdentity?.kind !== "rule",
+    ),
   };
 };
 
@@ -278,6 +289,9 @@ const createRuntimeResolver =
           console.warn("Failed to remember active identity host.", error);
         }),
       );
+    }
+    if (decision.fencesIdentity && decision.snapshot) {
+      await persistPreloadSafe(deps.runtimeState);
     }
     return decision;
   };

@@ -1,3 +1,4 @@
+import { rebuildSessionDnr } from "@/background/dnr-domain-fencing";
 import { buildRequestHeaders } from "@/background/dnr-request-headers";
 import {
   resolveProfileSnapshot,
@@ -8,6 +9,7 @@ import { loadLocations } from "@/background/storage/locations";
 import {
   getFingerprintEnabled,
   getGlobalFallbackRule,
+  getPreferences,
   getSharedSpoofing,
 } from "@/background/storage/preferences";
 import { loadRules } from "@/background/storage/rules";
@@ -379,6 +381,14 @@ export type HeaderRuleInput = {
   profiles: Awaited<ReturnType<typeof loadLocations>>;
   rules: Awaited<ReturnType<typeof loadRules>>;
   fingerprintEnabled: boolean;
+  /**
+   * Domain fencing flag: fences the per-tab header rules for fallback and
+   * container identities so `Sec-CH-UA-Full-Version-List` matches the fenced
+   * JS-visible values. The tab-independent global fallback rule keeps the
+   * spoofed *base* version list — the documented residual window for requests
+   * outside any tab rule (e.g. service-worker-initiated fetches).
+   */
+  domainFencingEnabled?: boolean;
   sharedSpoofing?: SharedSpoofingConfig;
   browserFingerprintSource?: BrowserFingerprintSource;
   globalFallbackRule?: GlobalFallbackRule;
@@ -391,6 +401,7 @@ export const buildHeaderRules = ({
   profiles,
   rules,
   fingerprintEnabled,
+  domainFencingEnabled,
   sharedSpoofing,
   browserFingerprintSource,
   globalFallbackRule,
@@ -410,6 +421,7 @@ export const buildHeaderRules = ({
       containerAssignments,
       cookieStoreId: context.cookieStoreId,
       debugMode: false,
+      domainFencingEnabled,
       globalFallbackRule,
       hostname: context.hostname,
       profiles,
@@ -653,6 +665,7 @@ export const syncDynamicHeaderRules = (
         profiles,
         rules,
         fingerprintEnabled,
+        preferences,
         sharedSpoofing,
         browserFingerprintSource,
         globalFallbackRule,
@@ -662,6 +675,7 @@ export const syncDynamicHeaderRules = (
         loadLocations(),
         loadRules(),
         getFingerprintEnabled(),
+        getPreferences(),
         getSharedSpoofing(),
         readFingerprintSource(),
         getGlobalFallbackRule(),
@@ -673,6 +687,7 @@ export const syncDynamicHeaderRules = (
         profiles,
         rules,
         fingerprintEnabled,
+        domainFencingEnabled: preferences.featureFlags.domainFencing,
         ...(sharedSpoofing ? { sharedSpoofing } : {}),
         ...(browserFingerprintSource ? { browserFingerprintSource } : {}),
         ...(globalFallbackRule ? { globalFallbackRule } : {}),
@@ -695,15 +710,7 @@ export const syncDynamicHeaderRules = (
         ...trustedSiteBypassRules,
         ...cspRules,
       ];
-      const existingRules = await chrome.declarativeNetRequest.getSessionRules();
-      const removeRuleIds = existingRules
-        .map((rule) => rule.id)
-        .filter((id) => id >= TAB_RULE_ID_BASE);
-
-      await chrome.declarativeNetRequest.updateSessionRules({
-        removeRuleIds,
-        addRules: nextRules,
-      });
+      await rebuildSessionDnr(nextRules, TAB_RULE_ID_BASE);
     });
   return syncHeaderRulesInFlight;
 };

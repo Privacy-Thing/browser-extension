@@ -5,11 +5,21 @@ import {
 } from "@privacy-brand/refract-browser/common/firefox-shim-state";
 
 import {
+  buildStarEntries,
+  fenceDecisionSnapshot,
+  fencesPreparedIdentity,
+  toFencingRequest,
+  type FencedIdentity,
+} from "@/background/prepared-runtime-fencing";
+import {
   matchTrustedSite,
   toRuleRuntimeSnapshot,
   toRuntimeSnapshot,
 } from "@/background/rules/resolver";
-import type { SnapshotBuildOptions } from "@/background/rules/resolver-options";
+import type {
+  DomainFencingRequest,
+  SnapshotBuildOptions,
+} from "@/background/rules/resolver-options";
 import type { BrowserFingerprintSource } from "@/shared/browser-fingerprint";
 import type { FeatureFlags } from "@/shared/feature-flags";
 import { resolveRuleSources } from "@/shared/rule-resolution";
@@ -31,6 +41,8 @@ import type {
 export type ResolutionDecision = {
   snapshot: RuntimeSnapshot | null;
   trustedSiteMatched: boolean;
+  /** True when fallback/container identity is fenced for this hostname. */
+  fencesIdentity?: boolean;
 };
 
 export type PreparedRuntimeInputs = {
@@ -59,7 +71,10 @@ export type PreparedRuntimeDecisions = {
   resolveDecision: (hostname: string, cookieStoreId?: string) => ResolutionDecision;
   getPreloadedEntries: () => PreloadedDecisionEntry[];
   getNativeRulePatterns: () => string[];
-  getFxWindowSeed: (cookieStoreId?: string) => FirefoxWindowSeedState | null;
+  getFxWindowSeed: (
+    cookieStoreId?: string,
+    hostname?: string,
+  ) => FirefoxWindowSeedState | null;
 };
 
 type PreparedRuleEntry = {
@@ -154,12 +169,14 @@ const buildRuleSnapshot = (
   rule: DomainRule | GlobalFallbackRule,
   location: Location | undefined,
   inputs: PreparedRuntimeInputs,
+  domainFencing?: DomainFencingRequest,
 ): RuntimeSnapshot | null =>
   materializeSnapshot(
     toRuleRuntimeSnapshot({
       ...toSnapshotBuildOptions(inputs),
       profile: location,
       rule,
+      domainFencing,
     }),
   );
 
@@ -167,6 +184,7 @@ const buildContainerSnapshot = (
   assignment: ContainerAssignment,
   location: Location | undefined,
   inputs: PreparedRuntimeInputs,
+  domainFencing?: DomainFencingRequest,
 ): RuntimeSnapshot | null =>
   materializeSnapshot(
     toRuntimeSnapshot({
@@ -175,9 +193,12 @@ const buildContainerSnapshot = (
       profile: location,
       ruleOverrides: assignment.fingerprintSurfaceOverrides,
       ruleSeedKey: assignment.ruleSeedKey,
+      domainFencing,
     }),
   );
 
+// Domain rules are explicit per-domain configuration: their identity stays
+// static, so rule entries never receive a fencing request.
 const buildPreparedRuleEntries = (
   inputs: PreparedRuntimeInputs,
   locationsById: ReadonlyMap<string, Location>,
@@ -244,6 +265,7 @@ const buildContainerEntries = (
           assignment,
           locationsById.get(assignment.locationId),
           inputs,
+          toFencingRequest(inputs),
         ),
       };
     }
@@ -251,7 +273,12 @@ const buildContainerEntries = (
     return {
       cookieStoreId: assignment.cookieStoreId,
       snapshot: fallbackActive
-        ? buildContainerSnapshot(assignment, fallbackLocation, inputs)
+        ? buildContainerSnapshot(
+            assignment,
+            fallbackLocation,
+            inputs,
+            toFencingRequest(inputs),
+          )
         : null,
     };
   });
@@ -308,7 +335,52 @@ type PreparedDecisionState = {
   ruleEntriesByPattern: ReadonlyMap<string, PreparedRuleEntry>;
   entriesByCookieStore: ReadonlyMap<string, PreparedContainerEntry>;
   fallbackSnapshot: RuntimeSnapshot | null;
+  locationsById: ReadonlyMap<string, Location>;
+  fallbackLocation: Location | undefined;
+  fencedSnapshotCache: Map<string, RuntimeSnapshot | null>;
 };
+
+const rebuildFencedSnapshot = (
+  state: PreparedDecisionState,
+  identity: FencedIdentity,
+  hostname: string,
+): RuntimeSnapshot | null => {
+  const domainFencing = { hostname };
+  if (identity.kind === "fallback") {
+    return state.inputs.globalFallbackRule
+      ? buildRuleSnapshot(
+          state.inputs.globalFallbackRule,
+          state.fallbackLocation,
+          state.inputs,
+          domainFencing,
+        )
+      : null;
+  }
+  return buildContainerSnapshot(
+    identity.assignment,
+    identity.assignment.locationId
+      ? state.locationsById.get(identity.assignment.locationId)
+      : state.fallbackLocation,
+    state.inputs,
+    domainFencing,
+  );
+};
+
+const finalizeFencedDecision = (
+  state: PreparedDecisionState,
+  template: RuntimeSnapshot | null,
+  hostname: string,
+  identity: FencedIdentity,
+): RuntimeSnapshot | null =>
+  fenceDecisionSnapshot({
+    template,
+    hostname,
+    identity,
+    domainFencingEnabled: state.inputs.featureFlags.domainFencing,
+    cache: state.fencedSnapshotCache,
+    rebuild: (nextIdentity, nextHostname) =>
+      rebuildFencedSnapshot(state, nextIdentity, nextHostname),
+  });
 
 const resolvePreparedDecision = (
   state: PreparedDecisionState,
@@ -349,35 +421,63 @@ const resolvePreparedDecision = (
   if (resolvedSources.usableContainer) {
     return {
       snapshot: finalizeNavSnapshot(
-        entriesByCookieStore.get(resolvedSources.usableContainer.cookieStoreId)
-          ?.snapshot ?? null,
+        finalizeFencedDecision(
+          state,
+          entriesByCookieStore.get(resolvedSources.usableContainer.cookieStoreId)
+            ?.snapshot ?? null,
+          hostname,
+          { kind: "container", assignment: resolvedSources.usableContainer },
+        ),
       ),
       trustedSiteMatched: false,
+      fencesIdentity: fencesPreparedIdentity(inputs, "container"),
     };
   }
   const activeContainerSnapshot = resolvedSources.activeContainer
     ? entriesByCookieStore.get(resolvedSources.activeContainer.cookieStoreId)?.snapshot
     : null;
+  const fencedSnapshot =
+    activeContainerSnapshot && resolvedSources.activeContainer
+      ? finalizeFencedDecision(state, activeContainerSnapshot, hostname, {
+          kind: "container",
+          assignment: resolvedSources.activeContainer,
+        })
+      : finalizeFencedDecision(state, fallbackSnapshot, hostname, {
+          kind: "fallback",
+        });
   return {
-    snapshot: finalizeNavSnapshot(activeContainerSnapshot ?? fallbackSnapshot),
+    snapshot: finalizeNavSnapshot(fencedSnapshot),
     trustedSiteMatched: false,
+    fencesIdentity: fencesPreparedIdentity(
+      inputs,
+      activeContainerSnapshot && resolvedSources.activeContainer
+        ? "container"
+        : "fallback",
+    ),
   };
 };
 
-const getPreparedEntries = (state: PreparedDecisionState): PreloadedDecisionEntry[] => {
+const getPreparedEntries = (
+  state: PreparedDecisionState,
+  cookieStoreId?: string,
+): PreloadedDecisionEntry[] => {
   if (state.inputs.controlState.panicMode) return [];
   const entries = state.ruleEntries
     .map(toPreloadedEntry)
     .filter((entry): entry is PreloadedDecisionEntry => entry !== null);
-  if (state.fallbackSnapshot) {
-    const finalizedFallback =
-      finalizeNavSnapshot(state.fallbackSnapshot) ?? state.fallbackSnapshot;
-    entries.push({
-      pattern: "*",
-      blockServiceWorkerRegistration:
-        finalizedFallback.blockServiceWorkerRegistration ?? false,
-      snapshot: finalizedFallback,
-    });
+  const seen = new Set(entries.map((entry) => entry.pattern));
+  for (const entry of buildStarEntries({
+    fallback: state.fallbackSnapshot,
+    fencingOn: state.inputs.featureFlags.domainFencing,
+    cache: state.fencedSnapshotCache,
+    ...(cookieStoreId ? { cookieStoreId } : {}),
+    finalize: finalizeNavSnapshot,
+  })) {
+    if (seen.has(entry.pattern)) {
+      continue;
+    }
+    entries.push(entry);
+    seen.add(entry.pattern);
   }
   return entries;
 };
@@ -392,6 +492,7 @@ const getNativePatterns = (state: PreparedDecisionState): string[] =>
 const getFxSeed = (
   state: PreparedDecisionState,
   cookieStoreId?: string,
+  hostname?: string,
 ): FirefoxWindowSeedState | null => {
   const { inputs, entriesByCookieStore, ruleEntries } = state;
   if (inputs.controlState.panicMode) {
@@ -402,7 +503,10 @@ const getFxSeed = (
       trustedPatterns: [],
     };
   }
-  const entries = getPreparedEntries(state).map((entry) => ({
+  if (hostname && inputs.featureFlags.domainFencing) {
+    resolvePreparedDecision(state, hostname, cookieStoreId);
+  }
+  const entries = getPreparedEntries(state, cookieStoreId).map((entry) => ({
     pattern: entry.pattern,
     state: buildFirefoxShimState(finalizeNavSnapshot(entry.snapshot)),
   }));
@@ -470,7 +574,12 @@ export const createPreparedDecisions = (
   );
   const fallbackSnapshot =
     globalFallbackRule?.enabled && (fallbackLocation || inputs.fingerprintEnabled)
-      ? buildRuleSnapshot(globalFallbackRule, fallbackLocation, inputs)
+      ? buildRuleSnapshot(
+          globalFallbackRule,
+          fallbackLocation,
+          inputs,
+          toFencingRequest(inputs),
+        )
       : null;
   const state: PreparedDecisionState = {
     inputs,
@@ -478,6 +587,9 @@ export const createPreparedDecisions = (
     ruleEntriesByPattern,
     entriesByCookieStore,
     fallbackSnapshot,
+    locationsById,
+    fallbackLocation,
+    fencedSnapshotCache: new Map(),
   };
 
   return {
@@ -485,6 +597,7 @@ export const createPreparedDecisions = (
       resolvePreparedDecision(state, hostname, cookieStoreId),
     getPreloadedEntries: () => getPreparedEntries(state),
     getNativeRulePatterns: () => getNativePatterns(state),
-    getFxWindowSeed: (cookieStoreId) => getFxSeed(state, cookieStoreId),
+    getFxWindowSeed: (cookieStoreId, hostname) =>
+      getFxSeed(state, cookieStoreId, hostname),
   };
 };

@@ -284,10 +284,15 @@ describe("getPreferences / savePreferences", () => {
   });
 
   it("merges partial feature-flag updates", async () => {
-    await savePreferences({ featureFlags: { temporalApi: true } });
+    await savePreferences({
+      featureFlags: { temporalApi: true, domainFencing: false },
+    });
     await savePreferences({ debugMode: true });
 
-    expect((await getPreferences()).featureFlags).toEqual({ temporalApi: true });
+    expect((await getPreferences()).featureFlags).toEqual({
+      temporalApi: true,
+      domainFencing: false,
+    });
   });
 
   it("does not lose fields under concurrent partial writes", async () => {

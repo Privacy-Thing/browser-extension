@@ -64,7 +64,7 @@ describe("buildSpoofingSurfaces", () => {
     ({ enabled, nativeTemporalApi, expected }) => {
       const surfaces = buildSpoofingSurfaces({
         browserTarget: "chromium",
-        featureFlags: { temporalApi: enabled },
+        featureFlags: { temporalApi: enabled, domainFencing: false },
         nativeTemporalApi,
         sharedSpoofing: undefined,
       });
