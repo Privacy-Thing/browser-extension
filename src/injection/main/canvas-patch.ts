@@ -23,6 +23,7 @@ import { inspectPatchAnchors } from "@privacy-brand/refract-core/runtime/patch-m
 import {
   createPrivateWeakMap,
   privateDefineProperties,
+  privateOwnDescriptor,
   privateWeakMapDelete,
   privateWeakMapGet,
   privateWeakMapSet,
@@ -79,6 +80,28 @@ const noCanvasOwnership = (): CanvasIntegrityOwnership => ({
   offscreenContext2D: false,
 });
 
+const restoreCanvasAnchor = (
+  target: object,
+  key: PropertyKey,
+  value: Function,
+): void => {
+  const current = privateOwnDescriptor(target, key);
+  if (current?.configurable === false) {
+    return;
+  }
+  try {
+    privateDefineProperties(target, {
+      [key]: {
+        configurable: true,
+        writable: true,
+        value,
+      },
+    });
+  } catch {
+    // Hostile non-configurable replacement is reported by the integrity registry.
+  }
+};
+
 const syncCanvasInstall = (input: CanvasSyncInput): boolean => {
   const {
     canvasPrototype,
@@ -98,6 +121,8 @@ const syncCanvasInstall = (input: CanvasSyncInput): boolean => {
     existingInstallation.canvasPrototype !== canvasPrototype ||
     existingInstallation.contextPrototype !== contextPrototype
   ) {
+    // A replaced prototype identity is a new realm. Do not copy closures from
+    // the previous document into it, and do not treat page sentinels as native.
     privateWeakMapDelete(canvasInstallations, targetGlobal);
     return false;
   }
@@ -105,32 +130,17 @@ const syncCanvasInstall = (input: CanvasSyncInput): boolean => {
     (currentGetImageData !== existingInstallation.getImageData ? 1 : 0) +
     (currentToDataURL !== existingInstallation.toDataURL ? 1 : 0) +
     (currentToBlob !== existingInstallation.toBlob ? 1 : 0);
-  if (changedAnchorCount === 3) {
-    // A replaced prototype baseline (navigation/test realm reset) is a new
-    // installation. Do not copy closures from the previous document into it.
-    privateWeakMapDelete(canvasInstallations, targetGlobal);
-    return false;
-  }
   if (changedAnchorCount > 0) {
-    privateDefineProperties(contextPrototype, {
-      getImageData: {
-        configurable: true,
-        writable: true,
-        value: existingInstallation.getImageData,
-      },
-    });
-    privateDefineProperties(canvasPrototype, {
-      toDataURL: {
-        configurable: true,
-        writable: true,
-        value: existingInstallation.toDataURL,
-      },
-      toBlob: {
-        configurable: true,
-        writable: true,
-        value: existingInstallation.toBlob,
-      },
-    });
+    // Same prototypes: replacing one, two, or all three export/readback
+    // anchors is tampering. Restore the canonical wrappers atomically and
+    // never adopt page sentinels as a new native baseline.
+    restoreCanvasAnchor(
+      contextPrototype,
+      "getImageData",
+      existingInstallation.getImageData,
+    );
+    restoreCanvasAnchor(canvasPrototype, "toDataURL", existingInstallation.toDataURL);
+    restoreCanvasAnchor(canvasPrototype, "toBlob", existingInstallation.toBlob);
   }
   existingInstallation.runtimeState.debugSnapshot = snapshot;
   if (existingInstallation.runtimeState.seed !== nextSeed) {

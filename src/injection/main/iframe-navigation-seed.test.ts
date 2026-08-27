@@ -57,4 +57,20 @@ describe("iframe navigation seed policy", () => {
       ),
     ).toBeNull();
   });
+
+  it("trims destinations with the captured String.prototype.trim", () => {
+    const nativeTrim = String.prototype.trim;
+    String.prototype.trim = () => "https://tracker.test/frame";
+    try {
+      expect(
+        sameOriginSeedHostname(
+          "  /frame  ",
+          "https://example.test/page",
+          "https://example.test",
+        ),
+      ).toBe("example.test");
+    } finally {
+      String.prototype.trim = nativeTrim;
+    }
+  });
 });

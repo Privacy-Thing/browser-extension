@@ -38,6 +38,7 @@ const nativeSetAdd = Set.prototype.add;
 const nativeSetForEach = Set.prototype.forEach;
 const nativeSetHas = Set.prototype.has;
 const nativeStringIncludes = String.prototype.includes;
+const nativeStringTrim = String.prototype.trim;
 const nativeSymbolFor = Symbol.for;
 const nativeWeakMapGet = WeakMap.prototype.get;
 const nativeWeakMapHas = WeakMap.prototype.has;
@@ -210,6 +211,9 @@ export const privateSetHas = <T>(target: ReadonlySet<T>, value: T): boolean =>
 
 export const privateStringIncludes = (value: string, search: string): boolean =>
   nativeReflectApply(nativeStringIncludes, value, [search]) as boolean;
+
+export const privateStringTrim = (value: string): string =>
+  nativeReflectApply(nativeStringTrim, value, []) as string;
 
 export const privateSymbolFor = (key: string): symbol =>
   nativeReflectApply(nativeSymbolFor, Symbol, [key]) as symbol;

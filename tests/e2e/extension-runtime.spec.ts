@@ -1443,6 +1443,95 @@ test("keeps the worker native-mask registry off public symbols", async ({
   });
 });
 
+test("confirms a real dedicated Worker bootstrap-ack without leaking it to page listeners", async ({
+  context,
+  extensionId,
+  serverUrl,
+}) => {
+  await assignDomainProfile(context, extensionId, serverUrl, "Warsaw");
+
+  const page = await context.newPage();
+  await page.goto(getProbeHostUrl(serverUrl));
+  await page.reload();
+
+  const value = await page.evaluate(async () => {
+    const token = "page-worker-payload";
+    const workerUrl = URL.createObjectURL(
+      new Blob(
+        [
+          `postMessage({
+            token: ${JSON.stringify(token)},
+            language: navigator.language
+          });`,
+        ],
+        { type: "text/javascript" },
+      ),
+    );
+    const worker = new Worker(workerUrl);
+    try {
+      return await new Promise<{ language: string; token: string }>(
+        (resolve, reject) => {
+          worker.addEventListener("message", (event) => resolve(event.data), {
+            once: true,
+          });
+          worker.addEventListener(
+            "error",
+            (event) => reject(new Error(event.message)),
+            { once: true },
+          );
+        },
+      );
+    } finally {
+      worker.terminate();
+      URL.revokeObjectURL(workerUrl);
+    }
+  });
+
+  expect(value).toEqual({
+    language: "pl",
+    token: "page-worker-payload",
+  });
+
+  const popupPage = await openPopupPage(context, extensionId, page);
+  const targetTabId = Number(new URL(popupPage.url()).searchParams.get("tabId"));
+  expect(Number.isInteger(targetTabId)).toBe(true);
+
+  await expect
+    .poll(async () =>
+      popupPage.evaluate(
+        async ({ commandType, tabId }) => {
+          const response = (await chrome.runtime.sendMessage({
+            type: commandType,
+            tabId,
+          })) as {
+            accessedCategories?: { worker?: boolean };
+            assessments?: Array<{
+              key?: string;
+              presentation?: string;
+            }>;
+            failedCategories?: { worker?: boolean };
+            ok?: boolean;
+          };
+          if (!response.ok || response.failedCategories?.worker) return false;
+          const workerAssessment = response.assessments?.find(
+            (assessment) => assessment.key === "worker",
+          );
+          return (
+            response.accessedCategories?.worker === true &&
+            workerAssessment?.presentation !== "degraded" &&
+            workerAssessment?.presentation !== "unrecoverable"
+          );
+        },
+        {
+          commandType: EXTENSION_COMMAND_TYPES.getXRayState,
+          tabId: targetTabId,
+        },
+      ),
+    )
+    .toBe(true);
+  await popupPage.close();
+});
+
 test("keeps worker bootstrap decoding independent from page-controlled intrinsics", async ({
   context,
   extensionId,

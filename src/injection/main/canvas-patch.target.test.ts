@@ -1169,6 +1169,104 @@ describe("installCanvasPatch", () => {
     expect(MockHTMLCanvasElement.prototype.toBlob).toBe(installed.toBlob);
   });
 
+  it("treats replacement of all three Canvas anchors as tampering when prototypes are unchanged", () => {
+    installCanvasPatch(buildSnapshot());
+    const installed = {
+      getImageData: MockCanvasContext2D.prototype.getImageData,
+      toBlob: MockHTMLCanvasElement.prototype.toBlob,
+      toDataURL: MockHTMLCanvasElement.prototype.toDataURL,
+    };
+    const sentinelToDataURL = () => "data:,parent-poison";
+    Object.defineProperty(MockCanvasContext2D.prototype, "getImageData", {
+      configurable: true,
+      writable: true,
+      value: originalGetImageData,
+    });
+    Object.defineProperty(MockHTMLCanvasElement.prototype, "toDataURL", {
+      configurable: true,
+      writable: true,
+      value: sentinelToDataURL,
+    });
+    Object.defineProperty(MockHTMLCanvasElement.prototype, "toBlob", {
+      configurable: true,
+      writable: true,
+      value: originalToBlob,
+    });
+
+    installCanvasPatch(buildSnapshot());
+
+    expect(MockCanvasContext2D.prototype.getImageData).toBe(installed.getImageData);
+    expect(MockHTMLCanvasElement.prototype.toDataURL).toBe(installed.toDataURL);
+    expect(MockHTMLCanvasElement.prototype.toBlob).toBe(installed.toBlob);
+
+    const canvas = new MockHTMLCanvasElement();
+    const expected = `data:image/mock;base64,${Array.from(
+      createExpectedNoise(canvas.width, canvas.height, 42),
+    ).join(",")}`;
+    expect(canvas.toDataURL()).toBe(expected);
+    expect(canvas.toDataURL()).not.toBe("data:,parent-poison");
+  });
+
+  it("does not adopt a non-configurable Canvas sentinel as a new native baseline", () => {
+    class IsolatedCanvas {
+      toDataURL(): string {
+        return "data:,isolated-native";
+      }
+
+      toBlob(callback: BlobCallback): void {
+        callback(new Blob());
+      }
+    }
+
+    class IsolatedContext {
+      getImageData(): ImageData {
+        return {
+          data: new Uint8ClampedArray(4),
+          width: 1,
+          height: 1,
+          colorSpace: "srgb",
+        } as ImageData;
+      }
+    }
+
+    const isolatedGetImageData = IsolatedContext.prototype.getImageData;
+    const isolatedToBlob = IsolatedCanvas.prototype.toBlob;
+    const isolatedGlobal = {
+      HTMLCanvasElement: IsolatedCanvas,
+      CanvasRenderingContext2D: IsolatedContext,
+    } as unknown as typeof globalThis;
+
+    installCanvasPatch(buildSnapshot(), isolatedGlobal);
+    const installed = {
+      getImageData: IsolatedContext.prototype.getImageData,
+      toBlob: IsolatedCanvas.prototype.toBlob,
+      toDataURL: IsolatedCanvas.prototype.toDataURL,
+    };
+    const sentinelToDataURL = () => "data:,parent-poison";
+    Object.defineProperty(IsolatedCanvas.prototype, "toDataURL", {
+      configurable: false,
+      writable: true,
+      value: sentinelToDataURL,
+    });
+    Object.defineProperty(IsolatedContext.prototype, "getImageData", {
+      configurable: true,
+      writable: true,
+      value: isolatedGetImageData,
+    });
+    Object.defineProperty(IsolatedCanvas.prototype, "toBlob", {
+      configurable: true,
+      writable: true,
+      value: isolatedToBlob,
+    });
+
+    installCanvasPatch(buildSnapshot(), isolatedGlobal);
+
+    expect(IsolatedContext.prototype.getImageData).toBe(installed.getImageData);
+    expect(IsolatedCanvas.prototype.toBlob).toBe(installed.toBlob);
+    expect(IsolatedCanvas.prototype.toDataURL).toBe(sentinelToDataURL);
+    expect(MockHTMLCanvasElement.prototype.toDataURL).toBe(originalToDataURL);
+  });
+
   it("does not expose its installation registry through poisoned WeakMap methods", () => {
     installCanvasPatch(buildSnapshot());
     const nativeGet = WeakMap.prototype.get;

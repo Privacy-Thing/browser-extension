@@ -8,6 +8,10 @@ import {
   mirrorNativeToStringInto,
   registerNativeSource,
 } from "@privacy-brand/refract-core/native/native-mask";
+import {
+  privateWeakSetAdd,
+  privateWeakSetHas,
+} from "@privacy-brand/refract-core/runtime/primordials";
 
 import { installCanvasPatch } from "@/injection/main/canvas-patch";
 import { installClientHintsPatch } from "@/injection/main/client-hints-patch";
@@ -77,8 +81,8 @@ export class IframeRealmInstaller {
     if (!win.navigator) return;
     this.#installDocumentHooks(win);
     const navPrototype = Object.getPrototypeOf(win.navigator) as object | null;
-    if (navPrototype && this.#patchedNavProtos.has(navPrototype)) return;
-    if (navPrototype) this.#patchedNavProtos.add(navPrototype);
+    if (navPrototype && privateWeakSetHas(this.#patchedNavProtos, navPrototype)) return;
+    if (navPrototype) privateWeakSetAdd(this.#patchedNavProtos, navPrototype);
     const integrity = this.#createIntegrity(frame, win);
     this.#installSurfaces(iframeGlobal, win, navPrototype, integrity);
     this.#installDateIntl(iframeGlobal, integrity);
