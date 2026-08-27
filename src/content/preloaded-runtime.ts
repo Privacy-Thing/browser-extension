@@ -96,9 +96,9 @@ export const resolvePreloadedSnapshot = (
     blockServiceWorkerRegistration: entry.blockServiceWorkerRegistration,
   };
 
-  // Shared `"*"` carriers may still carry a fencing marker. Page and worker
-  // realms finalize it; this isolated-world resolver must not pull the
-  // suffix table into the content-bootstrap budget.
+  // Shared `"*"` carriers omit generated fingerprint when Domain fencing is
+  // on. Leftover unknown fingerprint fields from an older session must not
+  // fail validation here.
   return isRuntimeSnapshot(snapshot) ? snapshot : null;
 };
 

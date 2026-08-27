@@ -9,7 +9,6 @@ import {
   WORKER_RUNTIME_SOURCE_BYTE_LENGTH,
 } from "@privacy-brand/refract-worker";
 
-import { applySnapshotFencing } from "@/shared/domain-fencing";
 import type { RuntimeSnapshot } from "@/shared/types";
 
 let workerRuntimeSource: string | undefined;
@@ -73,12 +72,7 @@ const getWorkerRuntimeSource = (): string => {
  * generated source safe to embed inside a script string.
  */
 const serializeSnapshot = (snapshot: RuntimeSnapshot): string =>
-  safeJsonStringify(
-    applySnapshotFencing(
-      snapshot,
-      typeof location === "object" && location ? location.hostname : "",
-    ),
-  );
+  safeJsonStringify(snapshot);
 
 /**
  * Wraps a worker URL with a small bootstrap that installs spoofed runtime

@@ -1,8 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { resolveProfileSnapshot } from "@/background/rules/resolver";
-import { BUILD_BROWSER_TARGET } from "@/shared/build-flags";
-import { applySnapshotFencing } from "@/shared/domain-fencing";
+import { resolveProfileSnapshot, toRuntimeSnapshot } from "@/background/rules/resolver";
 import type { Location, RuntimeSnapshot } from "@/shared/types";
 
 const profile: Location = {
@@ -78,7 +76,6 @@ describe("domain fencing in resolveProfileSnapshot", () => {
     expect(off?.fingerprint?.canvasNoiseSeed).toBe(
       stillOff?.fingerprint?.canvasNoiseSeed,
     );
-    expect(off?.fingerprint?.fencing).toBeUndefined();
     expect(off?.locale.timeZone).toBe("Europe/Warsaw");
     expect(off?.authKey).toBe("fa11bac0");
   });
@@ -93,40 +90,46 @@ describe("domain fencing in resolveProfileSnapshot", () => {
     expect(on?.authKey).toBe(off?.authKey);
   });
 
-  it("varies generated fingerprint values per eTLD+1", () => {
+  it("varies generated fingerprint values per eTLD+1 on every target", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-01-15T12:00:00.000Z"));
     const first = resolve("www.example.com", true);
     const sameSite = resolve("shop.example.com", true);
     const other = resolve("news.other.org", true);
 
-    if (BUILD_BROWSER_TARGET === "chromium") {
-      expect(first?.fingerprint?.fencing).toBeUndefined();
-      expect(first?.fingerprint?.canvasNoiseSeed).toBe(
-        sameSite?.fingerprint?.canvasNoiseSeed,
-      );
-      expect(first?.fingerprint?.canvasNoiseSeed).not.toBe(
-        other?.fingerprint?.canvasNoiseSeed,
-      );
-      expect(first?.fingerprint?.clientHints?.fullVersionList).not.toEqual(
-        other?.fingerprint?.clientHints?.fullVersionList,
-      );
-    } else {
-      expect(first?.fingerprint?.fencing?.key).toBe(other?.fingerprint?.fencing?.key);
-      expect(first?.fingerprint?.canvasNoiseSeed).toBe(
-        other?.fingerprint?.canvasNoiseSeed,
-      );
-      const fencedFirst = applySnapshotFencing(first!, "www.example.com");
-      const fencedSame = applySnapshotFencing(sameSite!, "shop.example.com");
-      const fencedOther = applySnapshotFencing(other!, "news.other.org");
-      expect(fencedFirst.fingerprint?.canvasNoiseSeed).toBe(
-        fencedSame.fingerprint?.canvasNoiseSeed,
-      );
-      expect(fencedFirst.fingerprint?.canvasNoiseSeed).not.toBe(
-        fencedOther.fingerprint?.canvasNoiseSeed,
-      );
-      expect(fencedFirst.fingerprint?.fencing).toBeUndefined();
-    }
+    expect(first?.fingerprint?.canvasNoiseSeed).toBe(
+      sameSite?.fingerprint?.canvasNoiseSeed,
+    );
+    expect(first?.fingerprint?.canvasNoiseSeed).not.toBe(
+      other?.fingerprint?.canvasNoiseSeed,
+    );
+    expect(first?.fingerprint?.clientHints?.fullVersionList).not.toEqual(
+      other?.fingerprint?.clientHints?.fullVersionList,
+    );
+    expect(first?.fingerprint?.clientHints?.fullVersionList).toEqual(
+      sameSite?.fingerprint?.clientHints?.fullVersionList,
+    );
+  });
+
+  it("omits generated fingerprint on shared templates without a hostname", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-15T12:00:00.000Z"));
+    const template = toRuntimeSnapshot({
+      authKey: "fa11bac0",
+      browserFingerprintSource: fingerprintSource,
+      debugMode: false,
+      domainFencing: {},
+      fingerprintEnabled: true,
+      profile,
+      ruleOverrides: undefined,
+      ruleSeedKey: "glb123",
+      sharedSpoofing: undefined,
+      sharedWorkerHandlingMode: "native",
+      watchPositionDelay: [60, 500],
+    });
+    expect(template.fingerprint).toBeUndefined();
+    expect(template.locale.timeZone).toBe("Europe/Warsaw");
+    expect(template.authKey).toBe("fa11bac0");
   });
 
   it("does not fence an explicit domain rule", () => {
@@ -152,7 +155,6 @@ describe("domain fencing in resolveProfileSnapshot", () => {
         },
       ],
     });
-    expect(on?.fingerprint?.fencing).toBeUndefined();
     expect(on?.fingerprint?.canvasNoiseSeed).toBe(off?.fingerprint?.canvasNoiseSeed);
     expect(on?.authKey).toBeUndefined();
   });

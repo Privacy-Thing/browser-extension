@@ -19,12 +19,10 @@ import {
   type BrowserFingerprintSource,
   detectBrowserFamily,
 } from "@/shared/browser-fingerprint";
-import { BUILD_BROWSER_TARGET } from "@/shared/build-flags";
 import {
   deriveFenceBaseKey,
   deriveFencedSeedKey,
   getSiteKey,
-  type FingerprintFencing,
 } from "@/shared/domain-fencing";
 import {
   buildSimpleFpExtras,
@@ -277,22 +275,18 @@ const resolveNativeEnvironment = (
 type FencingPlan = {
   /** Seed used for noise / hardware / version derivation. */
   seedKey: string | null;
-  /** Marker for realm-side finalization on shared or Firefox channels. */
-  marker: FingerprintFencing | undefined;
+  /** Shared templates omit generated fingerprint instead of a page marker. */
+  omitFp: boolean;
 };
 
 /**
  * Resolves how domain fencing applies to this snapshot build.
  *
- * - No request or no usable identity seed → base seed, no marker.
- * - Hostname known on Chromium → derive the fenced seed here; every Chromium
- *   delivery channel is background-resolved per hostname, so the snapshot can
- *   carry fully fenced values (noise, hardware selection, version rotation).
- * - Otherwise (multi-domain template, or any Firefox build) → keep the base
- *   seed and attach a marker; the consuming realm finalizes noise seeds via
- *   `applyFencedNoiseSeeds`. Firefox stays marker-based even with a hostname
- *   because its static/userScripts and `window.name` catalog channels can only
- *   fence in-realm — background parity would otherwise diverge from them.
+ * - No request or no usable identity seed → base seed, keep fingerprint.
+ * - Hostname known → derive the fenced seed here on every target (noise,
+ *   hardware selection, version rotation). No page-visible marker.
+ * - Hostname absent (shared `*` templates) → omit generated fingerprint so
+ *   the page cannot install a correlatable Default Rule identity.
  *
  * `authKey` is never involved (invariant #4): fencing derives only from the
  * rotatable `ruleSeedKey`.
@@ -302,18 +296,18 @@ const resolveFencingPlan = (
   baseSeedKey: string | null,
 ): FencingPlan => {
   if (!domainFencing || !baseSeedKey) {
-    return { seedKey: baseSeedKey, marker: undefined };
+    return { seedKey: baseSeedKey, omitFp: false };
   }
 
-  const fenceBaseKey = deriveFenceBaseKey(baseSeedKey);
-  if (domainFencing.hostname !== undefined && BUILD_BROWSER_TARGET === "chromium") {
-    return {
-      seedKey: deriveFencedSeedKey(fenceBaseKey, getSiteKey(domainFencing.hostname)),
-      marker: undefined,
-    };
+  const siteKey = domainFencing.hostname ? getSiteKey(domainFencing.hostname) : "";
+  if (!siteKey) {
+    return { seedKey: null, omitFp: true };
   }
 
-  return { seedKey: baseSeedKey, marker: { key: fenceBaseKey } };
+  return {
+    seedKey: deriveFencedSeedKey(deriveFenceBaseKey(baseSeedKey), siteKey),
+    omitFp: false,
+  };
 };
 
 type SurfaceGateOptions = Pick<
@@ -381,24 +375,26 @@ export const toRuntimeSnapshot = ({
     nativeTimeZone,
   } = resolveNativeEnvironment(browserFingerprintSource);
   const fencingPlan = resolveFencingPlan(domainFencing, readRuleSeedKey(ruleSeedKey));
-  const fingerprintSeedKey = fencingPlan.seedKey;
-  const fingerprint = createBrowserFingerprint(
-    {
-      userAgent: nativeFingerprint?.userAgent,
-      platform: nativeFingerprint?.platform,
-      vendor: nativeFingerprint?.vendor,
-      hardwareConcurrency: nativeFingerprint?.hardwareConcurrency,
-      deviceMemory: canSpoofDeviceMemory(browserFamily)
-        ? nativeFingerprint?.deviceMemory
-        : undefined,
-      userAgentData: nativeFingerprint?.userAgentData,
-    },
-    fingerprintEnabled,
-    {
-      rotateChromiumVersion: sharedSpoofing?.clientHintsVersionRotation !== false,
-      ...(fingerprintSeedKey ? { versionSeedKey: fingerprintSeedKey } : {}),
-    },
-  );
+  const fingerprintSeedKey = fencingPlan.omitFp ? null : fencingPlan.seedKey;
+  const fingerprint = fencingPlan.omitFp
+    ? undefined
+    : createBrowserFingerprint(
+        {
+          userAgent: nativeFingerprint?.userAgent,
+          platform: nativeFingerprint?.platform,
+          vendor: nativeFingerprint?.vendor,
+          hardwareConcurrency: nativeFingerprint?.hardwareConcurrency,
+          deviceMemory: canSpoofDeviceMemory(browserFamily)
+            ? nativeFingerprint?.deviceMemory
+            : undefined,
+          userAgentData: nativeFingerprint?.userAgentData,
+        },
+        fingerprintEnabled,
+        {
+          rotateChromiumVersion: sharedSpoofing?.clientHintsVersionRotation !== false,
+          ...(fingerprintSeedKey ? { versionSeedKey: fingerprintSeedKey } : {}),
+        },
+      );
 
   const runtimeLocale = resolveRuntimeLocale(profile, nativeLanguage, nativeLanguages);
   const effectiveTimeZone = profile?.timeZone ?? nativeTimeZone;
@@ -418,21 +414,19 @@ export const toRuntimeSnapshot = ({
     nativeFingerprint?.userAgentData?.platform ?? nativeFingerprint?.platform,
   );
   const hostArch = normalizeHardwareArch(nativeFingerprint?.architecture);
-  const extendedFingerprint = extendFingerprint({
-    browserFamily,
-    fingerprintEnabled,
-    fingerprint,
-    fingerprintSeedKey,
-    hostArch,
-    hostPlatformKey,
-    nativeDeviceMemory: nativeFingerprint?.deviceMemory,
-    ruleOverrides,
-    sharedSpoofing,
-  });
-  const fencedFingerprint =
-    extendedFingerprint && fencingPlan.marker
-      ? { ...extendedFingerprint, fencing: fencingPlan.marker }
-      : extendedFingerprint;
+  const extendedFingerprint = fencingPlan.omitFp
+    ? undefined
+    : extendFingerprint({
+        browserFamily,
+        fingerprintEnabled,
+        fingerprint,
+        fingerprintSeedKey,
+        hostArch,
+        hostPlatformKey,
+        nativeDeviceMemory: nativeFingerprint?.deviceMemory,
+        ruleOverrides,
+        sharedSpoofing,
+      });
 
   return {
     debugMode,
@@ -465,7 +459,7 @@ export const toRuntimeSnapshot = ({
         60_000,
       timeZone: effectiveTimeZone,
     },
-    ...(fencedFingerprint ? { fingerprint: fencedFingerprint } : {}),
+    ...(extendedFingerprint ? { fingerprint: extendedFingerprint } : {}),
     ...(authKey ? { authKey } : {}),
   };
 };

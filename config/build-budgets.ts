@@ -16,7 +16,8 @@ export const BUNDLE_SIZE_TOLERANCE = 256;
  * Chromium isolated-world content bootstrap (uncompressed).
  *
  * Must not pull profile resolution, generated catalogs, or domain-fencing
- * suffix tables. Page and worker realms finalize fencing markers.
+ * suffix tables. Fencing is finished in the background; injected graphs
+ * only install the snapshot they receive.
  */
 export const CHROME_BOOT_MAX_BYTES = 15 * 1024;
 

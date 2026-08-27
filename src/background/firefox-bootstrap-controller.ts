@@ -301,16 +301,21 @@ const createWindowSeed =
           ? await deps.getPopupTabById(tabId)
           : undefined;
       resolvedCookieStoreId = cookieStoreId ?? liveTab?.cookieStoreId;
+      const hostname =
+        navigationUrl && deps.isSupportedWebUrl(navigationUrl)
+          ? deps.getExactHostname(navigationUrl)
+          : undefined;
+      const seedHostname = hostname || undefined;
       let seedState =
         deps.runtimeState
           .getPreparedDecisions()
-          ?.getFxWindowSeed(resolvedCookieStoreId) ?? null;
+          ?.getFxWindowSeed(resolvedCookieStoreId, seedHostname) ?? null;
       if (!seedState) {
         await syncPreloadedState();
         seedState =
           deps.runtimeState
             .getPreparedDecisions()
-            ?.getFxWindowSeed(resolvedCookieStoreId) ?? null;
+            ?.getFxWindowSeed(resolvedCookieStoreId, seedHostname) ?? null;
       }
       if (!seedState) {
         deps.logBootstrapEvent("navigation.firefox-window-name-seed", {
@@ -324,8 +329,7 @@ const createWindowSeed =
         });
         return;
       }
-      if (deps.isSupportedWebUrl(navigationUrl)) {
-        const hostname = deps.getExactHostname(navigationUrl);
+      if (hostname && deps.isSupportedWebUrl(navigationUrl)) {
         if (parseFirefoxHashSeed(new URL(navigationUrl).hash) !== null) {
           deps.logBootstrapEvent("navigation.firefox-window-name-seed", {
             tabId,
@@ -424,13 +428,17 @@ export const createFxBootstrap = (deps: FirefoxBootstrapDeps) => {
   ): Promise<string | null> => {
     if (BUILD_BROWSER_TARGET !== "firefox") return null;
     const hostname = deps.getExactHostname(url);
+    const seedHostname = hostname || undefined;
     let seedState =
-      deps.runtimeState.getPreparedDecisions()?.getFxWindowSeed(cookieStoreId) ?? null;
+      deps.runtimeState
+        .getPreparedDecisions()
+        ?.getFxWindowSeed(cookieStoreId, seedHostname) ?? null;
     if (!seedState) {
       await syncPreloadedState();
       seedState =
-        deps.runtimeState.getPreparedDecisions()?.getFxWindowSeed(cookieStoreId) ??
-        null;
+        deps.runtimeState
+          .getPreparedDecisions()
+          ?.getFxWindowSeed(cookieStoreId, seedHostname) ?? null;
     }
     const activeTab = await deps.getPopupTabById(tabId);
     let skipSameHostDocument: boolean;

@@ -43,7 +43,6 @@ import {
   FX_SOURCE_ORDER,
   getFxTransportInfo,
 } from "@/injection/firefox/bootstrap-transport-manifest";
-import { fenceFxShimState } from "@/injection/firefox/fence-shim-state";
 import { installFxEarlyModules } from "@/injection/firefox/firefox-early-modules";
 import { createFxRevisionGate } from "@/injection/firefox/state-revision-gate";
 import {
@@ -452,9 +451,7 @@ import type { XRaySurfaceCategory } from "@/shared/types";
     return true;
   });
   const applyState = (state: FirefoxShimState): boolean =>
-    stateRevisionGate.apply(
-      fenceFxShimState(state, globalThis.location?.hostname ?? ""),
-    );
+    stateRevisionGate.apply(state);
 
   // --- Hybrid bootstrap: static state seed + ephemeral DOM + CustomEvent ---
 

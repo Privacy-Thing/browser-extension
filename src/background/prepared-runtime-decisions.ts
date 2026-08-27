@@ -5,6 +5,7 @@ import {
 } from "@privacy-brand/refract-browser/common/firefox-shim-state";
 
 import {
+  buildStarEntries,
   fenceDecisionSnapshot,
   fencesPreparedIdentity,
   toFencingRequest,
@@ -70,7 +71,10 @@ export type PreparedRuntimeDecisions = {
   resolveDecision: (hostname: string, cookieStoreId?: string) => ResolutionDecision;
   getPreloadedEntries: () => PreloadedDecisionEntry[];
   getNativeRulePatterns: () => string[];
-  getFxWindowSeed: (cookieStoreId?: string) => FirefoxWindowSeedState | null;
+  getFxWindowSeed: (
+    cookieStoreId?: string,
+    hostname?: string,
+  ) => FirefoxWindowSeedState | null;
 };
 
 type PreparedRuleEntry = {
@@ -453,20 +457,27 @@ const resolvePreparedDecision = (
   };
 };
 
-const getPreparedEntries = (state: PreparedDecisionState): PreloadedDecisionEntry[] => {
+const getPreparedEntries = (
+  state: PreparedDecisionState,
+  cookieStoreId?: string,
+): PreloadedDecisionEntry[] => {
   if (state.inputs.controlState.panicMode) return [];
   const entries = state.ruleEntries
     .map(toPreloadedEntry)
     .filter((entry): entry is PreloadedDecisionEntry => entry !== null);
-  if (state.fallbackSnapshot) {
-    const finalizedFallback =
-      finalizeNavSnapshot(state.fallbackSnapshot) ?? state.fallbackSnapshot;
-    entries.push({
-      pattern: "*",
-      blockServiceWorkerRegistration:
-        finalizedFallback.blockServiceWorkerRegistration ?? false,
-      snapshot: finalizedFallback,
-    });
+  const seen = new Set(entries.map((entry) => entry.pattern));
+  for (const entry of buildStarEntries({
+    fallback: state.fallbackSnapshot,
+    fencingOn: state.inputs.featureFlags.domainFencing,
+    cache: state.fencedSnapshotCache,
+    ...(cookieStoreId ? { cookieStoreId } : {}),
+    finalize: finalizeNavSnapshot,
+  })) {
+    if (seen.has(entry.pattern)) {
+      continue;
+    }
+    entries.push(entry);
+    seen.add(entry.pattern);
   }
   return entries;
 };
@@ -481,6 +492,7 @@ const getNativePatterns = (state: PreparedDecisionState): string[] =>
 const getFxSeed = (
   state: PreparedDecisionState,
   cookieStoreId?: string,
+  hostname?: string,
 ): FirefoxWindowSeedState | null => {
   const { inputs, entriesByCookieStore, ruleEntries } = state;
   if (inputs.controlState.panicMode) {
@@ -491,7 +503,10 @@ const getFxSeed = (
       trustedPatterns: [],
     };
   }
-  const entries = getPreparedEntries(state).map((entry) => ({
+  if (hostname && inputs.featureFlags.domainFencing) {
+    resolvePreparedDecision(state, hostname, cookieStoreId);
+  }
+  const entries = getPreparedEntries(state, cookieStoreId).map((entry) => ({
     pattern: entry.pattern,
     state: buildFirefoxShimState(finalizeNavSnapshot(entry.snapshot)),
   }));
@@ -582,6 +597,7 @@ export const createPreparedDecisions = (
       resolvePreparedDecision(state, hostname, cookieStoreId),
     getPreloadedEntries: () => getPreparedEntries(state),
     getNativeRulePatterns: () => getNativePatterns(state),
-    getFxWindowSeed: (cookieStoreId) => getFxSeed(state, cookieStoreId),
+    getFxWindowSeed: (cookieStoreId, hostname) =>
+      getFxSeed(state, cookieStoreId, hostname),
   };
 };

@@ -9,7 +9,9 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 - Added an experimental Domain fencing option that gives each website its own
   stable variation of the Default Rule's generated browser data, so sites cannot
   link visits through an identical fingerprint. Manually chosen regional presets
-  stay the same everywhere.
+  stay the same everywhere. Fencing is computed per host in the background on
+  Chrome and Firefox; the shared Default Rule preload does not finish a
+  fingerprint in the page.
 
 ## [0.9.2.6] - 2026-08-25
 

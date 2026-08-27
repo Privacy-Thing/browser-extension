@@ -41,10 +41,10 @@ export type SnapshotBuildOptions = {
  * Instruction to build a domain-fenced snapshot for a fallback/container
  * identity (domain rules never fence — they are explicit per-domain config).
  *
- * With `hostname` set, per-hostname build paths derive the fenced seed
- * directly (Chromium; Firefox keeps the marker so all its channels converge in
- * the page realm). Without `hostname` (shared multi-domain templates) the
- * snapshot carries a `fencing` marker for realm-side finalization.
+ * With `hostname` set, the snapshot is rebuilt from the fenced seed in the
+ * background (noise, hardware, version rotation). Without `hostname` (shared
+ * multi-domain templates) generated fingerprint fields are omitted so the
+ * page never finalizes fencing.
  */
 export type DomainFencingRequest = {
   hostname?: string | undefined;

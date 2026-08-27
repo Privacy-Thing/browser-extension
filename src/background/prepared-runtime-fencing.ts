@@ -1,6 +1,5 @@
 import type { DomainFencingRequest } from "@/background/rules/resolver-options";
-import { BUILD_BROWSER_TARGET } from "@/shared/build-flags";
-import { getSiteKey } from "@/shared/domain-fencing";
+import { getSiteKey, toFencePattern } from "@/shared/domain-fencing";
 import type { FeatureFlags } from "@/shared/feature-flags";
 import type { ContainerAssignment, RuntimeSnapshot } from "@/shared/types";
 
@@ -14,10 +13,30 @@ export type FencedIdentity =
 /** Per-site fenced snapshot memo cap for one prepared-decisions instance. */
 export const FENCE_SNAP_CACHE_CAP = 100;
 
+export type FenceSnapRow = {
+  pattern: string;
+  snapshot: RuntimeSnapshot;
+};
+
+export type StarFenceEntry = {
+  pattern: string;
+  blockServiceWorkerRegistration: boolean;
+  snapshot: RuntimeSnapshot;
+};
+
+type StarEntryInput = {
+  fallback: RuntimeSnapshot | null;
+  fencingOn: boolean;
+  cache: Map<string, RuntimeSnapshot | null>;
+  cookieStoreId?: string;
+  finalize: (snapshot: RuntimeSnapshot) => RuntimeSnapshot | null;
+};
+
 /**
  * Fencing request for fallback/container snapshot builds. Templates (no
- * hostname) carry a realm-finalizable marker; per-hostname rebuilds derive the
- * fenced seed directly on Chromium. Domain-rule snapshots never pass this.
+ * hostname) omit generated fingerprint. Per-hostname rebuilds derive the
+ * fenced seed in the background on every target. Domain-rule snapshots never
+ * pass this.
  */
 export const toFencingRequest = (
   inputs: FencingFlagSource,
@@ -43,13 +62,85 @@ type FenceDecisionInput = {
   rebuild: (identity: FencedIdentity, hostname: string) => RuntimeSnapshot | null;
 };
 
+/** Drops generated fingerprint from a shared multi-domain carrier. */
+export const dropSnapshotFp = (snapshot: RuntimeSnapshot): RuntimeSnapshot => {
+  if (!snapshot.fingerprint) {
+    return snapshot;
+  }
+  const copy = { ...snapshot };
+  delete copy.fingerprint;
+  return copy;
+};
+
 /**
- * Chromium finalization for fallback/container decisions: per-navigation
- * channels are background-resolved per hostname, so the snapshot is rebuilt
- * from the fenced seed (noise, hardware selection, and version rotation all
- * fenced) instead of carrying the marker forward. Firefox keeps the marker
- * template untouched — all of its delivery channels converge in the page
- * realm, where only noise seeds are fenced.
+ * Lists cached host-fenced snapshots as apex-and-subdomains patterns.
+ * Fallback rows use `f|<siteKey>`; container rows use `c|<store>|<siteKey>`.
+ */
+export const listFenceSnaps = (
+  cache: Map<string, RuntimeSnapshot | null>,
+  cookieStoreId?: string,
+): FenceSnapRow[] => {
+  const prefix = cookieStoreId === undefined ? "f|" : `c|${cookieStoreId}|`;
+  const rows: FenceSnapRow[] = [];
+  for (const [key, snapshot] of cache) {
+    if (!snapshot?.fingerprint || !key.startsWith(prefix)) {
+      continue;
+    }
+    const siteKey = key.slice(prefix.length);
+    if (!siteKey) {
+      continue;
+    }
+    rows.push({ pattern: toFencePattern(siteKey), snapshot });
+  }
+  return rows;
+};
+
+/**
+ * Shared `"*"` template plus cached `*<siteKey>` rows. Container catalogs
+ * must pass `cookieStoreId` so they never reuse fallback (`f|`) identities.
+ */
+export const buildStarEntries = ({
+  fallback,
+  fencingOn,
+  cache,
+  cookieStoreId,
+  finalize,
+}: StarEntryInput): StarFenceEntry[] => {
+  if (!fallback) {
+    return [];
+  }
+  const finalized = finalize(fallback) ?? fallback;
+  const snapshot = fencingOn ? dropSnapshotFp(finalized) : finalized;
+  const entries: StarFenceEntry[] = [
+    {
+      pattern: "*",
+      blockServiceWorkerRegistration: snapshot.blockServiceWorkerRegistration ?? false,
+      snapshot,
+    },
+  ];
+  if (!fencingOn) {
+    return entries;
+  }
+  const seen = new Set<string>(["*"]);
+  for (const row of listFenceSnaps(cache, cookieStoreId)) {
+    if (seen.has(row.pattern)) {
+      continue;
+    }
+    const snap = finalize(row.snapshot) ?? row.snapshot;
+    entries.push({
+      pattern: row.pattern,
+      blockServiceWorkerRegistration: snap.blockServiceWorkerRegistration ?? false,
+      snapshot: snap,
+    });
+    seen.add(row.pattern);
+  }
+  return entries;
+};
+
+/**
+ * Hostname-aware fencing for fallback/container decisions: rebuild from the
+ * fenced seed (noise, hardware selection, and version rotation) on every
+ * target. Shared templates never carry a page-visible marker.
  */
 export const fenceDecisionSnapshot = ({
   template,
@@ -59,11 +150,15 @@ export const fenceDecisionSnapshot = ({
   cache,
   rebuild,
 }: FenceDecisionInput): RuntimeSnapshot | null => {
-  if (!template || !domainFencingEnabled || BUILD_BROWSER_TARGET !== "chromium") {
+  if (!template || !domainFencingEnabled) {
     return template;
   }
 
   const siteKey = getSiteKey(hostname);
+  if (!siteKey) {
+    return template;
+  }
+
   const cacheKey =
     identity.kind === "fallback"
       ? `f|${siteKey}`

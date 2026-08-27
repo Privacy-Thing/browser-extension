@@ -50,7 +50,6 @@ import { isParentOwnedRealm } from "@/injection/main/iframe-realm-ownership";
 import { createRuntimeModules } from "@/injection/main/runtime-module-installers";
 import { installWebGLPatch } from "@/injection/main/webgl-patch";
 import { BUILD_BROWSER_TARGET } from "@/shared/build-flags";
-import { applySnapshotFencing } from "@/shared/domain-fencing";
 import type { RuntimeSnapshot } from "@/shared/types";
 
 setSurfaceUsageSourceId("main");
@@ -134,12 +133,8 @@ const installFxRuntime = (): void => {
   >((state) => {
     const nextSnapshot = toSnapshotFromFxState(state);
     if (!nextSnapshot) return false;
-    const realmSnapshot = applySnapshotFencing(
-      nextSnapshot,
-      globalThis.location?.hostname ?? "",
-    );
-    updateRefractSnapshot(runtimeState, realmSnapshot);
-    syncRuntimePatchState(realmSnapshot);
+    updateRefractSnapshot(runtimeState, nextSnapshot);
+    syncRuntimePatchState(nextSnapshot);
     return true;
   });
   const applyState = (state: Parameters<typeof toSnapshotFromFxState>[0]): void => {
@@ -179,11 +174,6 @@ const installWhenReady = (): void => {
       return;
     }
 
-    const realmSnapshot = applySnapshotFencing(
-      snapshot,
-      globalThis.location?.hostname ?? "",
-    );
-
     if (__PT_BROWSER_TARGET__ === "chromium" && isParentOwnedRealm(globalThis)) {
       removeConfigElement();
       return;
@@ -192,9 +182,9 @@ const installWhenReady = (): void => {
     finalizeRuntimeEnabled();
 
     if (runtimeInstalled) {
-      syncRuntimePatchState(realmSnapshot);
+      syncRuntimePatchState(snapshot);
     } else {
-      install(realmSnapshot);
+      install(snapshot);
     }
     removeConfigElement();
     markRuntimeApplied();
@@ -204,7 +194,7 @@ const installWhenReady = (): void => {
         window,
       );
       stopSeedCleanup = cleanup.stop;
-      installSeedPersistence(realmSnapshot, cleanup.stop);
+      installSeedPersistence(snapshot, cleanup.stop);
     }
   };
   const waitController = new AbortController();

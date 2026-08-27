@@ -54,7 +54,6 @@ import {
   registerPermIntegrity,
 } from "@/injection/main/surface-integrity";
 import { BUILD_BROWSER_TARGET } from "@/shared/build-flags";
-import { applySnapshotFencing } from "@/shared/domain-fencing";
 import type { SpoofingSurfaceKey } from "@/shared/spoofing-surfaces";
 import type { RuntimeSnapshot, SpoofingSurfaceMethodId } from "@/shared/types";
 
@@ -223,15 +222,11 @@ const readSnapshot = (): {
 };
 
 const installSnapshot = (snapshot: RuntimeSnapshot): RuntimeSnapshot => {
-  const realmSnapshot = applySnapshotFencing(
-    snapshot,
-    globalThis.location?.hostname ?? "",
-  );
   finalizeRuntimeEnabled();
-  latestRuntimeSnapshot = realmSnapshot;
-  syncSnapshotToDom(realmSnapshot);
+  latestRuntimeSnapshot = snapshot;
+  syncSnapshotToDom(snapshot);
   globalThis.dispatchEvent(new CustomEvent(__PT_RUNTIME_READY_EVENT_NAME__));
-  return realmSnapshot;
+  return snapshot;
 };
 
 const installSnapshotObserver = (): void => {

@@ -128,7 +128,23 @@ describe("resolvePreloadedSnapshot", () => {
     expect(snapshot?.geo.latitude).toBe(9);
   });
 
-  it("preserves a fencing marker on the fallback preload for page-world finalization", () => {
+  it("does not treat the shared star preload as a fencing carrier", () => {
+    const snapshot = resolvePreloadedSnapshot("shop.example.com", {
+      entries: [
+        {
+          pattern: "*",
+          blockServiceWorkerRegistration: false,
+          snapshot: createSnapshot(9),
+        },
+      ],
+      trustedSites: [],
+    });
+
+    expect(snapshot?.fingerprint).toBeUndefined();
+    expect(snapshot?.geo.latitude).toBe(9);
+  });
+
+  it("ignores an unknown leftover fencing field on preload snapshots", () => {
     const snapshot = resolvePreloadedSnapshot("shop.example.com", {
       entries: [
         {
@@ -140,14 +156,14 @@ describe("resolvePreloadedSnapshot", () => {
               canvasNoiseSeed: 111,
               fencing: { key: "opaque-fence-key" },
             },
-          },
+          } as RuntimeSnapshot,
         },
       ],
       trustedSites: [],
     });
 
-    expect(snapshot?.fingerprint?.fencing).toEqual({ key: "opaque-fence-key" });
     expect(snapshot?.fingerprint?.canvasNoiseSeed).toBe(111);
+    expect(snapshot?.geo.latitude).toBe(9);
   });
 
   it("does not let a global fallback preload activate on trusted sites", () => {

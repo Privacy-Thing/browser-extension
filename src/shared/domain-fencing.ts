@@ -2,7 +2,7 @@
  * Domain fencing — deterministic per-site variation of generated fingerprint
  * values for the Default Rule and container identities.
  *
- * The model is a pure derivation chain:
+ * The model is a pure derivation chain, owned by the background resolver:
  *
  *   fenceBaseKey  = h(ruleSeedKey)                  — background-only, opaque
  *   fencedSeedKey = h(fenceBaseKey, siteKey)        — 6-char base36, same shape
@@ -12,32 +12,17 @@
  * subdomains of one site share one fenced identity while unrelated sites get
  * uncorrelated values.
  *
- * Delivery channels that are resolved per hostname in the background build the
- * snapshot directly from `fencedSeedKey`. Shared multi-domain carriers
- * (Chromium session preload `"*"`, Firefox `window.name` catalog and static
- * payload) instead carry a `fencing: { key: fenceBaseKey }` marker inside the
- * fingerprint; the consuming realm finalizes the noise seeds for its own
- * hostname via {@link applyFencedNoiseSeeds} and strips the marker. The raw
- * `ruleSeedKey` never travels in page-visible carriers.
+ * Hostname-aware channels rebuild the snapshot from `fencedSeedKey` (noise,
+ * hardware selection, and version rotation). Shared multi-domain carriers
+ * (`"*"` preload / Firefox catalog) omit generated fingerprint fields instead
+ * of carrying a page-visible marker. More specific `*<siteKey>` rows reuse the
+ * background cache so a later visit can still install a finished snapshot.
  *
- * This module must stay importable from injected page-world code: it depends
- * only on the `fingerprint-seeds` leaf module (FNV-1a hashing), never on the
- * generated hardware/version catalogs.
+ * This module is background- and test-only. Injected page, worker, and content
+ * graphs must not import it.
  */
 
-import {
-  createNoiseSeed,
-  deriveSurfaceNoiseSeed,
-  fnv1a32,
-} from "@/shared/fingerprint-seeds";
-import type { BrowserFingerprint } from "@/shared/fingerprint-types";
-import type { RuntimeSnapshot } from "@/shared/types";
-
-/** Marker carried by shared multi-domain snapshot carriers. */
-export type FingerprintFencing = {
-  /** Opaque per-identity fence key derived from (never equal to) the rule seed. */
-  key: string;
-};
+import { fnv1a32 } from "@/shared/fingerprint-seeds";
 
 export const DOMAIN_FENCING_VERSION = "df1";
 
@@ -95,8 +80,14 @@ export const getSiteKey = (hostname: string): string => {
 };
 
 /**
- * Derives the opaque per-identity fence key carried by shared snapshot
- * carriers. One-way: carriers must never expose the raw `ruleSeedKey`.
+ * Apex-and-subdomains pattern for a fenced cache row. More specific than
+ * shared `"*"`, so Firefox seed matching prefers it without mutating `"*"`.
+ */
+export const toFencePattern = (siteKey: string): string => `*${siteKey}`;
+
+/**
+ * Derives the opaque per-identity fence key used as the parent of per-site
+ * seeds. One-way: never expose the raw `ruleSeedKey`.
  */
 export const deriveFenceBaseKey = (ruleSeedKey: string): string => {
   const normalized = ruleSeedKey.trim().toLowerCase();
@@ -114,58 +105,3 @@ export const deriveFencedSeedKey = (fenceBaseKey: string, siteKey: string): stri
   (fnv1a32(`${FENCE_NAMESPACE}-${fenceBaseKey}-${siteKey}`) % RULE_SEED_SPACE)
     .toString(36)
     .padStart(RULE_SEED_LENGTH, "0");
-
-/**
- * Finalizes a fencing marker for one site: recomputes the canvas / audio /
- * WebGL-readback noise seeds from the fenced seed key and strips the marker.
- *
- * The derivation intentionally matches the background rebuild path
- * (`createNoiseSeed(fencedSeedKey)` → `deriveSurfaceNoiseSeed`), so every
- * delivery channel converges on identical per-site noise values.
- * Catalog-driven fields (screen, hardware, version rotation) are left at the
- * carried values — realms cannot re-run catalog selection.
- */
-export const applyFencedNoiseSeeds = (
-  fingerprint: BrowserFingerprint,
-  siteKey: string,
-): BrowserFingerprint => {
-  const { fencing, ...rest } = fingerprint;
-  if (!fencing) {
-    return fingerprint;
-  }
-
-  const fencedSeedKey = deriveFencedSeedKey(fencing.key, siteKey);
-  const baseSeed = createNoiseSeed({ ruleSeedKey: fencedSeedKey });
-  return {
-    ...rest,
-    ...(typeof rest.canvasNoiseSeed === "number"
-      ? { canvasNoiseSeed: deriveSurfaceNoiseSeed(baseSeed, "canvas") }
-      : {}),
-    ...(typeof rest.audioNoiseSeed === "number"
-      ? { audioNoiseSeed: deriveSurfaceNoiseSeed(baseSeed, "audio") }
-      : {}),
-    ...(rest.webGL && typeof rest.webGL.readPixelsNoiseSeed === "number"
-      ? {
-          webGL: {
-            ...rest.webGL,
-            readPixelsNoiseSeed: deriveSurfaceNoiseSeed(baseSeed, "webgl"),
-          },
-        }
-      : {}),
-  };
-};
-
-/**
- * Snapshot-level convenience wrapper around {@link applyFencedNoiseSeeds}.
- * No-op for snapshots without a fencing marker.
- */
-export const applySnapshotFencing = (
-  snapshot: RuntimeSnapshot,
-  hostname: string,
-): RuntimeSnapshot =>
-  snapshot.fingerprint?.fencing
-    ? {
-        ...snapshot,
-        fingerprint: applyFencedNoiseSeeds(snapshot.fingerprint, getSiteKey(hostname)),
-      }
-    : snapshot;
