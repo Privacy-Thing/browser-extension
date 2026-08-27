@@ -1,7 +1,8 @@
 import { BRAND_DISPLAY_NAME } from "@/shared/brand";
 import notificationCatalog from "@/shared/extension-notifications.json";
 import {
-  isNotificationVersion,
+  compareNoticeVersions,
+  isCatalogNotificationVersion,
   type NotificationChannel,
 } from "@/shared/notification-version";
 
@@ -80,7 +81,7 @@ const isCatalogEntry = (value: unknown): value is NoticeCatalogEntry => {
     isNonEmptyString(entry.id) &&
     (entry.channel === "release" || entry.channel === "beta") &&
     isNonEmptyString(entry.introducedInVersion) &&
-    isNotificationVersion(entry.channel, entry.introducedInVersion) &&
+    isCatalogNotificationVersion(entry.channel, entry.introducedInVersion) &&
     isLocalizedText(entry.title) &&
     isLocalizedParagraphs(entry.message) &&
     Object.hasOwn(entry.title, DEFAULT_NOTICE_LOCALE) &&
@@ -180,7 +181,9 @@ export const getVersionNotices = (
 ): ReleaseNotice[] =>
   catalogEntries
     .filter(
-      (entry) => entry.channel === channel && entry.introducedInVersion === version,
+      (entry) =>
+        entry.channel === channel &&
+        compareNoticeVersions(channel, entry.introducedInVersion, version) === 0,
     )
     .map((entry) => localizeCatalogEntry(entry, locale));
 
