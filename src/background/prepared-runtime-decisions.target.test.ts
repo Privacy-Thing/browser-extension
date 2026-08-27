@@ -490,6 +490,52 @@ describe("createPreparedDecisions", () => {
     );
   });
 
+  it("keeps container fenced rows when Default Rule is disabled", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-15T12:00:00.000Z"));
+    const assignments = [
+      {
+        cookieStoreId: "firefox-container-1",
+        locationId: "berlin",
+        enabled: true,
+        ruleSeedKey: "cseed1",
+        authKey: "c0ffee11",
+      },
+    ];
+    const prepared = buildPrepared({
+      containerAssignments: assignments,
+      domainFencing: true,
+    });
+    const decision = prepared.resolveDecision(
+      "shop.example.com",
+      "firefox-container-1",
+    );
+    expect(decision.fencesIdentity).toBe(true);
+    expect(decision.snapshot?.authKey).toBe("c0ffee11");
+    expect(decision.snapshot?.fingerprint?.canvasNoiseSeed).toEqual(expect.any(Number));
+
+    const containerSeed = prepared.getFxWindowSeed(
+      "firefox-container-1",
+      "shop.example.com",
+    );
+    expect(containerSeed).not.toBeNull();
+    expect(containerSeed?.entries.find((entry) => entry.pattern === "*")).toBeUndefined();
+    const fenced = containerSeed?.entries.find(
+      (entry) => entry.pattern === "*example.com",
+    );
+    expect(fenced?.state.authKey).toBe("c0ffee11");
+    expect(fenced?.state.fingerprint?.canvasNoiseSeed).toBe(
+      decision.snapshot?.fingerprint?.canvasNoiseSeed,
+    );
+    expect(containerSeed?.containerState?.fingerprint).toBeNull();
+
+    const fromCatalog = resolveFxSeedForHost("shop.example.com", containerSeed!);
+    expect(fromCatalog?.fingerprint?.canvasNoiseSeed).toBe(
+      decision.snapshot?.fingerprint?.canvasNoiseSeed,
+    );
+    expect(fromCatalog?.authKey).toBe("c0ffee11");
+  });
+
   it("does not fence explicit domain rules", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-01-15T12:00:00.000Z"));

@@ -98,6 +98,10 @@ export const listFenceSnaps = (
 /**
  * Shared `"*"` template plus cached `*<siteKey>` rows. Container catalogs
  * must pass `cookieStoreId` so they never reuse fallback (`f|`) identities.
+ *
+ * Cached fence rows are independent of the Default Rule template. A
+ * container-only setup has no `"*"` carrier; dropping those rows would leave
+ * Firefox on the unfenced `containerState` omit-fp template.
  */
 export const buildStarEntries = ({
   fallback,
@@ -106,22 +110,21 @@ export const buildStarEntries = ({
   cookieStoreId,
   finalize,
 }: StarEntryInput): StarFenceEntry[] => {
-  if (!fallback) {
-    return [];
-  }
-  const finalized = finalize(fallback) ?? fallback;
-  const snapshot = fencingOn ? dropSnapshotFp(finalized) : finalized;
-  const entries: StarFenceEntry[] = [
-    {
+  const entries: StarFenceEntry[] = [];
+  const seen = new Set<string>();
+  if (fallback) {
+    const finalized = finalize(fallback) ?? fallback;
+    const snapshot = fencingOn ? dropSnapshotFp(finalized) : finalized;
+    entries.push({
       pattern: "*",
       blockServiceWorkerRegistration: snapshot.blockServiceWorkerRegistration ?? false,
       snapshot,
-    },
-  ];
+    });
+    seen.add("*");
+  }
   if (!fencingOn) {
     return entries;
   }
-  const seen = new Set<string>(["*"]);
   for (const row of listFenceSnaps(cache, cookieStoreId)) {
     if (seen.has(row.pattern)) {
       continue;
