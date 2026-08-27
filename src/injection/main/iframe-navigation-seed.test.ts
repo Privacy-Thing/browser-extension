@@ -60,7 +60,7 @@ describe("iframe navigation seed policy", () => {
 
   it("trims destinations with the captured String.prototype.trim", () => {
     const nativeTrim = String.prototype.trim;
-    String.prototype.trim = () => "https://tracker.test/frame";
+    String.prototype.trim = () => "";
     try {
       expect(
         sameOriginSeedHostname(
