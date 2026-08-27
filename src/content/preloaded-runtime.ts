@@ -96,9 +96,9 @@ export const resolvePreloadedSnapshot = (
     blockServiceWorkerRegistration: entry.blockServiceWorkerRegistration,
   };
 
-  // Shared `"*"` carriers omit generated fingerprint when Domain fencing is
-  // on. Leftover unknown fingerprint fields from an older session must not
-  // fail validation here.
+  // Shared `"*"` carriers keep the unfenced Default Rule fingerprint when
+  // Domain fencing is on. Leftover unknown fingerprint fields from an older
+  // session must not fail validation here or re-finalize fencing in page.
   return isRuntimeSnapshot(snapshot) ? snapshot : null;
 };
 

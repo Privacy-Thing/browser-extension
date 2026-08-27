@@ -380,7 +380,9 @@ describe("createPreparedDecisions", () => {
     );
   });
 
-  it("omits generated fingerprint on the shared star template", () => {
+  it("keeps the unfenced Default Rule fingerprint on the shared star template", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-15T12:00:00.000Z"));
     const fallback = {
       enabled: true,
       locationId: "warsaw",
@@ -392,18 +394,20 @@ describe("createPreparedDecisions", () => {
       domainFencing: true,
     });
     const star = prepared.getPreloadedEntries().find((entry) => entry.pattern === "*");
-    expect(star?.snapshot.fingerprint).toBeUndefined();
+    expect(star?.snapshot.fingerprint?.canvasNoiseSeed).toEqual(expect.any(Number));
     expect(star?.snapshot.locale.timeZone).toBe("Europe/Warsaw");
 
     prepared.resolveDecision("shop.example.com");
-    expect(prepared.getPreloadedEntries().map((entry) => entry.pattern)).toEqual([
-      "*",
-      "*example.com",
-    ]);
-    expect(
-      prepared.getPreloadedEntries().find((entry) => entry.pattern === "*")?.snapshot
-        .fingerprint,
-    ).toBeUndefined();
+    const entries = prepared.getPreloadedEntries();
+    expect(entries.map((entry) => entry.pattern)).toEqual(["*", "*example.com"]);
+    const starAfter = entries.find((entry) => entry.pattern === "*");
+    const fenced = entries.find((entry) => entry.pattern === "*example.com");
+    expect(starAfter?.snapshot.fingerprint?.canvasNoiseSeed).toBe(
+      star?.snapshot.fingerprint?.canvasNoiseSeed,
+    );
+    expect(fenced?.snapshot.fingerprint?.canvasNoiseSeed).not.toBe(
+      star?.snapshot.fingerprint?.canvasNoiseSeed,
+    );
   });
 
   it("does not let a fenced catalog row poison other sites", () => {
@@ -424,16 +428,21 @@ describe("createPreparedDecisions", () => {
     expect(catalog).not.toBeNull();
     const star = catalog?.entries.find((entry) => entry.pattern === "*");
     const fenced = catalog?.entries.find((entry) => entry.pattern === "*example.com");
-    expect(star?.state.fingerprint).toBeNull();
+    expect(star?.state.fingerprint?.canvasNoiseSeed).toEqual(expect.any(Number));
+    expect(star?.state.fingerprint?.canvasNoiseSeed).not.toBe(
+      example.snapshot?.fingerprint?.canvasNoiseSeed,
+    );
     expect(fenced?.state.fingerprint?.canvasNoiseSeed).toBe(
       example.snapshot?.fingerprint?.canvasNoiseSeed,
     );
 
     const otherFromCatalog = resolveFxSeedForHost("news.other.org", catalog!);
+    expect(otherFromCatalog?.fingerprint?.canvasNoiseSeed).toBe(
+      star?.state.fingerprint?.canvasNoiseSeed,
+    );
     expect(otherFromCatalog?.fingerprint?.canvasNoiseSeed).not.toBe(
       example.snapshot?.fingerprint?.canvasNoiseSeed,
     );
-    expect(otherFromCatalog?.fingerprint).toBeNull();
 
     const other = prepared.resolveDecision("news.other.org");
     expect(other.snapshot?.fingerprint?.canvasNoiseSeed).not.toBe(
@@ -527,7 +536,12 @@ describe("createPreparedDecisions", () => {
     expect(fenced?.state.fingerprint?.canvasNoiseSeed).toBe(
       decision.snapshot?.fingerprint?.canvasNoiseSeed,
     );
-    expect(containerSeed?.containerState?.fingerprint).toBeNull();
+    expect(containerSeed?.containerState?.fingerprint?.canvasNoiseSeed).toEqual(
+      expect.any(Number),
+    );
+    expect(containerSeed?.containerState?.fingerprint?.canvasNoiseSeed).not.toBe(
+      decision.snapshot?.fingerprint?.canvasNoiseSeed,
+    );
 
     const fromCatalog = resolveFxSeedForHost("shop.example.com", containerSeed!);
     expect(fromCatalog?.fingerprint?.canvasNoiseSeed).toBe(

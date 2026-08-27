@@ -272,42 +272,32 @@ const resolveNativeEnvironment = (
   };
 };
 
-type FencingPlan = {
-  /** Seed used for noise / hardware / version derivation. */
-  seedKey: string | null;
-  /** Shared templates omit generated fingerprint instead of a page marker. */
-  omitFp: boolean;
-};
-
 /**
- * Resolves how domain fencing applies to this snapshot build.
+ * Resolves the fingerprint seed for this snapshot build.
  *
- * - No request or no usable identity seed → base seed, keep fingerprint.
+ * - No request, no usable identity seed, or no site key (shared `*` templates,
+ *   empty/`about:blank` hosts) → unfenced base seed. The page still gets a
+ *   generated fingerprint instead of native device values.
  * - Hostname known → derive the fenced seed here on every target (noise,
  *   hardware selection, version rotation). No page-visible marker.
- * - Hostname absent (shared `*` templates) → omit generated fingerprint so
- *   the page cannot install a correlatable Default Rule identity.
  *
  * `authKey` is never involved (invariant #4): fencing derives only from the
  * rotatable `ruleSeedKey`.
  */
-const resolveFencingPlan = (
+const resolveFencingSeedKey = (
   domainFencing: DomainFencingRequest | undefined,
   baseSeedKey: string | null,
-): FencingPlan => {
+): string | null => {
   if (!domainFencing || !baseSeedKey) {
-    return { seedKey: baseSeedKey, omitFp: false };
+    return baseSeedKey;
   }
 
   const siteKey = domainFencing.hostname ? getSiteKey(domainFencing.hostname) : "";
   if (!siteKey) {
-    return { seedKey: null, omitFp: true };
+    return baseSeedKey;
   }
 
-  return {
-    seedKey: deriveFencedSeedKey(deriveFenceBaseKey(baseSeedKey), siteKey),
-    omitFp: false,
-  };
+  return deriveFencedSeedKey(deriveFenceBaseKey(baseSeedKey), siteKey);
 };
 
 type SurfaceGateOptions = Pick<
@@ -374,27 +364,27 @@ export const toRuntimeSnapshot = ({
     nativeLanguages,
     nativeTimeZone,
   } = resolveNativeEnvironment(browserFingerprintSource);
-  const fencingPlan = resolveFencingPlan(domainFencing, readRuleSeedKey(ruleSeedKey));
-  const fingerprintSeedKey = fencingPlan.omitFp ? null : fencingPlan.seedKey;
-  const fingerprint = fencingPlan.omitFp
-    ? undefined
-    : createBrowserFingerprint(
-        {
-          userAgent: nativeFingerprint?.userAgent,
-          platform: nativeFingerprint?.platform,
-          vendor: nativeFingerprint?.vendor,
-          hardwareConcurrency: nativeFingerprint?.hardwareConcurrency,
-          deviceMemory: canSpoofDeviceMemory(browserFamily)
-            ? nativeFingerprint?.deviceMemory
-            : undefined,
-          userAgentData: nativeFingerprint?.userAgentData,
-        },
-        fingerprintEnabled,
-        {
-          rotateChromiumVersion: sharedSpoofing?.clientHintsVersionRotation !== false,
-          ...(fingerprintSeedKey ? { versionSeedKey: fingerprintSeedKey } : {}),
-        },
-      );
+  const fingerprintSeedKey = resolveFencingSeedKey(
+    domainFencing,
+    readRuleSeedKey(ruleSeedKey),
+  );
+  const fingerprint = createBrowserFingerprint(
+    {
+      userAgent: nativeFingerprint?.userAgent,
+      platform: nativeFingerprint?.platform,
+      vendor: nativeFingerprint?.vendor,
+      hardwareConcurrency: nativeFingerprint?.hardwareConcurrency,
+      deviceMemory: canSpoofDeviceMemory(browserFamily)
+        ? nativeFingerprint?.deviceMemory
+        : undefined,
+      userAgentData: nativeFingerprint?.userAgentData,
+    },
+    fingerprintEnabled,
+    {
+      rotateChromiumVersion: sharedSpoofing?.clientHintsVersionRotation !== false,
+      ...(fingerprintSeedKey ? { versionSeedKey: fingerprintSeedKey } : {}),
+    },
+  );
 
   const runtimeLocale = resolveRuntimeLocale(profile, nativeLanguage, nativeLanguages);
   const effectiveTimeZone = profile?.timeZone ?? nativeTimeZone;
@@ -414,19 +404,17 @@ export const toRuntimeSnapshot = ({
     nativeFingerprint?.userAgentData?.platform ?? nativeFingerprint?.platform,
   );
   const hostArch = normalizeHardwareArch(nativeFingerprint?.architecture);
-  const extendedFingerprint = fencingPlan.omitFp
-    ? undefined
-    : extendFingerprint({
-        browserFamily,
-        fingerprintEnabled,
-        fingerprint,
-        fingerprintSeedKey,
-        hostArch,
-        hostPlatformKey,
-        nativeDeviceMemory: nativeFingerprint?.deviceMemory,
-        ruleOverrides,
-        sharedSpoofing,
-      });
+  const extendedFingerprint = extendFingerprint({
+    browserFamily,
+    fingerprintEnabled,
+    fingerprint,
+    fingerprintSeedKey,
+    hostArch,
+    hostPlatformKey,
+    nativeDeviceMemory: nativeFingerprint?.deviceMemory,
+    ruleOverrides,
+    sharedSpoofing,
+  });
 
   return {
     debugMode,

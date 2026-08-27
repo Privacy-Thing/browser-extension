@@ -34,16 +34,16 @@ type StarEntryInput = {
 
 /**
  * Fencing request for fallback/container snapshot builds. Templates (no
- * hostname) omit generated fingerprint. Per-hostname rebuilds derive the
- * fenced seed in the background on every target. Domain-rule snapshots never
- * pass this.
+ * hostname) keep the unfenced identity fingerprint. Per-hostname rebuilds
+ * derive the fenced seed in the background on every target. Domain-rule
+ * snapshots never pass this.
  */
 export const toFencingRequest = (
   inputs: FencingFlagSource,
   hostname?: string,
 ): DomainFencingRequest | undefined =>
-  inputs.featureFlags.domainFencing
-    ? { ...(hostname === undefined ? {} : { hostname }) }
+  inputs.featureFlags.domainFencing && hostname
+    ? { hostname }
     : undefined;
 
 export const fencesPreparedIdentity = (
@@ -60,16 +60,6 @@ type FenceDecisionInput = {
   domainFencingEnabled: boolean;
   cache: Map<string, RuntimeSnapshot | null>;
   rebuild: (identity: FencedIdentity, hostname: string) => RuntimeSnapshot | null;
-};
-
-/** Drops generated fingerprint from a shared multi-domain carrier. */
-export const dropSnapshotFp = (snapshot: RuntimeSnapshot): RuntimeSnapshot => {
-  if (!snapshot.fingerprint) {
-    return snapshot;
-  }
-  const copy = { ...snapshot };
-  delete copy.fingerprint;
-  return copy;
 };
 
 /**
@@ -101,7 +91,7 @@ export const listFenceSnaps = (
  *
  * Cached fence rows are independent of the Default Rule template. A
  * container-only setup has no `"*"` carrier; dropping those rows would leave
- * Firefox on the unfenced `containerState` omit-fp template.
+ * Firefox on the unfenced `containerState` baseline.
  */
 export const buildStarEntries = ({
   fallback,
@@ -113,8 +103,7 @@ export const buildStarEntries = ({
   const entries: StarFenceEntry[] = [];
   const seen = new Set<string>();
   if (fallback) {
-    const finalized = finalize(fallback) ?? fallback;
-    const snapshot = fencingOn ? dropSnapshotFp(finalized) : finalized;
+    const snapshot = finalize(fallback) ?? fallback;
     entries.push({
       pattern: "*",
       blockServiceWorkerRegistration: snapshot.blockServiceWorkerRegistration ?? false,
@@ -143,7 +132,8 @@ export const buildStarEntries = ({
 /**
  * Hostname-aware fencing for fallback/container decisions: rebuild from the
  * fenced seed (noise, hardware selection, and version rotation) on every
- * target. Shared templates never carry a page-visible marker.
+ * target. Shared `"*"` templates keep the unfenced identity and are never
+ * mutated to a site's fenced fingerprint.
  */
 export const fenceDecisionSnapshot = ({
   template,

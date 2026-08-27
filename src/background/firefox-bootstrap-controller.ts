@@ -17,6 +17,10 @@ import {
 } from "@/background/firefox-window-name-seed-log";
 import { seedFxWindowState } from "@/background/main-world-injection";
 import {
+  persistPreparedPreloadStateSafely,
+  writePreparedPreloadState,
+} from "@/background/preload-persist";
+import {
   createPreparedDecisions,
   type PreparedRuntimeDecisions,
 } from "@/background/prepared-runtime-decisions";
@@ -35,7 +39,6 @@ import {
 } from "@/background/storage/preferences";
 import { loadRules } from "@/background/storage/rules";
 import { loadTrustedSites } from "@/background/storage/trusted-sites";
-import { PRELOAD_STATE_KEY } from "@/content/preloaded-runtime";
 import { getFxTransportInfo } from "@/injection/firefox/bootstrap-transport-manifest";
 import { fireAndForget } from "@/shared/async";
 import { readFingerprintSource } from "@/shared/browser-fingerprint";
@@ -215,7 +218,6 @@ const createPreloadSync =
     });
     deps.runtimeState.setLastKnownTrustedSites(trustedSites);
     const preloadedEntries = prepared.getPreloadedEntries();
-    const nativeRulePatterns = prepared.getNativeRulePatterns();
     deps.runtimeState.setKnownFxSeedEntries(
       preloadedEntries.map((entry) => ({
         pattern: entry.pattern,
@@ -223,13 +225,7 @@ const createPreloadSync =
       })),
     );
     deps.runtimeState.setPreparedRuntimeDecisions(prepared);
-    await chrome.storage.session.set({
-      [PRELOAD_STATE_KEY]: {
-        entries: preloadedEntries,
-        nativeRulePatterns,
-        trustedSites,
-      },
-    });
+    await writePreparedPreloadState(prepared, trustedSites);
     if (BUILD_BROWSER_TARGET === "firefox") await syncUserScripts();
   };
 
@@ -316,6 +312,9 @@ const createWindowSeed =
           deps.runtimeState
             .getPreparedDecisions()
             ?.getFxWindowSeed(resolvedCookieStoreId, seedHostname) ?? null;
+      }
+      if (seedHostname) {
+        await persistPreparedPreloadStateSafely(deps.runtimeState);
       }
       if (!seedState) {
         deps.logBootstrapEvent("navigation.firefox-window-name-seed", {
@@ -439,6 +438,9 @@ export const createFxBootstrap = (deps: FirefoxBootstrapDeps) => {
         deps.runtimeState
           .getPreparedDecisions()
           ?.getFxWindowSeed(cookieStoreId, seedHostname) ?? null;
+    }
+    if (seedHostname) {
+      await persistPreparedPreloadStateSafely(deps.runtimeState);
     }
     const activeTab = await deps.getPopupTabById(tabId);
     let skipSameHostDocument: boolean;

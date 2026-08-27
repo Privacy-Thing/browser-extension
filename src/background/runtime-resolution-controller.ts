@@ -11,6 +11,7 @@ import {
   seedWindowSnapshot,
   setMainWorldSnapshot,
 } from "@/background/main-world-injection";
+import { persistPreparedPreloadStateSafely } from "@/background/preload-persist";
 import type {
   PreparedRuntimeDecisions,
   ResolutionDecision,
@@ -288,6 +289,9 @@ const createRuntimeResolver =
           console.warn("Failed to remember active identity host.", error);
         }),
       );
+    }
+    if (decision.fencesIdentity && decision.snapshot) {
+      await persistPreparedPreloadStateSafely(deps.runtimeState);
     }
     return decision;
   };

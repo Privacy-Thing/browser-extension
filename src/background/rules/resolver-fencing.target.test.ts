@@ -111,7 +111,7 @@ describe("domain fencing in resolveProfileSnapshot", () => {
     );
   });
 
-  it("omits generated fingerprint on shared templates without a hostname", () => {
+  it("keeps the unfenced Default Rule fingerprint on shared templates", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-01-15T12:00:00.000Z"));
     const template = toRuntimeSnapshot({
@@ -127,9 +127,29 @@ describe("domain fencing in resolveProfileSnapshot", () => {
       sharedWorkerHandlingMode: "native",
       watchPositionDelay: [60, 500],
     });
-    expect(template.fingerprint).toBeUndefined();
+    const fenced = toRuntimeSnapshot({
+      authKey: "fa11bac0",
+      browserFingerprintSource: fingerprintSource,
+      debugMode: false,
+      domainFencing: { hostname: "shop.example.com" },
+      fingerprintEnabled: true,
+      profile,
+      ruleOverrides: undefined,
+      ruleSeedKey: "glb123",
+      sharedSpoofing: undefined,
+      sharedWorkerHandlingMode: "native",
+      watchPositionDelay: [60, 500],
+    });
+    const blank = resolve("", true);
+    expect(template.fingerprint?.canvasNoiseSeed).toEqual(expect.any(Number));
     expect(template.locale.timeZone).toBe("Europe/Warsaw");
     expect(template.authKey).toBe("fa11bac0");
+    expect(template.fingerprint?.canvasNoiseSeed).not.toBe(
+      fenced.fingerprint?.canvasNoiseSeed,
+    );
+    expect(blank?.fingerprint?.canvasNoiseSeed).toBe(
+      template.fingerprint?.canvasNoiseSeed,
+    );
   });
 
   it("does not fence an explicit domain rule", () => {

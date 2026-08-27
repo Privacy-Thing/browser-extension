@@ -14,9 +14,10 @@
  *
  * Hostname-aware channels rebuild the snapshot from `fencedSeedKey` (noise,
  * hardware selection, and version rotation). Shared multi-domain carriers
- * (`"*"` preload / Firefox catalog) omit generated fingerprint fields instead
- * of carrying a page-visible marker. More specific `*<siteKey>` rows reuse the
- * background cache so a later visit can still install a finished snapshot.
+ * (`"*"` preload / Firefox catalog) keep the unfenced Default Rule fingerprint
+ * as baseline spoofing — they are never mutated to a site's fenced identity.
+ * More specific `*<siteKey>` rows reuse the background cache so a later visit
+ * can install the per-site variation.
  *
  * This module is background- and test-only. Injected page, worker, and content
  * graphs must not import it.

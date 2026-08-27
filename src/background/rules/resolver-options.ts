@@ -43,8 +43,9 @@ export type SnapshotBuildOptions = {
  *
  * With `hostname` set, the snapshot is rebuilt from the fenced seed in the
  * background (noise, hardware, version rotation). Without `hostname` (shared
- * multi-domain templates) generated fingerprint fields are omitted so the
- * page never finalizes fencing.
+ * multi-domain templates, empty hosts) the unfenced Default Rule / container
+ * fingerprint is kept so first-inline never falls through to native device
+ * values.
  */
 export type DomainFencingRequest = {
   hostname?: string | undefined;

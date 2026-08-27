@@ -128,19 +128,24 @@ describe("resolvePreloadedSnapshot", () => {
     expect(snapshot?.geo.latitude).toBe(9);
   });
 
-  it("does not treat the shared star preload as a fencing carrier", () => {
+  it("passes the shared star preload fingerprint through without re-finalizing", () => {
     const snapshot = resolvePreloadedSnapshot("shop.example.com", {
       entries: [
         {
           pattern: "*",
           blockServiceWorkerRegistration: false,
-          snapshot: createSnapshot(9),
+          snapshot: {
+            ...createSnapshot(9),
+            fingerprint: {
+              canvasNoiseSeed: 42,
+            },
+          },
         },
       ],
       trustedSites: [],
     });
 
-    expect(snapshot?.fingerprint).toBeUndefined();
+    expect(snapshot?.fingerprint?.canvasNoiseSeed).toBe(42);
     expect(snapshot?.geo.latitude).toBe(9);
   });
 
