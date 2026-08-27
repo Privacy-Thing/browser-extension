@@ -19,4 +19,11 @@ describe("refresh-metadata workflow", () => {
     expect(publishDispatchIndex).toBeGreaterThan(atomicPushIndex);
     expect(workflow).not.toContain('run: git push origin "${REV_TAG}"');
   });
+
+  it("schedules metadata revisions every 3 days", () => {
+    const workflow = fs.readFileSync(WORKFLOW_PATH, "utf8");
+
+    expect(workflow).toContain('cron: "0 4 */3 * *"');
+    expect(workflow).not.toContain('cron: "0 4 */2 * *"');
+  });
 });
