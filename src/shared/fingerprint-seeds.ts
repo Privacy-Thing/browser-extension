@@ -11,10 +11,6 @@ export type SimpleEngineSeedParts = {
   ruleSeedKey: string;
 };
 
-// ---------------------------------------------------------------------------
-// Deterministic hash (FNV-1a 32-bit)
-// ---------------------------------------------------------------------------
-
 export const fnv1a32 = (input: string): number => {
   let hash = 2166136261;
   for (let i = 0; i < input.length; i++) {
@@ -23,10 +19,6 @@ export const fnv1a32 = (input: string): number => {
   }
   return hash >>> 0;
 };
-
-// ---------------------------------------------------------------------------
-// Seeded PRNG (xorshift32) — lightweight, fast, deterministic
-// ---------------------------------------------------------------------------
 
 export const xorshift32 = (seed: number): (() => number) => {
   let state = seed | 0 || 1;
@@ -37,10 +29,6 @@ export const xorshift32 = (seed: number): (() => number) => {
     return (state >>> 0) / 4294967296;
   };
 };
-
-// ---------------------------------------------------------------------------
-// Simple-engine noise seed derivation
-// ---------------------------------------------------------------------------
 
 export const SURFACE_SEED_NAMES = {
   audio: "audio",
@@ -60,14 +48,11 @@ export const FP_SEED_NAMESPACES = {
 } as const;
 
 /**
- * Creates a deterministic base seed from the explicit rule identity only.
+ * Normalized rule identity used as the input to noise hashing.
  */
 export const createIdentitySeed = (parts: SimpleEngineSeedParts): string =>
   parts.ruleSeedKey.trim().toLowerCase();
 
-/**
- * Creates a deterministic base seed from the explicit rule identity only.
- */
 export const createNoiseSeed = (parts: SimpleEngineSeedParts): number =>
   fnv1a32(`${FP_SEED_NAMESPACES.noise}-${createIdentitySeed(parts)}`);
 
