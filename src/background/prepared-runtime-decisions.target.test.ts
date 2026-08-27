@@ -528,7 +528,9 @@ describe("createPreparedDecisions", () => {
       "shop.example.com",
     );
     expect(containerSeed).not.toBeNull();
-    expect(containerSeed?.entries.find((entry) => entry.pattern === "*")).toBeUndefined();
+    expect(
+      containerSeed?.entries.find((entry) => entry.pattern === "*"),
+    ).toBeUndefined();
     const fenced = containerSeed?.entries.find(
       (entry) => entry.pattern === "*example.com",
     );

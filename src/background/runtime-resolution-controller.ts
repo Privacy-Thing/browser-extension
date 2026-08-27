@@ -11,7 +11,7 @@ import {
   seedWindowSnapshot,
   setMainWorldSnapshot,
 } from "@/background/main-world-injection";
-import { persistPreparedPreloadStateSafely } from "@/background/preload-persist";
+import { persistPreloadSafe } from "@/background/preload-persist";
 import type {
   PreparedRuntimeDecisions,
   ResolutionDecision,
@@ -291,7 +291,7 @@ const createRuntimeResolver =
       );
     }
     if (decision.fencesIdentity && decision.snapshot) {
-      await persistPreparedPreloadStateSafely(deps.runtimeState);
+      await persistPreloadSafe(deps.runtimeState);
     }
     return decision;
   };

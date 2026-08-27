@@ -16,10 +16,7 @@ import {
   type WindowSeedTrigger,
 } from "@/background/firefox-window-name-seed-log";
 import { seedFxWindowState } from "@/background/main-world-injection";
-import {
-  persistPreparedPreloadStateSafely,
-  writePreparedPreloadState,
-} from "@/background/preload-persist";
+import { persistPreloadSafe, writePreloadState } from "@/background/preload-persist";
 import {
   createPreparedDecisions,
   type PreparedRuntimeDecisions,
@@ -225,7 +222,7 @@ const createPreloadSync =
       })),
     );
     deps.runtimeState.setPreparedRuntimeDecisions(prepared);
-    await writePreparedPreloadState(prepared, trustedSites);
+    await writePreloadState(prepared, trustedSites);
     if (BUILD_BROWSER_TARGET === "firefox") await syncUserScripts();
   };
 
@@ -314,7 +311,7 @@ const createWindowSeed =
             ?.getFxWindowSeed(resolvedCookieStoreId, seedHostname) ?? null;
       }
       if (seedHostname) {
-        await persistPreparedPreloadStateSafely(deps.runtimeState);
+        await persistPreloadSafe(deps.runtimeState);
       }
       if (!seedState) {
         deps.logBootstrapEvent("navigation.firefox-window-name-seed", {
@@ -440,7 +437,7 @@ export const createFxBootstrap = (deps: FirefoxBootstrapDeps) => {
           ?.getFxWindowSeed(cookieStoreId, seedHostname) ?? null;
     }
     if (seedHostname) {
-      await persistPreparedPreloadStateSafely(deps.runtimeState);
+      await persistPreloadSafe(deps.runtimeState);
     }
     const activeTab = await deps.getPopupTabById(tabId);
     let skipSameHostDocument: boolean;

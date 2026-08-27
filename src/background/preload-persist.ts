@@ -12,7 +12,7 @@ type PreloadPersistSource = {
  * decisions. Host-bound `*<siteKey>` rows already in the fence cache survive;
  * a full `createPreparedDecisions` rebuild would wipe them.
  */
-export const writePreparedPreloadState = async (
+export const writePreloadState = async (
   prepared: PreparedRuntimeDecisions,
   trustedSites: readonly TrustedSite[],
 ): Promise<void> => {
@@ -25,21 +25,19 @@ export const writePreparedPreloadState = async (
   });
 };
 
-export const persistPreparedPreloadState = async (
-  source: PreloadPersistSource,
-): Promise<void> => {
+export const persistPreload = async (source: PreloadPersistSource): Promise<void> => {
   const prepared = source.getPreparedDecisions();
   if (!prepared) {
     return;
   }
-  await writePreparedPreloadState(prepared, source.getLastKnownTrustedSites() ?? []);
+  await writePreloadState(prepared, source.getLastKnownTrustedSites() ?? []);
 };
 
-export const persistPreparedPreloadStateSafely = async (
+export const persistPreloadSafe = async (
   source: PreloadPersistSource,
 ): Promise<void> => {
   try {
-    await persistPreparedPreloadState(source);
+    await persistPreload(source);
   } catch (error) {
     console.warn("Failed to persist fenced preload state.", error);
   }

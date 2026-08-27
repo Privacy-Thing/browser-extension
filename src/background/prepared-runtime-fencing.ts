@@ -42,9 +42,7 @@ export const toFencingRequest = (
   inputs: FencingFlagSource,
   hostname?: string,
 ): DomainFencingRequest | undefined =>
-  inputs.featureFlags.domainFencing && hostname
-    ? { hostname }
-    : undefined;
+  inputs.featureFlags.domainFencing && hostname ? { hostname } : undefined;
 
 export const fencesPreparedIdentity = (
   inputs: FencingFlagSource,

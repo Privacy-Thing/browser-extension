@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { persistPreparedPreloadState } from "@/background/preload-persist";
+import { persistPreload } from "@/background/preload-persist";
 import { createPreparedDecisions } from "@/background/prepared-runtime-decisions";
 import {
   PRELOAD_STATE_KEY,
@@ -22,8 +22,7 @@ const warsaw: Location = {
 
 const readPersistedState = (set: ReturnType<typeof vi.fn>): PreloadedRuntimeState => {
   const payload = set.mock.calls[0]?.[0] as
-    | Record<string, PreloadedRuntimeState>
-    | undefined;
+    Record<string, PreloadedRuntimeState> | undefined;
   const state = payload?.[PRELOAD_STATE_KEY];
   if (!state) {
     throw new Error("expected session preload state to be written");
@@ -31,7 +30,7 @@ const readPersistedState = (set: ReturnType<typeof vi.fn>): PreloadedRuntimeStat
   return state;
 };
 
-describe("persistPreparedPreloadState", () => {
+describe("persistPreload", () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
@@ -85,7 +84,7 @@ describe("persistPreparedPreloadState", () => {
       .find((entry) => entry.pattern === "*")?.snapshot.fingerprint?.canvasNoiseSeed;
     prepared.resolveDecision("shop.example.com");
 
-    await persistPreparedPreloadState({
+    await persistPreload({
       getPreparedDecisions: () => prepared,
       getLastKnownTrustedSites: () => [],
     });
@@ -107,7 +106,7 @@ describe("persistPreparedPreloadState", () => {
       },
     });
 
-    await persistPreparedPreloadState({
+    await persistPreload({
       getPreparedDecisions: () => null,
       getLastKnownTrustedSites: () => [],
     });
