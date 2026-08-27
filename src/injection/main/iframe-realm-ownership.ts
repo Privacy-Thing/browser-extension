@@ -163,9 +163,15 @@ export const shouldParentOwnFrame = (
   if (!source) return true;
   try {
     const protocol = new URL(source, frame.ownerDocument.baseURI).protocol;
-    return (
-      protocol === "about:" || protocol === "javascript:" || protocol === "vbscript:"
-    );
+    if (
+      protocol === "javascript:" ||
+      protocol === "vbscript:" ||
+      protocol === "data:"
+    ) {
+      // data: is an opaque destination document, not an inherited blank realm.
+      return protocol !== "data:";
+    }
+    return protocol === "about:";
   } catch {
     return false;
   }
