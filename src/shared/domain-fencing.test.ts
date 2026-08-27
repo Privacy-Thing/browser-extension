@@ -31,6 +31,15 @@ describe("getSiteKey", () => {
     expect(getSiteKey("bob.netlify.app")).toBe("bob.netlify.app");
   });
 
+  it("degrades unknown multi-label public suffixes to a coarser site key", () => {
+    // Compact ccTLD/private heuristic, not a full PSL. Unlisted 3-label
+    // suffixes keep the last two labels; unrelated tenants may share a key.
+    expect(getSiteKey("school-a.k12.ca.us")).toBe("ca.us");
+    expect(getSiteKey("school-b.k12.ca.us")).toBe("ca.us");
+    expect(getSiteKey("alice.s3.amazonaws.com")).toBe("amazonaws.com");
+    expect(getSiteKey("bob.s3.amazonaws.com")).toBe("amazonaws.com");
+  });
+
   it("returns IP literals and single-label hosts unchanged", () => {
     expect(getSiteKey("127.0.0.1")).toBe("127.0.0.1");
     expect(getSiteKey("[::1]")).toBe("[::1]");

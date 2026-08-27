@@ -1,4 +1,4 @@
-import { resetFenceDnrRules } from "@/background/dnr-domain-fencing";
+import { rebuildSessionDnr } from "@/background/dnr-domain-fencing";
 import { buildRequestHeaders } from "@/background/dnr-request-headers";
 import {
   resolveProfileSnapshot,
@@ -710,16 +710,7 @@ export const syncDynamicHeaderRules = (
         ...trustedSiteBypassRules,
         ...cspRules,
       ];
-      const existingRules = await chrome.declarativeNetRequest.getSessionRules();
-      const removeRuleIds = existingRules
-        .map((rule) => rule.id)
-        .filter((id) => id >= TAB_RULE_ID_BASE);
-      resetFenceDnrRules();
-
-      await chrome.declarativeNetRequest.updateSessionRules({
-        removeRuleIds,
-        addRules: nextRules,
-      });
+      await rebuildSessionDnr(nextRules, TAB_RULE_ID_BASE);
     });
   return syncHeaderRulesInFlight;
 };

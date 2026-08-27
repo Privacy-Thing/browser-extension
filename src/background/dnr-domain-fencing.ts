@@ -37,16 +37,79 @@ type FenceDnrSlot = {
   ruleId: number;
 };
 
+type FenceCacheSnap = {
+  lru: string[];
+  slots: [string, FenceDnrSlot][];
+  nextSlot: number;
+};
+
 const lruOrder: string[] = [];
 const slots = new Map<string, FenceDnrSlot>();
 let nextSlot = 0;
 let syncInFlight: Promise<void> = Promise.resolve();
+
+const captureFenceCache = (): FenceCacheSnap => ({
+  lru: [...lruOrder],
+  slots: [...slots.entries()].map(([key, slot]) => [key, { ...slot }]),
+  nextSlot,
+});
+
+const restoreFenceCache = (snapshot: FenceCacheSnap): void => {
+  lruOrder.length = 0;
+  lruOrder.push(...snapshot.lru);
+  slots.clear();
+  for (const [key, slot] of snapshot.slots) {
+    slots.set(key, slot);
+  }
+  nextSlot = snapshot.nextSlot;
+};
+
+/** Serializes fence-rule installs with bulk session-rule rebuilds. */
+export const enqueueFenceDnr = (work: () => Promise<void>): Promise<void> => {
+  syncInFlight = syncInFlight.catch(() => undefined).then(work);
+  return syncInFlight;
+};
 
 export const resetFenceDnrRules = (): void => {
   lruOrder.length = 0;
   slots.clear();
   nextSlot = 0;
 };
+
+/** Session rule IDs owned by the fence LRU, including vacated slots. */
+export const listedFenceDnrIds = (): number[] => {
+  const ids = new Set<number>();
+  for (const slot of slots.values()) {
+    ids.add(slot.ruleId);
+  }
+  for (let index = 0; index < nextSlot; index += 1) {
+    ids.add(FENCE_DNR_ID_BASE + index);
+  }
+  return [...ids];
+};
+
+/**
+ * Replaces all session header rules at or above `minRemoveId`, including
+ * fence LRU IDs, then clears the fence cache. Runs on the fence DNR queue
+ * so an in-flight install cannot outlive the bulk remove list.
+ */
+export const rebuildSessionDnr = (
+  nextRules: DynamicHeaderRule[],
+  minRemoveId: number,
+): Promise<void> =>
+  enqueueFenceDnr(async () => {
+    const existing = await chrome.declarativeNetRequest.getSessionRules();
+    await chrome.declarativeNetRequest.updateSessionRules({
+      removeRuleIds: [
+        ...new Set([
+          ...existing.map((rule) => rule.id).filter((id) => id >= minRemoveId),
+          ...listedFenceDnrIds(),
+        ]),
+      ],
+      addRules: nextRules,
+    });
+    resetFenceDnrRules();
+  });
 
 export const versionListHeader = (snapshot: RuntimeSnapshot): string | null => {
   if (snapshot.fingerprint?.spoofingToggles?.clientHints === false) {
@@ -128,16 +191,18 @@ export const syncFenceDnrRule = (
     return Promise.resolve();
   }
 
-  syncInFlight = syncInFlight
-    .catch(() => undefined)
-    .then(async () => {
-      const existing = slots.get(siteKey);
+  return enqueueFenceDnr(async () => {
+    const existing = slots.get(siteKey);
+    if (existing?.headerValue === headerValue) {
+      touchLru(siteKey);
+      return;
+    }
+
+    const previous = captureFenceCache();
+    try {
       if (existing) {
-        touchLru(siteKey);
-        if (existing.headerValue === headerValue) {
-          return;
-        }
         existing.headerValue = headerValue;
+        touchLru(siteKey);
         await chrome.declarativeNetRequest.updateSessionRules({
           removeRuleIds: [existing.ruleId],
           addRules: [buildFenceDnrRule(existing.ruleId, siteKey, headerValue)],
@@ -152,6 +217,9 @@ export const syncFenceDnrRule = (
         removeRuleIds,
         addRules: [buildFenceDnrRule(ruleId, siteKey, headerValue)],
       });
-    });
-  return syncInFlight;
+    } catch (error) {
+      restoreFenceCache(previous);
+      throw error;
+    }
+  });
 };
