@@ -7,7 +7,7 @@ run-name: >-
   ) }}
 
 # Scheduled refresh of the upstream-fed spoofing catalogs
-# (src/shared/*.generated.ts). Runs every 2 days and, only when the data
+# (src/shared/*.generated.ts). Runs every 3 days and, only when the data
 # actually changed:
 #   Phase A — cuts an isolated X.Y.Z.REV stable release built on top of the last
 #             stable tag (previous product + fresh metadata only) and triggers
@@ -20,10 +20,10 @@ run-name: >-
 # The repository variable METADATA_REFRESH_ENABLED must be exactly `true`; a missing
 # value or any other value keeps both scheduled and manual runs inert.
 
-# default: "0 4 */2 * *" # 04:00 UTC, every 2 days
+# default: "0 4 */3 * *" # 04:00 UTC, every 3 days
 on:
   schedule:
-    - cron: "0 4 */2 * *"
+    - cron: "0 4 */3 * *"
   workflow_dispatch:
     inputs:
       dry_run:

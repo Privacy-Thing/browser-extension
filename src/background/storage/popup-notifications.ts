@@ -344,7 +344,12 @@ export const syncUpdateNotices = async ({
     } else if (includeCurrent && currentVersion) {
       catalogNotifications = notifications.filter(
         (item) =>
-          item.channel === buildChannel && item.introducedInVersion === currentVersion,
+          item.channel === buildChannel &&
+          compareNoticeVersions(
+            buildChannel,
+            item.introducedInVersion,
+            currentVersion,
+          ) === 0,
       );
     }
     const nextItems = [...agedItems];

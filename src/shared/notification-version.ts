@@ -1,6 +1,7 @@
 export type NotificationChannel = "release" | "beta";
 
 const RELEASE_VERSION_PATTERN = /^\d+\.\d+\.\d+(?:\.\d+)?$/;
+const PRODUCT_VERSION_PATTERN = /^\d+\.\d+\.\d+$/;
 const BETA_VERSION_PATTERN = /^0\.\d{4}\.\d{3,4}\.\d{1,4}$/;
 
 const isBetaVersion = (version: string): boolean => {
@@ -33,11 +34,25 @@ export const isNotificationVersion = (
     ? RELEASE_VERSION_PATTERN.test(version)
     : isBetaVersion(version);
 
+/** Catalog entries announce product releases, never metadata revisions. */
+export const isCatalogNoticeVersion = (
+  channel: NotificationChannel,
+  version: string,
+): boolean =>
+  channel === "release"
+    ? PRODUCT_VERSION_PATTERN.test(version)
+    : isBetaVersion(version);
+
 const parseVersion = (
   channel: NotificationChannel,
   version: string,
-): number[] | null =>
-  isNotificationVersion(channel, version) ? version.split(".").map(Number) : null;
+): number[] | null => {
+  if (!isNotificationVersion(channel, version)) return null;
+  const parts = version.split(".").map(Number);
+  // Release notices belong to the product version X.Y.Z. Metadata revisions
+  // (X.Y.Z.REV) share that generation and must not age or replace it.
+  return channel === "release" ? parts.slice(0, 3) : parts;
+};
 
 export const compareNoticeVersions = (
   channel: NotificationChannel,
