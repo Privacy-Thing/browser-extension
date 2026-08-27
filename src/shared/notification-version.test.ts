@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   compareNoticeVersions,
-  isCatalogNotificationVersion,
+  isCatalogNoticeVersion,
   isNotificationVersion,
 } from "@/shared/notification-version";
 
@@ -15,9 +15,9 @@ describe("notification versions", () => {
     expect(isNotificationVersion("beta", "0.10.0")).toBe(false);
     expect(isNotificationVersion("beta", "0.2026.231.1200")).toBe(false);
     expect(isNotificationVersion("beta", "0.2026.720.2460")).toBe(false);
-    expect(isCatalogNotificationVersion("release", "0.10.0")).toBe(true);
-    expect(isCatalogNotificationVersion("release", "0.8.12.10")).toBe(false);
-    expect(isCatalogNotificationVersion("beta", "0.2026.720.1530")).toBe(true);
+    expect(isCatalogNoticeVersion("release", "0.10.0")).toBe(true);
+    expect(isCatalogNoticeVersion("release", "0.8.12.10")).toBe(false);
+    expect(isCatalogNoticeVersion("beta", "0.2026.720.1530")).toBe(true);
   });
 
   it("compares numeric segments rather than strings", () => {
