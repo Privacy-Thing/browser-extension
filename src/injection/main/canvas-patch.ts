@@ -263,6 +263,7 @@ export const installCanvasPatch = (
   return installedOwnership(installOffscreen());
 };
 
+/** Drop the cached Canvas installation so a later test can wrap restored natives. */
 export const resetCanvasInstallationForTests = (
   targetGlobal: typeof globalThis = globalThis,
 ): void => {
