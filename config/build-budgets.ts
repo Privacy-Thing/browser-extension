@@ -32,7 +32,7 @@ export const CHROME_BOOT_GZIP_BYTES = Math.round(5.2 * 1024);
  * pre-bootstrap race is patched. Put new spoofing in `refract-core`
  * instead of adding a second copy of adapters here.
  */
-export const FX_GEO_SHIM_MAX_BYTES = 133 * 1024;
+export const FX_GEO_SHIM_MAX_BYTES = 131 * 1024;
 
 /**
  * Firefox main-world runtime (`main-world-runtime.js`), including the
@@ -40,7 +40,7 @@ export const FX_GEO_SHIM_MAX_BYTES = 133 * 1024;
  * per-build obfuscated identifier variance via
  * {@link BUNDLE_SIZE_TOLERANCE}.
  */
-export const FX_MAIN_WORLD_MAX_BYTES = 168 * 1024;
+export const FX_MAIN_WORLD_MAX_BYTES = 165 * 1024;
 
 /**
  * Chromium first-inline script. It blocks the first page-JS read, so keep
@@ -52,4 +52,4 @@ export const CHROME_EARLY_MAX_BYTES = 12 * 1024;
 /**
  * Chromium main-world runtime, including the inlined worker source.
  */
-export const CHROME_RUNTIME_MAX_BYTES = 191 * 1024;
+export const CHROME_RUNTIME_MAX_BYTES = 189 * 1024;
