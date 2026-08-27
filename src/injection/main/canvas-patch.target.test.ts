@@ -6,7 +6,10 @@ import {
 } from "@privacy-brand/refract-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { installCanvasPatch } from "@/injection/main/canvas-patch";
+import {
+  installCanvasPatch,
+  resetCanvasInstallationForTests,
+} from "@/injection/main/canvas-patch";
 import type { RuntimeSnapshot } from "@/shared/types";
 
 const ORIGINAL_RGBA = [100, 150, 200, 255] as const;
@@ -440,6 +443,7 @@ describe("installCanvasPatch", () => {
   });
 
   afterEach(() => {
+    resetCanvasInstallationForTests();
     MockCanvasContext2D.prototype.getImageData =
       originalGetImageData as typeof MockCanvasContext2D.prototype.getImageData;
     MockCanvasContext2D.prototype.putImageData =
@@ -1208,27 +1212,8 @@ describe("installCanvasPatch", () => {
   });
 
   it("does not adopt a non-configurable Canvas sentinel as a new native baseline", () => {
-    class IsolatedCanvas {
-      toDataURL(): string {
-        return "data:,isolated-native";
-      }
-
-      toBlob(callback: BlobCallback): void {
-        callback(new Blob());
-      }
-    }
-
-    class IsolatedContext {
-      getImageData(): ImageData {
-        return {
-          data: new Uint8ClampedArray(4),
-          width: 1,
-          height: 1,
-          colorSpace: "srgb",
-        } as ImageData;
-      }
-    }
-
+    class IsolatedCanvas extends MockHTMLCanvasElement {}
+    class IsolatedContext extends MockCanvasContext2D {}
     const isolatedGetImageData = IsolatedContext.prototype.getImageData;
     const isolatedToBlob = IsolatedCanvas.prototype.toBlob;
     const isolatedGlobal = {
@@ -1265,6 +1250,7 @@ describe("installCanvasPatch", () => {
     expect(IsolatedCanvas.prototype.toBlob).toBe(installed.toBlob);
     expect(IsolatedCanvas.prototype.toDataURL).toBe(sentinelToDataURL);
     expect(MockHTMLCanvasElement.prototype.toDataURL).toBe(originalToDataURL);
+    resetCanvasInstallationForTests(isolatedGlobal);
   });
 
   it("does not expose its installation registry through poisoned WeakMap methods", () => {

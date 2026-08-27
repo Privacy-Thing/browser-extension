@@ -262,3 +262,9 @@ export const installCanvasPatch = (
   });
   return installedOwnership(installOffscreen());
 };
+
+export const resetCanvasInstallationForTests = (
+  targetGlobal: typeof globalThis = globalThis,
+): void => {
+  privateWeakMapDelete(canvasInstallations, targetGlobal);
+};
