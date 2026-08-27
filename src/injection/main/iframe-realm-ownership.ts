@@ -70,7 +70,7 @@ export const iframeSrcAttribute = (frame: Element): string | null => {
   }
 };
 
-export const classifyIframeDestination = (
+export const classifyIframeDest = (
   frame: HTMLIFrameElement,
 ): IframeDestinationClass => {
   if (iframeHasSrcdoc(frame)) return "srcdoc";
@@ -146,7 +146,7 @@ export const shouldParentOwnFrame = (
   targetGlobal: typeof globalThis,
   { parentOwnsSrcdoc = false }: { parentOwnsSrcdoc?: boolean } = {},
 ): boolean => {
-  const destination = classifyIframeDestination(frame);
+  const destination = classifyIframeDest(frame);
   if (destination === "srcdoc") {
     if (!isParentOwnedDestination(destination, parentOwnsSrcdoc)) return false;
     try {

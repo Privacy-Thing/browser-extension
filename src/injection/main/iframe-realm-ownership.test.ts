@@ -4,7 +4,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  classifyIframeDestination,
+  classifyIframeDest,
   isParentOwnedRealm,
   shouldParentOwnFrame,
 } from "@/injection/main/iframe-realm-ownership";
@@ -132,7 +132,7 @@ describe("iframe realm ownership", () => {
     String.prototype.trim = () => "https://tracker.test/frame";
 
     try {
-      expect(classifyIframeDestination(frame)).toBe("about-blank");
+      expect(classifyIframeDest(frame)).toBe("about-blank");
       expect(shouldParentOwnFrame(frame, createGlobal({ href: "about:blank" }))).toBe(
         true,
       );
@@ -188,7 +188,7 @@ describe("iframe realm ownership", () => {
     const frame = createFrame(src === undefined ? {} : { src });
     const target = createGlobal({ href: "about:blank" });
 
-    expect(classifyIframeDestination(frame)).toBe(expected);
+    expect(classifyIframeDest(frame)).toBe(expected);
     expect(shouldParentOwnFrame(frame, target)).toBe(parentOwned);
   });
 });

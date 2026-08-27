@@ -6,10 +6,7 @@ import {
 } from "@privacy-brand/refract-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  installCanvasPatch,
-  resetCanvasInstallationForTests,
-} from "@/injection/main/canvas-patch";
+import { installCanvasPatch, resetCanvasInstall } from "@/injection/main/canvas-patch";
 import type { RuntimeSnapshot } from "@/shared/types";
 
 const ORIGINAL_RGBA = [100, 150, 200, 255] as const;
@@ -443,7 +440,7 @@ describe("installCanvasPatch", () => {
   });
 
   afterEach(() => {
-    resetCanvasInstallationForTests();
+    resetCanvasInstall();
     MockCanvasContext2D.prototype.getImageData =
       originalGetImageData as typeof MockCanvasContext2D.prototype.getImageData;
     MockCanvasContext2D.prototype.putImageData =
@@ -1250,7 +1247,7 @@ describe("installCanvasPatch", () => {
     expect(IsolatedCanvas.prototype.toBlob).toBe(installed.toBlob);
     expect(IsolatedCanvas.prototype.toDataURL).toBe(sentinelToDataURL);
     expect(MockHTMLCanvasElement.prototype.toDataURL).toBe(originalToDataURL);
-    resetCanvasInstallationForTests(isolatedGlobal);
+    resetCanvasInstall(isolatedGlobal);
   });
 
   it("does not expose its installation registry through poisoned WeakMap methods", () => {

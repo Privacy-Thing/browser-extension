@@ -264,7 +264,7 @@ export const installCanvasPatch = (
 };
 
 /** Drop the cached Canvas installation so a later test can wrap restored natives. */
-export const resetCanvasInstallationForTests = (
+export const resetCanvasInstall = (
   targetGlobal: typeof globalThis = globalThis,
 ): void => {
   privateWeakMapDelete(canvasInstallations, targetGlobal);
