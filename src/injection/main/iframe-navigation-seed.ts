@@ -1,4 +1,4 @@
-import { privateStringTrim } from "@privacy-brand/refract-core/runtime/primordials";
+import { capturedStringTrim } from "@/injection/main/iframe-realm-ownership";
 
 const isAsciiCaseInsensitive = (value: unknown, expected: string): value is string => {
   if (typeof value !== "string" || value.length !== expected.length) {
@@ -26,7 +26,7 @@ export const sameOriginSeedHostname = (
   baseUrl: string,
   ownerOrigin: string,
 ): string | null => {
-  if (typeof value !== "string" || privateStringTrim(value) === "") {
+  if (typeof value !== "string" || capturedStringTrim(value) === "") {
     return null;
   }
 

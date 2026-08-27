@@ -85,17 +85,10 @@ const restoreCanvasAnchor = (
   key: PropertyKey,
   value: Function,
 ): void => {
-  const current = privateOwnDescriptor(target, key);
-  if (current?.configurable === false) {
-    return;
-  }
+  if (privateOwnDescriptor(target, key)?.configurable === false) return;
   try {
     privateDefineProperties(target, {
-      [key]: {
-        configurable: true,
-        writable: true,
-        value,
-      },
+      [key]: { configurable: true, writable: true, value },
     });
   } catch {
     // Hostile non-configurable replacement is reported by the integrity registry.

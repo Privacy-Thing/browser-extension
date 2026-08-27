@@ -167,6 +167,7 @@ describe("iframe realm ownership", () => {
     { src: undefined, expected: "about-blank", parentOwned: true },
     { src: "about:blank", expected: "about-blank", parentOwned: true },
     { src: "javascript:void(0)", expected: "javascript", parentOwned: true },
+    { src: "vbscript:msgbox(1)", expected: "vbscript", parentOwned: true },
     { src: "/frame", expected: "web", parentOwned: false },
     {
       src: "blob:https://example.test/11111111-1111-1111-1111-111111111111",

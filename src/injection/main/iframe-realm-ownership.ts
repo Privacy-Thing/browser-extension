@@ -1,13 +1,11 @@
-import {
-  privateReflectApply,
-  privateStringTrim,
-} from "@privacy-brand/refract-core/runtime/primordials";
+import { privateReflectApply } from "@privacy-brand/refract-core/runtime/primordials";
 
 type HasAttributeFn = (this: Element, qualifiedName: string) => boolean;
 type GetAttributeFn = (this: Element, qualifiedName: string) => string | null;
 
 let nativeHasAttribute: HasAttributeFn | undefined;
 let nativeGetAttribute: GetAttributeFn | undefined;
+const nativeStringTrim = String.prototype.trim;
 
 const captureElementIntrinsics = (): void => {
   if (nativeHasAttribute && nativeGetAttribute) return;
@@ -18,12 +16,39 @@ const captureElementIntrinsics = (): void => {
 
 captureElementIntrinsics();
 
+export const capturedStringTrim = (value: string): string =>
+  privateReflectApply(nativeStringTrim, value, []) as string;
+
+export const iframeHasSrcdoc = (frame: Element): boolean => {
+  captureElementIntrinsics();
+  try {
+    return nativeHasAttribute
+      ? privateReflectApply(nativeHasAttribute, frame, ["srcdoc"]) === true
+      : false;
+  } catch {
+    return false;
+  }
+};
+
+export const iframeSrcAttribute = (frame: Element): string | null => {
+  captureElementIntrinsics();
+  try {
+    if (!nativeGetAttribute) return null;
+    const value = privateReflectApply(nativeGetAttribute, frame, ["src"]);
+    if (typeof value !== "string") return null;
+    const trimmed = capturedStringTrim(value);
+    return trimmed === "" ? null : trimmed;
+  } catch {
+    return null;
+  }
+};
+
 /**
  * Destination classes for iframe `src` / `srcdoc` topology.
  *
  * Parent-owned (full protection via the same-origin parent runtime):
  * - `about-blank` — inherited blank realm, including `about:blank` and empty src
- * - `javascript:` — executes in that inherited blank realm
+ * - `javascript:` / `vbscript:` — execute in that inherited blank realm
  * - `srcdoc` — only when `parentOwnsSrcdoc` (Firefox); Chromium srcdoc is
  *   owned by the all-frames runtime
  *
@@ -41,34 +66,12 @@ export type IframeDestinationClass =
   | "about-blank"
   | "srcdoc"
   | "javascript"
+  | "vbscript"
   | "web"
   | "opaque-blob"
   | "opaque-data"
   | "opaque-filesystem"
   | "unknown";
-
-export const iframeHasSrcdoc = (frame: Element): boolean => {
-  captureElementIntrinsics();
-  try {
-    if (!nativeHasAttribute) return false;
-    return privateReflectApply(nativeHasAttribute, frame, ["srcdoc"]) === true;
-  } catch {
-    return false;
-  }
-};
-
-export const iframeSrcAttribute = (frame: Element): string | null => {
-  captureElementIntrinsics();
-  try {
-    if (!nativeGetAttribute) return null;
-    const value = privateReflectApply(nativeGetAttribute, frame, ["src"]);
-    if (typeof value !== "string") return null;
-    const trimmed = privateStringTrim(value);
-    return trimmed === "" ? null : trimmed;
-  } catch {
-    return null;
-  }
-};
 
 export const classifyIframeDest = (
   frame: HTMLIFrameElement,
@@ -77,12 +80,13 @@ export const classifyIframeDest = (
   const source = iframeSrcAttribute(frame);
   if (!source) return "about-blank";
   try {
-    const destination = new URL(source, frame.ownerDocument.baseURI);
-    switch (destination.protocol) {
+    switch (new URL(source, frame.ownerDocument.baseURI).protocol) {
       case "about:":
         return "about-blank";
       case "javascript:":
         return "javascript";
+      case "vbscript:":
+        return "vbscript";
       case "http:":
       case "https:":
         return "web";
@@ -98,14 +102,6 @@ export const classifyIframeDest = (
   } catch {
     return "unknown";
   }
-};
-
-const isParentOwnedDestination = (
-  destination: IframeDestinationClass,
-  parentOwnsSrcdoc: boolean,
-): boolean => {
-  if (destination === "srcdoc") return parentOwnsSrcdoc;
-  return destination === "about-blank" || destination === "javascript";
 };
 
 /**
@@ -146,9 +142,8 @@ export const shouldParentOwnFrame = (
   targetGlobal: typeof globalThis,
   { parentOwnsSrcdoc = false }: { parentOwnsSrcdoc?: boolean } = {},
 ): boolean => {
-  const destination = classifyIframeDest(frame);
-  if (destination === "srcdoc") {
-    if (!isParentOwnedDestination(destination, parentOwnsSrcdoc)) return false;
+  if (iframeHasSrcdoc(frame)) {
+    if (!parentOwnsSrcdoc) return false;
     try {
       targetGlobal.parent.document;
       return (
@@ -164,5 +159,14 @@ export const shouldParentOwnFrame = (
     return false;
   }
 
-  return isParentOwnedDestination(destination, parentOwnsSrcdoc);
+  const source = iframeSrcAttribute(frame);
+  if (!source) return true;
+  try {
+    const protocol = new URL(source, frame.ownerDocument.baseURI).protocol;
+    return (
+      protocol === "about:" || protocol === "javascript:" || protocol === "vbscript:"
+    );
+  } catch {
+    return false;
+  }
 };
