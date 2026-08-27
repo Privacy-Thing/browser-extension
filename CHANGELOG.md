@@ -19,6 +19,10 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 - Keep popup product-release notifications unread across metadata revisions
   (`X.Y.Z.REV`). Auto-read still applies when the `X.Y.Z` product version changes.
+- Treat replacement of Canvas `getImageData` / `toDataURL` / `toBlob` as
+  tampering when the prototype identity has not changed, including replacing
+  all three anchors, and ignore iframe ownership methods shadowed on the
+  element instance.
 
 ## [0.9.2.6] - 2026-08-25
 

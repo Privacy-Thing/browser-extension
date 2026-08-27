@@ -29,8 +29,12 @@ describe("iframe DOM insertion hooks source", () => {
 
   it("installs child-realm surfaces once per Navigator prototype", () => {
     expect(realmSource).toContain("#patchedNavProtos = new WeakSet<object>();");
-    expect(realmSource).toContain("#patchedNavProtos.has(navPrototype)");
-    expect(realmSource).toContain("#patchedNavProtos.add(navPrototype);");
+    expect(realmSource).toContain(
+      "privateWeakSetHas(this.#patchedNavProtos, navPrototype)",
+    );
+    expect(realmSource).toContain(
+      "privateWeakSetAdd(this.#patchedNavProtos, navPrototype)",
+    );
   });
 
   it("seeds same-origin iframe navigations before the native write", () => {

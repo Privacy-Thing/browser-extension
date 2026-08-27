@@ -1,3 +1,5 @@
+import { capturedStringTrim } from "@/injection/main/iframe-realm-ownership";
+
 const isAsciiCaseInsensitive = (value: unknown, expected: string): value is string => {
   if (typeof value !== "string" || value.length !== expected.length) {
     return false;
@@ -24,7 +26,7 @@ export const sameOriginSeedHostname = (
   baseUrl: string,
   ownerOrigin: string,
 ): string | null => {
-  if (typeof value !== "string" || value.trim() === "") {
+  if (typeof value !== "string" || capturedStringTrim(value) === "") {
     return null;
   }
 

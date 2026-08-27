@@ -5,6 +5,10 @@ import {
   createNativeSource,
   maskAsNative,
 } from "@privacy-brand/refract-core/native/native-mask";
+import {
+  privateWeakSetAdd as add,
+  privateWeakSetHas as has,
+} from "@privacy-brand/refract-core/runtime/primordials";
 
 import {
   isIframeSrcAttribute,
@@ -13,6 +17,7 @@ import {
 } from "@/injection/main/iframe-navigation-seed";
 import { createIframeScheduler } from "@/injection/main/iframe-patch-scheduler";
 import { IframeRealmInstaller } from "@/injection/main/iframe-realm-installer";
+import { iframeHasSrcdoc } from "@/injection/main/iframe-realm-ownership";
 import { isTopOrSameOriginFrame } from "@/injection/main/worker-patch";
 import { BUILD_BROWSER_TARGET } from "@/shared/build-flags";
 import type { RuntimeSnapshot } from "@/shared/types";
@@ -28,6 +33,9 @@ type InsertMethods = {
   insertBefore: Node["insertBefore"] | undefined;
   replaceChild: Node["replaceChild"] | undefined;
 };
+
+const skipPatch = <T extends object>(set: WeakSet<T>, value: T | undefined): boolean =>
+  !value || has(set, value);
 
 class IframeDomInstaller {
   #frameAccessDepth = 0;
@@ -92,9 +100,7 @@ class IframeDomInstaller {
   #installContentWindow(targetWin: Window): void {
     const iframeGlobal = targetWin as Window & typeof globalThis;
     const targetPrototype = iframeGlobal.HTMLIFrameElement?.prototype;
-    if (!targetPrototype || this.#patchedWindowProtos.has(targetPrototype)) {
-      return;
-    }
+    if (skipPatch(this.#patchedWindowProtos, targetPrototype)) return;
 
     const descriptor = Object.getOwnPropertyDescriptor(
       targetPrototype,
@@ -107,7 +113,7 @@ class IframeDomInstaller {
     const nativeGetContentWindow = descriptor.get;
     const installer = this;
 
-    this.#patchedWindowProtos.add(targetPrototype);
+    add(this.#patchedWindowProtos, targetPrototype);
 
     defineNativeGetter(
       targetPrototype,
@@ -133,9 +139,7 @@ class IframeDomInstaller {
   #installDocument(targetWin: Window): void {
     const iframeGlobal = targetWin as Window & typeof globalThis;
     const targetPrototype = iframeGlobal.HTMLIFrameElement?.prototype;
-    if (!targetPrototype || this.#patchedDocumentProtos.has(targetPrototype)) {
-      return;
-    }
+    if (skipPatch(this.#patchedDocumentProtos, targetPrototype)) return;
 
     const descriptor = Object.getOwnPropertyDescriptor(
       targetPrototype,
@@ -148,7 +152,7 @@ class IframeDomInstaller {
     const nativeGetContentDocument = descriptor.get;
     const installer = this;
 
-    this.#patchedDocumentProtos.add(targetPrototype);
+    add(this.#patchedDocumentProtos, targetPrototype);
 
     defineNativeGetter(
       targetPrototype,
@@ -204,7 +208,7 @@ class IframeDomInstaller {
     const installer = this;
     const iframeGlobal = targetWin as Window & typeof globalThis;
     const iframePrototype = iframeGlobal.HTMLIFrameElement?.prototype;
-    if (iframePrototype && !this.#patchedNavigationProtos.has(iframePrototype)) {
+    if (iframePrototype && !has(this.#patchedNavigationProtos, iframePrototype)) {
       const srcDescriptor = Object.getOwnPropertyDescriptor(iframePrototype, "src");
       if (BUILD_BROWSER_TARGET === "chromium" && srcDescriptor?.set) {
         const nativeSetSrc = srcDescriptor.set;
@@ -239,13 +243,11 @@ class IframeDomInstaller {
           ),
         });
       }
-      this.#patchedNavigationProtos.add(iframePrototype);
+      add(this.#patchedNavigationProtos, iframePrototype);
     }
 
     const elementPrototype = iframeGlobal.Element?.prototype;
-    if (!elementPrototype || this.#patchedAttributeProtos.has(elementPrototype)) {
-      return;
-    }
+    if (skipPatch(this.#patchedAttributeProtos, elementPrototype)) return;
 
     const setAttributeDescriptor = Object.getOwnPropertyDescriptor(
       elementPrototype,
@@ -311,7 +313,7 @@ class IframeDomInstaller {
       });
     }
 
-    this.#patchedAttributeProtos.add(elementPrototype);
+    add(this.#patchedAttributeProtos, elementPrototype);
   }
 
   #getSubtreeFrames(node: Node | null | undefined): HTMLIFrameElement[] {
@@ -334,11 +336,11 @@ class IframeDomInstaller {
       // A detached iframe can receive srcdoc before it has a contentWindow, so
       // the setter hook cannot seed it. Once insertion creates the provisional
       // about:blank realm, seed it synchronously before the srcdoc document runs.
-      if (frame.hasAttribute("srcdoc")) {
+      if (iframeHasSrcdoc(frame)) {
         this.#seedFrameNavigation(frame);
       }
 
-      if (!this.#patchedLoadFrames.has(frame)) {
+      if (!has(this.#patchedLoadFrames, frame)) {
         frame.addEventListener("load", () => {
           try {
             this.#frameAccessDepth += 1;
@@ -352,7 +354,7 @@ class IframeDomInstaller {
             this.#frameAccessDepth -= 1;
           }
         });
-        this.#patchedLoadFrames.add(frame);
+        add(this.#patchedLoadFrames, frame);
       }
 
       try {
@@ -372,9 +374,7 @@ class IframeDomInstaller {
   #installInsertionHooks(targetWin: Window): void {
     const iframeGlobal = targetWin as Window & typeof globalThis;
     const targetPrototype = iframeGlobal.Node?.prototype;
-    if (!targetPrototype || this.#patchedInsertProtos.has(targetPrototype)) {
-      return;
-    }
+    if (skipPatch(this.#patchedInsertProtos, targetPrototype)) return;
 
     const appendDescriptor = Object.getOwnPropertyDescriptor(
       targetPrototype,
@@ -401,7 +401,7 @@ class IframeDomInstaller {
     const nativeInsertBefore = insertBeforeDescriptor.value as Node["insertBefore"];
     const nativeReplaceChild = replaceChildDescriptor.value as Node["replaceChild"];
 
-    this.#patchedInsertProtos.add(targetPrototype);
+    add(this.#patchedInsertProtos, targetPrototype);
 
     const { appendChild, insertBefore, replaceChild } = this.#createInsertionMethods({
       nativeAppendChild,
@@ -528,10 +528,10 @@ class IframeDomInstaller {
   // insertion may still race — the Node.prototype and contentDocument hooks
   // handle the synchronous cases.
   #installMutation(targetDoc: Document): void {
-    if (this.#patchedDocuments.has(targetDoc)) {
+    if (has(this.#patchedDocuments, targetDoc)) {
       return;
     }
-    this.#patchedDocuments.add(targetDoc);
+    add(this.#patchedDocuments, targetDoc);
 
     try {
       new MutationObserver((mutations) => {
@@ -562,9 +562,7 @@ class IframeDomInstaller {
     const installer = this;
     const iframeGlobal = targetWin as Window & typeof globalThis;
     const rangePrototype = iframeGlobal.Range?.prototype;
-    if (!rangePrototype || this.#patchedRangeProtos.has(rangePrototype)) {
-      return;
-    }
+    if (skipPatch(this.#patchedRangeProtos, rangePrototype)) return;
 
     const descriptor = Object.getOwnPropertyDescriptor(rangePrototype, "insertNode");
     if (!descriptor?.value) {
@@ -573,7 +571,7 @@ class IframeDomInstaller {
 
     const nativeInsertNode = descriptor.value as Range["insertNode"];
 
-    this.#patchedRangeProtos.add(rangePrototype);
+    add(this.#patchedRangeProtos, rangePrototype);
 
     const insertNode = Object.getOwnPropertyDescriptor(
       {
@@ -634,11 +632,9 @@ class IframeDomInstaller {
     const installer = this;
     const iframeGlobal = targetWin as Window & typeof globalThis;
     const targetPrototype = iframeGlobal.Element?.prototype;
-    if (!targetPrototype || this.#patchedHtmlProtos.has(targetPrototype)) {
-      return;
-    }
+    if (skipPatch(this.#patchedHtmlProtos, targetPrototype)) return;
 
-    this.#patchedHtmlProtos.add(targetPrototype);
+    add(this.#patchedHtmlProtos, targetPrototype);
 
     const innerHtml = this.#findDescriptorOwner(targetPrototype, "innerHTML");
     if (innerHtml?.descriptor.set) {
