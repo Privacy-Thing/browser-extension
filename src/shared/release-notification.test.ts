@@ -67,6 +67,10 @@ describe("extension notification catalog", () => {
       "privacy-thing-rename",
       "notification-center-intro",
     ]);
+    expect(getVersionNotices("release", "0.9.0.4").map((item) => item.id)).toEqual([
+      "privacy-thing-rename",
+      "notification-center-intro",
+    ]);
     expect(getVersionNotices("release", "0.0.0-test")).toEqual([]);
     expect(getVersionNotices("beta", "0.10.0")).toEqual([]);
   });
@@ -108,6 +112,11 @@ describe("extension notification catalog", () => {
     expect(() =>
       parseNoticeCatalog({
         notifications: [{ ...validEntry, introducedInVersion: "1.2" }],
+      }),
+    ).toThrow("Invalid extension notification");
+    expect(() =>
+      parseNoticeCatalog({
+        notifications: [{ ...validEntry, introducedInVersion: "1.2.3.4" }],
       }),
     ).toThrow("Invalid extension notification");
     expect(() =>

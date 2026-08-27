@@ -6,6 +6,11 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ## [Unreleased]
 
+### Fixed
+
+- Keep popup product-release notifications unread across metadata revisions
+  (`X.Y.Z.REV`). Auto-read still applies when the `X.Y.Z` product version changes.
+
 ## [0.9.2.6] - 2026-08-25
 
 - Refreshed extension metadata (hardware profiles, Chrome versions, locale data) from upstream sources to keep spoofed fingerprints current.

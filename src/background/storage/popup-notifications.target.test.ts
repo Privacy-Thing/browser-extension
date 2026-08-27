@@ -300,6 +300,50 @@ describe("popup notifications", () => {
     expect(synced.find((item) => item.id === "old-beta")?.readAt).toBeNull();
   });
 
+  it("does not age current-release notifications when only the metadata revision changes", async () => {
+    const catalog = [
+      extensionNotification("old-release", "0.9.2"),
+      extensionNotification("current-release", "0.10.0"),
+    ];
+    await syncUpdateNotices({
+      notifications: catalog,
+      buildChannel: "local",
+      includeCurrent: true,
+    });
+
+    const synced = await syncUpdateNotices({
+      notifications: catalog,
+      buildChannel: "release",
+      currentVersion: "0.10.0.6",
+      includeCurrent: true,
+      detectedAt: "2026-07-12T21:00:00.000Z",
+    });
+
+    expect(synced.find((item) => item.id === "old-release")?.readAt).toBe(
+      "2026-07-12T21:00:00.000Z",
+    );
+    expect(synced.find((item) => item.id === "current-release")?.readAt).toBeNull();
+    expect(
+      synced.find((item) => item.id === "current-release")?.introducedInVersion,
+    ).toBe("0.10.0");
+  });
+
+  it("adds the matching product-version catalog entry on a revision update", async () => {
+    const synced = await syncUpdateNotices({
+      notifications: [
+        extensionNotification("old-release", "0.9.2"),
+        extensionNotification("current-release", "0.10.0"),
+      ],
+      buildChannel: "release",
+      currentVersion: "0.10.0.1",
+      includeCurrent: true,
+    });
+
+    expect(synced.map((item) => item.id)).toEqual(["current-release"]);
+    expect(synced[0]?.introducedInVersion).toBe("0.10.0");
+    expect(synced[0]?.readAt).toBeNull();
+  });
+
   it("loads the full catalog in local builds without resetting persisted state", async () => {
     const initialCatalog = [
       extensionNotification("release-note", "0.10.0"),
