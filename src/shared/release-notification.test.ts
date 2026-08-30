@@ -99,6 +99,23 @@ describe("extension notification catalog", () => {
     );
   });
 
+  it("includes the approved 0.9.3 Domain fencing announcement", () => {
+    expect(getVersionNotices("release", "0.9.3")).toEqual([
+      {
+        id: "experimental-domain-fencing",
+        channel: "release",
+        introducedInVersion: "0.9.3",
+        title: "Domain fencing is ready to try",
+        message: [
+          "On Chrome and Firefox, Domain fencing gives each site its own stable variation of the generated fingerprint when the Default Rule applies. On Firefox, it also separates identities assigned through containers.",
+          "The same site and its subdomains share one identity, while unrelated sites receive separate variations. Your chosen regional preset stays unchanged, and manually configured Domain Rules are not fenced.",
+          "Domain fencing is experimental and off by default. To try it, open Settings → Advanced → Experimental and turn on Domain fencing.",
+        ],
+      },
+    ]);
+    expect(getVersionNotices("release", "0.9.3.1")).toHaveLength(1);
+  });
+
   it("rejects invalid entries and duplicate IDs", () => {
     const validEntry = {
       id: "release-note",

@@ -14,6 +14,7 @@ The format is based on Keep a Changelog and the project follows Semantic Version
   computed in the background on Chrome and Firefox. The shared Default Rule
   preload keeps the baseline fingerprint so first-inline never falls through
   to the real browser; host-bound rows then carry the per-site variation.
+- Added a 0.9.3 popup announcement for experimental Domain fencing.
 
 ### Fixed
 
