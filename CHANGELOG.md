@@ -6,10 +6,6 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ## [Unreleased]
 
-## [0.9.2.7] - 2026-08-28
-
-- Refreshed extension metadata (hardware profiles, Chrome versions, locale data) from upstream sources to keep spoofed fingerprints current.
-
 ### Added
 
 - Added an experimental Domain fencing option. When the Default Rule or a
@@ -27,6 +23,10 @@ The format is based on Keep a Changelog and the project follows Semantic Version
   tampering when the prototype identity has not changed, including replacing
   all three anchors, and ignore iframe ownership methods shadowed on the
   element instance.
+
+## [0.9.2.7] - 2026-08-28
+
+- Refreshed extension metadata (hardware profiles, Chrome versions, locale data) from upstream sources to keep spoofed fingerprints current.
 
 ## [0.9.2.6] - 2026-08-25
 
