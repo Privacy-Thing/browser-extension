@@ -8,14 +8,15 @@ const CHANGELOG_PATH = path.resolve("CHANGELOG.md");
 const SEMVER_PATTERN = /^\d+\.\d+\.\d+(?:\.\d+)?$/; // MAJOR.MINOR.PATCH.REVISION
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const UNRELEASED_HEADER = "## [Unreleased]";
+const RELEASE_HEADER_PATTERN = /^## \[[^\]]+\] - \d{4}-\d{2}-\d{2}$/m;
 
 const DEFAULT_NOTE =
   "- Refreshed extension metadata (hardware profiles, Chrome versions, locale data) " +
   "from upstream sources to keep spoofed fingerprints current.";
 
 /**
- * Insert a dedicated `## [version] - date` release section directly below the
- * `## [Unreleased]` header **without draining** the Unreleased body.
+ * Insert a dedicated `## [version] - date` release section after the complete
+ * `## [Unreleased]` body and before the newest existing release.
  *
  * This is the metadata-refresh counterpart to `promote-unreleased-changelog.mjs`:
  * a scheduled revision release must not consume in-progress feature notes that
@@ -42,13 +43,23 @@ export const insertMetadataSection = (
   }
 
   const afterHeaderIndex = changelog.indexOf("\n", unreleasedIndex);
-  const insertionPoint =
+  const unreleasedBodyIndex =
     afterHeaderIndex === -1 ? changelog.length : afterHeaderIndex + 1;
-  const releaseSection = `\n## [${version}] - ${date}\n\n${note.trim()}\n`;
+  const remainingChangelog = changelog.slice(unreleasedBodyIndex);
+  const nextReleaseMatch = RELEASE_HEADER_PATTERN.exec(remainingChangelog);
+  const insertionPoint =
+    nextReleaseMatch === null
+      ? changelog.length
+      : unreleasedBodyIndex + nextReleaseMatch.index;
+  const beforeRelease = changelog.slice(0, insertionPoint);
+  const releaseSeparator = beforeRelease.endsWith("\n\n")
+    ? ""
+    : beforeRelease.endsWith("\n")
+      ? "\n"
+      : "\n\n";
+  const releaseSection = `## [${version}] - ${date}\n\n${note.trim()}\n\n`;
 
-  return `${changelog.slice(0, insertionPoint)}${releaseSection}${changelog.slice(
-    insertionPoint,
-  )}`;
+  return `${beforeRelease}${releaseSeparator}${releaseSection}${changelog.slice(insertionPoint)}`;
 };
 
 const parseArgs = (argv) => {
