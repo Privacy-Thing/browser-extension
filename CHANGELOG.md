@@ -6,6 +6,8 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ## [Unreleased]
 
+## [0.9.3.2] - 2026-09-01
+
 ### Fixed
 
 - Show current release announcements after a fresh store installation and keep
