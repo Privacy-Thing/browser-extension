@@ -97,7 +97,7 @@ const sortActiveNotifications = (
   });
 
 const getStatusLabel = (displayState: NotificationDisplayState): string => {
-  if (displayState === "resolved") return t.popup.notificationsDismissed;
+  if (displayState === "resolved") return t.popup.notificationsResolved;
   if (displayState === "unread") return t.popup.notificationsNew;
   return t.popup.notificationsAcknowledged;
 };

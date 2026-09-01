@@ -114,7 +114,7 @@ describe("PopupNotifications", () => {
 
     expect(releaseMarkup).toContain(">Open link<");
     expect(releaseMarkup).not.toContain(">Review<");
-    expect(resolvedMarkup).toContain(">Dismissed<");
+    expect(resolvedMarkup).toContain(">Resolved<");
     expect(resolvedMarkup).not.toContain("gw-popup-notification-action-label");
   });
 
@@ -154,6 +154,7 @@ describe("PopupNotifications", () => {
     expect(extensionMarkup).not.toContain("Dismissed (1)");
     expect(extensionMarkup).toContain(">Read<");
     expect(siteMarkup).toContain("Dismissed");
+    expect(siteMarkup).toContain(">Resolved<");
     expect(siteMarkup).not.toContain("Previous updates");
   });
 

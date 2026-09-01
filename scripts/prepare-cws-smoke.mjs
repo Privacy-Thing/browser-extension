@@ -1,9 +1,14 @@
+import { Buffer } from "node:buffer";
 import { spawnSync } from "node:child_process";
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import console from "node:console";
+import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
+import process from "node:process";
+import { URL } from "node:url";
 
 const ITEM_ID_PATTERN = /^[a-p]{32}$/;
 const VERSION_PATTERN = /^\d+\.\d+\.\d+(?:\.\d+)?$/;
+const MAX_DOWNLOAD_BYTES = 50 * 1024 * 1024;
 
 const readArgs = (argv) => {
   const values = new Map();
@@ -36,6 +41,42 @@ const extractCrxZip = (crx) => {
   return zip;
 };
 
+const run = (command, commandArgs, failureMessage) => {
+  const result = spawnSync(command, commandArgs, { encoding: "utf8" });
+  if (result.status !== 0) {
+    throw new Error(result.stderr || failureMessage);
+  }
+  return result.stdout;
+};
+
+const validateArchiveEntries = (archivePath) => {
+  const entries = run("unzip", ["-Z1", archivePath], "Could not list the CWS archive.")
+    .split("\n")
+    .filter(Boolean);
+  for (const entry of entries) {
+    const segments = entry.split("/");
+    if (
+      entry.includes("\\") ||
+      path.posix.isAbsolute(entry) ||
+      segments.includes("..")
+    ) {
+      throw new Error(`Unsafe path in CWS archive: ${entry}`);
+    }
+  }
+
+  const entryModes = run(
+    "unzip",
+    ["-Z", "-l", archivePath],
+    "Could not inspect the CWS archive.",
+  );
+  const unsafeMode = entryModes
+    .split("\n")
+    .find((line) => /^[bclps][rwxStTs-]{9}\s/u.test(line));
+  if (unsafeMode) {
+    throw new Error("CWS archive contains a link or special file.");
+  }
+};
+
 const args = readArgs(process.argv.slice(2));
 const itemId = args.get("item-id") ?? "";
 const expectedVersion = args.get("expected-version") ?? "";
@@ -58,25 +99,49 @@ updateUrl.searchParams.set("prodversion", "999.0.0.0");
 updateUrl.searchParams.set("acceptformat", "crx3");
 updateUrl.searchParams.set("x", `id=${itemId}&uc`);
 
-const response = await fetch(updateUrl, { redirect: "follow" });
-if (!response.ok) {
-  throw new Error(`CWS download failed with HTTP ${response.status}.`);
-}
-const zip = extractCrxZip(Buffer.from(await response.arrayBuffer()));
 const archivePath = path.join(allowedRoot, `${itemId}.zip`);
+const downloadPath = path.join(allowedRoot, `${itemId}.crx`);
 
 await rm(outputDir, { recursive: true, force: true });
-await mkdir(outputDir, { recursive: true });
 await mkdir(allowedRoot, { recursive: true });
-await writeFile(archivePath, zip);
-
-const unzip = spawnSync("unzip", ["-q", "-o", archivePath, "-d", outputDir], {
-  encoding: "utf8",
-});
+await rm(downloadPath, { force: true });
 await rm(archivePath, { force: true });
-if (unzip.status !== 0) {
-  throw new Error(unzip.stderr || "Could not extract the CWS artifact.");
+run(
+  "curl",
+  [
+    "--fail",
+    "--location",
+    "--silent",
+    "--show-error",
+    "--proto",
+    "=https",
+    "--proto-redir",
+    "=https",
+    "--max-filesize",
+    String(MAX_DOWNLOAD_BYTES),
+    "--output",
+    downloadPath,
+    updateUrl.href,
+  ],
+  "Could not download the CWS artifact.",
+);
+const downloadSize = (await stat(downloadPath)).size;
+if (downloadSize > MAX_DOWNLOAD_BYTES) {
+  throw new Error("CWS artifact exceeds the download size limit.");
 }
+const zip = extractCrxZip(Buffer.from(await readFile(downloadPath)));
+await rm(downloadPath, { force: true });
+await writeFile(archivePath, zip);
+validateArchiveEntries(archivePath);
+run("unzip", ["-tq", archivePath], "CWS archive integrity check failed.");
+
+await mkdir(outputDir, { recursive: true });
+run(
+  "unzip",
+  ["-q", "-o", archivePath, "-d", outputDir],
+  "Could not extract the CWS artifact.",
+);
+await rm(archivePath, { force: true });
 
 const manifest = JSON.parse(
   await readFile(path.join(outputDir, "manifest.json"), "utf8"),

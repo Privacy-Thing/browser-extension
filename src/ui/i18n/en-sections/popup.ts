@@ -53,6 +53,7 @@ export const popup = {
   notificationsExtension: BRAND_DISPLAY_NAME,
   notificationsPreviousUpdates: "Previous updates",
   notificationsDismissed: "Dismissed",
+  notificationsResolved: "Resolved",
   notificationsNew: "New",
   notificationsAcknowledged: "Read",
   notificationsStillActive: "Needs attention",
