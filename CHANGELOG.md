@@ -6,6 +6,8 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ## [Unreleased]
 
+## [0.9.3.3] - 2026-09-01
+
 ### Fixed
 
 - Sort previous product updates by version and dismissed site warnings by
