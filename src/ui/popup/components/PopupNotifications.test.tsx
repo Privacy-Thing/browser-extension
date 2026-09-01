@@ -158,6 +158,62 @@ describe("PopupNotifications", () => {
     expect(siteMarkup).not.toContain("Previous updates");
   });
 
+  it("sorts update and dismissed histories from newest to oldest", () => {
+    const olderUpdate: PopupNotification = {
+      ...createNotification(
+        "privacy-thing-rename",
+        "2026-07-13T12:01:00.000Z",
+        null,
+        "significant-update",
+      ),
+      scope: "extension",
+      severity: "info",
+      channel: "release",
+      introducedInVersion: "0.9.0",
+    };
+    const newerUpdate: PopupNotification = {
+      ...olderUpdate,
+      id: "experimental-temporal-api",
+      dedupeKey: "experimental-temporal-api",
+      introducedInVersion: "0.9.2",
+    };
+    const olderDismissed = createNotification(
+      "older-dismissed",
+      "2026-07-13T12:01:00.000Z",
+      "2026-07-13T12:02:00.000Z",
+    );
+    const newerDismissed: PopupNotification = {
+      ...olderDismissed,
+      id: "newer-dismissed",
+      dedupeKey: "newer-dismissed",
+      resolvedAt: "2026-07-13T13:02:00.000Z",
+    };
+
+    const updateMarkup = renderToStaticMarkup(
+      <PopupNotificationList
+        notifications={[olderUpdate, newerUpdate]}
+        onOpen={vi.fn()}
+      />,
+    );
+    const dismissedMarkup = renderToStaticMarkup(
+      <PopupNotificationList
+        notifications={[
+          createNotification("active-site", null, null, "shared-worker-strict"),
+          olderDismissed,
+          newerDismissed,
+        ]}
+        onOpen={vi.fn()}
+      />,
+    );
+
+    expect(
+      updateMarkup.indexOf('data-notification-id="experimental-temporal-api"'),
+    ).toBeLessThan(updateMarkup.indexOf('data-notification-id="privacy-thing-rename"'));
+    expect(
+      dismissedMarkup.indexOf('data-notification-id="newer-dismissed"'),
+    ).toBeLessThan(dismissedMarkup.indexOf('data-notification-id="older-dismissed"'));
+  });
+
   it("offers site-scoped compatibility actions for policy notifications", () => {
     const commonProps = {
       onApplySuggestion: vi.fn(async () => undefined),

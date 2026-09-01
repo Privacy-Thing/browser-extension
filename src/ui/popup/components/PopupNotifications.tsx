@@ -4,6 +4,7 @@ import { getPolicyNoticeView } from "../popup-policy-notices";
 
 import { PopupButton } from "./PopupButton";
 
+import { compareNoticeVersions } from "@/shared/notification-version";
 import { isPopupPolicyNoticeKind } from "@/shared/popup-notification-kinds";
 import { isNoticeAttention, isNoticeUnread } from "@/shared/popup-notification-state";
 import {
@@ -106,6 +107,30 @@ const isNotificationHistory = (notification: PopupNotification): boolean =>
   notification.resolvedAt !== null ||
   (notification.kind === "significant-update" && notification.readAt !== null);
 
+const sortNotificationHistory = (
+  notifications: readonly PopupNotification[],
+): PopupNotification[] =>
+  [...notifications].sort((left, right) => {
+    if (
+      left.kind === "significant-update" &&
+      right.kind === "significant-update" &&
+      left.channel !== undefined &&
+      left.channel === right.channel &&
+      left.introducedInVersion !== undefined &&
+      right.introducedInVersion !== undefined
+    ) {
+      const versionOrder = compareNoticeVersions(
+        left.channel,
+        left.introducedInVersion,
+        right.introducedInVersion,
+      );
+      if (versionOrder !== null && versionOrder !== 0) return -versionOrder;
+    }
+    const leftDate = left.resolvedAt ?? left.lastDetectedAt;
+    const rightDate = right.resolvedAt ?? right.lastDetectedAt;
+    return rightDate.localeCompare(leftDate);
+  });
+
 const getActionLabel = (
   notification: PopupNotification,
   needsAttention: boolean,
@@ -199,9 +224,11 @@ export const PopupNotificationList = ({
         notification.scope === scope && !isNotificationHistory(notification),
     ),
   );
-  const scopedHistory = notifications.filter(
-    (notification) =>
-      notification.scope === scope && isNotificationHistory(notification),
+  const scopedHistory = sortNotificationHistory(
+    notifications.filter(
+      (notification) =>
+        notification.scope === scope && isNotificationHistory(notification),
+    ),
   );
   const counts = {
     site: notifications.filter((item) => item.scope === "site" && isNoticeUnread(item))
