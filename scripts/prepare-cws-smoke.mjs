@@ -1,7 +1,7 @@
 import { Buffer } from "node:buffer";
 import { spawnSync } from "node:child_process";
 import console from "node:console";
-import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { URL } from "node:url";
@@ -125,11 +125,11 @@ run(
   ],
   "Could not download the CWS artifact.",
 );
-const downloadSize = (await stat(downloadPath)).size;
-if (downloadSize > MAX_DOWNLOAD_BYTES) {
+const crx = await readFile(downloadPath);
+if (crx.byteLength > MAX_DOWNLOAD_BYTES) {
   throw new Error("CWS artifact exceeds the download size limit.");
 }
-const zip = extractCrxZip(Buffer.from(await readFile(downloadPath)));
+const zip = extractCrxZip(Buffer.from(crx));
 await rm(downloadPath, { force: true });
 await writeFile(archivePath, zip);
 validateArchiveEntries(archivePath);
