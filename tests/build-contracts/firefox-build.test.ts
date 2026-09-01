@@ -143,7 +143,7 @@ test("does not emit or bundle Chromium Battery support", async () => {
   expect(runtime).not.toContain("BatteryManager");
 });
 
-test("stamps non-release firefox builds with a local or beta version label", async () => {
+test("stamps firefox manifests for release, local, and beta builds", async () => {
   const manifest = await readFirefoxManifest();
 
   if (manifest.version_name) {
@@ -152,7 +152,7 @@ test("stamps non-release firefox builds with a local or beta version label", asy
     return;
   }
 
-  expect(manifest.version).toMatch(/^\d+\.\d+\.\d+$/);
+  expect(manifest.version).toMatch(/^\d+\.\d+\.\d+(?:\.\d+)?$/);
 });
 
 test("compiled firefox page-world scripts do not contain product-identifying channel strings", async () => {

@@ -270,7 +270,7 @@ tasks:
       PT_E2E_LANE: publish
       NODE_OPTIONS: --disable-warning=DEP0205
     cmds:
-      - task: build:chrome
+      - PT_BUILD_CHANNEL=release pnpm exec task build:chrome
       - pnpm exec playwright test --config config/playwright.config.ts
 
   test:e2e:publish:ci:
@@ -280,6 +280,12 @@ tasks:
       NODE_OPTIONS: --disable-warning=DEP0205
     cmds:
       - pnpm exec playwright test --config config/playwright.config.ts
+
+  test:cws:post-publish:
+    desc: Download the live CWS artifact and run its fresh-install notification smoke test
+    cmds:
+      - node scripts/prepare-cws-smoke.mjs --output-dir build/cws-smoke/chrome {{.CLI_ARGS}}
+      - PT_E2E_EXTENSION_PATH=build/cws-smoke/chrome PT_E2E_LANE=publish pnpm exec playwright test --config config/playwright.config.ts tests/e2e/extension-notifications-publish.spec.ts --workers=1
 
   test:build-contracts:
     desc: Build both targets and verify manifest, licensing, marker, and bundle-budget contracts
@@ -388,7 +394,7 @@ tasks:
       - task: validate:metadata
       - task: test:unit:app
       - task: test:storybook
-      - task: build
+      - PT_BUILD_CHANNEL=release pnpm exec task build
       - task: test:build-contracts:ci
       - task: test:e2e:publish:ci
 

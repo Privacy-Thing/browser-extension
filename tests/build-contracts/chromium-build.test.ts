@@ -109,7 +109,7 @@ test("does not expose worker bootstrap resources in the chromium manifest", asyn
   expect(resources).not.toContain("src/injection/worker/index.ts");
 });
 
-test("stamps non-release chromium builds with a local or beta version label", async () => {
+test("stamps chromium manifests for release, local, and beta builds", async () => {
   const manifest = await readChromiumManifest();
 
   if (manifest.version_name) {
@@ -118,7 +118,7 @@ test("stamps non-release chromium builds with a local or beta version label", as
     return;
   }
 
-  expect(manifest.version).toMatch(/^\d+\.\d+\.\d+$/);
+  expect(manifest.version).toMatch(/^\d+\.\d+\.\d+(?:\.\d+)?$/);
 });
 
 test("uses static content script bundles instead of async loader stubs", async () => {

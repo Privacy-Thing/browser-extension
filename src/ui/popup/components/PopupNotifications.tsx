@@ -97,10 +97,14 @@ const sortActiveNotifications = (
   });
 
 const getStatusLabel = (displayState: NotificationDisplayState): string => {
-  if (displayState === "resolved") return t.popup.notificationsResolved;
+  if (displayState === "resolved") return t.popup.notificationsDismissed;
   if (displayState === "unread") return t.popup.notificationsNew;
   return t.popup.notificationsAcknowledged;
 };
+
+const isNotificationHistory = (notification: PopupNotification): boolean =>
+  notification.resolvedAt !== null ||
+  (notification.kind === "significant-update" && notification.readAt !== null);
 
 const getActionLabel = (
   notification: PopupNotification,
@@ -132,6 +136,7 @@ const NotificationItem = ({
   return (
     <PopupButton
       variant="ghost"
+      data-notification-id={notification.id}
       data-notification-state={displayState}
       data-needs-attention={needsAttention ? "true" : undefined}
       className="gw-popup-notification-item"
@@ -191,11 +196,12 @@ export const PopupNotificationList = ({
   const scopedActive = sortActiveNotifications(
     notifications.filter(
       (notification) =>
-        notification.scope === scope && notification.resolvedAt === null,
+        notification.scope === scope && !isNotificationHistory(notification),
     ),
   );
-  const scopedResolved = notifications.filter(
-    (notification) => notification.scope === scope && notification.resolvedAt !== null,
+  const scopedHistory = notifications.filter(
+    (notification) =>
+      notification.scope === scope && isNotificationHistory(notification),
   );
   const counts = {
     site: notifications.filter((item) => item.scope === "site" && isNoticeUnread(item))
@@ -243,13 +249,19 @@ export const PopupNotificationList = ({
           <p className="gw-popup-notification-empty">{t.popup.notificationsEmpty}</p>
         ) : null}
       </div>
-      {scopedResolved.length > 0 ? (
-        <details className="gw-popup-notification-resolved">
+      {scopedHistory.length > 0 ? (
+        <details
+          className="gw-popup-notification-resolved"
+          data-notification-history={scope}
+        >
           <summary className="gw-popup-notification-resolved-summary">
-            {t.popup.notificationsResolved} ({scopedResolved.length})
+            {scope === "extension"
+              ? t.popup.notificationsPreviousUpdates
+              : t.popup.notificationsDismissed}{" "}
+            ({scopedHistory.length})
           </summary>
           <div className="gw-popup-notification-resolved-items">
-            {scopedResolved.map((notification) => (
+            {scopedHistory.map((notification) => (
               <NotificationItem
                 key={notification.id}
                 notification={notification}
@@ -494,7 +506,11 @@ export const PopupNotificationDetail = ({
     : t.popup.notificationsDismiss;
 
   return (
-    <div className="gw-popup-notification-detail">
+    <div
+      className="gw-popup-notification-detail"
+      data-notification-id={notification.id}
+      data-notification-view="detail"
+    >
       <div className="gw-popup-workspace-scroll" data-popup-scrollport="true">
         <div className="gw-popup-notification-detail-intro">
           <h3 className="gw-popup-notification-detail-title">

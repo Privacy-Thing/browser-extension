@@ -1,3 +1,4 @@
+import type { NotificationSyncContext } from "@/background/storage/popup-notifications";
 import { fireAndForget } from "@/shared/async";
 import { BUILD_BROWSER_TARGET } from "@/shared/build-flags";
 import {
@@ -28,7 +29,24 @@ export type LifecycleDeps = {
   logInstalled: () => void;
   getOnboardingCompleted: () => Promise<boolean>;
   openOnboardingPage: () => void;
-  syncSignificantUpdates: (version: string, includeCurrent: boolean) => Promise<void>;
+  syncSignificantUpdates: (
+    version: string,
+    context: NotificationSyncContext,
+  ) => Promise<void>;
+};
+
+const syncNoticesSafely = async (
+  deps: LifecycleDeps,
+  context: NotificationSyncContext,
+): Promise<void> => {
+  try {
+    await deps.syncSignificantUpdates(chrome.runtime.getManifest().version, context);
+  } catch (error) {
+    console.warn(
+      `Failed to synchronize extension notifications during ${context}`,
+      error,
+    );
+  }
 };
 
 export const registerLifecycle = (deps: LifecycleDeps): void => {
@@ -36,16 +54,13 @@ export const registerLifecycle = (deps: LifecycleDeps): void => {
 
   chrome.runtime.onInstalled.addListener(async (details) => {
     await deps.ensureStorageMigration();
+    await syncNoticesSafely(deps, details.reason === "update" ? "update" : "install");
     await deps.enableSessionStorage();
     await deps.provisionContainers();
     await deps.syncDynamicHeaderRules([]);
     await deps.applyPrivacyDefaults();
     await deps.refreshCachedConfig();
     await deps.syncPreloadedState();
-    await deps.syncSignificantUpdates(
-      chrome.runtime.getManifest().version,
-      details.reason === "update",
-    );
     await deps.refreshActionState();
     await deps.refreshFxInjectionMode();
     await deps.syncSidebarMenus();
@@ -58,13 +73,13 @@ export const registerLifecycle = (deps: LifecycleDeps): void => {
 
   chrome.runtime.onStartup.addListener(async () => {
     await deps.ensureStorageMigration();
+    await syncNoticesSafely(deps, "startup");
     await deps.enableSessionStorage();
     await deps.provisionContainers();
     await deps.syncDynamicHeaderRules(deps.getActiveTabContexts());
     await deps.applyPrivacyDefaults();
     await deps.refreshCachedConfig();
     await deps.syncPreloadedState();
-    await deps.syncSignificantUpdates(chrome.runtime.getManifest().version, false);
     await deps.refreshActionState();
     await deps.refreshFxInjectionMode();
     await deps.syncSidebarMenus();

@@ -104,6 +104,7 @@ export const PopupHeader = ({
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <PopupIconButton
+                      id="open-notifications"
                       ariaLabel={notificationLabel}
                       {...notificationButtonProps}
                       icon={notificationsIcon}

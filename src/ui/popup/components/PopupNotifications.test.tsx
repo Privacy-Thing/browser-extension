@@ -114,8 +114,47 @@ describe("PopupNotifications", () => {
 
     expect(releaseMarkup).toContain(">Open link<");
     expect(releaseMarkup).not.toContain(">Review<");
-    expect(resolvedMarkup).toContain(">Resolved<");
+    expect(resolvedMarkup).toContain(">Dismissed<");
     expect(resolvedMarkup).not.toContain("gw-popup-notification-action-label");
+  });
+
+  it("separates previous product updates from dismissed site warnings", () => {
+    const previousUpdate: PopupNotification = {
+      ...createNotification(
+        "previous-update",
+        "2026-07-13T12:01:00.000Z",
+        null,
+        "significant-update",
+      ),
+      scope: "extension",
+      severity: "info",
+      channel: "release",
+      introducedInVersion: "0.9.2",
+    };
+    const dismissedSite = createNotification(
+      "dismissed-site",
+      "2026-07-13T12:01:00.000Z",
+      "2026-07-13T12:02:00.000Z",
+    );
+
+    const extensionMarkup = renderToStaticMarkup(
+      <PopupNotificationList notifications={[previousUpdate]} onOpen={vi.fn()} />,
+    );
+    const siteMarkup = renderToStaticMarkup(
+      <PopupNotificationList
+        notifications={[
+          createNotification("active-site", null, null, "shared-worker-strict"),
+          dismissedSite,
+        ]}
+        onOpen={vi.fn()}
+      />,
+    );
+
+    expect(extensionMarkup).toContain("Previous updates");
+    expect(extensionMarkup).not.toContain("Dismissed (1)");
+    expect(extensionMarkup).toContain(">Read<");
+    expect(siteMarkup).toContain("Dismissed");
+    expect(siteMarkup).not.toContain("Previous updates");
   });
 
   it("offers site-scoped compatibility actions for policy notifications", () => {

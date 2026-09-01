@@ -11,7 +11,10 @@ import {
   syncUpdateNotices,
   syncSiteNotices,
 } from "@/background/storage/popup-notifications";
-import type { ReleaseNotice } from "@/shared/release-notification";
+import {
+  getAllReleaseNotices,
+  type ReleaseNotice,
+} from "@/shared/release-notification";
 
 const storage = new Map<string, unknown>();
 
@@ -20,10 +23,12 @@ const extensionNotification = (
   introducedInVersion: string,
   channel: "release" | "beta" = "release",
   actionUrl: string | null = `https://example.com/changes/${id}`,
+  delivery: ReleaseNotice["delivery"] = "upgrades-only",
 ): ReleaseNotice => ({
   id,
   channel,
   introducedInVersion,
+  delivery,
   title: id,
   message: [id],
   ...(actionUrl ? { actionUrl } : {}),
@@ -92,13 +97,13 @@ describe("popup notifications", () => {
       notifications: catalog,
       buildChannel: "release",
       currentVersion: "0.9.0",
-      includeCurrent: true,
+      context: "update",
     });
     await syncUpdateNotices({
       notifications: catalog,
       buildChannel: "release",
       currentVersion: "0.9.0",
-      includeCurrent: true,
+      context: "update",
     });
 
     const notifications = await loadPopupNotifications();
@@ -140,7 +145,7 @@ describe("popup notifications", () => {
       notifications: [extensionNotification("release-overview", "0.9.0")],
       buildChannel: "release",
       currentVersion: "0.9.0",
-      includeCurrent: true,
+      context: "update",
     });
     const notification = notifications[0]!;
 
@@ -157,7 +162,7 @@ describe("popup notifications", () => {
     await syncUpdateNotices({
       notifications: [extensionNotification("release-overview", "0.9.0")],
       buildChannel: "local",
-      includeCurrent: true,
+      context: "update",
     });
 
     const synced = await syncUpdateNotices({
@@ -165,7 +170,7 @@ describe("popup notifications", () => {
         extensionNotification("release-overview", "0.9.0", "release", null),
       ],
       buildChannel: "local",
-      includeCurrent: true,
+      context: "update",
     });
 
     expect(synced[0]?.actionTarget).toBeUndefined();
@@ -194,7 +199,7 @@ describe("popup notifications", () => {
       notifications: [],
       buildChannel: "release",
       currentVersion: "0.10.0",
-      includeCurrent: false,
+      context: "install",
     });
 
     expect(synced).toContainEqual(
@@ -207,15 +212,84 @@ describe("popup notifications", () => {
     );
   });
 
-  it("does not add a current release notification on a fresh install or startup", async () => {
+  it("keeps an upgrades-only current notification in history on fresh install", async () => {
     const synced = await syncUpdateNotices({
       notifications: [extensionNotification("current-release", "0.10.0")],
       buildChannel: "release",
       currentVersion: "0.10.0",
-      includeCurrent: false,
+      context: "install",
     });
 
-    expect(synced).toEqual([]);
+    expect(synced).toEqual([
+      expect.objectContaining({
+        id: "current-release",
+        readAt: "2026-07-12T20:00:00.000Z",
+        resolvedAt: null,
+        autoPresentedAt: "2026-07-12T20:00:00.000Z",
+      }),
+    ]);
+  });
+
+  it("materializes release history and presents Domain fencing on a fresh 0.9.3.1 install", async () => {
+    const synced = await syncUpdateNotices({
+      notifications: getAllReleaseNotices(),
+      buildChannel: "release",
+      currentVersion: "0.9.3.1",
+      context: "install",
+    });
+
+    expect(synced).toHaveLength(5);
+    expect(
+      synced.filter((item) => item.id !== "experimental-domain-fencing"),
+    ).toHaveLength(4);
+    expect(
+      synced
+        .filter((item) => item.id !== "experimental-domain-fencing")
+        .every(
+          (item) =>
+            item.readAt !== null &&
+            item.resolvedAt === null &&
+            item.autoPresentedAt !== null,
+        ),
+    ).toBe(true);
+    expect(
+      synced.find((item) => item.id === "experimental-domain-fencing"),
+    ).toMatchObject({
+      introducedInVersion: "0.9.3",
+      readAt: null,
+      resolvedAt: null,
+      autoPresentedAt: null,
+    });
+  });
+
+  it("repairs a missing all-current-users notification on startup without resetting it", async () => {
+    const current = extensionNotification(
+      "current-release",
+      "0.10.0",
+      "release",
+      null,
+      "all-current-users",
+    );
+    await syncUpdateNotices({
+      notifications: [current],
+      buildChannel: "release",
+      currentVersion: "0.10.0.4",
+      context: "startup",
+    });
+    await markNoticeRead(current.id);
+
+    const synced = await syncUpdateNotices({
+      notifications: [current],
+      buildChannel: "release",
+      currentVersion: "0.10.0.5",
+      context: "startup",
+    });
+
+    expect(synced[0]).toMatchObject({
+      id: current.id,
+      readAt: "2026-07-12T20:00:00.000Z",
+      resolvedAt: null,
+    });
   });
 
   it("marks an auto-presented batch atomically without marking it read", async () => {
@@ -229,7 +303,7 @@ describe("popup notifications", () => {
       notifications: [extensionNotification("release-overview", "0.9.0")],
       buildChannel: "release",
       currentVersion: "0.9.0",
-      includeCurrent: true,
+      context: "update",
     });
     const second = synced.find((item) => item.id === "release-overview")!;
 
@@ -262,7 +336,7 @@ describe("popup notifications", () => {
       notifications: [extensionNotification("release-overview", "0.9.0")],
       buildChannel: "release",
       currentVersion: "0.9.0",
-      includeCurrent: true,
+      context: "update",
     });
 
     expect(
@@ -280,14 +354,14 @@ describe("popup notifications", () => {
     await syncUpdateNotices({
       notifications: catalog,
       buildChannel: "local",
-      includeCurrent: true,
+      context: "update",
     });
 
     const synced = await syncUpdateNotices({
       notifications: catalog,
       buildChannel: "release",
       currentVersion: "0.10.0",
-      includeCurrent: true,
+      context: "update",
       detectedAt: "2026-07-12T21:00:00.000Z",
     });
 
@@ -296,8 +370,8 @@ describe("popup notifications", () => {
     );
     expect(synced.find((item) => item.id === "old-release")?.resolvedAt).toBeNull();
     expect(synced.find((item) => item.id === "current-release")?.readAt).toBeNull();
-    expect(synced.find((item) => item.id === "future-release")?.readAt).toBeNull();
-    expect(synced.find((item) => item.id === "old-beta")?.readAt).toBeNull();
+    expect(synced.find((item) => item.id === "future-release")).toBeUndefined();
+    expect(synced.find((item) => item.id === "old-beta")).toBeUndefined();
   });
 
   it("does not age current-release notifications when only the metadata revision changes", async () => {
@@ -308,14 +382,14 @@ describe("popup notifications", () => {
     await syncUpdateNotices({
       notifications: catalog,
       buildChannel: "local",
-      includeCurrent: true,
+      context: "update",
     });
 
     const synced = await syncUpdateNotices({
       notifications: catalog,
       buildChannel: "release",
       currentVersion: "0.10.0.6",
-      includeCurrent: true,
+      context: "update",
       detectedAt: "2026-07-12T21:00:00.000Z",
     });
 
@@ -336,12 +410,15 @@ describe("popup notifications", () => {
       ],
       buildChannel: "release",
       currentVersion: "0.10.0.1",
-      includeCurrent: true,
+      context: "update",
     });
 
-    expect(synced.map((item) => item.id)).toEqual(["current-release"]);
-    expect(synced[0]?.introducedInVersion).toBe("0.10.0");
-    expect(synced[0]?.readAt).toBeNull();
+    expect(synced.map((item) => item.id)).toEqual(["old-release", "current-release"]);
+    expect(synced.find((item) => item.id === "old-release")?.readAt).not.toBeNull();
+    expect(
+      synced.find((item) => item.id === "current-release")?.introducedInVersion,
+    ).toBe("0.10.0");
+    expect(synced.find((item) => item.id === "current-release")?.readAt).toBeNull();
   });
 
   it("loads the full catalog in local builds without resetting persisted state", async () => {
@@ -352,7 +429,7 @@ describe("popup notifications", () => {
     await syncUpdateNotices({
       notifications: initialCatalog,
       buildChannel: "local",
-      includeCurrent: false,
+      context: "install",
     });
     await markNoticeRead("release-note");
     await resolvePopupNotification("beta-note");
@@ -364,7 +441,7 @@ describe("popup notifications", () => {
         extensionNotification("new-release-note", "0.11.0"),
       ],
       buildChannel: "local",
-      includeCurrent: true,
+      context: "update",
     });
 
     expect(synced.find((item) => item.id === "release-note")?.readAt).not.toBeNull();
@@ -372,7 +449,7 @@ describe("popup notifications", () => {
     expect(synced.find((item) => item.id === "new-release-note")?.readAt).toBeNull();
   });
 
-  it("ages beta notifications without changing release notifications", async () => {
+  it("loads only the active beta channel and ages its previous notifications", async () => {
     const catalog = [
       extensionNotification("release-note", "0.10.0"),
       extensionNotification("old-beta", "0.2026.719.2359", "beta"),
@@ -381,19 +458,19 @@ describe("popup notifications", () => {
     await syncUpdateNotices({
       notifications: catalog,
       buildChannel: "local",
-      includeCurrent: false,
+      context: "install",
     });
 
     const synced = await syncUpdateNotices({
       notifications: catalog,
       buildChannel: "beta",
       currentVersion: "0.2026.720.1",
-      includeCurrent: true,
+      context: "update",
     });
 
     expect(synced.find((item) => item.id === "old-beta")?.readAt).not.toBeNull();
     expect(synced.find((item) => item.id === "current-beta")?.readAt).toBeNull();
-    expect(synced.find((item) => item.id === "release-note")?.readAt).toBeNull();
+    expect(synced.find((item) => item.id === "release-note")).toBeUndefined();
   });
 
   it("keeps default and Firefox Container warning scopes independent", async () => {

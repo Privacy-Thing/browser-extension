@@ -8,6 +8,7 @@ export const E2E_OWNERSHIP_LANES = {
     "extension-state.spec.ts",
     "extension-storage-migration.spec.ts",
   ],
+  publish: ["extension-notifications-publish.spec.ts"],
   release: [
     "browserleaks-manual.spec.ts",
     "creepjs-diagnostic.spec.ts",
@@ -26,9 +27,13 @@ export const E2E_OWNERSHIP_LANES = {
 } as const;
 
 export type E2EOwnershipLane = keyof typeof E2E_OWNERSHIP_LANES;
-export type E2EExecutionLane = E2EOwnershipLane | "publish";
+export type E2EExecutionLane = E2EOwnershipLane;
 
-const publishFiles = [...E2E_OWNERSHIP_LANES.core, ...E2E_OWNERSHIP_LANES.product];
+const publishFiles = [
+  ...E2E_OWNERSHIP_LANES.core,
+  ...E2E_OWNERSHIP_LANES.product,
+  ...E2E_OWNERSHIP_LANES.publish,
+];
 
 export const resolveE2ELaneFiles = (lane: E2EExecutionLane): readonly string[] =>
   lane === "publish" ? publishFiles : E2E_OWNERSHIP_LANES[lane];

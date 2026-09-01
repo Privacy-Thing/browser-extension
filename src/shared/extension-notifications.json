@@ -4,6 +4,7 @@
       "id": "privacy-thing-rename",
       "channel": "release",
       "introducedInVersion": "0.9.0",
+      "delivery": "upgrades-only",
       "title": {
         "en": "GeoWarp is now {{brand}}"
       },
@@ -18,6 +19,7 @@
       "id": "notification-center-intro",
       "channel": "release",
       "introducedInVersion": "0.9.0",
+      "delivery": "upgrades-only",
       "title": {
         "en": "Notifications are now in the popup"
       },
@@ -32,6 +34,7 @@
       "id": "experimental-temporal-api",
       "channel": "release",
       "introducedInVersion": "0.9.2",
+      "delivery": "upgrades-only",
       "title": {
         "en": "Temporal API protection is ready to try"
       },
@@ -48,6 +51,7 @@
       "id": "privacy-thing-open-source",
       "channel": "release",
       "introducedInVersion": "0.9.2",
+      "delivery": "upgrades-only",
       "title": {
         "en": "{{brand}} is now open source!"
       },
@@ -63,6 +67,7 @@
       "id": "experimental-domain-fencing",
       "channel": "release",
       "introducedInVersion": "0.9.3",
+      "delivery": "all-current-users",
       "title": {
         "en": "Domain fencing is ready to try"
       },
