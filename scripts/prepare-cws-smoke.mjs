@@ -9,6 +9,8 @@ import { URL } from "node:url";
 const ITEM_ID_PATTERN = /^[a-p]{32}$/;
 const VERSION_PATTERN = /^\d+\.\d+\.\d+(?:\.\d+)?$/;
 const MAX_DOWNLOAD_BYTES = 50 * 1024 * 1024;
+const MAX_UNCOMPRESSED_BYTES = 200 * 1024 * 1024;
+const MAX_EXPANSION_RATIO = 100;
 
 const readArgs = (argv) => {
   const values = new Map();
@@ -49,7 +51,7 @@ const run = (command, commandArgs, failureMessage) => {
   return result.stdout;
 };
 
-const validateArchiveEntries = (archivePath) => {
+const validateArchiveEntries = (archivePath, compressedSize) => {
   const entries = run("unzip", ["-Z1", archivePath], "Could not list the CWS archive.")
     .split("\n")
     .filter(Boolean);
@@ -69,11 +71,20 @@ const validateArchiveEntries = (archivePath) => {
     ["-Z", "-l", archivePath],
     "Could not inspect the CWS archive.",
   );
-  const unsafeMode = entryModes
-    .split("\n")
-    .find((line) => /^[bclps][rwxStTs-]{9}\s/u.test(line));
-  if (unsafeMode) {
-    throw new Error("CWS archive contains a link or special file.");
+  let uncompressedSize = 0;
+  for (const line of entryModes.split("\n")) {
+    const entry = /^([bcdlps-])[rwxStTs-]{9}\s+\S+\s+\S+\s+(\d+)\s/u.exec(line);
+    if (!entry) continue;
+    if (entry[1] !== "-" && entry[1] !== "d") {
+      throw new Error("CWS archive contains a link or special file.");
+    }
+    uncompressedSize += Number(entry[2]);
+    if (uncompressedSize > MAX_UNCOMPRESSED_BYTES) {
+      throw new Error("CWS archive exceeds the uncompressed size limit.");
+    }
+  }
+  if (uncompressedSize > compressedSize * MAX_EXPANSION_RATIO) {
+    throw new Error("CWS archive exceeds the safe expansion ratio.");
   }
 };
 
@@ -119,6 +130,12 @@ run(
     "=https",
     "--max-filesize",
     String(MAX_DOWNLOAD_BYTES),
+    "--max-time",
+    "120",
+    "--speed-limit",
+    "1024",
+    "--speed-time",
+    "30",
     "--output",
     downloadPath,
     updateUrl.href,
@@ -132,7 +149,7 @@ if (crx.byteLength > MAX_DOWNLOAD_BYTES) {
 const zip = extractCrxZip(Buffer.from(crx));
 await rm(downloadPath, { force: true });
 await writeFile(archivePath, zip);
-validateArchiveEntries(archivePath);
+validateArchiveEntries(archivePath, zip.byteLength);
 run("unzip", ["-tq", archivePath], "CWS archive integrity check failed.");
 
 await mkdir(outputDir, { recursive: true });
