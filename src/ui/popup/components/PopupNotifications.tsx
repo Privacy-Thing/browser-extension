@@ -109,20 +109,30 @@ const isNotificationHistory = (notification: PopupNotification): boolean =>
 
 const sortNotificationHistory = (
   notifications: readonly PopupNotification[],
-): PopupNotification[] =>
-  [...notifications].sort((left, right) => {
-    if (
-      left.kind === "significant-update" &&
-      right.kind === "significant-update" &&
-      left.channel !== undefined &&
-      left.channel === right.channel &&
-      left.introducedInVersion !== undefined &&
-      right.introducedInVersion !== undefined
-    ) {
+): PopupNotification[] => {
+  const first = notifications[0];
+  const versionChannel =
+    first?.kind === "significant-update" ? first.channel : undefined;
+  const useVersionOrder =
+    versionChannel !== undefined &&
+    notifications.every(
+      (notification) =>
+        notification.kind === "significant-update" &&
+        notification.channel === versionChannel &&
+        notification.introducedInVersion !== undefined &&
+        compareNoticeVersions(
+          versionChannel,
+          notification.introducedInVersion,
+          notification.introducedInVersion,
+        ) === 0,
+    );
+
+  return [...notifications].sort((left, right) => {
+    if (useVersionOrder) {
       const versionOrder = compareNoticeVersions(
-        left.channel,
-        left.introducedInVersion,
-        right.introducedInVersion,
+        versionChannel,
+        left.introducedInVersion ?? "",
+        right.introducedInVersion ?? "",
       );
       if (versionOrder !== null && versionOrder !== 0) return -versionOrder;
     }
@@ -130,6 +140,7 @@ const sortNotificationHistory = (
     const rightDate = right.resolvedAt ?? right.lastDetectedAt;
     return rightDate.localeCompare(leftDate);
   });
+};
 
 const getActionLabel = (
   notification: PopupNotification,

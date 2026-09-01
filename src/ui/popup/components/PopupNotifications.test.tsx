@@ -214,6 +214,45 @@ describe("PopupNotifications", () => {
     ).toBeLessThan(dismissedMarkup.indexOf('data-notification-id="older-dismissed"'));
   });
 
+  it("uses one timestamp ordering when release history contains legacy metadata", () => {
+    const createLegacyUpdate = (
+      id: string,
+      version: string,
+      lastDetectedAt: string,
+    ): PopupNotification => ({
+      ...createNotification(id, "2026-07-13T12:01:00.000Z", null, "significant-update"),
+      scope: "extension",
+      severity: "info",
+      channel: "release",
+      introducedInVersion: version,
+      lastDetectedAt,
+    });
+    const newerVersion = createLegacyUpdate(
+      "newer-version",
+      "0.9.2",
+      "2026-07-13T10:00:00.000Z",
+    );
+    const legacy = createLegacyUpdate("legacy", "invalid", "2026-07-13T11:00:00.000Z");
+    const olderVersion = createLegacyUpdate(
+      "older-version",
+      "0.9.0",
+      "2026-07-13T12:00:00.000Z",
+    );
+
+    const markup = renderToStaticMarkup(
+      <PopupNotificationList
+        notifications={[newerVersion, legacy, olderVersion]}
+        onOpen={vi.fn()}
+      />,
+    );
+    const olderIndex = markup.indexOf('data-notification-id="older-version"');
+    const legacyIndex = markup.indexOf('data-notification-id="legacy"');
+    const newerIndex = markup.indexOf('data-notification-id="newer-version"');
+
+    expect(olderIndex).toBeLessThan(legacyIndex);
+    expect(legacyIndex).toBeLessThan(newerIndex);
+  });
+
   it("offers site-scoped compatibility actions for policy notifications", () => {
     const commonProps = {
       onApplySuggestion: vi.fn(async () => undefined),
