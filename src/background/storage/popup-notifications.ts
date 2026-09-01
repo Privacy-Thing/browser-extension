@@ -21,6 +21,8 @@ const RESOLVED_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 
 let mutationQueue: Promise<unknown> = Promise.resolve();
 
+export type NotificationSyncContext = "install" | "update" | "startup";
+
 type StoredNotificationInput = Partial<PopupNotification> & { version?: unknown };
 
 const resolveNotificationKind = (
@@ -301,100 +303,200 @@ export const syncSiteNotices = async ({
     return prune(nextItems, detectedAt);
   });
 
+const selectStoredChannelItems = ({
+  items,
+  buildChannel,
+  currentVersion,
+}: {
+  items: readonly PopupNotification[];
+  buildChannel: BuildChannel;
+  currentVersion?: string;
+}): PopupNotification[] => {
+  if (buildChannel === "local" || !currentVersion) return [...items];
+  return items.filter((item) => {
+    if (item.kind !== "significant-update") return true;
+    if (item.channel !== buildChannel) return false;
+    if (typeof item.introducedInVersion !== "string") return false;
+    return (
+      compareNoticeVersions(buildChannel, item.introducedInVersion, currentVersion) !==
+      1
+    );
+  });
+};
+
+const agePreviousNotices = ({
+  items,
+  buildChannel,
+  currentVersion,
+  detectedAt,
+}: {
+  items: readonly PopupNotification[];
+  buildChannel: BuildChannel;
+  currentVersion?: string;
+  detectedAt: string;
+}): PopupNotification[] => {
+  if (buildChannel === "local" || !currentVersion) return [...items];
+  return items.map((item) => {
+    if (
+      item.kind !== "significant-update" ||
+      item.channel !== buildChannel ||
+      item.readAt !== null ||
+      item.resolvedAt !== null ||
+      !item.introducedInVersion
+    ) {
+      return item;
+    }
+    return compareNoticeVersions(
+      buildChannel,
+      item.introducedInVersion,
+      currentVersion,
+    ) === -1
+      ? { ...item, readAt: detectedAt }
+      : item;
+  });
+};
+
+const selectCatalogNotices = ({
+  notifications,
+  buildChannel,
+  currentVersion,
+}: {
+  notifications: readonly ReleaseNotice[];
+  buildChannel: BuildChannel;
+  currentVersion?: string;
+}): readonly ReleaseNotice[] => {
+  if (buildChannel === "local") return notifications;
+  if (!currentVersion) return [];
+  return notifications.filter(
+    (item) =>
+      item.channel === buildChannel &&
+      compareNoticeVersions(buildChannel, item.introducedInVersion, currentVersion) !==
+        1,
+  );
+};
+
+const shouldAutoPresentNotice = ({
+  notification,
+  buildChannel,
+  currentVersion,
+  context,
+}: {
+  notification: ReleaseNotice;
+  buildChannel: BuildChannel;
+  currentVersion?: string;
+  context: NotificationSyncContext;
+}): boolean => {
+  if (buildChannel === "local") return true;
+  if (!currentVersion) return false;
+  return (
+    compareNoticeVersions(
+      buildChannel,
+      notification.introducedInVersion,
+      currentVersion,
+    ) === 0 &&
+    (context === "update" || notification.delivery === "all-current-users")
+  );
+};
+
+const upsertCatalogNotice = ({
+  items,
+  notification,
+  shouldAutoPresent,
+  detectedAt,
+}: {
+  items: PopupNotification[];
+  notification: ReleaseNotice;
+  shouldAutoPresent: boolean;
+  detectedAt: string;
+}): void => {
+  const dedupeKey = `extension:update:${notification.id}`;
+  const legacyDedupeKey = `extension:update:${notification.introducedInVersion}`;
+  const currentIndex = items.findIndex(
+    (item) =>
+      item.kind === "significant-update" &&
+      (item.id === notification.id ||
+        item.dedupeKey === dedupeKey ||
+        (item.id === legacyDedupeKey && item.dedupeKey === legacyDedupeKey)),
+  );
+  const current = currentIndex >= 0 ? items[currentIndex] : undefined;
+  if (current) {
+    const currentWithoutTarget = { ...current };
+    delete currentWithoutTarget.actionTarget;
+    items[currentIndex] = {
+      ...currentWithoutTarget,
+      id: notification.id,
+      dedupeKey,
+      channel: notification.channel,
+      introducedInVersion: notification.introducedInVersion,
+      ...(notification.actionUrl ? { actionTarget: notification.actionUrl } : {}),
+    };
+    return;
+  }
+
+  items.push({
+    id: notification.id,
+    kind: "significant-update",
+    scope: "extension",
+    dedupeKey,
+    severity: "info",
+    channel: notification.channel,
+    introducedInVersion: notification.introducedInVersion,
+    createdAt: detectedAt,
+    lastDetectedAt: detectedAt,
+    generation: 1,
+    readAt: shouldAutoPresent ? null : detectedAt,
+    resolvedAt: null,
+    autoPresentedAt: shouldAutoPresent ? null : detectedAt,
+    pulseShownAt: null,
+    ...(notification.actionUrl ? { actionTarget: notification.actionUrl } : {}),
+  });
+};
+
 export const syncUpdateNotices = async ({
   notifications,
   buildChannel,
   currentVersion,
-  includeCurrent,
+  context,
   detectedAt = new Date().toISOString(),
 }: {
   notifications: readonly ReleaseNotice[];
   buildChannel: BuildChannel;
   currentVersion?: string;
-  includeCurrent: boolean;
+  context: NotificationSyncContext;
   detectedAt?: string;
 }): Promise<PopupNotification[]> =>
   mutate(async () => {
     const items = await loadRaw();
-    const agedItems =
-      buildChannel === "local" || !currentVersion
-        ? items
-        : items.map((item) => {
-            if (
-              item.kind !== "significant-update" ||
-              item.channel !== buildChannel ||
-              item.readAt !== null ||
-              item.resolvedAt !== null ||
-              !item.introducedInVersion
-            ) {
-              return item;
-            }
-            return compareNoticeVersions(
-              buildChannel,
-              item.introducedInVersion,
-              currentVersion,
-            ) === -1
-              ? { ...item, readAt: detectedAt }
-              : item;
-          });
-
-    let catalogNotifications: readonly ReleaseNotice[] = [];
-    if (buildChannel === "local") {
-      catalogNotifications = notifications;
-    } else if (includeCurrent && currentVersion) {
-      catalogNotifications = notifications.filter(
-        (item) =>
-          item.channel === buildChannel &&
-          compareNoticeVersions(
-            buildChannel,
-            item.introducedInVersion,
-            currentVersion,
-          ) === 0,
-      );
-    }
+    const channelItems = selectStoredChannelItems({
+      items,
+      buildChannel,
+      ...(currentVersion ? { currentVersion } : {}),
+    });
+    const agedItems = agePreviousNotices({
+      items: channelItems,
+      buildChannel,
+      ...(currentVersion ? { currentVersion } : {}),
+      detectedAt,
+    });
+    const catalogNotifications = selectCatalogNotices({
+      notifications,
+      buildChannel,
+      ...(currentVersion ? { currentVersion } : {}),
+    });
     const nextItems = [...agedItems];
 
     for (const notification of catalogNotifications) {
-      const dedupeKey = `extension:update:${notification.id}`;
-      const legacyDedupeKey = `extension:update:${notification.introducedInVersion}`;
-      const currentIndex = nextItems.findIndex(
-        (item) =>
-          item.kind === "significant-update" &&
-          (item.id === notification.id ||
-            item.dedupeKey === dedupeKey ||
-            (item.id === legacyDedupeKey && item.dedupeKey === legacyDedupeKey)),
-      );
-      const current = currentIndex >= 0 ? nextItems[currentIndex] : undefined;
-      if (current) {
-        const currentWithoutTarget = { ...current };
-        delete currentWithoutTarget.actionTarget;
-        nextItems[currentIndex] = {
-          ...currentWithoutTarget,
-          id: notification.id,
-          dedupeKey,
-          channel: notification.channel,
-          introducedInVersion: notification.introducedInVersion,
-          ...(notification.actionUrl ? { actionTarget: notification.actionUrl } : {}),
-        };
-        continue;
-      }
-
-      nextItems.push({
-        id: notification.id,
-        kind: "significant-update",
-        scope: "extension",
-        dedupeKey,
-        severity: "info",
-        channel: notification.channel,
-        introducedInVersion: notification.introducedInVersion,
-        createdAt: detectedAt,
-        lastDetectedAt: detectedAt,
-        generation: 1,
-        readAt: null,
-        resolvedAt: null,
-        autoPresentedAt: null,
-        pulseShownAt: null,
-        ...(notification.actionUrl ? { actionTarget: notification.actionUrl } : {}),
+      const shouldAutoPresent = shouldAutoPresentNotice({
+        notification,
+        buildChannel,
+        ...(currentVersion ? { currentVersion } : {}),
+        context,
+      });
+      upsertCatalogNotice({
+        items: nextItems,
+        notification,
+        shouldAutoPresent,
+        detectedAt,
       });
     }
 

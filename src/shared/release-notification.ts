@@ -19,15 +19,19 @@ export type ReleaseNotice = {
   id: string;
   channel: NotificationChannel;
   introducedInVersion: string;
+  delivery: NotificationDelivery;
   title: string;
   message: readonly string[];
   actionUrl?: string;
 };
 
+export type NotificationDelivery = "all-current-users" | "upgrades-only";
+
 type NoticeCatalogEntry = {
   id: string;
   channel: NotificationChannel;
   introducedInVersion: string;
+  delivery: NotificationDelivery;
   title: LocalizedText;
   message: LocalizedParagraphs;
   actionUrl?: string;
@@ -82,6 +86,7 @@ const isCatalogEntry = (value: unknown): value is NoticeCatalogEntry => {
     (entry.channel === "release" || entry.channel === "beta") &&
     isNonEmptyString(entry.introducedInVersion) &&
     isCatalogNoticeVersion(entry.channel, entry.introducedInVersion) &&
+    (entry.delivery === "all-current-users" || entry.delivery === "upgrades-only") &&
     isLocalizedText(entry.title) &&
     isLocalizedParagraphs(entry.message) &&
     Object.hasOwn(entry.title, DEFAULT_NOTICE_LOCALE) &&
@@ -152,6 +157,7 @@ const localizeCatalogEntry = (
   id: entry.id,
   channel: entry.channel,
   introducedInVersion: entry.introducedInVersion,
+  delivery: entry.delivery,
   title: resolveBrandTokens(resolveLocalizedValue(entry.title, locale)),
   message: resolveLocalizedValue(entry.message, locale).map(resolveBrandTokens),
   ...(entry.actionUrl ? { actionUrl: entry.actionUrl } : {}),

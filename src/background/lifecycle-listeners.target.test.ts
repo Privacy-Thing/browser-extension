@@ -26,7 +26,7 @@ const createDeps = (): LifecycleDeps => ({
 });
 
 describe("background lifecycle notification synchronization", () => {
-  it("includes current catalog entries only for extension updates", async () => {
+  it("passes the explicit install, update, and startup delivery contexts", async () => {
     let onInstalled:
       ((details: chrome.runtime.InstalledDetails) => Promise<void>) | undefined;
     let onStartup: (() => Promise<void>) | undefined;
@@ -53,12 +53,50 @@ describe("background lifecycle notification synchronization", () => {
     registerLifecycle(deps);
 
     await onInstalled?.({ reason: "install" });
-    expect(deps.syncSignificantUpdates).toHaveBeenLastCalledWith("0.10.0", false);
+    expect(deps.syncSignificantUpdates).toHaveBeenLastCalledWith("0.10.0", "install");
 
     await onInstalled?.({ reason: "update", previousVersion: "0.9.0" });
-    expect(deps.syncSignificantUpdates).toHaveBeenLastCalledWith("0.10.0", true);
+    expect(deps.syncSignificantUpdates).toHaveBeenLastCalledWith("0.10.0", "update");
 
     await onStartup?.();
-    expect(deps.syncSignificantUpdates).toHaveBeenLastCalledWith("0.10.0", false);
+    expect(deps.syncSignificantUpdates).toHaveBeenLastCalledWith("0.10.0", "startup");
+    expect(
+      vi.mocked(deps.syncSignificantUpdates).mock.invocationCallOrder[0],
+    ).toBeLessThan(vi.mocked(deps.enableSessionStorage).mock.invocationCallOrder[0]!);
+  });
+
+  it("continues lifecycle work when notification synchronization fails", async () => {
+    let onInstalled:
+      ((details: chrome.runtime.InstalledDetails) => Promise<void>) | undefined;
+    vi.stubGlobal("chrome", {
+      runtime: {
+        getManifest: () => ({ version: "0.10.0" }),
+        onInstalled: {
+          addListener: vi.fn((listener) => {
+            onInstalled = listener;
+          }),
+        },
+        onStartup: { addListener: vi.fn() },
+      },
+      permissions: {
+        onAdded: { addListener: vi.fn() },
+        onRemoved: { addListener: vi.fn() },
+      },
+    });
+    const deps = createDeps();
+    vi.mocked(deps.syncSignificantUpdates).mockRejectedValueOnce(
+      new Error("storage unavailable"),
+    );
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    registerLifecycle(deps);
+
+    await expect(onInstalled?.({ reason: "install" })).resolves.toBeUndefined();
+
+    expect(warn).toHaveBeenCalledWith(
+      "Failed to synchronize extension notifications during install",
+      expect.any(Error),
+    );
+    expect(deps.enableSessionStorage).toHaveBeenCalledOnce();
+    expect(deps.refreshActionState).toHaveBeenCalledOnce();
   });
 });

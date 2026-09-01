@@ -22,6 +22,12 @@ type InternalFixtures = {
   probeServers: StartedProbeServers;
 };
 
+const getChromiumExtensionPath = (): string =>
+  path.resolve(
+    process.cwd(),
+    process.env.PT_E2E_EXTENSION_PATH?.trim() || path.join("build", "chrome"),
+  );
+
 const prepareExtensionUiState = async (
   context: BrowserContext,
   extensionId: string,
@@ -123,7 +129,7 @@ export const test = base.extend<ExtensionFixtures & InternalFixtures>({
     await use(probeServers.secondaryUrl);
   },
   context: async ({ playwright }, use) => {
-    const extensionPath = path.resolve(process.cwd(), "build", "chrome");
+    const extensionPath = getChromiumExtensionPath();
     const userDataDir = await mkdtemp(path.join(os.tmpdir(), "pt-e2e-"));
     const context = await playwright.chromium.launchPersistentContext(userDataDir, {
       channel: "chromium",
@@ -145,7 +151,7 @@ export const test = base.extend<ExtensionFixtures & InternalFixtures>({
     // Chromium derives an unpacked extension ID from its absolute path. Resolve it
     // directly so opening the extension page wakes MV3 instead of passively waiting
     // for a service-worker startup event that Chromium is not required to emit.
-    const extensionPath = path.resolve(process.cwd(), "build", "chrome");
+    const extensionPath = getChromiumExtensionPath();
     const extensionId = deriveChromiumExtId(extensionPath);
 
     await prepareExtensionUiState(context, extensionId);

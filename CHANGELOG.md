@@ -6,6 +6,15 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ## [Unreleased]
 
+### Fixed
+
+- Show current release announcements after a fresh store installation and keep
+  earlier product updates available in popup history. Release-notification
+  synchronization now repairs missing entries on startup without reopening
+  announcements that were already read.
+- Label product-news history as "Previous updates" and closed site warnings as
+  "Dismissed" instead of grouping both under "Resolved".
+
 ## [0.9.3.1] - 2026-08-31
 
 - Refreshed extension metadata (hardware profiles, Chrome versions, locale data) from upstream sources to keep spoofed fingerprints current.

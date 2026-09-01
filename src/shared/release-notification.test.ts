@@ -22,6 +22,7 @@ describe("extension notification catalog", () => {
       id: "notification-center-intro",
       channel: "release",
       introducedInVersion: "0.9.0",
+      delivery: "upgrades-only",
       title: "Notifications are now in the popup",
     });
     expect(notification?.id).not.toBe(notification?.introducedInVersion);
@@ -47,6 +48,7 @@ describe("extension notification catalog", () => {
     expect(rendered).toMatchObject({
       channel: "release",
       introducedInVersion: "0.9.0",
+      delivery: "upgrades-only",
     });
     expect(rendered?.title).toBe(
       source?.title.en.replace("{{brand}}", "Privacy Thing"),
@@ -105,6 +107,7 @@ describe("extension notification catalog", () => {
         id: "experimental-domain-fencing",
         channel: "release",
         introducedInVersion: "0.9.3",
+        delivery: "all-current-users",
         title: "Domain fencing is ready to try",
         message: [
           "On Chrome and Firefox, Domain fencing gives each site its own stable variation of the generated fingerprint when the Default Rule applies. On Firefox, it also separates identities assigned through containers.",
@@ -121,6 +124,7 @@ describe("extension notification catalog", () => {
       id: "release-note",
       channel: "release",
       introducedInVersion: "1.2.3",
+      delivery: "upgrades-only",
       title: { en: "Title" },
       message: { en: ["Message"] },
       actionUrl: "https://example.com",
@@ -161,6 +165,17 @@ describe("extension notification catalog", () => {
     expect(() =>
       parseNoticeCatalog({
         notifications: [{ ...validEntry, actionUrl: "" }],
+      }),
+    ).toThrow("Invalid extension notification");
+    const { delivery: _delivery, ...entryWithoutDelivery } = validEntry;
+    expect(() =>
+      parseNoticeCatalog({
+        notifications: [entryWithoutDelivery],
+      }),
+    ).toThrow("Invalid extension notification");
+    expect(() =>
+      parseNoticeCatalog({
+        notifications: [{ ...validEntry, delivery: "everyone" }],
       }),
     ).toThrow("Invalid extension notification");
   });

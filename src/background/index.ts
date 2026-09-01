@@ -512,12 +512,12 @@ registerLifecycle({
       url: chrome.runtime.getURL("src/ui/options/index.html?onboarding=1"),
     });
   },
-  syncSignificantUpdates: async (version, includeCurrent) => {
+  syncSignificantUpdates: async (version, context) => {
     await syncUpdateNotices({
       notifications: getAllReleaseNotices(),
       buildChannel: BUILD_CHANNEL,
       currentVersion: version,
-      includeCurrent,
+      context,
     });
   },
 });
