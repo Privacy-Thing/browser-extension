@@ -64,12 +64,13 @@ const earlyIntegrityRegistry = createIntegrityRegistry<
   SpoofingSurfaceKey,
   SpoofingSurfaceMethodId
 >();
-// Forward the complete current state, including recovery to intact.
-earlyIntegrityRegistry.setSurfaceEvidenceSink({
+// Forward every current method result; the background folds them per surface and realm.
+earlyIntegrityRegistry.setResultSink({
   record: (result) => {
     markSurfaceEvidence(result.surfaceId, {
       realmId: result.realmId,
       integrity: result.status,
+      ...(result.methodId ? { methodId: result.methodId } : {}),
       ...(result.reason ? { reasonCode: result.reason } : {}),
     });
   },

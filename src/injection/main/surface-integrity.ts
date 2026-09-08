@@ -142,6 +142,7 @@ const registerBatteryManager = (
       key: anchor.key,
       anchor: {
         surfaceId: "battery",
+        methodId: `battery.manager.${String(anchor.key)}` as SpoofingSurfaceMethodId,
         // The getters are installed on the prototype before the first native
         // manager exists. Verify that prototype until a page receives the
         // manager; this never calls navigator.getBattery() itself.

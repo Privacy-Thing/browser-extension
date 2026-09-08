@@ -545,6 +545,9 @@ export type SurfaceQueryCounts = Partial<Record<XRaySurfaceCategory, number>>;
 export const EvidenceReportSchema = z.object({
   realmId: z.string(),
   attemptId: z.string().optional(),
+  // This also identifies individual descriptor checks that are not callable API
+  // methods (for example BatteryManager getter properties).
+  methodId: z.string().min(1).max(128).optional(),
   installation: InstallationStateSchema.optional(),
   integrity: IntegrityStateSchema.optional(),
   reasonCode: z.string().optional(),

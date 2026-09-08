@@ -97,16 +97,6 @@ export type IntegrityResultSink<
   record(result: IntegrityResult<TSurfaceId, TMethodId>): void;
 };
 
-/** The current aggregate outcome for one surface in one execution realm. */
-export type SurfaceEvidence<TSurfaceId extends string = string> = Pick<
-  IntegrityResult<TSurfaceId>,
-  "status" | "surfaceId" | "realmId" | "observedAt" | "reason"
->;
-
-export type SurfaceEvidenceSink<TSurfaceId extends string = string> = {
-  record(result: SurfaceEvidence<TSurfaceId>): void;
-};
-
 export type SurfaceIntegrityRegistry<
   TSurfaceId extends string = string,
   TMethodId extends string = string,
@@ -124,7 +114,6 @@ export type SurfaceIntegrityRegistry<
   ensureRealm(realmId: string): IntegrityResult<TSurfaceId, TMethodId>[];
   ensureAll(): IntegrityResult<TSurfaceId, TMethodId>[];
   unregisterRealm(realmId: string): void;
-  setSurfaceEvidenceSink(sink: SurfaceEvidenceSink<TSurfaceId> | null): void;
   setResultSink(sink: IntegrityResultSink<TSurfaceId, TMethodId> | null): void;
   getRecentResults(): IntegrityResult<TSurfaceId, TMethodId>[];
   getIncidentHistory(): IntegrityIncident<TSurfaceId, TMethodId>[];

@@ -184,6 +184,7 @@ export type RouterDeps = {
       realmId: string;
       frameId?: string;
       attemptId?: string;
+      methodId?: string;
       installation?: SurfaceInstallationState;
       integrity?: SurfaceIntegrityState;
       reasonCode?: string;

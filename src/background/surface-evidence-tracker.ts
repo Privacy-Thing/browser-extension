@@ -17,6 +17,8 @@ export type SurfaceRealmEvidence = {
   frameId?: string;
   /** Per-construction Worker attempt id, when the evidence is about a Worker. */
   attemptId?: string;
+  /** Descriptor/API check whose current result contributes to this realm. */
+  methodId?: string;
   installation?: SurfaceInstallationState;
   integrity?: SurfaceIntegrityState;
   reasonCode?: string;
@@ -33,11 +35,72 @@ const tabEvidenceMap = new Map<
   Map<XRaySurfaceCategory, Map<string, SurfaceRealmEvidence>>
 >();
 
+// tabId -> category -> realmId -> methodId -> latest descriptor result.
+const integrityByMethodMap = new Map<
+  number,
+  Map<XRaySurfaceCategory, Map<string, Map<string, SurfaceRealmEvidence>>>
+>();
+
+const INTEGRITY_RANK: Record<NonNullable<SurfaceRealmEvidence["integrity"]>, number> = {
+  unrecoverable: 4,
+  degraded: 4,
+  unconfirmed: 3,
+  repaired: 2,
+  intact: 1,
+  "not-applicable": 0,
+};
+
+const aggregateMethodIntegrity = (
+  tabId: number,
+  category: XRaySurfaceCategory,
+  evidence: SurfaceRealmEvidence,
+): SurfaceRealmEvidence => {
+  if (!evidence.methodId || !evidence.integrity) return evidence;
+  let categoryMap = integrityByMethodMap.get(tabId);
+  if (!categoryMap) {
+    categoryMap = new Map();
+    integrityByMethodMap.set(tabId, categoryMap);
+  }
+  let realmMap = categoryMap.get(category);
+  if (!realmMap) {
+    realmMap = new Map();
+    categoryMap.set(category, realmMap);
+  }
+  let methodMap = realmMap.get(evidence.realmId);
+  if (!methodMap) {
+    methodMap = new Map();
+    realmMap.set(evidence.realmId, methodMap);
+  }
+  const current = methodMap.get(evidence.methodId);
+  if (!current || current.observedAt <= evidence.observedAt) {
+    methodMap.set(evidence.methodId, evidence);
+  }
+  let worst = evidence;
+  for (const candidate of methodMap.values()) {
+    const rank =
+      INTEGRITY_RANK[candidate.integrity!] - INTEGRITY_RANK[worst.integrity!];
+    if (
+      rank > 0 ||
+      (rank === 0 && (candidate.reasonCode ?? "") < (worst.reasonCode ?? ""))
+    ) {
+      worst = candidate;
+    }
+  }
+  const currentEvidence = { ...evidence };
+  delete currentEvidence.reasonCode;
+  return {
+    ...currentEvidence,
+    ...(worst.integrity ? { integrity: worst.integrity } : {}),
+    ...(worst.reasonCode ? { reasonCode: worst.reasonCode } : {}),
+  };
+};
+
 export const recordSurfaceEvidence = (
   tabId: number,
   category: XRaySurfaceCategory,
   evidence: SurfaceRealmEvidence,
 ): void => {
+  const aggregated = aggregateMethodIntegrity(tabId, category, evidence);
   let categoryMap = tabEvidenceMap.get(tabId);
   if (!categoryMap) {
     categoryMap = new Map();
@@ -51,11 +114,11 @@ export const recordSurfaceEvidence = (
   // Monotonic per realm — a realm's newest report (higher observedAt, e.g. a
   // repaired descriptor superseding an earlier unconfirmed one) wins, and a
   // stale/out-of-order older report is ignored rather than clobbering it.
-  const existing = realmMap.get(evidence.realmId);
-  if (existing && existing.observedAt > evidence.observedAt) {
+  const existing = realmMap.get(aggregated.realmId);
+  if (existing && existing.observedAt > aggregated.observedAt) {
     return;
   }
-  realmMap.set(evidence.realmId, evidence);
+  realmMap.set(aggregated.realmId, aggregated);
 };
 
 export const getRealmEvidence = (tabId: number): SurfaceEvidenceByRealm => {
@@ -74,4 +137,5 @@ export const getRealmEvidence = (tabId: number): SurfaceEvidenceByRealm => {
 
 export const clearSurfaceEvidence = (tabId: number): void => {
   tabEvidenceMap.delete(tabId);
+  integrityByMethodMap.delete(tabId);
 };

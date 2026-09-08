@@ -365,12 +365,13 @@ import type { XRaySurfaceCategory } from "@/shared/types";
   if (!shimState) {
     return;
   }
-  // Forward the complete current state, including recovery to intact.
-  shimState.integrity.setSurfaceEvidenceSink({
+  // Forward every current method result; the background folds them per surface and realm.
+  shimState.integrity.setResultSink({
     record: (result) => {
       markSurfaceEvidence(result.surfaceId as XRaySurfaceCategory, {
         realmId: result.realmId,
         integrity: result.status,
+        ...(result.methodId ? { methodId: result.methodId } : {}),
         ...(result.reason ? { reasonCode: result.reason } : {}),
       });
     },
