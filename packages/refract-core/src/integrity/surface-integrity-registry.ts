@@ -16,6 +16,7 @@ import {
   privateWeakMapSet,
 } from "../runtime/primordials";
 
+import { createSurfaceEvidence } from "./surface-evidence-tracker";
 import {
   appendBounded,
   assertBoundedId,
@@ -52,6 +53,7 @@ type RegistryState<TSurfaceId extends string, TMethodId extends string> = {
   historyLimit: number;
   now: () => number;
   sink: IntegrityResultSink<TSurfaceId, TMethodId> | null;
+  surfaceEvidence: ReturnType<typeof createSurfaceEvidence<TSurfaceId, TMethodId>>;
   nextRegistrationId: number;
   recentResults: IntegrityResult<TSurfaceId, TMethodId>[];
   incidentHistory: IntegrityIncident<TSurfaceId, TMethodId>[];
@@ -65,6 +67,7 @@ const createRegistryState = <TSurfaceId extends string, TMethodId extends string
   historyLimit: normalizeHistoryLimit(options.historyLimit),
   now: options.now ?? privateDateNow,
   sink: options.sink ?? null,
+  surfaceEvidence: createSurfaceEvidence(options.now ?? privateDateNow),
   nextRegistrationId: 1,
   recentResults: createPrivateArray(0),
   incidentHistory: createPrivateArray(0),
@@ -94,8 +97,10 @@ const createIncident = <TSurfaceId extends string, TMethodId extends string>(
 
 const recordResult = <TSurfaceId extends string, TMethodId extends string>(
   state: RegistryState<TSurfaceId, TMethodId>,
+  entry: RegisteredAnchorEntry<TSurfaceId, TMethodId>,
   result: IntegrityResult<TSurfaceId, TMethodId>,
 ): IntegrityResult<TSurfaceId, TMethodId> => {
+  state.surfaceEvidence.record(entry.token.registrationId, result);
   appendBounded(
     state.recentResults,
     privateObjectFreeze(copyIntegrityResult(result)) as IntegrityResult<
@@ -158,7 +163,7 @@ const inspectEntry = <TSurfaceId extends string, TMethodId extends string>(
   } else {
     result = createIntegrityResult(entry.anchor, "intact", observedAt);
   }
-  return recordResult(state, result);
+  return recordResult(state, entry, result);
 };
 
 type LookupRepairInput<TSurfaceId extends string, TMethodId extends string> = {
@@ -183,6 +188,7 @@ const ensureEffectiveLookup = <TSurfaceId extends string, TMethodId extends stri
   if (!receiver || !entry.anchor.repairEffectiveLookup) {
     return recordResult(
       state,
+      entry,
       createIntegrityResult(
         entry.anchor,
         "unrecoverable",
@@ -200,6 +206,7 @@ const ensureEffectiveLookup = <TSurfaceId extends string, TMethodId extends stri
   if (outcome !== "repaired") {
     return recordResult(
       state,
+      entry,
       createIntegrityResult(entry.anchor, "unrecoverable", observedAt, outcome),
     );
   }
@@ -212,11 +219,13 @@ const ensureEffectiveLookup = <TSurfaceId extends string, TMethodId extends stri
   ) {
     return recordResult(
       state,
+      entry,
       createIntegrityResult(entry.anchor, "unrecoverable", observedAt, "repair-failed"),
     );
   }
   return recordResult(
     state,
+    entry,
     createIntegrityResult(entry.anchor, "repaired", observedAt, {
       reason: "prototype-chain-changed",
       repairedAt: state.now(),
@@ -237,6 +246,7 @@ const recordFailure = <TSurfaceId extends string, TMethodId extends string>(
 ): IntegrityResult<TSurfaceId, TMethodId> =>
   recordResult(
     state,
+    entry,
     createIntegrityResult(entry.anchor, "unrecoverable", observedAt, "repair-failed"),
   );
 
@@ -250,6 +260,7 @@ const ensureEntry = <TSurfaceId extends string, TMethodId extends string>({
   if (inspection.unavailableReason) {
     return recordResult(
       state,
+      entry,
       unavailableResult(entry.anchor, observedAt, inspection.unavailableReason),
     );
   }
@@ -259,6 +270,7 @@ const ensureEntry = <TSurfaceId extends string, TMethodId extends string>({
   if (!inspection.mismatch && inspection.effectiveLookupIntact) {
     return recordResult(
       state,
+      entry,
       createIntegrityResult(entry.anchor, "intact", observedAt),
     );
   }
@@ -274,6 +286,7 @@ const ensureEntry = <TSurfaceId extends string, TMethodId extends string>({
   if (entry.anchor.repairPolicy === "audit") {
     return recordResult(
       state,
+      entry,
       createIntegrityResult(
         entry.anchor,
         "unconfirmed",
@@ -285,6 +298,7 @@ const ensureEntry = <TSurfaceId extends string, TMethodId extends string>({
   if (inspection.actual?.configurable === false) {
     return recordResult(
       state,
+      entry,
       createIntegrityResult(
         entry.anchor,
         "unrecoverable",
@@ -302,6 +316,7 @@ const ensureEntry = <TSurfaceId extends string, TMethodId extends string>({
   if (!inspection.actual && !extensible) {
     return recordResult(
       state,
+      entry,
       createIntegrityResult(
         entry.anchor,
         "unrecoverable",
@@ -369,6 +384,7 @@ const verifyDescriptorRepair = <TSurfaceId extends string, TMethodId extends str
   }
   return recordResult(
     state,
+    entry,
     createIntegrityResult(entry.anchor, "repaired", observedAt, {
       reason: mismatch,
       repairedAt: state.now(),
@@ -380,11 +396,13 @@ const collectEnsured = <TSurfaceId extends string, TMethodId extends string>(
   state: RegistryState<TSurfaceId, TMethodId>,
   predicate: (entry: RegisteredAnchorEntry<TSurfaceId, TMethodId>) => boolean,
 ): IntegrityResult<TSurfaceId, TMethodId>[] => {
-  const results = createPublicArray<IntegrityResult<TSurfaceId, TMethodId>>(0);
-  privateMapForEach(state.entriesById, (entry) => {
-    if (predicate(entry)) privateArrayPush(results, ensureEntry({ state, entry }));
+  return state.surfaceEvidence.run(() => {
+    const results = createPublicArray<IntegrityResult<TSurfaceId, TMethodId>>(0);
+    privateMapForEach(state.entriesById, (entry) => {
+      if (predicate(entry)) privateArrayPush(results, ensureEntry({ state, entry }));
+    });
+    return results;
   });
-  return results;
 };
 
 const copyStoredAnchor = <TSurfaceId extends string, TMethodId extends string>(
@@ -439,7 +457,10 @@ const getTargetEntries = <TSurfaceId extends string, TMethodId extends string>(
     privateWeakMapSet(state.entriesByTarget, target, targetEntries);
   }
   const existing = privateMapGet(targetEntries, key);
-  if (existing) privateMapDelete(state.entriesById, existing.token.registrationId);
+  if (existing) {
+    privateMapDelete(state.entriesById, existing.token.registrationId);
+    state.surfaceEvidence.remove(existing.token.registrationId);
+  }
   return targetEntries;
 };
 
@@ -462,6 +483,11 @@ const registerAnchor = <TSurfaceId extends string, TMethodId extends string>(
   };
   state.nextRegistrationId += 1;
   privateMapSet(state.entriesById, token.registrationId, entry);
+  state.surfaceEvidence.register(
+    token.registrationId,
+    anchor.surfaceId,
+    anchor.realmId,
+  );
   if (targetEntries) privateMapSet(targetEntries, anchor.key, entry);
   return token;
 };
@@ -485,6 +511,7 @@ const removeRealmEntries = <TSurfaceId extends string, TMethodId extends string>
     const registrationId = registrationIds[index];
     if (registrationId !== undefined) {
       privateMapDelete(state.entriesById, registrationId);
+      state.surfaceEvidence.remove(registrationId);
     }
   }
 };
@@ -508,6 +535,7 @@ const unregisterRealm = <TSurfaceId extends string, TMethodId extends string>(
   removeRealmEntries(state, realmId);
   state.recentResults = retainOtherRealms(state.recentResults, realmId);
   state.incidentHistory = retainOtherRealms(state.incidentHistory, realmId);
+  state.surfaceEvidence.unregisterRealm(realmId);
 };
 
 const copyResults = <TSurfaceId extends string, TMethodId extends string>(
@@ -561,14 +589,20 @@ export const createIntegrityRegistry = <
   const state = createRegistryState(options);
   return {
     register: (anchor) => registerAnchor(state, anchor),
-    inspect: (registered) => inspectEntry(state, getEntry(state, registered)),
-    ensure: (registered) => ensureEntry({ state, entry: getEntry(state, registered) }),
+    inspect: (registered) =>
+      state.surfaceEvidence.run(() => inspectEntry(state, getEntry(state, registered))),
+    ensure: (registered) =>
+      state.surfaceEvidence.run(() =>
+        ensureEntry({ state, entry: getEntry(state, registered) }),
+      ),
     ensureReceiver: (registered, receiver) =>
-      ensureEntry({
-        state,
-        entry: getEntry(state, registered),
-        receiverOverride: receiver,
-      }),
+      state.surfaceEvidence.run(() =>
+        ensureEntry({
+          state,
+          entry: getEntry(state, registered),
+          receiverOverride: receiver,
+        }),
+      ),
     ensureSurface: (surfaceId, realmId) =>
       collectEnsured(
         state,
@@ -580,6 +614,9 @@ export const createIntegrityRegistry = <
       collectEnsured(state, (entry) => entry.anchor.realmId === realmId),
     ensureAll: () => collectEnsured(state, () => true),
     unregisterRealm: (realmId) => unregisterRealm(state, realmId),
+    setSurfaceEvidenceSink: (sink) => {
+      state.surfaceEvidence.setSink(sink);
+    },
     setResultSink: (sink) => {
       state.sink = sink;
     },

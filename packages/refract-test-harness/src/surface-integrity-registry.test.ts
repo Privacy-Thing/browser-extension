@@ -49,6 +49,105 @@ const createGetterAnchor = ({
 });
 
 describe("SurfaceIntegrityRegistry", () => {
+  it("reports only the current worst result for a surface and realm", () => {
+    const target = {};
+    const userAgent = () => "spoofed";
+    const platform = () => "MacIntel";
+    Object.defineProperties(target, {
+      userAgent: { configurable: true, get: userAgent },
+      platform: { configurable: true, get: platform },
+    });
+    const reports: Array<{ status: string; reason?: string }> = [];
+    const registry = createIntegrityRegistry<SurfaceId, MethodId>({
+      now: createClock(),
+    });
+    registry.setSurfaceEvidenceSink({
+      record: (result) =>
+        reports.push({
+          status: result.status,
+          ...(result.reason ? { reason: result.reason } : {}),
+        }),
+    });
+    registry.register(createGetterAnchor({ target, getter: userAgent }));
+    registry.register({
+      surfaceId: "navigator",
+      realmId: "top",
+      key: "platform",
+      resolveTarget: () => target,
+      createExpectedDescriptor: () => ({ configurable: true, get: platform }),
+      repairPolicy: "audit",
+      criticality: "preview-critical",
+    });
+
+    registry.ensureAll();
+    expect(reports).toEqual([{ status: "intact" }]);
+
+    Object.defineProperty(target, "platform", {
+      configurable: true,
+      get: () => "host",
+    });
+    registry.ensureAll();
+    expect(reports.at(-1)).toEqual({
+      status: "unconfirmed",
+      reason: "descriptor-replaced",
+    });
+
+    Object.defineProperty(target, "platform", { configurable: true, get: platform });
+    registry.ensureAll();
+    expect(reports.at(-1)).toEqual({ status: "intact" });
+  });
+
+  it("replays the current aggregate result when X-Ray starts after installation", () => {
+    const target = {};
+    const getter = () => "spoofed";
+    Object.defineProperty(target, "userAgent", {
+      configurable: true,
+      get: getter,
+    });
+    const registry = createIntegrityRegistry<SurfaceId, MethodId>({
+      now: createClock(),
+    });
+    registry.register(createGetterAnchor({ target, getter }));
+    registry.ensureAll();
+
+    const reports: Array<{ status: string; reason?: string }> = [];
+    registry.setSurfaceEvidenceSink({
+      record: (result) =>
+        reports.push({
+          status: result.status,
+          ...(result.reason ? { reason: result.reason } : {}),
+        }),
+    });
+
+    expect(reports).toEqual([{ status: "intact" }]);
+  });
+
+  it("withdraws a removed realm's aggregate evidence", () => {
+    const target = {};
+    const getter = () => "spoofed";
+    Object.defineProperty(target, "userAgent", {
+      configurable: true,
+      get: getter,
+    });
+    const reports: Array<{ status: string; reason?: string }> = [];
+    const registry = createIntegrityRegistry<SurfaceId, MethodId>({
+      now: createClock(),
+    });
+    registry.setSurfaceEvidenceSink({
+      record: (result) =>
+        reports.push({
+          status: result.status,
+          ...(result.reason ? { reason: result.reason } : {}),
+        }),
+    });
+    registry.register(createGetterAnchor({ target, getter, realmId: "iframe-1" }));
+    registry.ensureAll();
+
+    registry.unregisterRealm("iframe-1");
+
+    expect(reports).toEqual([{ status: "intact" }, { status: "not-applicable" }]);
+  });
+
   it("confirms an exact descriptor and its effective inherited lookup", () => {
     const getter = () => "spoofed";
     const target = {};

@@ -22,6 +22,49 @@ const defineMethod = (target: object, key: PropertyKey, value: Function): void =
 };
 
 describe("runtime surface integrity integrations", () => {
+  it("confirms Battery getters before a page obtains a BatteryManager", () => {
+    const navigatorPrototype = {};
+    const navigatorObject = Object.create(navigatorPrototype) as object;
+    const managerPrototype = {};
+    defineMethod(navigatorPrototype, "getBattery", () => Promise.resolve({}));
+    const anchors = ["charging", "chargingTime", "dischargingTime", "level"].map(
+      (key) => {
+        const get = () => key;
+        const descriptor = { configurable: true, get } satisfies PropertyDescriptor;
+        Object.defineProperty(managerPrototype, key, descriptor);
+        return { target: managerPrototype, key, descriptor };
+      },
+    );
+    const registry = createIntegrityRegistry<
+      SpoofingSurfaceKey,
+      SpoofingSurfaceMethodId
+    >({
+      now: () => 1,
+    });
+    registerBatteryIntegrity(
+      { registrar: registry, realmId: "document" },
+      {
+        status: "installed",
+        getBatteryAnchor: {
+          target: navigatorPrototype,
+          key: "getBattery",
+          descriptor: Object.getOwnPropertyDescriptor(
+            navigatorPrototype,
+            "getBattery",
+          )!,
+        },
+        getManager: () => null,
+        getManagerGetterAnchors: () => anchors,
+        onManagerReady: () => undefined,
+      },
+      navigatorObject,
+    );
+
+    expect(registry.ensureAll().every((result) => result.status === "intact")).toBe(
+      true,
+    );
+  });
+
   it("repairs getBattery and all BatteryManager getters", () => {
     const navigatorPrototype = {};
     const navigatorObject = Object.create(navigatorPrototype) as object;

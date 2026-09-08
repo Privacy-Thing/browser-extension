@@ -13,6 +13,7 @@ export const E2E_OWNERSHIP_LANES = {
     "browserleaks-manual.spec.ts",
     "creepjs-diagnostic.spec.ts",
     "google-maps-diagnostic.spec.ts",
+    "praca-gov-battery-diagnostic.spec.ts",
     "service-worker-blocking-live.spec.ts",
   ],
   "firefox-runtime": [

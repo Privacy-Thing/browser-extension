@@ -9,7 +9,7 @@ import {
 } from "@privacy-brand/refract-browser/common/surface-usage-emitter";
 import { installBatteryPatch } from "@privacy-brand/refract-core/fingerprint/battery-status";
 import { installGeolocationPatch as installGeoPatch } from "@privacy-brand/refract-core/geolocation/geo-patch";
-import type { IntegrityResult } from "@privacy-brand/refract-core/integrity/surface-integrity-registry";
+import type { SurfaceEvidence } from "@privacy-brand/refract-core/integrity/surface-integrity-registry";
 import type { ModuleInstaller } from "@privacy-brand/refract-core/runtime/install";
 import type {
   RefractModuleName,
@@ -175,14 +175,7 @@ const registerFpSurface = (
   }
 };
 
-const recordIntegrityResult = (result: IntegrityResult): void => {
-  if (
-    result.status !== "repaired" &&
-    result.status !== "unrecoverable" &&
-    result.status !== "unconfirmed"
-  ) {
-    return;
-  }
+const recordSurfaceEvidence = (result: SurfaceEvidence): void => {
   markSurfaceEvidence(result.surfaceId as XRaySurfaceCategory, {
     realmId: result.realmId,
     integrity: result.status,
@@ -198,7 +191,7 @@ const createFpModules = (): RuntimeModules => ({
     installScreenPatch(state.snapshot!, globalThis, integrityContext(state));
   }),
   "xray-bridge": wrapInstaller(null, (state) => {
-    state.integrity.setResultSink({ record: recordIntegrityResult });
+    state.integrity.setSurfaceEvidenceSink({ record: recordSurfaceEvidence });
   }),
   iframes: wrapInstaller(null, (state) => {
     installIframePatch(state.snapshot!, state.integrity);
