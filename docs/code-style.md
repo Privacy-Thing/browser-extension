@@ -186,11 +186,6 @@ Tracked in Notion — [Dług czytelności kodu — god-moduły i kontrakty funkc
 which carries the remediation order, risk per item and the rejected alternatives.
 Not fixed by this guide:
 
-- `src/background/rules/resolver.target.test.ts` — the assertions still reach the
-  resolver through positional adapters, and one of them pins
-  `browserFingerprintSpoofingEnabled` to `false` where production defaults to
-  `true`. Kept deliberately so the options-object refactor could be verified
-  against untouched assertions; tracked as its own ticket.
 - `SettingsContext` keeps one provider and one public `useSettings()`, while its
   implementation is composed from domain state hooks and handler factories in
   `src/ui/options/state/use-settings-*.ts`. Preserve the composition order:
