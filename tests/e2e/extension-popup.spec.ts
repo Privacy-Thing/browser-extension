@@ -426,7 +426,7 @@ test("warns about active worker policies only after the page uses their APIs", a
   );
   await expect(popupPage.locator(".gw-popup-protection-counts")).toHaveAttribute(
     "data-protected-count",
-    "12",
+    "13",
   );
   await expect(popupPage.locator("#toggle-current-rule")).toHaveAttribute(
     "aria-label",
@@ -555,7 +555,7 @@ test("keeps a read site warning active until the user dismisses it", async ({
   );
   await expect(popupPage.locator(".gw-popup-protection-counts")).toHaveAttribute(
     "data-protected-count",
-    "12",
+    "13",
   );
   await popupPage.getByRole("button", { name: "View details" }).click();
   const serviceWorkerRow = popupPage
@@ -597,7 +597,7 @@ test("keeps a read site warning active until the user dismisses it", async ({
   );
   await expect(popupPage.locator(".gw-popup-protection-counts")).toHaveAttribute(
     "data-protected-count",
-    "11",
+    "12",
   );
   await expect
     .poll(() =>
