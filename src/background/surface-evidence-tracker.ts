@@ -50,12 +50,20 @@ const INTEGRITY_RANK: Record<NonNullable<SurfaceRealmEvidence["integrity"]>, num
   "not-applicable": 0,
 };
 
+type AggregatedMethodEvidence = {
+  evidence: SurfaceRealmEvidence;
+  /** Whether this report superseded the stored result for its own method. */
+  methodResultChanged: boolean;
+};
+
 const aggregateMethodIntegrity = (
   tabId: number,
   category: XRaySurfaceCategory,
   evidence: SurfaceRealmEvidence,
-): SurfaceRealmEvidence => {
-  if (!evidence.methodId || !evidence.integrity) return evidence;
+): AggregatedMethodEvidence => {
+  if (!evidence.methodId || !evidence.integrity) {
+    return { evidence, methodResultChanged: false };
+  }
   let categoryMap = integrityByMethodMap.get(tabId);
   if (!categoryMap) {
     categoryMap = new Map();
@@ -72,7 +80,8 @@ const aggregateMethodIntegrity = (
     realmMap.set(evidence.realmId, methodMap);
   }
   const current = methodMap.get(evidence.methodId);
-  if (!current || current.observedAt <= evidence.observedAt) {
+  const methodResultChanged = !current || current.observedAt <= evidence.observedAt;
+  if (methodResultChanged) {
     methodMap.set(evidence.methodId, evidence);
   }
   // The incoming result can be stale and therefore absent from `methodMap`.
@@ -92,9 +101,12 @@ const aggregateMethodIntegrity = (
   const currentEvidence = { ...evidence };
   delete currentEvidence.reasonCode;
   return {
-    ...currentEvidence,
-    ...(worst.integrity ? { integrity: worst.integrity } : {}),
-    ...(worst.reasonCode ? { reasonCode: worst.reasonCode } : {}),
+    evidence: {
+      ...currentEvidence,
+      ...(worst.integrity ? { integrity: worst.integrity } : {}),
+      ...(worst.reasonCode ? { reasonCode: worst.reasonCode } : {}),
+    },
+    methodResultChanged,
   };
 };
 
@@ -103,7 +115,11 @@ export const recordSurfaceEvidence = (
   category: XRaySurfaceCategory,
   evidence: SurfaceRealmEvidence,
 ): void => {
-  const aggregated = aggregateMethodIntegrity(tabId, category, evidence);
+  const { evidence: aggregated, methodResultChanged } = aggregateMethodIntegrity(
+    tabId,
+    category,
+    evidence,
+  );
   let categoryMap = tabEvidenceMap.get(tabId);
   if (!categoryMap) {
     categoryMap = new Map();
@@ -114,9 +130,15 @@ export const recordSurfaceEvidence = (
     realmMap = new Map();
     categoryMap.set(category, realmMap);
   }
-  // Monotonic per realm — a realm's newest report (higher observedAt, e.g. a
-  // repaired descriptor superseding an earlier unconfirmed one) wins, and a
-  // stale/out-of-order older report is ignored rather than clobbering it.
+  // Method reports are ordered only against the previous result for that
+  // method. A valid recovery may have an earlier timestamp than another
+  // method's last check, and must still refresh the folded realm result.
+  if (evidence.methodId && evidence.integrity) {
+    if (methodResultChanged) realmMap.set(aggregated.realmId, aggregated);
+    return;
+  }
+  // Non-method evidence remains monotonic per realm — a stale/out-of-order
+  // report is ignored rather than clobbering the newest result.
   const existing = realmMap.get(aggregated.realmId);
   if (existing && existing.observedAt > aggregated.observedAt) {
     return;
