@@ -365,9 +365,10 @@ import type { XRaySurfaceCategory } from "@/shared/types";
   if (!shimState) {
     return;
   }
-  // Forward every current method result; the background folds them per surface and realm.
+  // Forward all Battery results so recovery clears its current per-realm status.
   shimState.integrity.setResultSink({
     record: (result) => {
+      if (result.status === "intact" && result.surfaceId !== "battery") return;
       markSurfaceEvidence(result.surfaceId as XRaySurfaceCategory, {
         realmId: result.realmId,
         integrity: result.status,

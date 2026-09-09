@@ -176,6 +176,7 @@ const registerFpSurface = (
 };
 
 const recordIntegrityResult = (result: IntegrityResult): void => {
+  if (result.status === "intact" && result.surfaceId !== "battery") return;
   markSurfaceEvidence(result.surfaceId as XRaySurfaceCategory, {
     realmId: result.realmId,
     integrity: result.status,
