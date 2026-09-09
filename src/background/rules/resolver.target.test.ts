@@ -3,15 +3,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   matchTrustedSite,
   resolveActiveIdentity as resolveActiveIdentityBase,
-  resolveProfileSnapshot as resolveProfileSnapshotBase,
-  toRuleRuntimeSnapshot as toRuleRuntimeSnapshotBase,
-  toRuntimeSnapshot as toRuntimeSnapshotBase,
+  resolveProfileSnapshot,
+  toRuleRuntimeSnapshot,
+  toRuntimeSnapshot,
 } from "@/background/rules/resolver";
-import type {
-  ProfileSnapshotOptions,
-  RuleSnapshotOptions,
-  ToRuntimeSnapshotOptions,
-} from "@/background/rules/resolver-options";
 import { getTimeZoneOffsetMinutes } from "@/shared/time-zone-offset";
 import type {
   ContainerAssignment,
@@ -95,16 +90,6 @@ const withFallbackSeed = (
       }
     : undefined;
 
-const NATIVE_FP_SURFACES: SharedSpoofingConfig = {
-  canvas: false,
-  webGL: false,
-  audio: false,
-  navigator: false,
-  screen: false,
-  clientHints: false,
-  webRTC: false,
-};
-
 const resolveActiveIdentity = (
   hostname: string,
   cookieStoreId: string | undefined,
@@ -117,102 +102,6 @@ const resolveActiveIdentity = (
     withRuleSeeds(rules),
     withContainerSeeds(containerAssignments),
   );
-
-/**
- * Positional adapters over the options-object SUTs, kept so the assertions in
- * this file stay byte-identical across that signature change — they are the
- * evidence that the refactor preserved behaviour, so they must not be co-edited
- * with it.
- *
- * Converting these call sites (and retiring the pin noted below) is tracked
- * separately; see the "Dług czytelności kodu" document in Notion.
- */
-const toRuntimeSnapshot = (
-  profile: ToRuntimeSnapshotOptions["profile"],
-  _retiredProfiles: readonly unknown[],
-  debugMode: boolean,
-  watchPositionDelay: [number, number],
-  fingerprintEnabled: boolean,
-  sharedSpoofing?: SharedSpoofingConfig,
-  ruleOverrides?: ToRuntimeSnapshotOptions["ruleOverrides"],
-  ruleSeedKey?: string,
-  browserFingerprintSource?: ToRuntimeSnapshotOptions["browserFingerprintSource"],
-  authKey?: string,
-  sharedWorkerHandlingMode: ToRuntimeSnapshotOptions["sharedWorkerHandlingMode"] = "native",
-) =>
-  toRuntimeSnapshotBase({
-    authKey,
-    browserFingerprintSource,
-    fingerprintEnabled,
-    debugMode,
-    profile,
-    ruleOverrides,
-    ruleSeedKey,
-    sharedSpoofing,
-    sharedWorkerHandlingMode,
-    watchPositionDelay,
-  });
-
-const toRuleRuntimeSnapshot = (
-  rule: RuleSnapshotOptions["rule"],
-  profile: RuleSnapshotOptions["profile"],
-  _retiredProfiles: readonly unknown[],
-  debugMode: boolean,
-  watchPositionDelay: [number, number],
-  fingerprintEnabled: boolean,
-  sharedSpoofing?: SharedSpoofingConfig,
-  browserFingerprintSource?: RuleSnapshotOptions["browserFingerprintSource"],
-  sharedWorkerHandlingMode: RuleSnapshotOptions["sharedWorkerHandlingMode"] = "native",
-) =>
-  toRuleRuntimeSnapshotBase({
-    browserFingerprintSource,
-    fingerprintEnabled,
-    debugMode,
-    profile,
-    rule,
-    sharedSpoofing,
-    sharedWorkerHandlingMode,
-    watchPositionDelay,
-  });
-
-const resolveProfileSnapshot = (
-  hostname: string,
-  cookieStoreId: string | undefined,
-  rules: readonly DomainRule[],
-  profiles: readonly Location[],
-  _retiredProfiles: readonly unknown[] = [],
-  containerAssignments: readonly ContainerAssignment[] = [],
-  debugMode = false,
-  watchPositionDelay: [number, number] = [60, 500],
-  // Preserve the historical location-only fixtures after the global switch
-  // became the real master gate. Master-off behavior uses the options-object
-  // SUT directly in its dedicated regression.
-  fingerprintEnabled = false,
-  sharedSpoofing?: SharedSpoofingConfig,
-  browserFingerprintSource?: ProfileSnapshotOptions["browserFingerprintSource"],
-  globalFallbackRule?: GlobalFallbackRule,
-  trustedSites: readonly TrustedSite[] = [],
-) =>
-  resolveProfileSnapshotBase({
-    browserFingerprintSource,
-    fingerprintEnabled: true,
-    containerAssignments: withContainerSeeds(containerAssignments),
-    cookieStoreId,
-    debugMode,
-    domainFencingEnabled: false,
-    globalFallbackRule: withFallbackSeed(globalFallbackRule),
-    hostname,
-    profiles,
-    rules: withRuleSeeds(rules),
-    // The base function no longer defaults this; `native` reproduces the
-    // behaviour the assertions below were written against.
-    sharedWorkerHandlingMode: "native",
-    sharedSpoofing: fingerprintEnabled
-      ? sharedSpoofing
-      : { ...sharedSpoofing, ...NATIVE_FP_SURFACES },
-    trustedSites,
-    watchPositionDelay,
-  });
 
 const getUtcOffsetMinutes = (timeZone: string, epochMs: number): number => {
   return getTimeZoneOffsetMinutes(timeZone, epochMs);
@@ -253,13 +142,18 @@ describe("toRuntimeSnapshot date offset diagnostics", () => {
       const localOffsetMinutes = new Date(epochMs).getTimezoneOffset();
       const comparisonTimeZone = pickComparisonTimeZone(epochMs);
       const targetOffsetMinutes = getUtcOffsetMinutes(comparisonTimeZone, epochMs);
-      const snapshot = toRuntimeSnapshot(
-        buildProfile(comparisonTimeZone),
-        [],
-        false,
-        [60, 500],
-        false,
-      );
+      const snapshot = toRuntimeSnapshot({
+        authKey: undefined,
+        browserFingerprintSource: undefined,
+        debugMode: false,
+        fingerprintEnabled: false,
+        profile: buildProfile(comparisonTimeZone),
+        ruleOverrides: undefined,
+        ruleSeedKey: undefined,
+        sharedSpoofing: undefined,
+        sharedWorkerHandlingMode: "native",
+        watchPositionDelay: [60, 500],
+      });
 
       expect(snapshot.date.timeZone).toBe(comparisonTimeZone);
       expect(snapshot.date.baseEpochMs).toBe(epochMs);
@@ -275,26 +169,30 @@ describe("toRuntimeSnapshot date offset diagnostics", () => {
 
 describe("toRuntimeSnapshot SharedWorker compatibility mode", () => {
   it("defaults SharedWorkers to native compatibility and emits opt-out when disabled", () => {
-    const defaultSnapshot = toRuntimeSnapshot(
-      buildProfile("Europe/Warsaw"),
-      [],
-      false,
-      [60, 500],
-      true,
-    );
-    const optOutSnapshot = toRuntimeSnapshot(
-      buildProfile("Europe/Warsaw"),
-      [],
-      false,
-      [60, 500],
-      true,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      "spoof",
-    );
+    const defaultSnapshot = toRuntimeSnapshot({
+      authKey: undefined,
+      browserFingerprintSource: undefined,
+      debugMode: false,
+      fingerprintEnabled: true,
+      profile: buildProfile("Europe/Warsaw"),
+      ruleOverrides: undefined,
+      ruleSeedKey: undefined,
+      sharedSpoofing: undefined,
+      sharedWorkerHandlingMode: "native",
+      watchPositionDelay: [60, 500],
+    });
+    const optOutSnapshot = toRuntimeSnapshot({
+      authKey: undefined,
+      browserFingerprintSource: undefined,
+      debugMode: false,
+      fingerprintEnabled: true,
+      profile: buildProfile("Europe/Warsaw"),
+      ruleOverrides: undefined,
+      ruleSeedKey: undefined,
+      sharedSpoofing: undefined,
+      sharedWorkerHandlingMode: "spoof",
+      watchPositionDelay: [60, 500],
+    });
 
     expect(defaultSnapshot.sharedWorkerHandlingMode).toBe("native");
     expect(defaultSnapshot.sharedWorkerCompatibilityMode).toBeUndefined();
@@ -303,45 +201,42 @@ describe("toRuntimeSnapshot SharedWorker compatibility mode", () => {
   });
 
   it("resolves SharedWorker handling with rule, shared spoofing, preference precedence", () => {
-    const preferenceSnapshot = toRuntimeSnapshot(
-      buildProfile("Europe/Warsaw"),
-      [],
-      false,
-      [60, 500],
-      true,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      "strict",
-    );
-    const sharedSpoofingSnapshot = toRuntimeSnapshot(
-      buildProfile("Europe/Warsaw"),
-      [],
-      false,
-      [60, 500],
-      true,
-      { sharedWorker: "spoof" },
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      "strict",
-    );
-    const ruleOverrideSnapshot = toRuntimeSnapshot(
-      buildProfile("Europe/Warsaw"),
-      [],
-      false,
-      [60, 500],
-      true,
-      { sharedWorker: "spoof" },
-      { sharedWorker: "native" },
-      undefined,
-      undefined,
-      undefined,
-      "strict",
-    );
+    const preferenceSnapshot = toRuntimeSnapshot({
+      authKey: undefined,
+      browserFingerprintSource: undefined,
+      debugMode: false,
+      fingerprintEnabled: true,
+      profile: buildProfile("Europe/Warsaw"),
+      ruleOverrides: undefined,
+      ruleSeedKey: undefined,
+      sharedSpoofing: undefined,
+      sharedWorkerHandlingMode: "strict",
+      watchPositionDelay: [60, 500],
+    });
+    const sharedSpoofingSnapshot = toRuntimeSnapshot({
+      authKey: undefined,
+      browserFingerprintSource: undefined,
+      debugMode: false,
+      fingerprintEnabled: true,
+      profile: buildProfile("Europe/Warsaw"),
+      ruleOverrides: undefined,
+      ruleSeedKey: undefined,
+      sharedSpoofing: { sharedWorker: "spoof" },
+      sharedWorkerHandlingMode: "strict",
+      watchPositionDelay: [60, 500],
+    });
+    const ruleOverrideSnapshot = toRuntimeSnapshot({
+      authKey: undefined,
+      browserFingerprintSource: undefined,
+      debugMode: false,
+      fingerprintEnabled: true,
+      profile: buildProfile("Europe/Warsaw"),
+      ruleOverrides: { sharedWorker: "native" },
+      ruleSeedKey: undefined,
+      sharedSpoofing: { sharedWorker: "spoof" },
+      sharedWorkerHandlingMode: "strict",
+      watchPositionDelay: [60, 500],
+    });
 
     expect(preferenceSnapshot.sharedWorkerHandlingMode).toBe("strict");
     expect(sharedSpoofingSnapshot.sharedWorkerHandlingMode).toBe("strict");
@@ -359,13 +254,18 @@ describe("toRuntimeSnapshot New York offset handling", () => {
     vi.setSystemTime(new Date("2026-03-31T06:55:53.000Z"));
 
     const epochMs = Date.now();
-    const snapshot = toRuntimeSnapshot(
-      buildProfile("America/New_York"),
-      [],
-      false,
-      [60, 500],
-      false,
-    );
+    const snapshot = toRuntimeSnapshot({
+      authKey: undefined,
+      browserFingerprintSource: undefined,
+      debugMode: false,
+      fingerprintEnabled: false,
+      profile: buildProfile("America/New_York"),
+      ruleOverrides: undefined,
+      ruleSeedKey: undefined,
+      sharedSpoofing: undefined,
+      sharedWorkerHandlingMode: "native",
+      watchPositionDelay: [60, 500],
+    });
     const localOffsetMinutes = new Date(epochMs).getTimezoneOffset();
     const targetOffsetMinutes = getUtcOffsetMinutes("America/New_York", epochMs);
 
@@ -378,18 +278,23 @@ describe("toRuntimeSnapshot New York offset handling", () => {
 
 describe("toRuntimeSnapshot locale integration", () => {
   it("derives English-first runtime locale when the location prefers English content", () => {
-    const snapshot = toRuntimeSnapshot(
-      {
+    const snapshot = toRuntimeSnapshot({
+      authKey: undefined,
+      browserFingerprintSource: undefined,
+      debugMode: false,
+      fingerprintEnabled: false,
+      profile: {
         ...buildProfile("Europe/Warsaw"),
         language: "pl",
         languages: ["pl", "en-US"],
         preferEnglishContent: true,
       },
-      [],
-      false,
-      [60, 500],
-      false,
-    );
+      ruleOverrides: undefined,
+      ruleSeedKey: undefined,
+      sharedSpoofing: undefined,
+      sharedWorkerHandlingMode: "native",
+      watchPositionDelay: [60, 500],
+    });
 
     expect(snapshot.locale).toMatchObject({
       language: "en",
@@ -426,13 +331,8 @@ describe("resolveProfileSnapshot container priority", () => {
     timeZone: "Europe/Berlin",
   };
 
-  // Calls the base function directly: the positional adapter above pins
-  // `sharedWorkerHandlingMode` to "native" and `fingerprintEnabled`
-  // to false, so it cannot express this case. Neither member carries a
-  // per-parameter default any more, and nothing else asserts that they survive
-  // the trip through resolveProfileSnapshot into the snapshot.
   it("threads a strict SharedWorker mode and debugMode into the snapshot", () => {
-    const snapshot = resolveProfileSnapshotBase({
+    const snapshot = resolveProfileSnapshot({
       browserFingerprintSource: undefined,
       fingerprintEnabled: true,
       containerAssignments: [],
@@ -458,52 +358,79 @@ describe("resolveProfileSnapshot container priority", () => {
   });
 
   it("prefers a matching rule over a container assignment", () => {
-    const snapshot = resolveProfileSnapshot(
-      "shop.example.com",
-      "firefox-container-1",
-      [{ pattern: "shop.example.com", locationId: "warsaw", enabled: true }],
-      [locationWarsaw, locationBerlin],
-      [],
-      [{ cookieStoreId: "firefox-container-1", locationId: "berlin" }],
-    );
+    const snapshot = resolveProfileSnapshot({
+      browserFingerprintSource: undefined,
+      containerAssignments: withContainerSeeds([
+        { cookieStoreId: "firefox-container-1", locationId: "berlin" },
+      ]),
+      cookieStoreId: "firefox-container-1",
+      debugMode: false,
+      domainFencingEnabled: false,
+      fingerprintEnabled: true,
+      globalFallbackRule: withFallbackSeed(undefined),
+      hostname: "shop.example.com",
+      profiles: [locationWarsaw, locationBerlin],
+      rules: withRuleSeeds([
+        { pattern: "shop.example.com", locationId: "warsaw", enabled: true },
+      ]),
+      sharedSpoofing: undefined,
+      sharedWorkerHandlingMode: "native",
+      trustedSites: [],
+      watchPositionDelay: [60, 500],
+    });
 
     expect(snapshot?.geo.latitude).toBe(locationWarsaw.latitude);
     expect(snapshot?.locale.language).toBe(locationWarsaw.language);
+    expect(snapshot?.fingerprint?.spoofingToggles?.canvas).toBe(true);
   });
 
   it("falls back to a container assignment when no domain rule matches", () => {
-    const snapshot = resolveProfileSnapshot(
-      "shop.example.com",
-      "firefox-container-1",
-      [],
-      [locationWarsaw, locationBerlin],
-      [],
-      [{ cookieStoreId: "firefox-container-1", locationId: "berlin" }],
-    );
+    const snapshot = resolveProfileSnapshot({
+      browserFingerprintSource: undefined,
+      containerAssignments: withContainerSeeds([
+        { cookieStoreId: "firefox-container-1", locationId: "berlin" },
+      ]),
+      cookieStoreId: "firefox-container-1",
+      debugMode: false,
+      domainFencingEnabled: false,
+      fingerprintEnabled: true,
+      globalFallbackRule: withFallbackSeed(undefined),
+      hostname: "shop.example.com",
+      profiles: [locationWarsaw, locationBerlin],
+      rules: withRuleSeeds([]),
+      sharedSpoofing: undefined,
+      sharedWorkerHandlingMode: "native",
+      trustedSites: [],
+      watchPositionDelay: [60, 500],
+    });
 
     expect(snapshot?.geo.latitude).toBe(locationBerlin.latitude);
     expect(snapshot?.locale.language).toBe(locationBerlin.language);
   });
 
   it("skips disabled container assignments so the default rule can win", () => {
-    const snapshot = resolveProfileSnapshot(
-      "shop.example.com",
-      "firefox-container-1",
-      [],
-      [locationWarsaw, locationBerlin],
-      [],
-      [{ cookieStoreId: "firefox-container-1", enabled: false, locationId: "berlin" }],
-      false,
-      [60, 500],
-      false,
-      undefined,
-      undefined,
-      {
+    const snapshot = resolveProfileSnapshot({
+      browserFingerprintSource: undefined,
+      containerAssignments: withContainerSeeds([
+        { cookieStoreId: "firefox-container-1", enabled: false, locationId: "berlin" },
+      ]),
+      cookieStoreId: "firefox-container-1",
+      debugMode: false,
+      domainFencingEnabled: false,
+      fingerprintEnabled: true,
+      globalFallbackRule: withFallbackSeed({
         enabled: true,
         locationId: "warsaw",
         ruleSeedKey: "glb123",
-      },
-    );
+      }),
+      hostname: "shop.example.com",
+      profiles: [locationWarsaw, locationBerlin],
+      rules: withRuleSeeds([]),
+      sharedSpoofing: undefined,
+      sharedWorkerHandlingMode: "native",
+      trustedSites: [],
+      watchPositionDelay: [60, 500],
+    });
 
     expect(snapshot?.geo.latitude).toBe(locationWarsaw.latitude);
     expect(snapshot?.locale.language).toBe(locationWarsaw.language);
@@ -524,29 +451,31 @@ describe("resolveProfileSnapshot container priority", () => {
       ),
     ).toBeNull();
 
-    const snapshot = resolveProfileSnapshot(
-      "shop.example.com",
-      "firefox-container-1",
-      [],
-      [locationWarsaw, locationBerlin],
-      [],
-      [
+    const snapshot = resolveProfileSnapshot({
+      browserFingerprintSource: undefined,
+      containerAssignments: withContainerSeeds([
         {
           cookieStoreId: "firefox-container-1",
           fingerprintSurfaceOverrides: { geolocation: false },
         },
-      ],
-      false,
-      [60, 500],
-      false,
-      undefined,
-      undefined,
-      {
+      ]),
+      cookieStoreId: "firefox-container-1",
+      debugMode: false,
+      domainFencingEnabled: false,
+      fingerprintEnabled: true,
+      globalFallbackRule: withFallbackSeed({
         enabled: true,
         locationId: "warsaw",
         ruleSeedKey: "glb123",
-      },
-    );
+      }),
+      hostname: "shop.example.com",
+      profiles: [locationWarsaw, locationBerlin],
+      rules: withRuleSeeds([]),
+      sharedSpoofing: undefined,
+      sharedWorkerHandlingMode: "native",
+      trustedSites: [],
+      watchPositionDelay: [60, 500],
+    });
 
     expect(snapshot?.geo.latitude).toBe(locationWarsaw.latitude);
     expect(snapshot?.locale.language).toBe(locationWarsaw.language);
@@ -554,43 +483,55 @@ describe("resolveProfileSnapshot container priority", () => {
 
   it("keeps a container's own fingerprint identity while inheriting the Default Rule location", () => {
     const resolveContainer = (ruleSeedKey: string, authKey?: string) =>
-      resolveProfileSnapshot(
-        "shop.example.com",
-        "firefox-container-1",
-        [],
-        [locationWarsaw],
-        [],
-        [
+      resolveProfileSnapshot({
+        browserFingerprintSource: undefined,
+        containerAssignments: withContainerSeeds([
           {
             cookieStoreId: "firefox-container-1",
             ruleSeedKey,
             ...(authKey ? { authKey } : {}),
           },
-        ],
-        false,
-        [60, 500],
-        true,
-        undefined,
-        undefined,
-        { enabled: true, locationId: "warsaw", ruleSeedKey: "glb123" },
-      );
+        ]),
+        cookieStoreId: "firefox-container-1",
+        debugMode: false,
+        domainFencingEnabled: false,
+        fingerprintEnabled: true,
+        globalFallbackRule: withFallbackSeed({
+          enabled: true,
+          locationId: "warsaw",
+          ruleSeedKey: "glb123",
+        }),
+        hostname: "shop.example.com",
+        profiles: [locationWarsaw],
+        rules: withRuleSeeds([]),
+        sharedSpoofing: undefined,
+        sharedWorkerHandlingMode: "native",
+        trustedSites: [],
+        watchPositionDelay: [60, 500],
+      });
 
     const containerA = resolveContainer("ctra01", "autha001");
     const containerB = resolveContainer("ctrb02");
-    const fallbackOnly = resolveProfileSnapshot(
-      "shop.example.com",
-      undefined,
-      [],
-      [locationWarsaw],
-      [],
-      [],
-      false,
-      [60, 500],
-      true,
-      undefined,
-      undefined,
-      { enabled: true, locationId: "warsaw", ruleSeedKey: "glb123" },
-    );
+    const fallbackOnly = resolveProfileSnapshot({
+      browserFingerprintSource: undefined,
+      containerAssignments: withContainerSeeds([]),
+      cookieStoreId: undefined,
+      debugMode: false,
+      domainFencingEnabled: false,
+      fingerprintEnabled: true,
+      globalFallbackRule: withFallbackSeed({
+        enabled: true,
+        locationId: "warsaw",
+        ruleSeedKey: "glb123",
+      }),
+      hostname: "shop.example.com",
+      profiles: [locationWarsaw],
+      rules: withRuleSeeds([]),
+      sharedSpoofing: undefined,
+      sharedWorkerHandlingMode: "native",
+      trustedSites: [],
+      watchPositionDelay: [60, 500],
+    });
 
     // Location is inherited from the Default Rule.
     expect(containerA?.geo.latitude).toBe(locationWarsaw.latitude);
@@ -609,101 +550,126 @@ describe("resolveProfileSnapshot container priority", () => {
   });
 
   it("does not spoof an identity-only container when the Default Rule is off", () => {
-    const snapshot = resolveProfileSnapshot(
-      "shop.example.com",
-      "firefox-container-1",
-      [],
-      [locationWarsaw],
-      [],
-      [{ cookieStoreId: "firefox-container-1", ruleSeedKey: "ctra01" }],
-      false,
-      [60, 500],
-      true,
-      undefined,
-      undefined,
-      { enabled: false, locationId: "warsaw", ruleSeedKey: "glb123" },
-    );
+    const snapshot = resolveProfileSnapshot({
+      browserFingerprintSource: undefined,
+      containerAssignments: withContainerSeeds([
+        { cookieStoreId: "firefox-container-1", ruleSeedKey: "ctra01" },
+      ]),
+      cookieStoreId: "firefox-container-1",
+      debugMode: false,
+      domainFencingEnabled: false,
+      fingerprintEnabled: true,
+      globalFallbackRule: withFallbackSeed({
+        enabled: false,
+        locationId: "warsaw",
+        ruleSeedKey: "glb123",
+      }),
+      hostname: "shop.example.com",
+      profiles: [locationWarsaw],
+      rules: withRuleSeeds([]),
+      sharedSpoofing: undefined,
+      sharedWorkerHandlingMode: "native",
+      trustedSites: [],
+      watchPositionDelay: [60, 500],
+    });
 
     expect(snapshot).toBeNull();
   });
 
   it("lets a matching rule without its own preset inherit location from the active container assignment", () => {
-    const snapshot = resolveProfileSnapshot(
-      "shop.example.com",
-      "firefox-container-1",
-      [
+    const snapshot = resolveProfileSnapshot({
+      browserFingerprintSource: undefined,
+      containerAssignments: withContainerSeeds([
+        {
+          cookieStoreId: "firefox-container-1",
+          locationId: "berlin",
+          ruleSeedKey: "ctr001",
+        },
+      ]),
+      cookieStoreId: "firefox-container-1",
+      debugMode: false,
+      domainFencingEnabled: false,
+      fingerprintEnabled: true,
+      globalFallbackRule: withFallbackSeed(undefined),
+      hostname: "shop.example.com",
+      profiles: [locationBerlin],
+      rules: withRuleSeeds([
         {
           pattern: "shop.example.com",
           locationId: "",
           enabled: true,
           ruleSeedKey: "rul001",
         },
-      ],
-      [locationBerlin],
-      [],
-      [
-        {
-          cookieStoreId: "firefox-container-1",
-          locationId: "berlin",
-          ruleSeedKey: "ctr001",
-        },
-      ],
-    );
+      ]),
+      sharedSpoofing: undefined,
+      sharedWorkerHandlingMode: "native",
+      trustedSites: [],
+      watchPositionDelay: [60, 500],
+    });
 
     expect(snapshot?.geo.latitude).toBe(locationBerlin.latitude);
     expect(snapshot?.locale.language).toBe(locationBerlin.language);
   });
 
   it("lets a matching rule without its own preset inherit location from the Default Rule", () => {
-    const snapshot = resolveProfileSnapshot(
-      "shop.example.com",
-      "firefox-container-1",
-      [
+    const snapshot = resolveProfileSnapshot({
+      browserFingerprintSource: undefined,
+      containerAssignments: withContainerSeeds([
+        { cookieStoreId: "firefox-container-1", enabled: true },
+      ]),
+      cookieStoreId: "firefox-container-1",
+      debugMode: false,
+      domainFencingEnabled: false,
+      fingerprintEnabled: true,
+      globalFallbackRule: withFallbackSeed({
+        enabled: true,
+        locationId: "warsaw",
+        ruleSeedKey: "glb123",
+      }),
+      hostname: "shop.example.com",
+      profiles: [locationWarsaw],
+      rules: withRuleSeeds([
         {
           pattern: "shop.example.com",
           locationId: "",
           enabled: true,
           ruleSeedKey: "rul001",
         },
-      ],
-      [locationWarsaw],
-      [],
-      [{ cookieStoreId: "firefox-container-1", enabled: true }],
-      false,
-      [60, 500],
-      false,
-      undefined,
-      undefined,
-      {
-        enabled: true,
-        locationId: "warsaw",
-        ruleSeedKey: "glb123",
-      },
-    );
+      ]),
+      sharedSpoofing: undefined,
+      sharedWorkerHandlingMode: "native",
+      trustedSites: [],
+      watchPositionDelay: [60, 500],
+    });
 
     expect(snapshot?.geo.latitude).toBe(locationWarsaw.latitude);
     expect(snapshot?.locale.language).toBe(locationWarsaw.language);
   });
 
   it("keeps the container active when its geolocation spoofing is disabled", () => {
-    const snapshot = resolveProfileSnapshot(
-      "shop.example.com",
-      "firefox-container-1",
-      [],
-      [locationBerlin],
-      [],
-      [
+    const snapshot = resolveProfileSnapshot({
+      browserFingerprintSource: undefined,
+      containerAssignments: withContainerSeeds([
         {
           cookieStoreId: "firefox-container-1",
           fingerprintSurfaceOverrides: { geolocation: false },
           locationId: "berlin",
           ruleSeedKey: "ctr001",
         },
-      ],
-      false,
-      [60, 500],
-      true,
-    );
+      ]),
+      cookieStoreId: "firefox-container-1",
+      debugMode: false,
+      domainFencingEnabled: false,
+      fingerprintEnabled: true,
+      globalFallbackRule: withFallbackSeed(undefined),
+      hostname: "shop.example.com",
+      profiles: [locationBerlin],
+      rules: withRuleSeeds([]),
+      sharedSpoofing: undefined,
+      sharedWorkerHandlingMode: "native",
+      trustedSites: [],
+      watchPositionDelay: [60, 500],
+    });
 
     expect(snapshot).toMatchObject({
       geolocationEnabled: false,
@@ -720,10 +686,17 @@ describe("resolveProfileSnapshot container priority", () => {
   });
 
   it("keeps a domain rule active when its geolocation spoofing is disabled", () => {
-    const snapshot = resolveProfileSnapshot(
-      "shop.example.com",
-      undefined,
-      [
+    const snapshot = resolveProfileSnapshot({
+      browserFingerprintSource: undefined,
+      containerAssignments: withContainerSeeds([]),
+      cookieStoreId: undefined,
+      debugMode: false,
+      domainFencingEnabled: false,
+      fingerprintEnabled: true,
+      globalFallbackRule: withFallbackSeed(undefined),
+      hostname: "shop.example.com",
+      profiles: [locationWarsaw],
+      rules: withRuleSeeds([
         {
           pattern: "shop.example.com",
           locationId: "warsaw",
@@ -731,14 +704,12 @@ describe("resolveProfileSnapshot container priority", () => {
           fingerprintSurfaceOverrides: { geolocation: false },
           ruleSeedKey: "rul001",
         },
-      ],
-      [locationWarsaw],
-      [],
-      [],
-      false,
-      [60, 500],
-      true,
-    );
+      ]),
+      sharedSpoofing: undefined,
+      sharedWorkerHandlingMode: "native",
+      trustedSites: [],
+      watchPositionDelay: [60, 500],
+    });
 
     expect(snapshot).toMatchObject({
       geolocationEnabled: false,
@@ -755,24 +726,25 @@ describe("resolveProfileSnapshot container priority", () => {
   });
 
   it("applies fingerprint surface overrides from the winning container assignment", () => {
-    const snapshot = resolveProfileSnapshot(
-      "shop.example.com",
-      "firefox-container-1",
-      [],
-      [locationBerlin],
-      [],
-      [
+    const snapshot = resolveProfileSnapshot({
+      browserFingerprintSource: undefined,
+      containerAssignments: withContainerSeeds([
         {
           cookieStoreId: "firefox-container-1",
           fingerprintSurfaceOverrides: { canvas: false },
           locationId: "berlin",
           ruleSeedKey: "ctr001",
         },
-      ],
-      false,
-      [0, 1000],
-      true,
-      {
+      ]),
+      cookieStoreId: "firefox-container-1",
+      debugMode: false,
+      domainFencingEnabled: false,
+      fingerprintEnabled: true,
+      globalFallbackRule: withFallbackSeed(undefined),
+      hostname: "shop.example.com",
+      profiles: [locationBerlin],
+      rules: withRuleSeeds([]),
+      sharedSpoofing: {
         canvas: true,
         webGL: true,
         audio: true,
@@ -781,62 +753,65 @@ describe("resolveProfileSnapshot container priority", () => {
         clientHints: true,
         webRTC: true,
       },
-    );
+      sharedWorkerHandlingMode: "native",
+      trustedSites: [],
+      watchPositionDelay: [0, 1000],
+    });
 
     expect(snapshot?.fingerprint?.spoofingToggles?.canvas).toBe(false);
     expect(snapshot?.fingerprint?.spoofingToggles?.webGL).toBe(true);
   });
 
   it("returns null when neither a rule nor a container assignment matches", () => {
-    const snapshot = resolveProfileSnapshot(
-      "shop.example.com",
-      "firefox-container-1",
-      [],
-      [locationWarsaw],
-      [],
-      [],
-    );
+    const snapshot = resolveProfileSnapshot({
+      browserFingerprintSource: undefined,
+      containerAssignments: withContainerSeeds([]),
+      cookieStoreId: "firefox-container-1",
+      debugMode: false,
+      domainFencingEnabled: false,
+      fingerprintEnabled: true,
+      globalFallbackRule: withFallbackSeed(undefined),
+      hostname: "shop.example.com",
+      profiles: [locationWarsaw],
+      rules: withRuleSeeds([]),
+      sharedSpoofing: undefined,
+      sharedWorkerHandlingMode: "native",
+      trustedSites: [],
+      watchPositionDelay: [60, 500],
+    });
 
     expect(snapshot).toBeNull();
   });
 
   it("falls back to the global fallback rule when no domain rule or container assignment matches", () => {
-    const snapshot = resolveProfileSnapshot(
-      "shop.example.com",
-      "firefox-container-1",
-      [],
-      [locationWarsaw],
-      [],
-      [],
-      false,
-      [60, 500],
-      false,
-      undefined,
-      undefined,
-      {
+    const snapshot = resolveProfileSnapshot({
+      browserFingerprintSource: undefined,
+      containerAssignments: withContainerSeeds([]),
+      cookieStoreId: "firefox-container-1",
+      debugMode: false,
+      domainFencingEnabled: false,
+      fingerprintEnabled: true,
+      globalFallbackRule: withFallbackSeed({
         enabled: true,
         locationId: "warsaw",
         ruleSeedKey: "glb123",
-      },
-    );
+      }),
+      hostname: "shop.example.com",
+      profiles: [locationWarsaw],
+      rules: withRuleSeeds([]),
+      sharedSpoofing: undefined,
+      sharedWorkerHandlingMode: "native",
+      trustedSites: [],
+      watchPositionDelay: [60, 500],
+    });
 
     expect(snapshot?.geo.latitude).toBe(locationWarsaw.latitude);
     expect(snapshot?.locale.language).toBe(locationWarsaw.language);
   });
 
   it("resolves fingerprint-only runtime from the global fallback rule without a preset", () => {
-    const snapshot = resolveProfileSnapshot(
-      "shop.example.com",
-      undefined,
-      [],
-      [locationWarsaw],
-      [],
-      [],
-      false,
-      [60, 500],
-      true,
-      undefined,
-      {
+    const snapshot = resolveProfileSnapshot({
+      browserFingerprintSource: {
         userAgent:
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
         platform: "Win32",
@@ -844,13 +819,25 @@ describe("resolveProfileSnapshot container priority", () => {
         hardwareConcurrency: 8,
         deviceMemory: 16,
       },
-      {
+      containerAssignments: withContainerSeeds([]),
+      cookieStoreId: undefined,
+      debugMode: false,
+      domainFencingEnabled: false,
+      fingerprintEnabled: true,
+      globalFallbackRule: withFallbackSeed({
         enabled: true,
         ruleSeedKey: "glb123",
         // Persisted at the storage boundary before reaching the resolver.
         authKey: "abcd1234",
-      },
-    );
+      }),
+      hostname: "shop.example.com",
+      profiles: [locationWarsaw],
+      rules: withRuleSeeds([]),
+      sharedSpoofing: undefined,
+      sharedWorkerHandlingMode: "native",
+      trustedSites: [],
+      watchPositionDelay: [60, 500],
+    });
 
     expect(snapshot?.fingerprint).toBeDefined();
     expect(snapshot?.geolocationEnabled).toBe(false);
@@ -859,7 +846,7 @@ describe("resolveProfileSnapshot container priority", () => {
   });
 
   it("returns null when every effective surface is native", () => {
-    const snapshot = resolveProfileSnapshotBase({
+    const snapshot = resolveProfileSnapshot({
       browserFingerprintSource: {
         userAgent:
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
@@ -899,7 +886,7 @@ describe("resolveProfileSnapshot container priority", () => {
   });
 
   it("treats the global protection switch as a master runtime gate", () => {
-    const snapshot = resolveProfileSnapshotBase({
+    const snapshot = resolveProfileSnapshot({
       browserFingerprintSource: undefined,
       fingerprintEnabled: false,
       containerAssignments: [],
@@ -930,7 +917,7 @@ describe("resolveProfileSnapshot container priority", () => {
 
   it("enables Temporal only behind the flag and effective Time & Locale", () => {
     const build = (timeLocale: boolean) =>
-      resolveProfileSnapshotBase({
+      resolveProfileSnapshot({
         browserFingerprintSource: undefined,
         fingerprintEnabled: true,
         temporalApiEnabled: true,
@@ -959,18 +946,8 @@ describe("resolveProfileSnapshot container priority", () => {
 
   it("preserves the persisted fallback authKey verbatim and never mints one", () => {
     const resolve = (globalFallbackRule: GlobalFallbackRule | undefined) =>
-      resolveProfileSnapshot(
-        "shop.example.com",
-        undefined,
-        [],
-        [locationWarsaw],
-        [],
-        [],
-        false,
-        [60, 500],
-        true,
-        undefined,
-        {
+      resolveProfileSnapshot({
+        browserFingerprintSource: {
           userAgent:
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
           platform: "Win32",
@@ -978,8 +955,20 @@ describe("resolveProfileSnapshot container priority", () => {
           hardwareConcurrency: 8,
           deviceMemory: 16,
         },
-        globalFallbackRule,
-      );
+        containerAssignments: withContainerSeeds([]),
+        cookieStoreId: undefined,
+        debugMode: false,
+        domainFencingEnabled: false,
+        fingerprintEnabled: true,
+        globalFallbackRule: withFallbackSeed(globalFallbackRule),
+        hostname: "shop.example.com",
+        profiles: [locationWarsaw],
+        rules: withRuleSeeds([]),
+        sharedSpoofing: undefined,
+        sharedWorkerHandlingMode: "native",
+        trustedSites: [],
+        watchPositionDelay: [60, 500],
+      });
 
     // A persisted authKey is carried through unchanged on every resolve.
     const withKey = { enabled: true, ruleSeedKey: "glb123", authKey: "abcd1234" };
@@ -992,45 +981,49 @@ describe("resolveProfileSnapshot container priority", () => {
   });
 
   it("returns null for a matching trusted site before domain rules are considered", () => {
-    const snapshot = resolveProfileSnapshot(
-      "shop.example.com",
-      undefined,
-      [{ pattern: "shop.example.com", locationId: "warsaw", enabled: true }],
-      [locationWarsaw],
-      [],
-      [],
-      false,
-      [60, 500],
-      false,
-      undefined,
-      undefined,
-      undefined,
-      [trustedSiteFor("shop.example.com")],
-    );
+    const snapshot = resolveProfileSnapshot({
+      browserFingerprintSource: undefined,
+      containerAssignments: withContainerSeeds([]),
+      cookieStoreId: undefined,
+      debugMode: false,
+      domainFencingEnabled: false,
+      fingerprintEnabled: true,
+      globalFallbackRule: withFallbackSeed(undefined),
+      hostname: "shop.example.com",
+      profiles: [locationWarsaw],
+      rules: withRuleSeeds([
+        { pattern: "shop.example.com", locationId: "warsaw", enabled: true },
+      ]),
+      sharedSpoofing: undefined,
+      sharedWorkerHandlingMode: "native",
+      trustedSites: [trustedSiteFor("shop.example.com")],
+      watchPositionDelay: [60, 500],
+    });
 
     expect(snapshot).toBeNull();
   });
 
   it("returns null for a matching trusted site before the default rule is considered", () => {
-    const snapshot = resolveProfileSnapshot(
-      "shop.example.com",
-      undefined,
-      [],
-      [locationWarsaw],
-      [],
-      [],
-      false,
-      [60, 500],
-      false,
-      undefined,
-      undefined,
-      {
+    const snapshot = resolveProfileSnapshot({
+      browserFingerprintSource: undefined,
+      containerAssignments: withContainerSeeds([]),
+      cookieStoreId: undefined,
+      debugMode: false,
+      domainFencingEnabled: false,
+      fingerprintEnabled: true,
+      globalFallbackRule: withFallbackSeed({
         enabled: true,
         locationId: "warsaw",
         ruleSeedKey: "glb123",
-      },
-      [trustedSiteFor("shop.example.com")],
-    );
+      }),
+      hostname: "shop.example.com",
+      profiles: [locationWarsaw],
+      rules: withRuleSeeds([]),
+      sharedSpoofing: undefined,
+      sharedWorkerHandlingMode: "native",
+      trustedSites: [trustedSiteFor("shop.example.com")],
+      watchPositionDelay: [60, 500],
+    });
 
     expect(snapshot).toBeNull();
   });
@@ -1046,25 +1039,27 @@ describe("resolveProfileSnapshot container priority", () => {
   });
 
   it("keeps the default rule active when its geolocation spoofing is disabled", () => {
-    const snapshot = resolveProfileSnapshot(
-      "shop.example.com",
-      "firefox-container-1",
-      [],
-      [locationWarsaw],
-      [],
-      [],
-      false,
-      [60, 500],
-      true,
-      undefined,
-      undefined,
-      {
+    const snapshot = resolveProfileSnapshot({
+      browserFingerprintSource: undefined,
+      containerAssignments: withContainerSeeds([]),
+      cookieStoreId: "firefox-container-1",
+      debugMode: false,
+      domainFencingEnabled: false,
+      fingerprintEnabled: true,
+      globalFallbackRule: withFallbackSeed({
         enabled: true,
         fingerprintSurfaceOverrides: { geolocation: false },
         locationId: "warsaw",
         ruleSeedKey: "glb123",
-      },
-    );
+      }),
+      hostname: "shop.example.com",
+      profiles: [locationWarsaw],
+      rules: withRuleSeeds([]),
+      sharedSpoofing: undefined,
+      sharedWorkerHandlingMode: "native",
+      trustedSites: [],
+      watchPositionDelay: [60, 500],
+    });
 
     expect(snapshot).toMatchObject({
       geolocationEnabled: false,
@@ -1084,41 +1079,51 @@ describe("resolveProfileSnapshot container priority", () => {
   });
 
   it("derives simple-engine fingerprint seeds from container assignment ruleSeedKey when no rule wins", () => {
-    const containerSnapshot = resolveProfileSnapshot(
-      "shop.example.com",
-      "firefox-container-1",
-      [],
-      [locationBerlin],
-      [],
-      [
+    const containerSnapshot = resolveProfileSnapshot({
+      browserFingerprintSource: undefined,
+      containerAssignments: withContainerSeeds([
         {
           cookieStoreId: "firefox-container-1",
           locationId: "berlin",
           ruleSeedKey: "ctr001",
         },
-      ],
-      false,
-      [0, 1000],
-      true,
-    );
+      ]),
+      cookieStoreId: "firefox-container-1",
+      debugMode: false,
+      domainFencingEnabled: false,
+      fingerprintEnabled: true,
+      globalFallbackRule: withFallbackSeed(undefined),
+      hostname: "shop.example.com",
+      profiles: [locationBerlin],
+      rules: withRuleSeeds([]),
+      sharedSpoofing: undefined,
+      sharedWorkerHandlingMode: "native",
+      trustedSites: [],
+      watchPositionDelay: [0, 1000],
+    });
 
-    const alternateSnapshot = resolveProfileSnapshot(
-      "shop.example.com",
-      "firefox-container-1",
-      [],
-      [locationBerlin],
-      [],
-      [
+    const alternateSnapshot = resolveProfileSnapshot({
+      browserFingerprintSource: undefined,
+      containerAssignments: withContainerSeeds([
         {
           cookieStoreId: "firefox-container-1",
           locationId: "berlin",
           ruleSeedKey: "ctr002",
         },
-      ],
-      false,
-      [0, 1000],
-      true,
-    );
+      ]),
+      cookieStoreId: "firefox-container-1",
+      debugMode: false,
+      domainFencingEnabled: false,
+      fingerprintEnabled: true,
+      globalFallbackRule: withFallbackSeed(undefined),
+      hostname: "shop.example.com",
+      profiles: [locationBerlin],
+      rules: withRuleSeeds([]),
+      sharedSpoofing: undefined,
+      sharedWorkerHandlingMode: "native",
+      trustedSites: [],
+      watchPositionDelay: [0, 1000],
+    });
 
     expect(containerSnapshot?.fingerprint?.canvasNoiseSeed).toBeDefined();
     expect(containerSnapshot?.fingerprint?.canvasNoiseSeed).not.toBe(
@@ -1201,13 +1206,18 @@ describe("toRuntimeSnapshot browser fingerprint", () => {
   });
 
   it("omits fingerprint data by default", () => {
-    const snapshot = toRuntimeSnapshot(
-      buildProfile("Europe/Warsaw"),
-      [],
-      false,
-      [60, 500],
-      false,
-    );
+    const snapshot = toRuntimeSnapshot({
+      authKey: undefined,
+      browserFingerprintSource: undefined,
+      debugMode: false,
+      fingerprintEnabled: false,
+      profile: buildProfile("Europe/Warsaw"),
+      ruleOverrides: undefined,
+      ruleSeedKey: undefined,
+      sharedSpoofing: undefined,
+      sharedWorkerHandlingMode: "native",
+      watchPositionDelay: [60, 500],
+    });
 
     expect(snapshot.fingerprint).toBeUndefined();
   });
@@ -1230,16 +1240,18 @@ describe("toRuntimeSnapshot browser fingerprint", () => {
       },
     });
 
-    const snapshot = toRuntimeSnapshot(
-      buildProfile("Europe/Warsaw"),
-      [],
-      false,
-      [60, 500],
-      true,
-      undefined,
-      undefined,
-      "seed01",
-    );
+    const snapshot = toRuntimeSnapshot({
+      authKey: undefined,
+      browserFingerprintSource: undefined,
+      debugMode: false,
+      fingerprintEnabled: true,
+      profile: buildProfile("Europe/Warsaw"),
+      ruleOverrides: undefined,
+      ruleSeedKey: "seed01",
+      sharedSpoofing: undefined,
+      sharedWorkerHandlingMode: "native",
+      watchPositionDelay: [60, 500],
+    });
 
     expectDeviceShape(snapshot.fingerprint);
     expect(snapshot.fingerprint?.platform).toBe("Linux x86_64");
@@ -1279,34 +1291,36 @@ describe("toRuntimeSnapshot browser fingerprint", () => {
       },
     };
 
-    const first = toRuntimeSnapshot(
-      buildProfile("Europe/Warsaw"),
-      [],
-      false,
-      [60, 500],
-      true,
-      {
+    const first = toRuntimeSnapshot({
+      authKey: undefined,
+      browserFingerprintSource: browserFingerprintSource,
+      debugMode: false,
+      fingerprintEnabled: true,
+      profile: buildProfile("Europe/Warsaw"),
+      ruleOverrides: undefined,
+      ruleSeedKey: "seed01",
+      sharedSpoofing: {
         clientHints: true,
         clientHintsVersionRotation: true,
       },
-      undefined,
-      "seed01",
-      browserFingerprintSource,
-    );
-    const second = toRuntimeSnapshot(
-      buildProfile("Europe/Warsaw"),
-      [],
-      false,
-      [60, 500],
-      true,
-      {
+      sharedWorkerHandlingMode: "native",
+      watchPositionDelay: [60, 500],
+    });
+    const second = toRuntimeSnapshot({
+      authKey: undefined,
+      browserFingerprintSource: browserFingerprintSource,
+      debugMode: false,
+      fingerprintEnabled: true,
+      profile: buildProfile("Europe/Warsaw"),
+      ruleOverrides: undefined,
+      ruleSeedKey: "seed02",
+      sharedSpoofing: {
         clientHints: true,
         clientHintsVersionRotation: true,
       },
-      undefined,
-      "seed02",
-      browserFingerprintSource,
-    );
+      sharedWorkerHandlingMode: "native",
+      watchPositionDelay: [60, 500],
+    });
 
     expect(first.fingerprint?.userAgent).toContain("Chrome/147.0.0.0");
     expect(second.fingerprint?.userAgent).toContain("Chrome/147.0.0.0");
@@ -1330,17 +1344,21 @@ describe("toRuntimeSnapshot browser fingerprint", () => {
       },
     });
 
-    const snapshot = toRuntimeSnapshot(
-      buildProfile("Europe/Warsaw"),
-      [],
-      false,
-      [60, 500],
-      true,
-      {
+    const snapshot = toRuntimeSnapshot({
+      authKey: undefined,
+      browserFingerprintSource: undefined,
+      debugMode: false,
+      fingerprintEnabled: true,
+      profile: buildProfile("Europe/Warsaw"),
+      ruleOverrides: undefined,
+      ruleSeedKey: undefined,
+      sharedSpoofing: {
         clientHints: true,
         clientHintsVersionRotation: false,
       },
-    );
+      sharedWorkerHandlingMode: "native",
+      watchPositionDelay: [60, 500],
+    });
 
     expect(snapshot.fingerprint?.userAgent).toContain("Chrome/139.0.7204.62");
     expect(snapshot.fingerprint?.appVersion).toContain("Chrome/139.0.7204.62");
@@ -1370,19 +1388,9 @@ describe("toRuntimeSnapshot browser fingerprint", () => {
       },
     });
 
-    const snapshot = toRuntimeSnapshot(
-      buildProfile("Europe/Warsaw"),
-      [],
-      false,
-      [60, 500],
-      true,
-      {
-        clientHints: true,
-        clientHintsVersionRotation: false,
-      },
-      undefined,
-      "000000",
-      {
+    const snapshot = toRuntimeSnapshot({
+      authKey: undefined,
+      browserFingerprintSource: {
         userAgent:
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
         platform: "Win32",
@@ -1402,7 +1410,18 @@ describe("toRuntimeSnapshot browser fingerprint", () => {
           platform: "Windows",
         },
       },
-    );
+      debugMode: false,
+      fingerprintEnabled: true,
+      profile: buildProfile("Europe/Warsaw"),
+      ruleOverrides: undefined,
+      ruleSeedKey: "000000",
+      sharedSpoofing: {
+        clientHints: true,
+        clientHintsVersionRotation: false,
+      },
+      sharedWorkerHandlingMode: "native",
+      watchPositionDelay: [60, 500],
+    });
 
     expect(snapshot.fingerprint?.clientHints?.fullVersionList).toEqual([
       { brand: "Google Chrome", version: "147.0.7727.101" },
@@ -1428,19 +1447,9 @@ describe("toRuntimeSnapshot browser fingerprint", () => {
       },
     });
 
-    const snapshot = toRuntimeSnapshot(
-      buildProfile("Europe/Warsaw"),
-      [],
-      false,
-      [60, 500],
-      true,
-      {
-        clientHints: true,
-        clientHintsVersionRotation: true,
-      },
-      undefined,
-      "000000",
-      {
+    const snapshot = toRuntimeSnapshot({
+      authKey: undefined,
+      browserFingerprintSource: {
         userAgent:
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
         platform: "Win32",
@@ -1460,7 +1469,18 @@ describe("toRuntimeSnapshot browser fingerprint", () => {
           platform: "Windows",
         },
       },
-    );
+      debugMode: false,
+      fingerprintEnabled: true,
+      profile: buildProfile("Europe/Warsaw"),
+      ruleOverrides: undefined,
+      ruleSeedKey: "000000",
+      sharedSpoofing: {
+        clientHints: true,
+        clientHintsVersionRotation: true,
+      },
+      sharedWorkerHandlingMode: "native",
+      watchPositionDelay: [60, 500],
+    });
 
     expect(snapshot.fingerprint?.userAgent).toContain("Chrome/147.0.0.0");
     expect(snapshot.fingerprint?.clientHints?.fullVersionList).toEqual([
@@ -1524,18 +1544,22 @@ describe("resolveProfileSnapshot hierarchical spoofing toggles", () => {
       webRTC: true,
     };
 
-    const snapshot = resolveProfileSnapshot(
-      "example.com",
-      undefined,
-      [ruleFor()],
-      [location],
-      [],
-      [],
-      false,
-      [60, 500],
-      true,
-      experimentalConfig,
-    );
+    const snapshot = resolveProfileSnapshot({
+      browserFingerprintSource: undefined,
+      containerAssignments: withContainerSeeds([]),
+      cookieStoreId: undefined,
+      debugMode: false,
+      domainFencingEnabled: false,
+      fingerprintEnabled: true,
+      globalFallbackRule: withFallbackSeed(undefined),
+      hostname: "example.com",
+      profiles: [location],
+      rules: withRuleSeeds([ruleFor()]),
+      sharedSpoofing: experimentalConfig,
+      sharedWorkerHandlingMode: "native",
+      trustedSites: [],
+      watchPositionDelay: [60, 500],
+    });
 
     expect(snapshot?.fingerprint?.spoofingToggles?.canvas).toBe(false);
     expect(snapshot?.fingerprint?.spoofingToggles?.webGL).toBe(true);
@@ -1558,18 +1582,22 @@ describe("resolveProfileSnapshot hierarchical spoofing toggles", () => {
       webRTC: true,
     };
 
-    const snapshot = resolveProfileSnapshot(
-      "example.com",
-      undefined,
-      [ruleFor({ canvas: true })],
-      [location],
-      [],
-      [],
-      false,
-      [60, 500],
-      true,
-      experimentalConfig,
-    );
+    const snapshot = resolveProfileSnapshot({
+      browserFingerprintSource: undefined,
+      containerAssignments: withContainerSeeds([]),
+      cookieStoreId: undefined,
+      debugMode: false,
+      domainFencingEnabled: false,
+      fingerprintEnabled: true,
+      globalFallbackRule: withFallbackSeed(undefined),
+      hostname: "example.com",
+      profiles: [location],
+      rules: withRuleSeeds([ruleFor({ canvas: true })]),
+      sharedSpoofing: experimentalConfig,
+      sharedWorkerHandlingMode: "native",
+      trustedSites: [],
+      watchPositionDelay: [60, 500],
+    });
 
     // Global surface disable is a hard safety stop — rule override cannot restore it
     expect(snapshot?.fingerprint?.spoofingToggles?.canvas).toBe(false);
@@ -1586,18 +1614,22 @@ describe("resolveProfileSnapshot hierarchical spoofing toggles", () => {
       webRTC: true,
     };
 
-    const snapshot = resolveProfileSnapshot(
-      "example.com",
-      undefined,
-      [ruleFor({ audio: false })],
-      [location],
-      [],
-      [],
-      false,
-      [60, 500],
-      true,
-      experimentalConfig,
-    );
+    const snapshot = resolveProfileSnapshot({
+      browserFingerprintSource: undefined,
+      containerAssignments: withContainerSeeds([]),
+      cookieStoreId: undefined,
+      debugMode: false,
+      domainFencingEnabled: false,
+      fingerprintEnabled: true,
+      globalFallbackRule: withFallbackSeed(undefined),
+      hostname: "example.com",
+      profiles: [location],
+      rules: withRuleSeeds([ruleFor({ audio: false })]),
+      sharedSpoofing: experimentalConfig,
+      sharedWorkerHandlingMode: "native",
+      trustedSites: [],
+      watchPositionDelay: [60, 500],
+    });
 
     expect(snapshot?.fingerprint?.spoofingToggles?.audio).toBe(false);
     expect(snapshot?.fingerprint?.spoofingToggles?.canvas).toBe(true);
@@ -1618,18 +1650,22 @@ describe("resolveProfileSnapshot hierarchical spoofing toggles", () => {
       webRTC: true,
     };
 
-    const snapshot = resolveProfileSnapshot(
-      "example.com",
-      undefined,
-      [ruleFor({ navigator: false, clientHints: false })],
-      [location],
-      [],
-      [],
-      false,
-      [60, 500],
-      true,
-      experimentalConfig,
-    );
+    const snapshot = resolveProfileSnapshot({
+      browserFingerprintSource: undefined,
+      containerAssignments: withContainerSeeds([]),
+      cookieStoreId: undefined,
+      debugMode: false,
+      domainFencingEnabled: false,
+      fingerprintEnabled: true,
+      globalFallbackRule: withFallbackSeed(undefined),
+      hostname: "example.com",
+      profiles: [location],
+      rules: withRuleSeeds([ruleFor({ navigator: false, clientHints: false })]),
+      sharedSpoofing: experimentalConfig,
+      sharedWorkerHandlingMode: "native",
+      trustedSites: [],
+      watchPositionDelay: [60, 500],
+    });
 
     expect(snapshot?.fingerprint?.spoofingToggles?.navigator).toBe(false);
     expect(snapshot?.fingerprint?.spoofingToggles?.clientHints).toBe(false);
@@ -1638,37 +1674,45 @@ describe("resolveProfileSnapshot hierarchical spoofing toggles", () => {
   it("resolves Battery independently at global and rule level", () => {
     stubNavigator();
 
-    const globallyDisabled = resolveProfileSnapshot(
-      "example.com",
-      undefined,
-      [ruleFor({ battery: true })],
-      [location],
-      [],
-      [],
-      false,
-      [60, 500],
-      true,
-      { battery: false },
-    );
-    const ruleDisabled = resolveProfileSnapshot(
-      "example.com",
-      undefined,
-      [ruleFor({ battery: false })],
-      [location],
-      [],
-      [],
-      false,
-      [60, 500],
-      true,
-      { battery: true },
-    );
+    const globallyDisabled = resolveProfileSnapshot({
+      browserFingerprintSource: undefined,
+      containerAssignments: withContainerSeeds([]),
+      cookieStoreId: undefined,
+      debugMode: false,
+      domainFencingEnabled: false,
+      fingerprintEnabled: true,
+      globalFallbackRule: withFallbackSeed(undefined),
+      hostname: "example.com",
+      profiles: [location],
+      rules: withRuleSeeds([ruleFor({ battery: true })]),
+      sharedSpoofing: { battery: false },
+      sharedWorkerHandlingMode: "native",
+      trustedSites: [],
+      watchPositionDelay: [60, 500],
+    });
+    const ruleDisabled = resolveProfileSnapshot({
+      browserFingerprintSource: undefined,
+      containerAssignments: withContainerSeeds([]),
+      cookieStoreId: undefined,
+      debugMode: false,
+      domainFencingEnabled: false,
+      fingerprintEnabled: true,
+      globalFallbackRule: withFallbackSeed(undefined),
+      hostname: "example.com",
+      profiles: [location],
+      rules: withRuleSeeds([ruleFor({ battery: false })]),
+      sharedSpoofing: { battery: true },
+      sharedWorkerHandlingMode: "native",
+      trustedSites: [],
+      watchPositionDelay: [60, 500],
+    });
 
     expect(globallyDisabled?.fingerprint?.spoofingToggles?.battery).toBe(false);
     expect(ruleDisabled?.fingerprint?.spoofingToggles?.battery).toBe(false);
   });
 
   it("without global protection enabled, no runtime snapshot appears", () => {
-    const snapshot = resolveProfileSnapshotBase({
+    const snapshot = resolveProfileSnapshot({
       browserFingerprintSource: undefined,
       fingerprintEnabled: false,
       containerAssignments: [],
@@ -1702,16 +1746,18 @@ describe("resolveProfileSnapshot hierarchical spoofing toggles", () => {
       webRTC: true,
     };
 
-    const snapshot = toRuntimeSnapshot(
-      buildProfile("Europe/Warsaw"),
-      [],
-      false,
-      [60, 500],
-      true,
-      experimentalConfig,
-      { webGL: false },
-      "abc123",
-    );
+    const snapshot = toRuntimeSnapshot({
+      authKey: undefined,
+      browserFingerprintSource: undefined,
+      debugMode: false,
+      fingerprintEnabled: true,
+      profile: buildProfile("Europe/Warsaw"),
+      ruleOverrides: { webGL: false },
+      ruleSeedKey: "abc123",
+      sharedSpoofing: experimentalConfig,
+      sharedWorkerHandlingMode: "native",
+      watchPositionDelay: [60, 500],
+    });
 
     expect(snapshot.fingerprint?.spoofingToggles?.webGL).toBe(false);
     expect(snapshot.fingerprint?.spoofingToggles?.canvas).toBe(true);
@@ -1721,16 +1767,18 @@ describe("resolveProfileSnapshot hierarchical spoofing toggles", () => {
   it("toRuntimeSnapshot applies ruleOverrides even without explicit global config", () => {
     stubNavigator();
 
-    const snapshot = toRuntimeSnapshot(
-      buildProfile("Europe/Warsaw"),
-      [],
-      false,
-      [60, 500],
-      true,
-      undefined,
-      { webGL: false, clientHints: false },
-      "abc123",
-    );
+    const snapshot = toRuntimeSnapshot({
+      authKey: undefined,
+      browserFingerprintSource: undefined,
+      debugMode: false,
+      fingerprintEnabled: true,
+      profile: buildProfile("Europe/Warsaw"),
+      ruleOverrides: { webGL: false, clientHints: false },
+      ruleSeedKey: "abc123",
+      sharedSpoofing: undefined,
+      sharedWorkerHandlingMode: "native",
+      watchPositionDelay: [60, 500],
+    });
 
     expect(snapshot.fingerprint?.spoofingToggles?.webGL).toBe(false);
     expect(snapshot.fingerprint?.spoofingToggles?.clientHints).toBe(false);
@@ -1740,16 +1788,18 @@ describe("resolveProfileSnapshot hierarchical spoofing toggles", () => {
   it("defaults every surface to enabled when no shared spoofing config exists", () => {
     stubNavigator();
 
-    const snapshot = toRuntimeSnapshot(
-      buildProfile("Europe/Warsaw"),
-      [],
-      false,
-      [60, 500],
-      true,
-      undefined,
-      undefined,
-      "abc123",
-    );
+    const snapshot = toRuntimeSnapshot({
+      authKey: undefined,
+      browserFingerprintSource: undefined,
+      debugMode: false,
+      fingerprintEnabled: true,
+      profile: buildProfile("Europe/Warsaw"),
+      ruleOverrides: undefined,
+      ruleSeedKey: "abc123",
+      sharedSpoofing: undefined,
+      sharedWorkerHandlingMode: "native",
+      watchPositionDelay: [60, 500],
+    });
 
     expect(snapshot.fingerprint?.spoofingToggles).toEqual({
       canvas: true,
@@ -1767,36 +1817,42 @@ describe("resolveProfileSnapshot hierarchical spoofing toggles", () => {
     stubNavigator();
 
     const profile = buildProfile("Europe/Warsaw");
-    const first = toRuntimeSnapshot(
-      profile,
-      [],
-      false,
-      [60, 500],
-      true,
-      undefined,
-      undefined,
-      "abc123",
-    );
-    const second = toRuntimeSnapshot(
-      profile,
-      [],
-      false,
-      [60, 500],
-      true,
-      undefined,
-      undefined,
-      "abc123",
-    );
-    const rotated = toRuntimeSnapshot(
-      profile,
-      [],
-      false,
-      [60, 500],
-      true,
-      undefined,
-      undefined,
-      "def456",
-    );
+    const first = toRuntimeSnapshot({
+      authKey: undefined,
+      browserFingerprintSource: undefined,
+      debugMode: false,
+      fingerprintEnabled: true,
+      profile: profile,
+      ruleOverrides: undefined,
+      ruleSeedKey: "abc123",
+      sharedSpoofing: undefined,
+      sharedWorkerHandlingMode: "native",
+      watchPositionDelay: [60, 500],
+    });
+    const second = toRuntimeSnapshot({
+      authKey: undefined,
+      browserFingerprintSource: undefined,
+      debugMode: false,
+      fingerprintEnabled: true,
+      profile: profile,
+      ruleOverrides: undefined,
+      ruleSeedKey: "abc123",
+      sharedSpoofing: undefined,
+      sharedWorkerHandlingMode: "native",
+      watchPositionDelay: [60, 500],
+    });
+    const rotated = toRuntimeSnapshot({
+      authKey: undefined,
+      browserFingerprintSource: undefined,
+      debugMode: false,
+      fingerprintEnabled: true,
+      profile: profile,
+      ruleOverrides: undefined,
+      ruleSeedKey: "def456",
+      sharedSpoofing: undefined,
+      sharedWorkerHandlingMode: "native",
+      watchPositionDelay: [60, 500],
+    });
 
     expect(first.fingerprint?.canvasNoiseSeed).toBe(
       second.fingerprint?.canvasNoiseSeed,
@@ -1814,36 +1870,42 @@ describe("resolveProfileSnapshot hierarchical spoofing toggles", () => {
       ...buildProfile("Europe/Warsaw"),
       id: "preloaded-seed-profile",
     };
-    const first = toRuleRuntimeSnapshot(
-      {
+    const first = toRuleRuntimeSnapshot({
+      browserFingerprintSource: undefined,
+      debugMode: false,
+      fingerprintEnabled: true,
+      profile: profile,
+      rule: {
         ruleSeedKey: "abc123",
       },
-      profile,
-      [],
-      false,
-      [60, 500],
-      true,
-    );
-    const second = toRuleRuntimeSnapshot(
-      {
+      sharedSpoofing: undefined,
+      sharedWorkerHandlingMode: "native",
+      watchPositionDelay: [60, 500],
+    });
+    const second = toRuleRuntimeSnapshot({
+      browserFingerprintSource: undefined,
+      debugMode: false,
+      fingerprintEnabled: true,
+      profile: profile,
+      rule: {
         ruleSeedKey: "abc123",
       },
-      profile,
-      [],
-      false,
-      [60, 500],
-      true,
-    );
-    const rotated = toRuleRuntimeSnapshot(
-      {
+      sharedSpoofing: undefined,
+      sharedWorkerHandlingMode: "native",
+      watchPositionDelay: [60, 500],
+    });
+    const rotated = toRuleRuntimeSnapshot({
+      browserFingerprintSource: undefined,
+      debugMode: false,
+      fingerprintEnabled: true,
+      profile: profile,
+      rule: {
         ruleSeedKey: "def456",
       },
-      profile,
-      [],
-      false,
-      [60, 500],
-      true,
-    );
+      sharedSpoofing: undefined,
+      sharedWorkerHandlingMode: "native",
+      watchPositionDelay: [60, 500],
+    });
 
     expect(first.fingerprint?.canvasNoiseSeed).toBe(
       second.fingerprint?.canvasNoiseSeed,
@@ -1857,26 +1919,30 @@ describe("resolveProfileSnapshot hierarchical spoofing toggles", () => {
   it("shapes hardwareConcurrency and deviceMemory deterministically for simple engine", () => {
     stubNavigator();
 
-    const first = toRuntimeSnapshot(
-      buildProfile("Europe/Warsaw"),
-      [],
-      false,
-      [60, 500],
-      true,
-      undefined,
-      undefined,
-      "abc123",
-    );
-    const second = toRuntimeSnapshot(
-      buildProfile("Europe/Warsaw"),
-      [],
-      false,
-      [60, 500],
-      true,
-      undefined,
-      undefined,
-      "abc123",
-    );
+    const first = toRuntimeSnapshot({
+      authKey: undefined,
+      browserFingerprintSource: undefined,
+      debugMode: false,
+      fingerprintEnabled: true,
+      profile: buildProfile("Europe/Warsaw"),
+      ruleOverrides: undefined,
+      ruleSeedKey: "abc123",
+      sharedSpoofing: undefined,
+      sharedWorkerHandlingMode: "native",
+      watchPositionDelay: [60, 500],
+    });
+    const second = toRuntimeSnapshot({
+      authKey: undefined,
+      browserFingerprintSource: undefined,
+      debugMode: false,
+      fingerprintEnabled: true,
+      profile: buildProfile("Europe/Warsaw"),
+      ruleOverrides: undefined,
+      ruleSeedKey: "abc123",
+      sharedSpoofing: undefined,
+      sharedWorkerHandlingMode: "native",
+      watchPositionDelay: [60, 500],
+    });
 
     expect(first.fingerprint?.hardwareConcurrency).toBe(
       second.fingerprint?.hardwareConcurrency,
@@ -1895,16 +1961,18 @@ describe("resolveProfileSnapshot hierarchical spoofing toggles", () => {
       deviceMemory: 16,
     });
 
-    const snapshot = toRuntimeSnapshot(
-      buildProfile("Europe/Warsaw"),
-      [],
-      false,
-      [60, 500],
-      true,
-      undefined,
-      undefined,
-      "abc123",
-    );
+    const snapshot = toRuntimeSnapshot({
+      authKey: undefined,
+      browserFingerprintSource: undefined,
+      debugMode: false,
+      fingerprintEnabled: true,
+      profile: buildProfile("Europe/Warsaw"),
+      ruleOverrides: undefined,
+      ruleSeedKey: "abc123",
+      sharedSpoofing: undefined,
+      sharedWorkerHandlingMode: "native",
+      watchPositionDelay: [60, 500],
+    });
 
     expect(typeof snapshot.fingerprint?.hardwareConcurrency).toBe("number");
     expect(snapshot.fingerprint?.hardwareConcurrency).toBeGreaterThan(0);

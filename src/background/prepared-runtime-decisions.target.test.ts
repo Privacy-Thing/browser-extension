@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createPreparedDecisions } from "@/background/prepared-runtime-decisions";
 import { resolveProfileSnapshot } from "@/background/rules/resolver";
+import type { ProfileSnapshotOptions } from "@/background/rules/resolver-options";
 import type {
   ContainerAssignment,
   ControlState,
@@ -91,46 +92,51 @@ const buildPrepared = ({
     containerAssignments,
   });
 
-const resolveBaseline = (
-  hostname: string,
-  cookieStoreId: string | undefined,
-  rules: DomainRule[],
-  globalFallbackRule?: GlobalFallbackRule,
-  containerAssignments: ContainerAssignment[] = [],
-  trustedSites: TrustedSite[] = [],
-  domainFencingEnabled = false,
-) =>
-  resolveProfileSnapshot({
-    browserFingerprintSource: {
-      userAgent:
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
-      platform: "MacIntel",
-      vendor: "Google Inc.",
-      hardwareConcurrency: 8,
-      deviceMemory: 8,
-      userAgentData: {
-        brands: [{ brand: "Chromium", version: "125" }],
-        fullVersionList: [{ brand: "Chromium", version: "125.0.6422.0" }],
-        mobile: false,
-        platform: "macOS",
-      },
+const baselineOptions = ({
+  hostname,
+  cookieStoreId,
+  rules,
+  globalFallbackRule,
+  containerAssignments,
+  trustedSites,
+  domainFencingEnabled,
+}: {
+  hostname: string;
+  cookieStoreId: string | undefined;
+  rules: DomainRule[];
+  globalFallbackRule: GlobalFallbackRule | undefined;
+  containerAssignments: ContainerAssignment[];
+  trustedSites: TrustedSite[];
+  domainFencingEnabled: boolean;
+}): ProfileSnapshotOptions => ({
+  browserFingerprintSource: {
+    userAgent:
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+    platform: "MacIntel",
+    vendor: "Google Inc.",
+    hardwareConcurrency: 8,
+    deviceMemory: 8,
+    userAgentData: {
+      brands: [{ brand: "Chromium", version: "125" }],
+      fullVersionList: [{ brand: "Chromium", version: "125.0.6422.0" }],
+      mobile: false,
+      platform: "macOS",
     },
-    fingerprintEnabled: true,
-    containerAssignments,
-    cookieStoreId,
-    debugMode: false,
-    domainFencingEnabled,
-    globalFallbackRule,
-    hostname,
-    profiles,
-    rules,
-    sharedSpoofing: undefined,
-    // Must match the prepared-inputs fixture above; this suite asserts that the
-    // baseline resolver and the prepared fast path agree.
-    sharedWorkerHandlingMode: "native",
-    trustedSites,
-    watchPositionDelay: [60, 500],
-  });
+  },
+  fingerprintEnabled: true,
+  containerAssignments,
+  cookieStoreId,
+  debugMode: false,
+  domainFencingEnabled,
+  globalFallbackRule,
+  hostname,
+  profiles,
+  rules,
+  sharedSpoofing: undefined,
+  sharedWorkerHandlingMode: "native",
+  trustedSites,
+  watchPositionDelay: [60, 500],
+});
 
 describe("createPreparedDecisions", () => {
   afterEach(() => {
@@ -151,7 +157,17 @@ describe("createPreparedDecisions", () => {
     const prepared = buildPrepared({ rules });
 
     const decision = prepared.resolveDecision("shop.example.com");
-    const baseline = resolveBaseline("shop.example.com", undefined, rules);
+    const baseline = resolveProfileSnapshot(
+      baselineOptions({
+        hostname: "shop.example.com",
+        cookieStoreId: undefined,
+        rules: rules,
+        globalFallbackRule: undefined,
+        containerAssignments: [],
+        trustedSites: [],
+        domainFencingEnabled: false,
+      }),
+    );
 
     expect(comparableSnapshot(decision.snapshot)).toEqual(comparableSnapshot(baseline));
     expect(decision.trustedSiteMatched).toBe(false);
@@ -231,7 +247,17 @@ describe("createPreparedDecisions", () => {
     const prepared = buildPrepared({ rules, globalFallbackRule: fallback });
 
     const decision = prepared.resolveDecision("shop.example.com");
-    const baseline = resolveBaseline("shop.example.com", undefined, rules, fallback);
+    const baseline = resolveProfileSnapshot(
+      baselineOptions({
+        hostname: "shop.example.com",
+        cookieStoreId: undefined,
+        rules: rules,
+        globalFallbackRule: fallback,
+        containerAssignments: [],
+        trustedSites: [],
+        domainFencingEnabled: false,
+      }),
+    );
 
     expect(comparableSnapshot(decision.snapshot)).toEqual(comparableSnapshot(baseline));
     expect(decision.snapshot?.authKey).toBeUndefined();
@@ -264,12 +290,16 @@ describe("createPreparedDecisions", () => {
       "shop.example.com",
       "firefox-container-1",
     );
-    const baseline = resolveBaseline(
-      "shop.example.com",
-      "firefox-container-1",
-      rules,
-      undefined,
-      assignments,
+    const baseline = resolveProfileSnapshot(
+      baselineOptions({
+        hostname: "shop.example.com",
+        cookieStoreId: "firefox-container-1",
+        rules: rules,
+        globalFallbackRule: undefined,
+        containerAssignments: assignments,
+        trustedSites: [],
+        domainFencingEnabled: false,
+      }),
     );
 
     expect(comparableSnapshot(decision.snapshot)).toEqual(comparableSnapshot(baseline));
@@ -303,12 +333,16 @@ describe("createPreparedDecisions", () => {
       "shop.example.com",
       "firefox-container-1",
     );
-    const baseline = resolveBaseline(
-      "shop.example.com",
-      "firefox-container-1",
-      [],
-      fallback,
-      assignments,
+    const baseline = resolveProfileSnapshot(
+      baselineOptions({
+        hostname: "shop.example.com",
+        cookieStoreId: "firefox-container-1",
+        rules: [],
+        globalFallbackRule: fallback,
+        containerAssignments: assignments,
+        trustedSites: [],
+        domainFencingEnabled: false,
+      }),
     );
 
     expect(comparableSnapshot(decision.snapshot)).toEqual(comparableSnapshot(baseline));
@@ -354,14 +388,16 @@ describe("createPreparedDecisions", () => {
     });
     const first = prepared.resolveDecision("shop.example.com");
     const second = prepared.resolveDecision("news.other.org");
-    const baseline = resolveBaseline(
-      "shop.example.com",
-      undefined,
-      [],
-      fallback,
-      [],
-      [],
-      true,
+    const baseline = resolveProfileSnapshot(
+      baselineOptions({
+        hostname: "shop.example.com",
+        cookieStoreId: undefined,
+        rules: [],
+        globalFallbackRule: fallback,
+        containerAssignments: [],
+        trustedSites: [],
+        domainFencingEnabled: true,
+      }),
     );
 
     expect(first.fencesIdentity).toBe(true);
@@ -565,7 +601,17 @@ describe("createPreparedDecisions", () => {
     ];
     const prepared = buildPrepared({ rules, domainFencing: true });
     const decision = prepared.resolveDecision("shop.example.com");
-    const baseline = resolveBaseline("shop.example.com", undefined, rules);
+    const baseline = resolveProfileSnapshot(
+      baselineOptions({
+        hostname: "shop.example.com",
+        cookieStoreId: undefined,
+        rules: rules,
+        globalFallbackRule: undefined,
+        containerAssignments: [],
+        trustedSites: [],
+        domainFencingEnabled: false,
+      }),
+    );
 
     expect(decision.fencesIdentity).toBeFalsy();
     expect(comparableSnapshot(decision.snapshot)).toEqual(comparableSnapshot(baseline));
