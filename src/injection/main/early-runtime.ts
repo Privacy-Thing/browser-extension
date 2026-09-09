@@ -64,23 +64,16 @@ const earlyIntegrityRegistry = createIntegrityRegistry<
   SpoofingSurfaceKey,
   SpoofingSurfaceMethodId
 >();
-// Forwards the integrity registry's per-realm result to X-Ray/popup (#111/#112):
-// `unrecoverable` degrades the surface, `repaired`/`unconfirmed` are surfaced as
-// their own distinct presentation states, and `intact`/`not-applicable` need no
-// report (they are the truthful default when nothing tampered).
+// Forward all Battery results so recovery clears its current per-realm status.
 earlyIntegrityRegistry.setResultSink({
   record: (result) => {
-    if (
-      result.status === "repaired" ||
-      result.status === "unrecoverable" ||
-      result.status === "unconfirmed"
-    ) {
-      markSurfaceEvidence(result.surfaceId, {
-        realmId: result.realmId,
-        integrity: result.status,
-        ...(result.reason ? { reasonCode: result.reason } : {}),
-      });
-    }
+    if (result.status === "intact" && result.surfaceId !== "battery") return;
+    markSurfaceEvidence(result.surfaceId, {
+      realmId: result.realmId,
+      integrity: result.status,
+      ...(result.methodId ? { methodId: result.methodId } : {}),
+      ...(result.reason ? { reasonCode: result.reason } : {}),
+    });
   },
 });
 

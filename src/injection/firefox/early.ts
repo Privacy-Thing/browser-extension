@@ -365,26 +365,16 @@ import type { XRaySurfaceCategory } from "@/shared/types";
   if (!shimState) {
     return;
   }
-  // Forwards the integrity registry's per-realm result to X-Ray/popup
-  // (#111/#112): `unrecoverable` degrades the surface, `repaired`/`unconfirmed`
-  // surface as their own distinct presentation states, and `intact`/
-  // `not-applicable` need no report.
+  // Forward all Battery results so recovery clears its current per-realm status.
   shimState.integrity.setResultSink({
     record: (result) => {
-      if (
-        result.status === "repaired" ||
-        result.status === "unrecoverable" ||
-        result.status === "unconfirmed"
-      ) {
-        // Registry surfaceIds are always SpoofingSurfaceKey/XRaySurfaceCategory
-        // values at the call sites that register anchors (surface-integrity.ts);
-        // the registry itself is generic over plain `string`.
-        markSurfaceEvidence(result.surfaceId as XRaySurfaceCategory, {
-          realmId: result.realmId,
-          integrity: result.status,
-          ...(result.reason ? { reasonCode: result.reason } : {}),
-        });
-      }
+      if (result.status === "intact" && result.surfaceId !== "battery") return;
+      markSurfaceEvidence(result.surfaceId as XRaySurfaceCategory, {
+        realmId: result.realmId,
+        integrity: result.status,
+        ...(result.methodId ? { methodId: result.methodId } : {}),
+        ...(result.reason ? { reasonCode: result.reason } : {}),
+      });
     },
   });
   const permissionsPatchState = getOrCreateGeoPermState(globalThis);

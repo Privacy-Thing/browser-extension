@@ -1,9 +1,6 @@
 import type { BatteryPatchInstallation } from "@privacy-brand/refract-core/fingerprint/battery-status";
-import { type RegisteredAnchor } from "@privacy-brand/refract-core/integrity/surface-integrity-registry";
 import {
-  createPrivateArray,
   createPrivateWeakSet,
-  privateArrayPush,
   privateDeleteProperty,
   privateOwnDescriptor,
   privateReflectGet,
@@ -134,24 +131,25 @@ const registerBatteryManager = (
   integrity: RuntimeIntegrityContext,
   installation: BatteryPatchInstallation,
   registeredTargets: WeakSet<object>,
-  managerTokens: RegisteredAnchor[],
 ): void => {
   const managerAnchors = installation.getManagerGetterAnchors();
   for (let index = 0; index < managerAnchors.length; index += 1) {
     const anchor = managerAnchors[index]!;
     if (privateWeakSetHas(registeredTargets, anchor.target)) continue;
-    const token = registerDescriptor({
+    registerDescriptor({
       integrity,
       target: anchor.target,
       key: anchor.key,
       anchor: {
         surfaceId: "battery",
-        resolveReceiver: installation.getManager,
-        unavailableReason: "target-not-ready",
+        methodId: `battery.manager.${String(anchor.key)}` as SpoofingSurfaceMethodId,
+        // The getters are installed on the prototype before the first native
+        // manager exists. Verify that prototype until a page receives the
+        // manager; this never calls navigator.getBattery() itself.
+        resolveReceiver: () => installation.getManager() ?? anchor.target,
       },
       installedDescriptor: anchor.descriptor,
     });
-    if (token) privateArrayPush(managerTokens, token);
   }
   const firstAnchor = managerAnchors[0];
   if (firstAnchor) privateWeakSetAdd(registeredTargets, firstAnchor.target);
@@ -176,15 +174,12 @@ export const registerBatteryIntegrity = (
     installedDescriptor: getBatteryAnchor.descriptor,
   });
   const registeredTargets = createPrivateWeakSet<object>();
-  const managerTokens = createPrivateArray<RegisteredAnchor>(0);
   const registerManager = (): void =>
-    registerBatteryManager(integrity, installation, registeredTargets, managerTokens);
+    registerBatteryManager(integrity, installation, registeredTargets);
   registerManager();
   installation.onManagerReady(() => {
     registerManager();
-    for (let index = 0; index < managerTokens.length; index += 1) {
-      integrity.registrar.ensure(managerTokens[index]!);
-    }
+    integrity.registrar.ensureSurface("battery", integrity.realmId);
   });
 };
 

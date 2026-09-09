@@ -19,6 +19,7 @@ export type IntegrityRegistrar = CoreIntegrityRegistrar<
 > & {
   ensure(anchor: RegisteredAnchor): unknown;
   ensureReceiver(anchor: RegisteredAnchor, receiver: object): unknown;
+  ensureSurface(surfaceId: SpoofingSurfaceKey, realmId?: string): unknown;
 };
 
 export type RuntimeIntegrityContext = {

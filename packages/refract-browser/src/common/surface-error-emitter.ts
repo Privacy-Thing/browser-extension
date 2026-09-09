@@ -15,6 +15,8 @@ export type SurfaceEvidenceReport = {
   realmId: string;
   /** Per-construction Worker attempt id, when the report is about a Worker. */
   attemptId?: string;
+  /** Stable API identifier for independently checked descriptor integrity. */
+  methodId?: string;
   installation?: SurfaceInstallationState;
   integrity?: SurfaceIntegrityState;
   reasonCode?: string;

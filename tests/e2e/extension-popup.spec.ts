@@ -22,6 +22,97 @@ test.beforeEach(async ({ context, extensionId }) => {
   await ackReleaseNotices(context, extensionId, { reduceMotion: true });
 });
 
+test("confirms Battery protection before the page queries it", async ({
+  context,
+  extensionId,
+  serverUrl,
+}) => {
+  const optionsPage = await context.newPage();
+  await optionsPage.goto(`chrome-extension://${extensionId}/src/ui/options/index.html`);
+  const settings = await exportSettings<{
+    version: 3;
+    exportedAt: string;
+    locations: Location[];
+    rules: DomainRule[];
+  }>(optionsPage);
+  await importSettings(optionsPage, {
+    ...settings,
+    locations: EXAMPLE_LOCATIONS,
+    rules: [
+      {
+        pattern: new URL(serverUrl).hostname,
+        locationId: "spf-warsaw",
+        enabled: true,
+      },
+    ],
+  });
+  await optionsPage.close();
+  const page = await context.newPage();
+  await page.goto(getProbeHostUrl(serverUrl), { waitUntil: "domcontentloaded" });
+
+  const popupPage = await openPopupWithDefaults(context, extensionId, page);
+  const tabId = Number(new URL(popupPage.url()).searchParams.get("tabId"));
+  expect(Number.isInteger(tabId)).toBe(true);
+  const batteryAssessment = () =>
+    popupPage.evaluate(
+      async ({ commandType, tabId }) => {
+        const response = (await chrome.runtime.sendMessage({
+          type: commandType,
+          tabId,
+        })) as {
+          assessments?: Array<{
+            key: string;
+            presentation: string;
+            activity: { queryCount: number };
+          }>;
+        };
+        return response.assessments?.find((assessment) => assessment.key === "battery");
+      },
+      { commandType: EXTENSION_COMMAND_TYPES.getXRayState, tabId },
+    );
+
+  await expect
+    .poll(async () => (await batteryAssessment())?.presentation)
+    .toBe("protected");
+  expect((await batteryAssessment())?.activity.queryCount).toBe(0);
+
+  const batteryValues = await page.evaluate(async () => {
+    const battery = await (
+      navigator as Navigator & {
+        getBattery: () => Promise<{
+          charging: boolean;
+          chargingTime: number;
+          dischargingTime: number;
+          level: number;
+        }>;
+      }
+    ).getBattery();
+    return {
+      charging: battery.charging,
+      chargingTime: battery.chargingTime,
+      dischargingTime: String(battery.dischargingTime),
+      level: battery.level,
+    };
+  });
+  expect(batteryValues).toEqual({
+    charging: true,
+    chargingTime: 0,
+    dischargingTime: "Infinity",
+    level: 1,
+  });
+  await expect
+    .poll(async () => (await batteryAssessment())?.activity.queryCount)
+    .toBe(1);
+  await expect
+    .poll(async () => (await batteryAssessment())?.presentation)
+    .toBe("protected");
+
+  await popupPage.locator('[data-action="view-protection-details"]').click();
+  await expect(
+    popupPage.locator('[data-surface="battery"] [data-surface-state]'),
+  ).toHaveAttribute("data-surface-state", "protected");
+});
+
 test("loads the popup and shows domain controls", async ({
   context,
   extensionId,
@@ -96,7 +187,7 @@ test("loads the popup and shows domain controls", async ({
   ).toHaveCount(0);
 
   const languageTrigger = popupPage.locator(".gw-popup-language-trigger");
-  const detailsLink = popupPage.getByRole("button", { name: "View details" });
+  const detailsLink = popupPage.locator('[data-action="view-protection-details"]');
   await expect(languageTrigger).toBeVisible();
 
   await languageTrigger.hover();
@@ -247,7 +338,7 @@ test("warns about active worker policies only after the page uses their APIs", a
   ).toBeVisible();
   await popupPage.getByRole("button", { name: "Close Domain Rule" }).click();
 
-  await popupPage.getByRole("button", { name: "View details" }).click();
+  await popupPage.locator('[data-action="view-protection-details"]').click();
   const protectionDetails = popupPage.getByRole("dialog");
   await expect(protectionDetails.locator(".gw-popup-protection-details")).toBeVisible();
   await expect(protectionDetails.locator(".gw-popup-notification-item")).toHaveCount(0);
@@ -335,7 +426,7 @@ test("warns about active worker policies only after the page uses their APIs", a
   );
   await expect(popupPage.locator(".gw-popup-protection-counts")).toHaveAttribute(
     "data-protected-count",
-    "12",
+    "13",
   );
   await expect(popupPage.locator("#toggle-current-rule")).toHaveAttribute(
     "aria-label",
@@ -464,9 +555,9 @@ test("keeps a read site warning active until the user dismisses it", async ({
   );
   await expect(popupPage.locator(".gw-popup-protection-counts")).toHaveAttribute(
     "data-protected-count",
-    "12",
+    "13",
   );
-  await popupPage.getByRole("button", { name: "View details" }).click();
+  await popupPage.locator('[data-action="view-protection-details"]').click();
   const serviceWorkerRow = popupPage
     .locator(".gw-popup-protection-surface")
     .filter({ hasText: "Service Workers" });
@@ -506,7 +597,7 @@ test("keeps a read site warning active until the user dismisses it", async ({
   );
   await expect(popupPage.locator(".gw-popup-protection-counts")).toHaveAttribute(
     "data-protected-count",
-    "11",
+    "12",
   );
   await expect
     .poll(() =>
@@ -514,7 +605,7 @@ test("keeps a read site warning active until the user dismisses it", async ({
     )
     .not.toBe("!");
 
-  await popupPage.getByRole("button", { name: "View details" }).click();
+  await popupPage.locator('[data-action="view-protection-details"]').click();
   await expect(
     popupPage
       .locator('.gw-popup-protection-surface[data-surface="serviceWorker"]')

@@ -176,16 +176,11 @@ const registerFpSurface = (
 };
 
 const recordIntegrityResult = (result: IntegrityResult): void => {
-  if (
-    result.status !== "repaired" &&
-    result.status !== "unrecoverable" &&
-    result.status !== "unconfirmed"
-  ) {
-    return;
-  }
+  if (result.status === "intact" && result.surfaceId !== "battery") return;
   markSurfaceEvidence(result.surfaceId as XRaySurfaceCategory, {
     realmId: result.realmId,
     integrity: result.status,
+    ...(result.methodId ? { methodId: result.methodId } : {}),
     ...(result.reason ? { reasonCode: result.reason } : {}),
   });
 };

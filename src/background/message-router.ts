@@ -307,6 +307,7 @@ const recordErrorEvidence = ({
       // frameId is taken from the trusted message sender, not the page payload.
       ...(frameId !== undefined ? { frameId: String(frameId) } : {}),
       ...(evidence.attemptId ? { attemptId: evidence.attemptId } : {}),
+      ...(evidence.methodId ? { methodId: evidence.methodId } : {}),
       ...(evidence.installation ? { installation: evidence.installation } : {}),
       ...(evidence.integrity ? { integrity: evidence.integrity } : {}),
       ...(evidence.reasonCode ? { reasonCode: evidence.reasonCode } : {}),
