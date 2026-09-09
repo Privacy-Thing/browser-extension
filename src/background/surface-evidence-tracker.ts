@@ -75,7 +75,10 @@ const aggregateMethodIntegrity = (
   if (!current || current.observedAt <= evidence.observedAt) {
     methodMap.set(evidence.methodId, evidence);
   }
-  let worst = evidence;
+  // The incoming result can be stale and therefore absent from `methodMap`.
+  // Seed the fold with the retained current result so a rejected report cannot
+  // change the aggregate merely by arriving late.
+  let worst = methodMap.get(evidence.methodId) ?? evidence;
   for (const candidate of methodMap.values()) {
     const rank =
       INTEGRITY_RANK[candidate.integrity!] - INTEGRITY_RANK[worst.integrity!];

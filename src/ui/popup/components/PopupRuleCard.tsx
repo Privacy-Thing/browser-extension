@@ -175,6 +175,7 @@ export const PopupRuleCard = ({
               variant="link"
               size="sm"
               className="gw-popup-rule-details-link"
+              data-action="view-protection-details"
               onClick={onDetails}
             >
               {detailsLabel}

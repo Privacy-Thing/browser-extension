@@ -96,6 +96,31 @@ describe("surface-evidence-tracker", () => {
     expect(getRealmEvidence(TAB).battery?.[0]?.reasonCode).toBeUndefined();
   });
 
+  it("does not fold a stale method report into the current realm result", () => {
+    recordSurfaceEvidence(TAB, "battery", {
+      realmId: "document",
+      methodId: "battery.getBattery",
+      integrity: "intact",
+      observedAt: 3,
+    });
+    recordSurfaceEvidence(TAB, "battery", {
+      realmId: "document",
+      methodId: "battery.manager.level",
+      integrity: "intact",
+      observedAt: 2,
+    });
+    recordSurfaceEvidence(TAB, "battery", {
+      realmId: "document",
+      methodId: "battery.getBattery",
+      integrity: "unconfirmed",
+      reasonCode: "descriptor-replaced",
+      observedAt: 1,
+    });
+
+    expect(getRealmEvidence(TAB).battery?.[0]).toMatchObject({ integrity: "intact" });
+    expect(getRealmEvidence(TAB).battery?.[0]?.reasonCode).toBeUndefined();
+  });
+
   it("preserves frame and attempt identity through to the stored evidence", () => {
     recordSurfaceEvidence(TAB, "worker", {
       realmId: "worker",

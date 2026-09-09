@@ -60,9 +60,9 @@ describe("runtime surface integrity integrations", () => {
       navigatorObject,
     );
 
-    expect(registry.ensureAll().every((result) => result.status === "intact")).toBe(
-      true,
-    );
+    const results = registry.ensureAll();
+    expect(results).toHaveLength(5);
+    expect(results.every((result) => result.status === "intact")).toBe(true);
   });
 
   it("repairs getBattery and all BatteryManager getters", () => {
