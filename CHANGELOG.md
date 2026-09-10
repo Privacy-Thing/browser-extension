@@ -17,8 +17,8 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 - Keep Control D synchronization attached to resources by their saved IDs when
   the API normalizes display names, restore automatic sync after the obsolete
-  name conflict, expose preview failures in debug logs, and align the Advanced
-  interface with the existing settings component system.
+  name conflict, expose preview failures in debug logs, and show automatically
+  matched regional exits explicitly with actionable review and override controls.
 - Confirm installed Battery protection before a page first queries the API, and clear
   stale integrity evidence after the protection recovers.
 

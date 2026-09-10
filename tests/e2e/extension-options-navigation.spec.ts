@@ -54,9 +54,7 @@ test("loads the options page from the extension", async ({ context, extensionId 
       "type",
       "password",
     );
-    await expect(
-      page.locator("[data-control-d-state]").getByText("Experimental", { exact: true }),
-    ).toBeVisible();
+    await expect(page.locator("[data-control-d-state]")).toContainText("Not connected");
   }
   await openSettingsTab(page, "about");
   await expect(page.locator("#about-version")).toHaveText(/^\d+\.\d+/);
