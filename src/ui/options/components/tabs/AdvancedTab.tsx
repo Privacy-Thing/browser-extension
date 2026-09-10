@@ -1,5 +1,10 @@
 import React from "react";
 
+import {
+  ControlDFeatureToggle,
+  ControlDPanel,
+  isIntegrationAvailable as isExperimentalIntegrationAvailable,
+} from "@/experimental/control-d/ui-entry";
 import { cn } from "@/ui/components/lib/utils";
 import {
   getSettingDescriptionId,
@@ -87,7 +92,11 @@ const RuntimeCard = () => {
   );
 };
 
-const ExperimentalCard = () => {
+const ExperimentalCard = ({
+  onIntegrationToggle,
+}: {
+  onIntegrationToggle: (enabled: boolean) => void;
+}) => {
   const {
     featureFlags,
     highlightedAnchorId,
@@ -169,6 +178,9 @@ const ExperimentalCard = () => {
             />
           }
         />
+        {isExperimentalIntegrationAvailable() ? (
+          <ControlDFeatureToggle onEnabledChange={onIntegrationToggle} />
+        ) : null}
       </CardContent>
     </Card>
   );
@@ -346,11 +358,13 @@ const DangerCard = () => {
 
 const AdvancedOverview = () => {
   const { highlightedAnchorId } = useSettings();
+  const [controlDEnabled, setControlDEnabled] = React.useState(false);
   return (
     <div className="grid grid-cols-12 gap-5">
       <div className="col-span-12 lg:col-span-8 flex flex-col gap-5">
         <RuntimeCard />
-        <ExperimentalCard />
+        <ExperimentalCard onIntegrationToggle={setControlDEnabled} />
+        {controlDEnabled ? <ControlDPanel /> : null}
         <DangerCard />
       </div>
       <div className="col-span-12 lg:col-span-4">

@@ -6,6 +6,13 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ## [Unreleased]
 
+### Added
+
+- Added an experimental, one-way Control D regional DNS integration to local
+  and beta builds. It previews managed rule changes, requires confirmation
+  before the first sync, preserves unrelated Control D resources, and guides
+  users through manual browser DoH setup.
+
 ### Fixed
 
 - Confirm installed Battery protection before a page first queries the API, and clear

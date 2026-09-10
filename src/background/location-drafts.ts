@@ -258,6 +258,9 @@ export const buildDraftFromCandidate = (
     label: candidate.label,
     latitude: candidate.latitude,
     longitude: candidate.longitude,
+    ...(candidate.address?.country_code
+      ? { countryCode: candidate.address.country_code.toUpperCase() }
+      : {}),
     accuracy: 25,
     noiseRadius: 50,
     language: selectedLanguageOption.language,

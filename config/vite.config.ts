@@ -497,6 +497,24 @@ export default defineConfig({
   },
   resolve: {
     alias: [
+      {
+        find: "@/experimental/control-d/background-entry",
+        replacement: path.resolve(
+          repositoryRootDirectory,
+          buildChannel === "release"
+            ? "src/stubs/experimental-control-d-background.ts"
+            : "src/experimental/control-d/background-entry.ts",
+        ),
+      },
+      {
+        find: "@/experimental/control-d/ui-entry",
+        replacement: path.resolve(
+          repositoryRootDirectory,
+          buildChannel === "release"
+            ? "src/stubs/experimental-control-d-ui.tsx"
+            : "src/experimental/control-d/ui-entry.tsx",
+        ),
+      },
       ...(buildTarget === "chromium"
         ? [
             {
