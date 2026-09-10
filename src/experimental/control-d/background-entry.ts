@@ -332,6 +332,11 @@ const createController = (deps: BackgroundEntryDeps) => {
         },
       };
       await saveControlDConfig(next);
+      log(deps, "control-d.mapping.updated", {
+        locationId: command.mapping.locationId,
+        proxyPk: command.mapping.proxyPk,
+        status: command.mapping.status,
+      });
       return { ok: true, state: await toControlDPublicState(next) };
     }
 
@@ -359,6 +364,14 @@ const createController = (deps: BackgroundEntryDeps) => {
     if (command.type === CONTROL_D_COMMANDS.preview) {
       try {
         const prepared = await prepareControlDSync(createClient(apiKey), config);
+        const ready: ControlDConfig = {
+          ...config,
+          autoSyncEnabled: config.lastSyncedHash ? true : config.autoSyncEnabled,
+          status: "ready",
+          lastAttemptAt: new Date().toISOString(),
+          lastError: null,
+        };
+        await saveControlDConfig(ready);
         log(
           deps,
           "control-d.diff.ready",
@@ -373,12 +386,23 @@ const createController = (deps: BackgroundEntryDeps) => {
         );
         return {
           ok: true,
-          state: await toControlDPublicState(config),
+          state: await toControlDPublicState(ready),
           diff: prepared.diff,
           proxies: prepared.proxies,
         };
       } catch (error) {
         const failed = await saveFailure(config, error);
+        log(
+          deps,
+          "control-d.diff.failure",
+          {
+            error: errorMessage(error),
+            ...apiErrorDetails(error),
+            conflict: error instanceof ControlDConflictError,
+          },
+          ExtensionLogLevel.Error,
+          apiKey,
+        );
         return {
           ok: false,
           error: errorMessage(error),
@@ -421,6 +445,19 @@ const createController = (deps: BackgroundEntryDeps) => {
 
 export const registerControlD = (deps: BackgroundEntryDeps): void => {
   const controller = createController(deps);
+
+  fireAndForget(
+    loadControlDConfig().then((config) => {
+      if (
+        config.enabled &&
+        config.connected &&
+        config.autoSyncEnabled &&
+        config.lastSyncedHash
+      ) {
+        controller.scheduleAutomatic();
+      }
+    }),
+  );
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (!isControlDCommand(message) || sender.id !== chrome.runtime.id) return false;

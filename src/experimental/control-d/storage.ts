@@ -7,6 +7,12 @@ import {
 const CONFIG_KEY = "pt.experimental.control-d.config.v1";
 const API_KEY = "pt.experimental.control-d.api-key.v1";
 
+const OBSOLETE_NAME_CONFLICTS = new Set([
+  "The managed Control D endpoint was renamed.",
+  "The managed Control D profile was renamed.",
+  "The managed profile was renamed.",
+]);
+
 const createDefaultConfig = (): ControlDConfig => ({
   version: 1,
   instanceId: crypto.randomUUID(),
@@ -44,11 +50,27 @@ export const loadControlDConfig = async (): Promise<ControlDConfig> => {
         },
       ]),
     );
-    return {
+    const config: ControlDConfig = {
       ...parsed.data,
       enabled: parsed.data.enabled ?? parsed.data.connected,
       locationMappings,
     };
+    if (
+      config.connected &&
+      config.lastSyncedHash &&
+      config.lastError &&
+      OBSOLETE_NAME_CONFLICTS.has(config.lastError)
+    ) {
+      const recovered: ControlDConfig = {
+        ...config,
+        autoSyncEnabled: true,
+        status: "ready",
+        lastError: null,
+      };
+      await saveControlDConfig(recovered);
+      return recovered;
+    }
+    return config;
   }
 
   const config = createDefaultConfig();

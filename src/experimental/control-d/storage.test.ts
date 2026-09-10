@@ -81,4 +81,37 @@ describe("Control D storage", () => {
     expect(config.connected).toBe(true);
     expect(config.profileId).toBe("profile-id");
   });
+
+  it("recovers automatic sync disabled by the obsolete endpoint-name conflict", async () => {
+    state[CONTROL_D_STORE_KEYS[0]] = {
+      version: 1,
+      instanceId: "existing-instance",
+      enabled: true,
+      connected: true,
+      autoSyncEnabled: false,
+      status: "conflict",
+      profileId: "profile-id",
+      endpointId: "endpoint-id",
+      resolverDoh: "https://example.test/private-resolver",
+      managedFolders: {},
+      locationMappings: {},
+      lastSyncedHash: "hash",
+      lastAttemptAt: "2026-09-10T14:23:54.000Z",
+      lastSuccessAt: "2026-09-10T11:09:48.000Z",
+      lastError: "The managed Control D endpoint was renamed.",
+    };
+
+    const config = await loadControlDConfig();
+
+    expect(config).toMatchObject({
+      autoSyncEnabled: true,
+      status: "ready",
+      lastError: null,
+    });
+    expect(state[CONTROL_D_STORE_KEYS[0]]).toMatchObject({
+      autoSyncEnabled: true,
+      status: "ready",
+      lastError: null,
+    });
+  });
 });

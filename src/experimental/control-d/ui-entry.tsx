@@ -11,10 +11,30 @@ import {
   type ControlDPublicState,
 } from "./contracts";
 
+import { SettingsControlCard } from "@/ui/components/SettingsControlCard";
+import { SettingsSectionCard } from "@/ui/components/SettingsSectionCard";
+import { SettingsSubcard } from "@/ui/components/SettingsSubcard";
+import { Badge } from "@/ui/components/ui/badge";
 import { Button } from "@/ui/components/ui/button";
-import { Card, CardContent } from "@/ui/components/ui/card";
+import { Checkbox } from "@/ui/components/ui/checkbox";
 import { Input } from "@/ui/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/ui/components/ui/select";
+import { Separator } from "@/ui/components/ui/separator";
 import { Switch } from "@/ui/components/ui/switch";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/ui/components/ui/table";
 
 type UiResponse =
   | {
@@ -42,27 +62,36 @@ export const isIntegrationAvailable = (): boolean =>
 const formatTime = (value: string | null): string =>
   value ? new Date(value).toLocaleString() : "Not yet";
 
-const statusLabel = (state: ControlDPublicState | null): string => {
-  if (!state) return "Loading";
-  const labels: Record<ControlDPublicState["status"], string> = {
-    disconnected: "Not connected",
-    ready: "Connected",
-    syncing: "Synchronizing",
-    conflict: "Needs attention",
-    "auth-error": "Authorization failed",
-    error: "Sync error",
+type StatusVariant = "outline" | "success" | "warning" | "error" | "info";
+
+const statusPresentation = (
+  state: ControlDPublicState | null,
+): { label: string; variant: StatusVariant } => {
+  if (!state) return { label: "Loading", variant: "outline" };
+  const states: Record<
+    ControlDPublicState["status"],
+    { label: string; variant: StatusVariant }
+  > = {
+    disconnected: { label: "Not connected", variant: "outline" },
+    ready: { label: "Connected", variant: "success" },
+    syncing: { label: "Synchronizing", variant: "info" },
+    conflict: { label: "Needs attention", variant: "warning" },
+    "auth-error": { label: "Authorization failed", variant: "error" },
+    error: { label: "Sync error", variant: "error" },
   };
-  return labels[state.status];
+  return states[state.status];
 };
 
-const Metric = ({ label, value }: { label: string; value: React.ReactNode }) => (
-  <div className="rounded-lg border border-border/70 bg-background/70 px-3 py-2.5">
-    <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
-      {label}
-    </p>
-    <p className="mt-1 text-sm font-semibold text-foreground">{value}</p>
-  </div>
-);
+const mappingBadgeVariant = (
+  status: ControlDMapping["status"],
+): "outline" | "success" | "warning" => {
+  if (status === "approximate") return "warning";
+  if (status === "skipped") return "outline";
+  return "success";
+};
+
+const ruleCountLabel = (count: number): string =>
+  `${count} ${count === 1 ? "rule" : "rules"}`;
 
 export const ControlDFeatureToggle = ({
   onEnabledChange,
@@ -93,35 +122,41 @@ export const ControlDFeatureToggle = ({
   };
 
   return (
-    <div className="flex items-center justify-between gap-4 rounded-lg border border-border px-4 py-3">
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2">
-          <h3 className="text-sm font-semibold">Control D integration</h3>
-          <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">
-            Beta / local
-          </span>
-        </div>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Show the Control D workspace and enable one-way regional rule sync.
-        </p>
-      </div>
-      <Switch
-        aria-label="Enable Control D integration"
-        checked={state?.enabled ?? false}
-        disabled={!state || busy}
-        onCheckedChange={(enabled) => void toggle(enabled)}
-      />
-    </div>
+    <SettingsControlCard
+      title={
+        <span className="flex flex-wrap items-center gap-2">
+          <span>Control D integration</span>
+          <Badge variant="warning">Beta / local</Badge>
+        </span>
+      }
+      description="Show a separate Control D section for one-way regional DNS synchronization."
+      focusControlOnTitleClick
+      action={
+        <Switch
+          aria-label="Enable Control D integration"
+          checked={state?.enabled ?? false}
+          disabled={!state || busy}
+          onCheckedChange={(enabled) => void toggle(enabled)}
+        />
+      }
+    />
   );
 };
 
 const DiffSummary = ({ diff }: { diff: ControlDDiff }) => (
-  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-    <Metric label="Folders" value={diff.createFolders} />
-    <Metric label="New rules" value={diff.addRules} />
-    <Metric label="Updates" value={diff.updateRules} />
-    <Metric label="Unchanged" value={diff.unchangedRules} />
-  </div>
+  <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+    {[
+      ["Folders to create", diff.createFolders],
+      ["Rules to add", diff.addRules],
+      ["Rules to update", diff.updateRules],
+      ["Unchanged rules", diff.unchangedRules],
+    ].map(([label, value]) => (
+      <div key={label}>
+        <dt className="text-xs text-muted-foreground">{label}</dt>
+        <dd className="mt-0.5 font-medium text-foreground">{value}</dd>
+      </div>
+    ))}
+  </dl>
 );
 
 const ResolverSetup = ({ resolver }: { resolver: string }) => {
@@ -165,85 +200,60 @@ const ResolverSetup = ({ resolver }: { resolver: string }) => {
   };
 
   return (
-    <section className="rounded-xl border border-border bg-muted/20 p-4">
-      <div className="flex items-start gap-3">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
-          1
+    <SettingsSubcard
+      title={
+        <span className="flex flex-wrap items-center gap-2">
+          <h3 className="text-sm font-semibold">Browser DNS</h3>
+          <Badge variant="outline">Manual setup</Badge>
         </span>
-        <div>
-          <h4 className="text-sm font-semibold">Copy your private DoH address</h4>
-          <p className="mt-1 text-sm text-muted-foreground">
-            The value stays masked here and is never written to debug logs.
-          </p>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <code className="rounded-md bg-background px-2.5 py-1.5 text-xs text-muted-foreground">
-              {resolver.replace(/^(https:\/\/[^/]+\/).+$/, "$1••••••••")}
-            </code>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => void copyResolver()}
-            >
-              {copied ? "Copied" : "Copy address"}
-            </Button>
-          </div>
-        </div>
+      }
+      description="Secure DNS remains a browser setting. Privacy Thing cannot change it automatically."
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <code className="max-w-full truncate rounded-md bg-muted px-2.5 py-1.5 text-xs text-foreground">
+          {resolver.replace(/^(https:\/\/[^/]+\/).+$/, "$1••••••••")}
+        </code>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={() => void copyResolver()}
+        >
+          {copied ? "Copied" : "Copy address"}
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={() => void openBrowserDns()}
+        >
+          Open DNS settings
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          onClick={() => void openExternal("open-status", CONTROL_D_STATUS_URL)}
+        >
+          Check status
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          onClick={() => void openExternal("open-guide", CONTROL_D_GUIDE_URL)}
+        >
+          Instructions
+        </Button>
       </div>
-      <div className="mt-4 flex items-start gap-3">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border bg-background text-xs font-bold">
-          2
-        </span>
-        <div>
-          <h4 className="text-sm font-semibold">Set Secure DNS in your browser</h4>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Browser extensions cannot change this setting on your behalf.
-          </p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => void openBrowserDns()}
-            >
-              Open DNS settings
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              onClick={() => void openExternal("open-guide", CONTROL_D_GUIDE_URL)}
-            >
-              View instructions
-            </Button>
-          </div>
-        </div>
-      </div>
-      <div className="mt-4 flex items-start gap-3">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border bg-background text-xs font-bold">
-          3
-        </span>
-        <div>
-          <h4 className="text-sm font-semibold">Verify the active resolver</h4>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Disconnecting Privacy Thing leaves your browser DNS unchanged.
-          </p>
-          <Button
-            className="mt-2"
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => void openExternal("open-status", CONTROL_D_STATUS_URL)}
-          >
-            Check Control D status
-          </Button>
-        </div>
-      </div>
-    </section>
+      <p className="mt-2 text-xs text-muted-foreground">
+        Disconnecting the integration does not revert your browser DNS setting.
+      </p>
+    </SettingsSubcard>
   );
 };
 
-// eslint-disable-next-line max-lines-per-function, sonarjs/cognitive-complexity -- Progressive disclosure keeps this experimental control plane readable.
+// eslint-disable-next-line max-lines-per-function, sonarjs/cognitive-complexity -- The container coordinates the experimental control plane.
 export const ControlDPanel = () => {
   const [state, setState] = useState<ControlDPublicState | null>(null);
   const [apiKey, setApiKey] = useState("");
@@ -282,6 +292,19 @@ export const ControlDPanel = () => {
     () => new Map(proxies.map((proxy) => [proxy.pk, proxy])),
     [proxies],
   );
+  const presentation = statusPresentation(state);
+  const visibleError = notice ?? state?.lastError ?? null;
+  const hasAppliedSync = Boolean(state?.lastSuccessAt);
+  let syncModeLabel = "Manual";
+  let syncDescription =
+    "Preview and apply the first synchronization to activate automatic updates.";
+  if (state?.autoSyncEnabled) {
+    syncModeLabel = "Automatic";
+    syncDescription = `Automatic sync is active · Last successful sync: ${formatTime(state.lastSuccessAt)}`;
+  } else if (hasAppliedSync) {
+    syncModeLabel = "Paused";
+    syncDescription = `Automatic sync is paused · Last successful sync: ${formatTime(state?.lastSuccessAt ?? null)}`;
+  }
 
   const connect = async () => {
     if (!(await requestApiAccess())) {
@@ -303,18 +326,8 @@ export const ControlDPanel = () => {
       ...(mapping.ruleCount === undefined ? {} : { ruleCount: mapping.ruleCount }),
     };
     const next: ControlDMapping = proxy
-      ? {
-          ...shared,
-          proxyPk,
-          status: "approximate",
-          confirmed: false,
-        }
-      : {
-          ...shared,
-          proxyPk: null,
-          status: "skipped",
-          confirmed: true,
-        };
+      ? { ...shared, proxyPk, status: "approximate", confirmed: false }
+      : { ...shared, proxyPk: null, status: "skipped", confirmed: true };
     const response = await run({
       type: CONTROL_D_COMMANDS.updateMapping,
       mapping: next,
@@ -322,80 +335,58 @@ export const ControlDPanel = () => {
     if (response?.ok) await run({ type: CONTROL_D_COMMANDS.preview });
   };
 
-  const activeRoutes =
-    diff?.mappings.filter((mapping) => mapping.status !== "skipped").length ??
-    state?.locationMappings.filter((mapping) => mapping.status !== "skipped").length ??
-    0;
-
   return (
-    <Card className="overflow-hidden border-primary/25 shadow-sm">
-      <div className="border-b border-border bg-gradient-to-r from-primary/[0.08] via-background to-background px-6 py-5">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-xl font-semibold tracking-tight">
-                Control D regional DNS
-              </h2>
-              <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">
-                Experimental
-              </span>
-            </div>
-            <p className="mt-1.5 max-w-2xl text-sm leading-6 text-muted-foreground">
-              Publish compatible regional rules to an isolated Control D profile. Sync
-              is one-way and never modifies unrelated profiles or rules.
-            </p>
+    <SettingsSectionCard
+      title={
+        <span className="flex flex-wrap items-center gap-2">
+          <h2 className="text-xl font-semibold">Control D</h2>
+          <Badge variant="warning">Experimental</Badge>
+        </span>
+      }
+      description="Publish compatible regional rules to an isolated Control D profile. Synchronization is one-way."
+      headerActions={<Badge variant={presentation.variant}>{presentation.label}</Badge>}
+      data-control-d-state={state?.status ?? "loading"}
+    >
+      {!state?.connected ? (
+        <SettingsSubcard
+          title={<h3 className="text-sm font-semibold">Connect your account</h3>}
+          description="Use a write-enabled API key. It stays in local extension storage and is excluded from export and browser sync."
+        >
+          <div className="flex max-w-2xl flex-col gap-2 sm:flex-row">
+            <Input
+              type="password"
+              autoComplete="off"
+              value={apiKey}
+              placeholder="Control D API key"
+              aria-label="Control D API key"
+              onChange={(event) => setApiKey(event.target.value)}
+            />
+            <Button
+              type="button"
+              disabled={busy || !apiKey.trim()}
+              onClick={() => void connect()}
+            >
+              Test and connect
+            </Button>
           </div>
-          <span className="rounded-full border border-border bg-background px-3 py-1 text-xs font-medium">
-            {statusLabel(state)}
-          </span>
-        </div>
-      </div>
-
-      <CardContent className="space-y-5 p-6">
-        {!state?.connected ? (
-          <section className="rounded-xl border border-border bg-muted/20 p-4">
-            <div className="max-w-2xl">
-              <h3 className="text-sm font-semibold">Connect your Control D account</h3>
-              <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                Use a write-enabled API key. Privacy Thing stores it locally and
-                excludes it from sync and settings exports.
-              </p>
-            </div>
-            <div className="mt-3 flex max-w-2xl flex-col gap-2 sm:flex-row">
-              <Input
-                type="password"
-                autoComplete="off"
-                value={apiKey}
-                placeholder="Write API key"
-                aria-label="Control D API key"
-                onChange={(event) => setApiKey(event.target.value)}
-              />
+        </SettingsSubcard>
+      ) : (
+        <>
+          <SettingsSubcard
+            title={
+              <span className="flex flex-wrap items-center gap-2">
+                <h3 className="text-sm font-semibold">Synchronization</h3>
+                <Badge variant={state.autoSyncEnabled ? "success" : "outline"}>
+                  {syncModeLabel}
+                </Badge>
+              </span>
+            }
+            description={syncDescription}
+          >
+            <div className="flex flex-wrap gap-2">
               <Button
                 type="button"
-                disabled={busy || !apiKey.trim()}
-                onClick={() => void connect()}
-              >
-                Test and connect
-              </Button>
-            </div>
-          </section>
-        ) : (
-          <>
-            <div className="grid gap-2 sm:grid-cols-3">
-              <Metric
-                label="Last successful sync"
-                value={formatTime(state.lastSuccessAt)}
-              />
-              <Metric label="Regional routes" value={activeRoutes} />
-              <Metric
-                label="Automatic sync"
-                value={state.autoSyncEnabled ? "Active" : "Awaiting first apply"}
-              />
-            </div>
-
-            <div className="flex flex-wrap gap-2 border-b border-border pb-5">
-              <Button
-                type="button"
+                size="sm"
                 variant="outline"
                 disabled={busy}
                 onClick={() => void run({ type: CONTROL_D_COMMANDS.preview })}
@@ -405,6 +396,7 @@ export const ControlDPanel = () => {
               {state.autoSyncEnabled ? (
                 <Button
                   type="button"
+                  size="sm"
                   disabled={busy}
                   onClick={() => void run({ type: CONTROL_D_COMMANDS.syncNow })}
                 >
@@ -414,6 +406,7 @@ export const ControlDPanel = () => {
               {state.status === "conflict" ? (
                 <Button
                   type="button"
+                  size="sm"
                   variant="destructive-outline"
                   disabled={busy}
                   onClick={() => void run({ type: CONTROL_D_COMMANDS.repair })}
@@ -421,9 +414,157 @@ export const ControlDPanel = () => {
                   Repair managed rules
                 </Button>
               ) : null}
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Last attempt: {formatTime(state.lastAttemptAt)}
+            </p>
+          </SettingsSubcard>
+
+          {visibleError ? (
+            <div
+              role="status"
+              className="rounded-lg border border-tone-error-border bg-tone-error-bg px-3 py-2 text-sm text-tone-error-text"
+            >
+              {visibleError}
+            </div>
+          ) : null}
+
+          {diff ? (
+            <SettingsSubcard
+              title={<h3 className="text-sm font-semibold">Pending changes</h3>}
+              description="This preview is read-only. Review all routes before applying."
+            >
+              <DiffSummary diff={diff} />
+            </SettingsSubcard>
+          ) : null}
+
+          {diff?.mappings.length ? (
+            <SettingsSubcard
+              title={<h3 className="text-sm font-semibold">Regional routes</h3>}
+              description="Each Privacy Thing location maps to one Control D exit."
+            >
+              <div className="rounded-lg border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Privacy Thing profile</TableHead>
+                      <TableHead className="w-[55%]">Control D exit</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {diff.mappings.map((mapping) => (
+                      <TableRow key={mapping.locationId}>
+                        <TableCell>
+                          <div className="font-medium">
+                            {mapping.locationLabel ?? mapping.locationId}
+                          </div>
+                          <div className="mt-1 flex flex-wrap gap-1.5">
+                            <Badge variant="secondary">
+                              {ruleCountLabel(mapping.ruleCount ?? 0)}
+                            </Badge>
+                            <Badge variant={mappingBadgeVariant(mapping.status)}>
+                              {mapping.status}
+                            </Badge>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Select
+                            value={mapping.proxyPk ?? "skip"}
+                            onValueChange={(value) =>
+                              void updateMapping(mapping, value === "skip" ? "" : value)
+                            }
+                          >
+                            <SelectTrigger
+                              aria-label={`Control D exit for ${mapping.locationLabel ?? mapping.locationId}`}
+                            >
+                              <SelectValue placeholder="Select an exit" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="skip">Skip this profile</SelectItem>
+                              {proxies.map((proxy) => (
+                                <SelectItem key={proxy.pk} value={proxy.pk}>
+                                  {proxy.city}, {proxy.countryName} ({proxy.pk})
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </SettingsSubcard>
+          ) : null}
+
+          {diff?.warnings.length ? (
+            <SettingsSubcard
+              title={
+                <span className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-sm font-semibold">Review required</h3>
+                  <Badge variant="warning">{diff.warnings.length}</Badge>
+                </span>
+              }
+              description="Some rules or locations could not be mapped exactly."
+            >
+              <ul className="space-y-1.5 text-sm text-muted-foreground">
+                {diff.warnings.map((warning, index) => (
+                  <li
+                    key={`${warning.code}-${warning.pattern ?? warning.locationId ?? index}`}
+                  >
+                    • {warning.message}
+                  </li>
+                ))}
+              </ul>
+            </SettingsSubcard>
+          ) : null}
+
+          {diff && !state.autoSyncEnabled ? (
+            <SettingsSubcard
+              title={
+                <h3 className="text-sm font-semibold">Apply first synchronization</h3>
+              }
+              description="The first write is always explicit. Later valid settings changes synchronize automatically."
+            >
+              {diff.requiresApproximationConfirmation ? (
+                <label className="flex items-start gap-2 text-sm">
+                  <Checkbox
+                    checked={confirmApproximate}
+                    onChange={(event) => setConfirmApproximate(event.target.checked)}
+                  />
+                  <span>
+                    I accept every approximate cross-country mapping shown above.
+                  </span>
+                </label>
+              ) : null}
               <Button
-                className="sm:ml-auto"
+                className="mt-3"
                 type="button"
+                size="sm"
+                disabled={
+                  busy ||
+                  (diff.requiresApproximationConfirmation && !confirmApproximate)
+                }
+                onClick={() =>
+                  void run({ type: CONTROL_D_COMMANDS.apply, confirmApproximate })
+                }
+              >
+                Apply synchronization
+              </Button>
+            </SettingsSubcard>
+          ) : null}
+
+          {state.resolverDoh ? <ResolverSetup resolver={state.resolverDoh} /> : null}
+
+          <Separator />
+          <SettingsSubcard
+            title={<h3 className="text-sm font-semibold">Connection</h3>}
+            description="Disconnecting forgets the API key and stops synchronization. Remote resources and browser DNS remain unchanged."
+          >
+            <div>
+              <Button
+                type="button"
+                size="sm"
                 variant="ghost"
                 disabled={busy}
                 onClick={() => void run({ type: CONTROL_D_COMMANDS.disconnect })}
@@ -431,146 +572,18 @@ export const ControlDPanel = () => {
                 Disconnect
               </Button>
             </div>
+          </SettingsSubcard>
+        </>
+      )}
 
-            {diff ? <DiffSummary diff={diff} /> : null}
-
-            {diff?.mappings.length ? (
-              <section className="overflow-hidden rounded-xl border border-border">
-                <div className="border-b border-border bg-muted/30 px-4 py-3">
-                  <h3 className="text-sm font-semibold">Regional routes</h3>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    Review every Privacy Thing profile and the Control D exit it will
-                    use.
-                  </p>
-                </div>
-                <div className="divide-y divide-border">
-                  {diff.mappings.map((mapping) => {
-                    const selected = mapping.proxyPk
-                      ? proxyByPk.get(mapping.proxyPk)
-                      : undefined;
-                    return (
-                      <div
-                        key={mapping.locationId}
-                        className="grid gap-3 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_minmax(14rem,1fr)] sm:items-center"
-                      >
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="font-medium">
-                              {mapping.locationLabel ?? mapping.locationId}
-                            </span>
-                            <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                              {mapping.ruleCount ?? 0}{" "}
-                              {(mapping.ruleCount ?? 0) === 1 ? "rule" : "rules"}
-                            </span>
-                            <span
-                              className={
-                                mapping.status === "approximate"
-                                  ? "text-xs font-medium text-amber-700 dark:text-amber-300"
-                                  : "text-xs font-medium text-emerald-700 dark:text-emerald-300"
-                              }
-                            >
-                              {mapping.status}
-                            </span>
-                          </div>
-                          <p className="mt-1 truncate text-xs text-muted-foreground">
-                            {selected
-                              ? `${selected.city}, ${selected.countryName} · ${selected.pk}`
-                              : "Excluded from synchronization"}
-                          </p>
-                        </div>
-                        <select
-                          aria-label={`Control D exit for ${mapping.locationLabel ?? mapping.locationId}`}
-                          className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
-                          value={mapping.proxyPk ?? ""}
-                          onChange={(event) =>
-                            void updateMapping(mapping, event.target.value)
-                          }
-                        >
-                          <option value="">Skip this regional profile</option>
-                          {proxies.map((proxy) => (
-                            <option key={proxy.pk} value={proxy.pk}>
-                              {proxy.city}, {proxy.countryName} ({proxy.pk})
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    );
-                  })}
-                </div>
-              </section>
-            ) : null}
-
-            {diff?.warnings.length ? (
-              <section className="rounded-xl border border-amber-500/35 bg-amber-500/[0.08] p-4 text-sm">
-                <h3 className="font-semibold text-amber-900 dark:text-amber-200">
-                  Review before syncing
-                </h3>
-                <ul className="mt-2 space-y-1.5 text-amber-900/80 dark:text-amber-100/80">
-                  {diff.warnings.map((warning, index) => (
-                    <li
-                      key={`${warning.code}-${warning.pattern ?? warning.locationId ?? index}`}
-                    >
-                      • {warning.message}
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ) : null}
-
-            {diff && !state.autoSyncEnabled ? (
-              <section className="rounded-xl border border-primary/25 bg-primary/[0.04] p-4">
-                <h3 className="text-sm font-semibold">
-                  Apply the first synchronization
-                </h3>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  After this confirmed apply, Privacy Thing will synchronize the latest
-                  valid snapshot automatically.
-                </p>
-                {diff.requiresApproximationConfirmation ? (
-                  <label className="mt-3 flex items-start gap-2 text-sm">
-                    <input
-                      className="mt-0.5"
-                      type="checkbox"
-                      checked={confirmApproximate}
-                      onChange={(event) => setConfirmApproximate(event.target.checked)}
-                    />
-                    I accept every approximate cross-country mapping shown above.
-                  </label>
-                ) : null}
-                <Button
-                  className="mt-3"
-                  type="button"
-                  disabled={
-                    busy ||
-                    (diff.requiresApproximationConfirmation && !confirmApproximate)
-                  }
-                  onClick={() =>
-                    void run({ type: CONTROL_D_COMMANDS.apply, confirmApproximate })
-                  }
-                >
-                  Apply first synchronization
-                </Button>
-              </section>
-            ) : null}
-
-            <p className="text-xs text-muted-foreground">
-              Last attempt: {formatTime(state.lastAttemptAt)}
-              {state.lastError ? ` · ${state.lastError}` : ""}
-            </p>
-          </>
-        )}
-
-        {state?.resolverDoh ? <ResolverSetup resolver={state.resolverDoh} /> : null}
-
-        {notice ? (
-          <p
-            role="status"
-            className="rounded-lg border border-amber-500/30 bg-amber-500/[0.08] px-3 py-2 text-sm text-amber-800 dark:text-amber-200"
-          >
-            {notice}
-          </p>
-        ) : null}
-      </CardContent>
-    </Card>
+      {!state?.connected && visibleError ? (
+        <div
+          role="status"
+          className="rounded-lg border border-tone-error-border bg-tone-error-bg px-3 py-2 text-sm text-tone-error-text"
+        >
+          {visibleError}
+        </div>
+      ) : null}
+    </SettingsSectionCard>
   );
 };

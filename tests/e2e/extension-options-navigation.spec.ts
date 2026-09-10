@@ -44,18 +44,18 @@ test("loads the options page from the extension", async ({ context, extensionId 
   await expect(controlDToggle).toHaveCount(hasControlDPermission ? 1 : 0);
   if (hasControlDPermission) {
     await expect(
-      page.getByRole("heading", { name: "Control D regional DNS" }),
+      page.getByRole("heading", { name: "Control D", exact: true }),
     ).toHaveCount(0);
     await controlDToggle.click();
     await expect(
-      page.getByRole("heading", { name: "Control D regional DNS" }),
+      page.getByRole("heading", { name: "Control D", exact: true }),
     ).toBeVisible();
     await expect(page.getByLabel("Control D API key")).toHaveAttribute(
       "type",
       "password",
     );
     await expect(
-      page.locator("span").filter({ hasText: /^Experimental$/ }),
+      page.locator("[data-control-d-state]").getByText("Experimental", { exact: true }),
     ).toBeVisible();
   }
   await openSettingsTab(page, "about");
@@ -94,7 +94,7 @@ test("shows Control D actions in View Logs when debug mode is enabled", async ({
 
   await controlDToggle.click();
   await expect(
-    page.getByRole("heading", { name: "Control D regional DNS" }),
+    page.getByRole("heading", { name: "Control D", exact: true }),
   ).toBeVisible();
   await page.goto(`${optionsUrl}#page-logs`);
 

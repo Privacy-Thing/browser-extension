@@ -165,7 +165,7 @@ class FakeClient {
     this.createdDeviceIcon = icon;
     const device = {
       id: "device-1",
-      name,
+      name: name.toLowerCase().replaceAll(" ", "-"),
       profileId,
       resolverDoh: "https://dns.controld.com/secret",
     };
@@ -261,6 +261,55 @@ describe("Control D reconcile", () => {
         id: "device-manual",
         profileId: "profile-1",
       }),
+    );
+  });
+
+  it("uses saved resource IDs when Control D normalizes their names", async () => {
+    const fake = new FakeClient();
+    const initial = config();
+    const firstPrepared = await prepareControlDSync(asClient(fake), initial);
+    const applied = await applyControlDSync({
+      client: asClient(fake),
+      config: initial,
+      prepared: firstPrepared,
+      confirmApproximate: false,
+      repair: false,
+    });
+
+    fake.profiles[0]!.name = "privacy-thing-profile";
+    fake.groups[0]!.name = "privacy-thing-folder";
+
+    const secondPrepared = await prepareControlDSync(asClient(fake), applied);
+    await expect(
+      applyControlDSync({
+        client: asClient(fake),
+        config: applied,
+        prepared: secondPrepared,
+        confirmApproximate: true,
+        repair: false,
+      }),
+    ).resolves.toMatchObject({
+      profileId: "profile-1",
+      endpointId: "device-1",
+      status: "ready",
+    });
+  });
+
+  it("rejects a saved endpoint reassigned to another profile", async () => {
+    const fake = new FakeClient();
+    const initial = config();
+    const prepared = await prepareControlDSync(asClient(fake), initial);
+    const applied = await applyControlDSync({
+      client: asClient(fake),
+      config: initial,
+      prepared,
+      confirmApproximate: false,
+      repair: false,
+    });
+    fake.devices[0]!.profileId = "foreign-profile";
+
+    await expect(prepareControlDSync(asClient(fake), applied)).rejects.toThrow(
+      "uses another profile",
     );
   });
 

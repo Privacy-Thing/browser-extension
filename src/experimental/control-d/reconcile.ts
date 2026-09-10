@@ -36,6 +36,15 @@ const endpointName = (instanceId: string): string =>
   controlDEndpointName(instanceId, __PT_BROWSER_TARGET__);
 const folderName = controlDFolderName;
 const ruleComment = controlDRuleComment;
+const normalizedResourceName = (name: string): string =>
+  name
+    .trim()
+    .toLowerCase()
+    .replaceAll(/[^a-z0-9]+/g, "-")
+    .replaceAll(/^-|-$/g, "");
+const resourceNameMatches = (actual: string, expected: string): boolean =>
+  actual === expected ||
+  normalizedResourceName(actual) === normalizedResourceName(expected);
 
 const canonicalRules = (rules: readonly ControlDRule[]): unknown[] =>
   [...rules]
@@ -141,7 +150,6 @@ export const prepareControlDSync = async (
   const desired = desiredByProxy(compilation);
   const counts = emptyCounts();
   let createFolders = desired.size;
-  const expectedProfileName = profileName(config.instanceId);
   const knownProfile = config.profileId
     ? profiles.find((profile) => profile.id === config.profileId)
     : undefined;
@@ -149,10 +157,6 @@ export const prepareControlDSync = async (
   if (config.profileId && !knownProfile) {
     throw new ControlDConflictError("The managed Control D profile is missing.");
   }
-  if (knownProfile && knownProfile.name !== expectedProfileName) {
-    throw new ControlDConflictError("The managed Control D profile was renamed.");
-  }
-
   if (knownProfile) {
     const groups = await client.listGroups(knownProfile.id);
     createFolders = 0;
@@ -172,7 +176,6 @@ export const prepareControlDSync = async (
         continue;
       }
       if (
-        group.name !== folderName(config.instanceId, proxyPk) ||
         (group.action !== null && group.action !== 3) ||
         (group.via !== null && group.via !== proxyPk)
       ) {
@@ -213,8 +216,10 @@ export const prepareControlDSync = async (
   if (config.endpointId && !knownEndpoint) {
     throw new ControlDConflictError("The managed Control D endpoint is missing.");
   }
-  if (knownEndpoint && knownEndpoint.name !== endpointName(config.instanceId)) {
-    throw new ControlDConflictError("The managed Control D endpoint was renamed.");
+  if (knownEndpoint?.profileId && knownEndpoint.profileId !== knownProfile?.id) {
+    throw new ControlDConflictError(
+      "The managed Control D endpoint uses another profile.",
+    );
   }
 
   return {
@@ -238,8 +243,8 @@ const requireUniqueProfile = async (
   client: ControlDClient,
   name: string,
 ): Promise<string> => {
-  const matches = (await client.listProfiles()).filter(
-    (profile) => profile.name === name,
+  const matches = (await client.listProfiles()).filter((profile) =>
+    resourceNameMatches(profile.name, name),
   );
   if (matches.length !== 1 || !matches[0]) {
     throw new Error("Could not uniquely identify the managed Control D profile.");
@@ -256,12 +261,11 @@ const ensureProfile = async (
   if (config.profileId) {
     const managed = profiles.find((profile) => profile.id === config.profileId);
     if (!managed) throw new ControlDConflictError("The managed profile is missing.");
-    if (managed.name !== name) {
-      throw new ControlDConflictError("The managed profile was renamed.");
-    }
     return managed.id;
   }
-  const existing = profiles.filter((profile) => profile.name === name);
+  const existing = profiles.filter((profile) =>
+    resourceNameMatches(profile.name, name),
+  );
   if (existing.length > 1) {
     throw new ControlDConflictError("More than one managed profile has the same name.");
   }
@@ -287,8 +291,8 @@ const ensureEndpoint = async (
   }
 
   const name = endpointName(config.instanceId);
-  const existing = (await client.listDevices()).filter(
-    (device) => device.name === name,
+  const existing = (await client.listDevices()).filter((device) =>
+    resourceNameMatches(device.name, name),
   );
   if (existing.length > 1) {
     throw new ControlDConflictError(
@@ -313,8 +317,8 @@ const ensureEndpoint = async (
   if (!icon) throw new Error("Control D returned no supported browser endpoint type.");
   const created = await client.createDevice(name, profileId, icon);
   if (created) return { id: created.id, resolverDoh: created.resolverDoh };
-  const recovered = (await client.listDevices()).filter(
-    (device) => device.name === name,
+  const recovered = (await client.listDevices()).filter((device) =>
+    resourceNameMatches(device.name, name),
   );
   if (recovered.length !== 1 || !recovered[0]) {
     throw new Error("Could not identify the newly created Control D endpoint.");
@@ -375,7 +379,6 @@ export const applyControlDSync = async ({
       throw new ControlDConflictError(`Managed folder ${managed.folderId} is missing.`);
     }
     if (
-      group.name !== folderName(nextConfig.instanceId, proxyPk) ||
       (group.action !== null && group.action !== 3) ||
       (group.via !== null && group.via !== proxyPk)
     ) {
@@ -409,7 +412,9 @@ export const applyControlDSync = async ({
         throw new ControlDConflictError(`Managed folder ${known.folderId} is missing.`);
       }
       const name = folderName(nextConfig.instanceId, proxyPk);
-      const matches = groups.filter((candidate) => candidate.name === name);
+      const matches = groups.filter((candidate) =>
+        resourceNameMatches(candidate.name, name),
+      );
       if (matches.length > 1) {
         throw new ControlDConflictError(
           `More than one managed folder exists for ${proxyPk}.`,
@@ -418,8 +423,8 @@ export const applyControlDSync = async ({
       group = matches[0];
       if (!group) {
         await client.createGroup(profileId, name, proxyPk);
-        const refreshed = (await client.listGroups(profileId)).filter(
-          (candidate) => candidate.name === name,
+        const refreshed = (await client.listGroups(profileId)).filter((candidate) =>
+          resourceNameMatches(candidate.name, name),
         );
         if (refreshed.length !== 1 || !refreshed[0]) {
           throw new Error(`Could not identify the managed folder for ${proxyPk}.`);
@@ -428,7 +433,6 @@ export const applyControlDSync = async ({
       }
     }
     if (
-      group.name !== folderName(nextConfig.instanceId, proxyPk) ||
       (group.action !== null && group.action !== 3) ||
       (group.via !== null && group.via !== proxyPk)
     ) {
