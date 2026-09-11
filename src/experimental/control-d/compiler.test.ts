@@ -90,18 +90,23 @@ describe("compileControlDPattern", () => {
     });
   });
 
-  it("maps Privacy Thing suffix patterns to apex-and-subdomains", () => {
+  it("preserves Privacy Thing suffix patterns", () => {
     expect(compileControlDPattern("*example.com")).toEqual({
-      hostname: "example.com",
+      hostname: "*example.com",
     });
   });
 
-  it("includes exact hosts with a widening warning and rejects unproven wildcards", () => {
-    expect(compileControlDPattern("example.com")).toMatchObject({
+  it("preserves exact hosts and wildcards supported by Control D", () => {
+    expect(compileControlDPattern("example.com")).toEqual({
       hostname: "example.com",
-      warning: { code: "exact-pattern-broadened" },
     });
-    expect(compileControlDPattern("server-*.example.com")).toMatchObject({
+    expect(compileControlDPattern("server-*.example.com")).toEqual({
+      hostname: "server-*.example.com",
+    });
+  });
+
+  it("rejects values that are not hostname patterns", () => {
+    expect(compileControlDPattern("https://example.com/path")).toMatchObject({
       warning: { code: "unsupported-pattern" },
     });
   });
@@ -122,10 +127,7 @@ describe("compileControlDPattern", () => {
       locationLabel: "Warsaw",
       ruleCount: 2,
     });
-    expect(result.warnings).toHaveLength(2);
-    expect(
-      result.warnings.every((warning) => warning.code === "exact-pattern-broadened"),
-    ).toBe(true);
+    expect(result.warnings).toEqual([]);
   });
 });
 
@@ -148,11 +150,11 @@ describe("compileControlDState", () => {
 
     expect(result.rules).toHaveLength(6);
     expect(result.rules.map((entry) => entry.hostname)).toEqual([
-      "example.com",
+      "*example.com",
+      "*www.instagram.com",
       "github.com",
       "iteracja.elpassion.com",
       "test.pl",
-      "www.instagram.com",
       "www.linkedin.com",
     ]);
     expect(result.mappings).toMatchObject({
@@ -173,7 +175,7 @@ describe("compileControlDState", () => {
     expect(result.rules).toEqual([
       {
         sourcePattern: "*example.com",
-        hostname: "example.com",
+        hostname: "*example.com",
         locationId: "warsaw",
         proxyPk: "WAW",
       },

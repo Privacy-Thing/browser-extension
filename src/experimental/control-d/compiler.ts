@@ -7,7 +7,6 @@ import type {
   ControlDProxyLocation,
 } from "./contracts";
 
-import { getDomainPatternKind } from "@/shared/domain-match";
 import type { DomainRule, Location } from "@/shared/types";
 
 export type ControlDCompilation = {
@@ -155,36 +154,20 @@ const resolveMapping = (
 
 export const compileControlDPattern = (
   pattern: string,
-):
-  | { hostname: string; warning?: ControlDCompileWarning }
-  | { warning: ControlDCompileWarning } => {
-  const normalized = pattern.trim().toLowerCase().replace(/\.$/, "");
-  const kind = getDomainPatternKind(normalized);
+): { hostname: string } | { warning: ControlDCompileWarning } => {
+  const isHostnamePattern =
+    pattern.length > 0 &&
+    pattern === pattern.trim() &&
+    pattern !== "*" &&
+    /^[a-z0-9*._-]+$/i.test(pattern);
 
-  if (kind === "subdomains-only" && /^\*\.[a-z0-9.-]+$/.test(normalized)) {
-    return { hostname: normalized };
-  }
-
-  if (kind === "apex-and-subdomains" && /^\*[a-z0-9.-]+$/.test(normalized)) {
-    return { hostname: normalized.slice(1) };
-  }
-
-  if (kind === "exact") {
-    return {
-      hostname: normalized,
-      warning: {
-        code: "exact-pattern-broadened",
-        pattern,
-        message: `${pattern} is exact in Privacy Thing but would include subdomains in Control D.`,
-      },
-    };
-  }
+  if (isHostnamePattern) return { hostname: pattern };
 
   return {
     warning: {
       code: "unsupported-pattern",
       pattern,
-      message: `${pattern} has wildcard semantics that cannot be proven equivalent in Control D.`,
+      message: `${pattern} is not a valid Control D hostname pattern.`,
     },
   };
 };
@@ -233,10 +216,6 @@ export const compileControlDState = ({
       warnings.push({ ...patternResult.warning, locationId: location.id });
       continue;
     }
-    if (patternResult.warning) {
-      warnings.push({ ...patternResult.warning, locationId: location.id });
-    }
-
     const previousLocation = usedHostnames.get(patternResult.hostname);
     if (previousLocation && previousLocation !== location.id) {
       warnings.push({
