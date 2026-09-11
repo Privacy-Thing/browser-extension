@@ -7,29 +7,28 @@ import {
   CONTROL_D_STATUS_URL,
   type ControlDDiff,
   type ControlDMapping,
-  type ControlDProxyLocation,
+  type ControlDPreparedSnapshot,
   type ControlDPublicState,
 } from "./contracts";
 import { ControlDRegionalRoute } from "./ui-regional-route";
 
 import { SettingsControlCard } from "@/ui/components/SettingsControlCard";
-import { SettingsSectionCard } from "@/ui/components/SettingsSectionCard";
-import { SettingsSubcard } from "@/ui/components/SettingsSubcard";
 import { Button } from "@/ui/components/ui/button";
+import { Card, CardContent } from "@/ui/components/ui/card";
 import { Checkbox } from "@/ui/components/ui/checkbox";
 import { Input } from "@/ui/components/ui/input";
 import { Separator } from "@/ui/components/ui/separator";
 import { Switch } from "@/ui/components/ui/switch";
-import { PAGE_ANCHORS } from "@/ui/options/navigation";
 
 type UiResponse =
   | {
       ok: true;
       state: ControlDPublicState;
-      diff?: ControlDDiff;
-      proxies?: ControlDProxyLocation[];
+      snapshot?: ControlDPreparedSnapshot;
     }
   | { ok: false; error: string; state?: ControlDPublicState };
+
+const EMPTY_PROXIES: ControlDPreparedSnapshot["proxies"] = [];
 
 const send = async (message: unknown): Promise<UiResponse> =>
   (await chrome.runtime.sendMessage(message)) as UiResponse;
@@ -64,28 +63,14 @@ const statusLabel = (state: ControlDPublicState | null): string => {
 const previewSummary = (diff: ControlDDiff): string => {
   const changedRuleCount = diff.addRules + diff.updateRules + diff.deleteRules;
   if (changedRuleCount === 0 && !diff.createProfile && !diff.createEndpoint) {
-    return "Everything is up to date.";
+    return "Control D is up to date.";
   }
-
-  const ruleVerb = changedRuleCount === 1 ? "rule is" : "rules are";
-  const routeNoun = diff.mappings.length === 1 ? "route" : "routes";
-  return `${changedRuleCount} ${ruleVerb} ready to synchronize across ${diff.mappings.length} regional ${routeNoun}.`;
+  return "Changes are ready to synchronize.";
 };
 
-const isMappingWarning = (warning: ControlDDiff["warnings"][number]): boolean =>
-  warning.code === "missing-country" ||
-  warning.code === "approximate-location" ||
-  warning.code === "skipped-location";
-
-const reviewDescription = (mappingCount: number, ruleCount: number): string => {
-  if (mappingCount > 0 && ruleCount > 0) {
-    return "Review route approximations and source-rule behavior before synchronizing.";
-  }
-  if (mappingCount > 0) {
-    return "Review the suggested Control D exits before synchronizing.";
-  }
-  return "Some source rules are interpreted differently by Control D. Review them before synchronizing.";
-};
+const settingTitle = (text: string) => (
+  <h3 className="text-sm font-semibold">{text}</h3>
+);
 
 export const ControlDFeatureToggle = ({
   onEnabledChange,
@@ -117,7 +102,7 @@ export const ControlDFeatureToggle = ({
 
   return (
     <SettingsControlCard
-      title="Control D integration"
+      title={settingTitle("Control D integration")}
       description="Enable the separate Control D section for one-way regional DNS synchronization. Available in beta and local builds."
       focusControlOnTitleClick
       action={
@@ -173,8 +158,8 @@ const ResolverSetup = ({ resolver }: { resolver: string }) => {
   };
 
   return (
-    <SettingsSubcard
-      title={<h3 className="text-sm font-semibold">Browser DNS</h3>}
+    <SettingsControlCard
+      title={settingTitle("Browser DNS")}
       description="Secure DNS remains a browser setting. Privacy Thing cannot change it automatically."
     >
       <div className="flex flex-wrap items-center gap-2">
@@ -217,7 +202,7 @@ const ResolverSetup = ({ resolver }: { resolver: string }) => {
       <p className="mt-2 text-xs text-muted-foreground">
         Disconnecting the integration does not revert your browser DNS setting.
       </p>
-    </SettingsSubcard>
+    </SettingsControlCard>
   );
 };
 
@@ -225,13 +210,12 @@ const ResolverSetup = ({ resolver }: { resolver: string }) => {
 export const ControlDPanel = () => {
   const [state, setState] = useState<ControlDPublicState | null>(null);
   const [apiKey, setApiKey] = useState("");
-  const [diff, setDiff] = useState<ControlDDiff | null>(null);
-  const [proxies, setProxies] = useState<ControlDProxyLocation[]>([]);
+  const [snapshot, setSnapshot] = useState<ControlDPreparedSnapshot | null>(null);
   const [confirmApproximate, setConfirmApproximate] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [editingLocationId, setEditingLocationId] = useState<string | null>(null);
-  const [warningsExpanded, setWarningsExpanded] = useState(false);
+  const [showRouteOverrides, setShowRouteOverrides] = useState(false);
 
   const run = useCallback(async (message: unknown) => {
     setBusy(true);
@@ -243,8 +227,7 @@ export const ControlDPanel = () => {
         setNotice(response.error);
         return response;
       }
-      if (response.diff) setDiff(response.diff);
-      if (response.proxies) setProxies(response.proxies);
+      if (response.snapshot) setSnapshot(response.snapshot);
       return response;
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Control D request failed.");
@@ -255,9 +238,15 @@ export const ControlDPanel = () => {
   }, []);
 
   useEffect(() => {
-    void run({ type: CONTROL_D_COMMANDS.getState });
+    void (async () => {
+      const response = await run({ type: CONTROL_D_COMMANDS.getState });
+      if (response?.ok && response.state.connected && !response.state.autoSyncEnabled) {
+        await run({ type: CONTROL_D_COMMANDS.preview });
+      }
+    })();
   }, [run]);
 
+  const proxies = snapshot?.proxies ?? EMPTY_PROXIES;
   const proxyByPk = useMemo(
     () => new Map(proxies.map((proxy) => [proxy.pk, proxy])),
     [proxies],
@@ -266,17 +255,28 @@ export const ControlDPanel = () => {
   const visibleError = notice ?? state?.lastError ?? null;
   const hasAppliedSync = Boolean(state?.lastSuccessAt);
   let syncDescription =
-    "Preview and apply the first synchronization to activate automatic updates.";
+    "The first write is explicit. Later rule and location changes synchronize automatically after they are saved.";
   if (state?.autoSyncEnabled) {
-    syncDescription = `Automatic sync is active · Last successful sync: ${formatTime(state.lastSuccessAt)}`;
+    syncDescription = `Rule and location changes synchronize automatically after saving. Last successful sync: ${formatTime(state.lastSuccessAt)}.`;
   } else if (hasAppliedSync) {
     syncDescription = `Automatic sync is paused · Last successful sync: ${formatTime(state?.lastSuccessAt ?? null)}`;
   }
 
-  const mappingWarnings = diff?.warnings.filter(isMappingWarning) ?? [];
-  const ruleWarnings =
-    diff?.warnings.filter((warning) => !isMappingWarning(warning)) ?? [];
+  const diff = snapshot?.diff ?? null;
+  const blockingWarnings =
+    diff?.warnings.filter(
+      (warning) =>
+        warning.code === "unsupported-pattern" || warning.code === "missing-location",
+    ) ?? [];
   const previewDescription = diff ? previewSummary(diff) : null;
+  const approximateMappings =
+    diff?.mappings.filter((mapping) => mapping.status === "approximate") ?? [];
+  const visibleMappings = showRouteOverrides
+    ? (diff?.mappings ?? [])
+    : approximateMappings;
+  const showMappingControls =
+    visibleMappings.length > 0 &&
+    (showRouteOverrides || Boolean(diff?.requiresApproximationConfirmation));
 
   const connect = async () => {
     if (!(await requestApiAccess())) {
@@ -287,6 +287,7 @@ export const ControlDPanel = () => {
     if (response?.ok) {
       setApiKey("");
       setNotice("API key verified. It is stored only on this device.");
+      await run({ type: CONTROL_D_COMMANDS.preview });
     }
   };
 
@@ -310,177 +311,109 @@ export const ControlDPanel = () => {
     }
   };
 
+  const revealRouteOverrides = () => {
+    setEditingLocationId(null);
+    if (showRouteOverrides) {
+      setShowRouteOverrides(false);
+      return;
+    }
+    void (async () => {
+      if (!snapshot) await run({ type: CONTROL_D_COMMANDS.preview });
+      setShowRouteOverrides(true);
+    })();
+  };
+
+  let syncAction: React.ReactNode;
+  if (state?.status === "conflict") {
+    syncAction = (
+      <Button
+        type="button"
+        size="sm"
+        variant="destructive-outline"
+        disabled={busy}
+        onClick={() => void run({ type: CONTROL_D_COMMANDS.repair })}
+      >
+        Repair managed rules
+      </Button>
+    );
+  } else if (state?.autoSyncEnabled) {
+    syncAction = (
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        disabled={busy}
+        onClick={() => void run({ type: CONTROL_D_COMMANDS.syncNow })}
+      >
+        Sync now
+      </Button>
+    );
+  }
+
   return (
-    <SettingsSectionCard
-      title={<h2 className="text-xl font-semibold">Control D</h2>}
-      description="Publish compatible regional rules to an isolated Control D profile. Synchronization is one-way."
-      headerActions={
-        <p className="text-sm text-muted-foreground" role="status">
-          {presentation}
-        </p>
-      }
-      data-control-d-state={state?.status ?? "loading"}
-    >
-      {!state?.connected ? (
-        <SettingsSubcard
-          title={<h3 className="text-sm font-semibold">Connect your account</h3>}
-          description="Use a write-enabled API key. It stays in local extension storage and is excluded from export and browser sync."
-        >
-          <div className="flex max-w-2xl flex-col gap-2 sm:flex-row">
-            <Input
-              type="password"
-              autoComplete="off"
-              value={apiKey}
-              placeholder="Control D API key"
-              aria-label="Control D API key"
-              onChange={(event) => setApiKey(event.target.value)}
-            />
-            <Button
-              type="button"
-              disabled={busy || !apiKey.trim()}
-              onClick={() => void connect()}
-            >
-              Test and connect
-            </Button>
+    <Card data-control-d-state={state?.status ?? "loading"}>
+      <CardContent className="flex flex-col gap-6 pt-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <h2 className="text-xl font-semibold">Control D</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Publish compatible regional rules to an isolated Control D profile.
+              Synchronization is one-way.
+            </p>
           </div>
-        </SettingsSubcard>
-      ) : (
-        <>
-          <SettingsSubcard
-            title={<h3 className="text-sm font-semibold">Synchronization</h3>}
-            description={syncDescription}
+          <p className="text-sm text-muted-foreground" role="status">
+            {presentation}
+          </p>
+        </div>
+        {!state?.connected ? (
+          <SettingsControlCard
+            title={settingTitle("Connect your account")}
+            description="Use a write-enabled API key. It stays in local extension storage and is excluded from export and browser sync."
           >
-            <div className="flex flex-wrap gap-2">
+            <div className="flex max-w-2xl flex-col gap-2 sm:flex-row">
+              <Input
+                type="password"
+                autoComplete="off"
+                value={apiKey}
+                placeholder="Control D API key"
+                aria-label="Control D API key"
+                onChange={(event) => setApiKey(event.target.value)}
+              />
               <Button
                 type="button"
-                size="sm"
-                variant="outline"
-                disabled={busy}
-                onClick={() => void run({ type: CONTROL_D_COMMANDS.preview })}
+                disabled={busy || !apiKey.trim()}
+                onClick={() => void connect()}
               >
-                Preview changes
+                Test and connect
               </Button>
-              {state.autoSyncEnabled ? (
-                <Button
-                  type="button"
-                  size="sm"
-                  disabled={busy}
-                  onClick={() => void run({ type: CONTROL_D_COMMANDS.syncNow })}
-                >
-                  Sync now
-                </Button>
-              ) : null}
-              {state.status === "conflict" ? (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="destructive-outline"
-                  disabled={busy}
-                  onClick={() => void run({ type: CONTROL_D_COMMANDS.repair })}
-                >
-                  Repair managed rules
-                </Button>
-              ) : null}
             </div>
-            <p className="mt-2 text-xs text-muted-foreground">
-              Last attempt: {formatTime(state.lastAttemptAt)}
-            </p>
-            {previewDescription ? (
-              <p className="mt-1 text-xs text-muted-foreground">{previewDescription}</p>
-            ) : null}
-          </SettingsSubcard>
-
-          {visibleError ? (
-            <div
-              role="status"
-              className="rounded-lg border border-tone-error-border bg-tone-error-bg px-3 py-2 text-sm text-tone-error-text"
-            >
-              {visibleError}
-            </div>
-          ) : null}
-
-          {diff?.mappings.length ? (
-            <SettingsSubcard
-              title={<h3 className="text-sm font-semibold">Regional routes</h3>}
-              description="Privacy Thing automatically chooses the nearest suitable Control D exit. Change a route only when you want an override."
-            >
-              <div className="divide-y rounded-lg border">
-                {diff.mappings.map((mapping) => {
-                  const selectedProxy = mapping.proxyPk
-                    ? proxyByPk.get(mapping.proxyPk)
-                    : undefined;
-                  const isEditing = editingLocationId === mapping.locationId;
-                  return (
-                    <ControlDRegionalRoute
-                      key={mapping.locationId}
-                      busy={busy}
-                      editing={isEditing}
-                      mapping={mapping}
-                      proxies={proxies}
-                      proxy={selectedProxy}
-                      onEditingChange={(editing) =>
-                        setEditingLocationId(editing ? mapping.locationId : null)
-                      }
-                      onMappingChange={(nextMapping, proxyPk) =>
-                        void updateMapping(nextMapping, proxyPk)
-                      }
-                    />
-                  );
-                })}
-              </div>
-            </SettingsSubcard>
-          ) : null}
-
-          {diff?.warnings.length ? (
-            <SettingsSubcard
-              title={
-                <h3 className="text-sm font-semibold">
-                  {diff.warnings.length}{" "}
-                  {diff.warnings.length === 1 ? "item needs" : "items need"} review
-                </h3>
-              }
-              description={reviewDescription(
-                mappingWarnings.length,
-                ruleWarnings.length,
-              )}
+          </SettingsControlCard>
+        ) : (
+          <>
+            <SettingsControlCard
+              title={settingTitle("Synchronization")}
+              description={syncDescription}
+              action={syncAction}
             >
               <div className="flex flex-wrap gap-2">
                 <Button
                   type="button"
                   size="sm"
-                  variant="outline"
-                  onClick={() => setWarningsExpanded((current) => !current)}
+                  variant="ghost"
+                  disabled={busy}
+                  onClick={revealRouteOverrides}
                 >
-                  {warningsExpanded ? "Hide details" : "Review details"}
+                  {showRouteOverrides
+                    ? "Hide route overrides"
+                    : "Manage route overrides"}
                 </Button>
-                {mappingWarnings.length > 0 ? (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => {
-                      const firstLocationId = mappingWarnings[0]?.locationId;
-                      if (!firstLocationId) return;
-                      setEditingLocationId(firstLocationId);
-                      window.setTimeout(() => {
-                        document
-                          .getElementById(`control-d-route-${firstLocationId}`)
-                          ?.scrollIntoView({ behavior: "smooth", block: "center" });
-                      });
-                    }}
-                  >
-                    Review routes
-                  </Button>
-                ) : null}
-                {ruleWarnings.length > 0 ? (
-                  <Button asChild size="sm" variant="ghost">
-                    <a href={`#${PAGE_ANCHORS.rules}`}>Review source rules</a>
-                  </Button>
-                ) : null}
               </div>
-              {warningsExpanded ? (
-                <ul className="mt-3 space-y-1.5 text-sm text-muted-foreground">
-                  {diff.warnings.map((warning, index) => (
+              {previewDescription ? (
+                <p className="mt-2 text-sm text-foreground">{previewDescription}</p>
+              ) : null}
+              {blockingWarnings.length > 0 ? (
+                <ul className="mt-2 space-y-1 text-xs text-tone-error-text">
+                  {blockingWarnings.map((warning, index) => (
                     <li
                       key={`${warning.code}-${warning.pattern ?? warning.locationId ?? index}`}
                     >
@@ -489,74 +422,118 @@ export const ControlDPanel = () => {
                   ))}
                 </ul>
               ) : null}
-            </SettingsSubcard>
-          ) : null}
-
-          {diff && !state.autoSyncEnabled ? (
-            <SettingsSubcard
-              title={
-                <h3 className="text-sm font-semibold">Apply first synchronization</h3>
-              }
-              description="The first write is always explicit. Later valid settings changes synchronize automatically."
-            >
-              {diff.requiresApproximationConfirmation ? (
-                <label className="flex items-start gap-2 text-sm">
-                  <Checkbox
-                    checked={confirmApproximate}
-                    onChange={(event) => setConfirmApproximate(event.target.checked)}
-                  />
-                  <span>
-                    I accept every approximate cross-country mapping shown above.
-                  </span>
-                </label>
+              {diff && !state.autoSyncEnabled ? (
+                <div className="mt-4 border-t pt-4">
+                  {diff.requiresApproximationConfirmation ? (
+                    <label className="flex items-start gap-2 text-sm text-foreground">
+                      <Checkbox
+                        checked={confirmApproximate}
+                        onChange={(event) =>
+                          setConfirmApproximate(event.target.checked)
+                        }
+                      />
+                      <span>I accept the cross-country fallback shown below.</span>
+                    </label>
+                  ) : null}
+                  <Button
+                    className={
+                      diff.requiresApproximationConfirmation ? "mt-3" : undefined
+                    }
+                    type="button"
+                    size="sm"
+                    disabled={
+                      busy ||
+                      blockingWarnings.length > 0 ||
+                      (diff.requiresApproximationConfirmation && !confirmApproximate)
+                    }
+                    onClick={() =>
+                      void run({ type: CONTROL_D_COMMANDS.apply, confirmApproximate })
+                    }
+                  >
+                    Apply synchronization
+                  </Button>
+                </div>
               ) : null}
-              <Button
-                className="mt-3"
-                type="button"
-                size="sm"
-                disabled={
-                  busy ||
-                  (diff.requiresApproximationConfirmation && !confirmApproximate)
-                }
-                onClick={() =>
-                  void run({ type: CONTROL_D_COMMANDS.apply, confirmApproximate })
+            </SettingsControlCard>
+
+            {visibleError ? (
+              <div
+                role="status"
+                className="rounded-lg border border-tone-error-border bg-tone-error-bg px-3 py-2 text-sm text-tone-error-text"
+              >
+                {visibleError}
+              </div>
+            ) : null}
+
+            {showMappingControls ? (
+              <SettingsControlCard
+                title={settingTitle(
+                  showRouteOverrides ? "Route overrides" : "Cross-country fallback",
+                )}
+                description={
+                  showRouteOverrides
+                    ? "Automatic choices are shown for reference. Change only the routes you want to override."
+                    : "Control D has no exit in the selected country. Confirm the nearest available alternative before the first synchronization."
                 }
               >
-                Apply synchronization
-              </Button>
-            </SettingsSubcard>
-          ) : null}
+                <div className="divide-y rounded-lg border">
+                  {visibleMappings.map((mapping) => {
+                    const selectedProxy = mapping.proxyPk
+                      ? proxyByPk.get(mapping.proxyPk)
+                      : undefined;
+                    const isEditing = editingLocationId === mapping.locationId;
+                    return (
+                      <ControlDRegionalRoute
+                        key={mapping.locationId}
+                        busy={busy}
+                        editing={isEditing}
+                        mapping={mapping}
+                        proxies={proxies}
+                        proxy={selectedProxy}
+                        onEditingChange={(editing) =>
+                          setEditingLocationId(editing ? mapping.locationId : null)
+                        }
+                        onMappingChange={(nextMapping, proxyPk) =>
+                          void updateMapping(nextMapping, proxyPk)
+                        }
+                      />
+                    );
+                  })}
+                </div>
+              </SettingsControlCard>
+            ) : null}
 
-          {state.resolverDoh ? <ResolverSetup resolver={state.resolverDoh} /> : null}
+            {state.resolverDoh ? <ResolverSetup resolver={state.resolverDoh} /> : null}
 
-          <Separator />
-          <SettingsSubcard
-            title={<h3 className="text-sm font-semibold">Connection</h3>}
-            description="Disconnecting forgets the API key and stops synchronization. Remote resources and browser DNS remain unchanged."
+            <Separator />
+            <SettingsControlCard
+              title={settingTitle("Connection")}
+              description="Disconnecting forgets the API key and stops synchronization. Remote resources and browser DNS remain unchanged."
+            >
+              <div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  disabled={busy}
+                  onClick={() => void run({ type: CONTROL_D_COMMANDS.disconnect })}
+                >
+                  Disconnect
+                </Button>
+              </div>
+            </SettingsControlCard>
+          </>
+        )}
+
+        {!state?.connected && visibleError ? (
+          <div
+            role="status"
+            className="rounded-lg border border-tone-error-border bg-tone-error-bg px-3 py-2 text-sm text-tone-error-text"
           >
-            <div>
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                disabled={busy}
-                onClick={() => void run({ type: CONTROL_D_COMMANDS.disconnect })}
-              >
-                Disconnect
-              </Button>
-            </div>
-          </SettingsSubcard>
-        </>
-      )}
-
-      {!state?.connected && visibleError ? (
-        <div
-          role="status"
-          className="rounded-lg border border-tone-error-border bg-tone-error-bg px-3 py-2 text-sm text-tone-error-text"
-        >
-          {visibleError}
-        </div>
-      ) : null}
-    </SettingsSectionCard>
+            {visibleError}
+          </div>
+        ) : null}
+      </CardContent>
+    </Card>
   );
 };

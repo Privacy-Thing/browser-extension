@@ -1,14 +1,36 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { registerControlD } from "./background-entry";
-import { CONTROL_D_COMMANDS } from "./contracts";
+import {
+  CONTROL_D_COMMANDS,
+  type ControlDConfig,
+  type ControlDPreparedSnapshot,
+} from "./contracts";
+import { applyControlDSync, prepareControlDSync } from "./reconcile";
 import { CONTROL_D_STORE_KEYS } from "./storage";
 
 import { logExtensionEvent } from "@/background/logger";
+import { LOCATIONS_STORAGE_KEY } from "@/background/storage/locations";
+import { RULES_STORAGE_KEY } from "@/background/storage/rules";
 
 vi.mock("@/background/logger", () => ({
   logExtensionEvent: vi.fn(),
 }));
+
+type ReconcileModule = {
+  applyControlDSync: typeof applyControlDSync;
+  prepareControlDSync: typeof prepareControlDSync;
+  [key: string]: unknown;
+};
+
+vi.mock("./reconcile", async (importOriginal) => {
+  const actual = await importOriginal<ReconcileModule>();
+  return {
+    ...actual,
+    applyControlDSync: vi.fn(actual.applyControlDSync),
+    prepareControlDSync: vi.fn(actual.prepareControlDSync),
+  };
+});
 
 type MessageListener = (
   message: unknown,
@@ -16,8 +38,14 @@ type MessageListener = (
   sendResponse: (response: unknown) => void,
 ) => boolean;
 
+type StorageListener = (
+  changes: Record<string, { newValue?: unknown; oldValue?: unknown }>,
+  areaName: string,
+) => void;
+
 const storageState: Record<string, unknown> = {};
 let messageListener: MessageListener;
+let storageListener: StorageListener;
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -43,12 +71,101 @@ beforeEach(() => {
         }),
         remove: vi.fn(async (key: string) => Reflect.deleteProperty(storageState, key)),
       },
-      onChanged: { addListener: vi.fn() },
+      onChanged: {
+        addListener: vi.fn((listener: StorageListener) => {
+          storageListener = listener;
+        }),
+      },
     },
   });
 });
 
 describe("Control D background entry", () => {
+  it("returns the same prepared snapshot after preview and synchronization", async () => {
+    const config: ControlDConfig = {
+      version: 1,
+      instanceId: "existing-instance",
+      enabled: true,
+      connected: true,
+      autoSyncEnabled: false,
+      status: "ready",
+      profileId: "profile-id",
+      endpointId: "endpoint-id",
+      resolverDoh: "https://example.test/private-resolver",
+      managedFolders: {},
+      locationMappings: {},
+      lastSyncedHash: "hash",
+      lastAttemptAt: "2026-09-10T10:00:00.000Z",
+      lastSuccessAt: "2026-09-10T10:00:00.000Z",
+      lastError: null,
+    };
+    const prepared: Awaited<ReturnType<typeof prepareControlDSync>> = {
+      compilation: { rules: [], warnings: [], mappings: {} },
+      proxies: [
+        {
+          pk: "WAW",
+          city: "Warsaw",
+          countryCode: "PL",
+          countryName: "Poland",
+          latitude: 52.23,
+          longitude: 21.01,
+        },
+      ],
+      diff: {
+        createProfile: false,
+        createEndpoint: false,
+        createFolders: 0,
+        addRules: 0,
+        updateRules: 0,
+        deleteRules: 0,
+        unchangedRules: 1,
+        warnings: [],
+        mappings: [
+          {
+            locationId: "warsaw",
+            locationLabel: "Warsaw",
+            ruleCount: 1,
+            proxyPk: "WAW",
+            status: "exact",
+            confirmed: true,
+          },
+        ],
+        requiresApproximationConfirmation: false,
+      },
+    };
+    const expectedSnapshot: ControlDPreparedSnapshot = {
+      diff: prepared.diff,
+      proxies: prepared.proxies,
+    };
+    storageState[CONTROL_D_STORE_KEYS[0]] = config;
+    storageState[CONTROL_D_STORE_KEYS[1]] = "api-key";
+    vi.mocked(prepareControlDSync)
+      .mockResolvedValueOnce(prepared)
+      .mockResolvedValueOnce(prepared);
+    vi.mocked(applyControlDSync).mockResolvedValueOnce(config);
+    registerControlD({ getDebugMode: async () => false });
+
+    const request = (type: string) =>
+      new Promise<Record<string, unknown>>((resolve) => {
+        messageListener({ type }, { id: "extension-id" }, (response) =>
+          resolve(response as Record<string, unknown>),
+        );
+      });
+
+    const previewResponse = await request(CONTROL_D_COMMANDS.preview);
+    expect(previewResponse).toMatchObject({ ok: true, snapshot: expectedSnapshot });
+    expect(previewResponse).not.toHaveProperty("diff");
+    expect(storageState[CONTROL_D_STORE_KEYS[0]]).toMatchObject({
+      lastAttemptAt: "2026-09-10T10:00:00.000Z",
+      lastError: null,
+    });
+
+    const syncResponse = await request(CONTROL_D_COMMANDS.syncNow);
+
+    expect(syncResponse).toMatchObject({ ok: true, snapshot: expectedSnapshot });
+    expect(syncResponse).not.toHaveProperty("diff");
+  });
+
   it("persists a toggle action in extension logs when debug mode comes from storage", async () => {
     registerControlD({ getDebugMode: async () => true });
 
@@ -136,5 +253,30 @@ describe("Control D background entry", () => {
       expect(timeoutSpy).toHaveBeenCalledWith(expect.any(Function), 1_500);
     });
     timeoutSpy.mockRestore();
+  });
+
+  it("debounces every saved rule or location mutation into automatic reconciliation", () => {
+    const timeoutSpy = vi.spyOn(globalThis, "setTimeout");
+    const clearTimeoutSpy = vi.spyOn(globalThis, "clearTimeout");
+    registerControlD({ getDebugMode: async () => false });
+
+    const ruleSnapshots = [
+      [{ pattern: "added.example", enabled: true }],
+      [{ pattern: "edited.example", enabled: true }],
+      [],
+    ];
+    for (const rules of ruleSnapshots) {
+      storageListener({ [RULES_STORAGE_KEY]: { newValue: rules } }, "local");
+    }
+    storageListener(
+      { [LOCATIONS_STORAGE_KEY]: { newValue: [{ id: "warsaw" }] } },
+      "local",
+    );
+
+    expect(timeoutSpy).toHaveBeenCalledTimes(4);
+    expect(timeoutSpy).toHaveBeenLastCalledWith(expect.any(Function), 1_500);
+    expect(clearTimeoutSpy).toHaveBeenCalledTimes(3);
+    timeoutSpy.mockRestore();
+    clearTimeoutSpy.mockRestore();
   });
 });

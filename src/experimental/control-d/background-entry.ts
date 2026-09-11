@@ -6,6 +6,7 @@ import {
   type ControlDCommand,
   type ControlDConfig,
   type ControlDMapping,
+  type ControlDPreparedSnapshot,
 } from "./contracts";
 import {
   applyControlDSync,
@@ -43,6 +44,11 @@ type SyncResult =
     }
   | { ok: false; failed: ControlDConfig; error: unknown }
   | null;
+
+const toPreparedSnapshot = ({
+  diff,
+  proxies,
+}: ControlDPreparedSync): ControlDPreparedSnapshot => ({ diff, proxies });
 
 const log = (
   deps: BackgroundEntryDeps,
@@ -364,14 +370,6 @@ const createController = (deps: BackgroundEntryDeps) => {
     if (command.type === CONTROL_D_COMMANDS.preview) {
       try {
         const prepared = await prepareControlDSync(createClient(apiKey), config);
-        const ready: ControlDConfig = {
-          ...config,
-          autoSyncEnabled: config.lastSyncedHash ? true : config.autoSyncEnabled,
-          status: "ready",
-          lastAttemptAt: new Date().toISOString(),
-          lastError: null,
-        };
-        await saveControlDConfig(ready);
         log(
           deps,
           "control-d.diff.ready",
@@ -386,9 +384,8 @@ const createController = (deps: BackgroundEntryDeps) => {
         );
         return {
           ok: true,
-          state: await toControlDPublicState(ready),
-          diff: prepared.diff,
-          proxies: prepared.proxies,
+          state: await toControlDPublicState(config),
+          snapshot: toPreparedSnapshot(prepared),
         };
       } catch (error) {
         const failed = await saveFailure(config, error);
@@ -436,7 +433,7 @@ const createController = (deps: BackgroundEntryDeps) => {
     return {
       ok: true,
       state: await toControlDPublicState(result.next),
-      diff: result.prepared.diff,
+      snapshot: toPreparedSnapshot(result.prepared),
     };
   };
 

@@ -26,7 +26,7 @@ const mappingDescription = (status: ControlDMapping["status"]): string => {
     return "Automatically matched to the nearest exit in the same country.";
   }
   if (status === "approximate") {
-    return "Nearest available exit. Review this route before applying.";
+    return "Nearest available exit; change it if you prefer another location.";
   }
   return "This regional profile is excluded from synchronization.";
 };
@@ -59,15 +59,15 @@ export const ControlDRegionalRoute = ({
   return (
     <div
       id={`control-d-route-${mapping.locationId}`}
-      className="grid gap-3 px-4 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+      className="flex flex-col gap-3 px-4 py-3 text-sm sm:flex-row sm:items-center"
     >
-      <div className="grid gap-3 sm:grid-cols-2 sm:items-center">
-        <div>
-          <div className="font-medium text-foreground">{label}</div>
-          <div className="mt-0.5 text-xs text-muted-foreground">
-            {ruleCountLabel(mapping.ruleCount ?? 0)}
-          </div>
+      <div className="min-w-0 sm:w-1/3">
+        <div className="font-medium text-foreground">{label}</div>
+        <div className="mt-0.5 text-xs text-muted-foreground">
+          {ruleCountLabel(mapping.ruleCount ?? 0)}
         </div>
+      </div>
+      <div className="min-w-0 flex-1">
         {editing ? (
           <Select
             value={mapping.proxyPk ?? "skip"}
@@ -97,7 +97,7 @@ export const ControlDRegionalRoute = ({
         )}
       </div>
       <Button
-        className="w-fit"
+        className="w-fit shrink-0"
         type="button"
         size="sm"
         variant="ghost"

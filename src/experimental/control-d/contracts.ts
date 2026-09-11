@@ -71,7 +71,6 @@ export type ControlDCompiledRule = {
 
 export type ControlDCompileWarning = {
   code:
-    | "exact-pattern-broadened"
     | "unsupported-pattern"
     | "missing-location"
     | "missing-country"
@@ -95,6 +94,11 @@ export type ControlDDiff = {
   requiresApproximationConfirmation: boolean;
 };
 
+export type ControlDPreparedSnapshot = {
+  diff: ControlDDiff;
+  proxies: ControlDProxyLocation[];
+};
+
 export type ControlDPublicState = {
   enabled: boolean;
   connected: boolean;
@@ -105,7 +109,6 @@ export type ControlDPublicState = {
   endpointId: string | null;
   hasResolver: boolean;
   resolverDoh: string | null;
-  locationMappings: ControlDMapping[];
   lastAttemptAt: string | null;
   lastSuccessAt: string | null;
   lastError: string | null;

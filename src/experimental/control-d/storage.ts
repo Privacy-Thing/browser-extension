@@ -108,7 +108,6 @@ export const toControlDPublicState = async (
   endpointId: config.endpointId,
   hasResolver: config.resolverDoh !== null,
   resolverDoh: config.resolverDoh,
-  locationMappings: Object.values(config.locationMappings),
   lastAttemptAt: config.lastAttemptAt,
   lastSuccessAt: config.lastSuccessAt,
   lastError: config.lastError,
