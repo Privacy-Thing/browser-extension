@@ -4,6 +4,7 @@ import {
 } from "@privacy-brand/refract-browser/common/firefox-shim-state";
 
 import { syncDynamicHeaderRules } from "@/background/dnr";
+import type { SnapshotCacheInput } from "@/background/effective-snapshot-cache";
 import { createFxRewriteHandlers } from "@/background/firefox-shared-worker-rewrite";
 import {
   restoreFxHashUrl,
@@ -32,6 +33,7 @@ import {
   saveSeenHosts,
 } from "@/background/storage/seen-hosts";
 import { clearSurfaceAccess } from "@/background/surface-access-tracker";
+import { inheritTabSnapshot } from "@/background/top-frame-snapshot";
 import { fireAndForget } from "@/shared/async";
 import { readFingerprintSource } from "@/shared/browser-fingerprint";
 import { BUILD_BROWSER_TARGET } from "@/shared/build-flags";
@@ -40,6 +42,7 @@ import type {
   ExtensionCommand,
   GlobalFallbackRule,
   ResolveSnapshotResponse,
+  RuntimeSnapshot,
 } from "@/shared/types";
 
 type RuntimeState = ReturnType<typeof createRuntimeState<PreparedRuntimeDecisions>>;
@@ -408,16 +411,18 @@ const createInjectionHandlers = () => {
   };
 };
 
-export const createRuntimeResolverCtl = (deps: ResolutionControllerDeps) => {
-  const resolveRuntimeDecision = createRuntimeResolver(deps);
-  const resolveCachedSnapshot = async (
-    hostname: string,
-    cookieStoreId?: string,
-    exactOrigin?: string,
-    options?: { trackSeenHost?: boolean },
-  ) =>
-    (await resolveRuntimeDecision(hostname, cookieStoreId, exactOrigin, options))
-      .snapshot;
+const bindSnapshotCache = (cache: {
+  set: (input: {
+    tabId: number;
+    frameId: number;
+    hostname: string;
+    decision: ResolutionDecision;
+    cookieStoreId?: string;
+  }) => void;
+  read: (input: SnapshotCacheInput) => RuntimeSnapshot | null | undefined;
+  readDecision: (input: SnapshotCacheInput) => ResolutionDecision | undefined;
+  readTopDecision: (tabId: number) => ResolutionDecision | undefined;
+}) => {
   const updateSnapshotCache = (input: {
     tabId: number;
     frameId: number;
@@ -430,7 +435,7 @@ export const createRuntimeResolverCtl = (deps: ResolutionControllerDeps) => {
       value && typeof value === "object" && "trustedSiteMatched" in value
         ? value
         : { snapshot: value, trustedSiteMatched: false };
-    deps.runtimeState.effectiveSnapshotCache.set({
+    cache.set({
       ...cacheKey,
       decision,
     });
@@ -441,7 +446,7 @@ export const createRuntimeResolverCtl = (deps: ResolutionControllerDeps) => {
     hostname: string,
     cookieStoreId?: string,
   ) =>
-    deps.runtimeState.effectiveSnapshotCache.read({
+    cache.read({
       tabId,
       frameId,
       hostname,
@@ -453,12 +458,37 @@ export const createRuntimeResolverCtl = (deps: ResolutionControllerDeps) => {
     hostname: string,
     cookieStoreId?: string,
   ) =>
-    deps.runtimeState.effectiveSnapshotCache.readDecision({
+    cache.readDecision({
       tabId,
       frameId,
       hostname,
       ...(cookieStoreId ? { cookieStoreId } : {}),
     });
+  const readTopDecision = (tabId: number) => cache.readTopDecision(tabId);
+  return {
+    updateSnapshotCache,
+    readSnapshotCache,
+    readDecisionCache,
+    readTopDecision,
+  };
+};
+
+export const createRuntimeResolverCtl = (deps: ResolutionControllerDeps) => {
+  const resolveRuntimeDecision = createRuntimeResolver(deps);
+  const resolveCachedSnapshot = async (
+    hostname: string,
+    cookieStoreId?: string,
+    exactOrigin?: string,
+    options?: { trackSeenHost?: boolean },
+  ) =>
+    (await resolveRuntimeDecision(hostname, cookieStoreId, exactOrigin, options))
+      .snapshot;
+  const {
+    updateSnapshotCache,
+    readSnapshotCache,
+    readDecisionCache,
+    readTopDecision,
+  } = bindSnapshotCache(deps.runtimeState.effectiveSnapshotCache);
   const rewriteHandlers = createFxRewriteHandlers({
     getActiveTabContexts: deps.runtimeState.getActiveTabContexts,
     getPreparedDecisions: deps.runtimeState.getPreparedDecisions,
@@ -476,26 +506,60 @@ export const createRuntimeResolverCtl = (deps: ResolutionControllerDeps) => {
     frameId?: number,
   ): Promise<ResolveSnapshotResponse> => {
     await deps.ensureStorageMigration();
-    if (tabId !== undefined && frameId !== undefined) {
-      const cached = readDecisionCache(tabId, frameId, message.hostname, cookieStoreId);
-      if (cached !== undefined) {
-        deps.logResolverEvent(
-          deps.runtimeState.getLastKnownDebugMode() ?? false,
-          "resolver.snapshot-cache-hit",
-          {
-            hostname: message.hostname,
-            tabId,
-            details: {
-              frameId,
-              cookieStoreId: cookieStoreId ?? null,
-              resolved: cached.snapshot !== null,
-              blockServiceWorkerRegistration:
-                cached.snapshot?.blockServiceWorkerRegistration ?? false,
-            },
+    if (tabId === undefined || frameId === undefined) {
+      return {
+        ok: true,
+        snapshot: await resolveCachedSnapshot(message.hostname, cookieStoreId),
+      };
+    }
+    const cached = readDecisionCache(tabId, frameId, message.hostname, cookieStoreId);
+    if (cached !== undefined) {
+      deps.logResolverEvent(
+        deps.runtimeState.getLastKnownDebugMode() ?? false,
+        "resolver.snapshot-cache-hit",
+        {
+          hostname: message.hostname,
+          tabId,
+          details: {
+            frameId,
+            cookieStoreId: cookieStoreId ?? null,
+            resolved: cached.snapshot !== null,
+            blockServiceWorkerRegistration:
+              cached.snapshot?.blockServiceWorkerRegistration ?? false,
           },
-        );
-        return { ok: true, snapshot: cached.snapshot };
-      }
+        },
+      );
+      return { ok: true, snapshot: cached.snapshot };
+    }
+    const tabHostname = deps.runtimeState
+      .getActiveTabContexts()
+      .find((context) => context.tabId === tabId)?.hostname;
+    const inherited = await inheritTabSnapshot({
+      tabId,
+      frameId,
+      hostname: message.hostname,
+      readTop: readTopDecision,
+      resolveHost: (hostname) => resolveRuntimeDecision(hostname, cookieStoreId),
+      writeCache: updateSnapshotCache,
+      ...(cookieStoreId ? { cookieStoreId } : {}),
+      ...(tabHostname ? { tabHostname } : {}),
+    });
+    if (inherited) {
+      deps.logResolverEvent(
+        deps.runtimeState.getLastKnownDebugMode() ?? false,
+        "resolver.top-frame-inherit",
+        {
+          hostname: message.hostname,
+          tabId,
+          details: {
+            frameId,
+            cookieStoreId: cookieStoreId ?? null,
+            resolved: inherited.snapshot !== null,
+            ...(tabHostname ? { topHostname: tabHostname } : {}),
+          },
+        },
+      );
+      return { ok: true, snapshot: inherited.snapshot };
     }
     return {
       ok: true,
@@ -512,6 +576,7 @@ export const createRuntimeResolverCtl = (deps: ResolutionControllerDeps) => {
     },
     readSnapshotCache,
     readDecisionCache,
+    readTopDecision,
     ...rewriteHandlers,
     removeTabSnapshots: (tabId: number): void => {
       deps.clearBadgeRefreshTimer(tabId);

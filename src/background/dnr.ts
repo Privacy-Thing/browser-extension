@@ -76,6 +76,12 @@ const CSP_RESOURCE_TYPES = [
   "sub_frame",
 ] as chrome.declarativeNetRequest.ResourceType[];
 const toTabRuleId = (tabId: number): number => TAB_RULE_ID_BASE + tabId;
+const buildTabHeaderCondition = (
+  tabId: number,
+): DynamicHeaderRule["condition"] => ({
+  tabIds: [tabId],
+  resourceTypes: RESOURCE_TYPES,
+});
 const RULE_PRIORITY_BASE = 100;
 const MAX_HOST_PATTERN_LENGTH = 253;
 const RULE_WILDCARD_RANGE = MAX_HOST_PATTERN_LENGTH + 1;
@@ -375,6 +381,8 @@ const getDomainRulePriority = (pattern: string): number => {
 /**
  * Builds per-tab DNR header rules from the same runtime snapshot used by page
  * injection, keeping network Client Hints aligned with JS-visible values.
+ * Tab rules are scoped only by `tabIds` so subframe requests share the top
+ * frame's Accept-Language and client hints.
  */
 export type HeaderRuleInput = {
   contexts: readonly EffectiveTabContext[];
@@ -447,11 +455,7 @@ export const buildHeaderRules = ({
         type: MODIFY_HEADERS,
         requestHeaders,
       },
-      condition: {
-        tabIds: [context.tabId],
-        requestDomains: [context.hostname],
-        resourceTypes: RESOURCE_TYPES,
-      },
+      condition: buildTabHeaderCondition(context.tabId),
     });
   }
 
@@ -478,11 +482,7 @@ export const buildSnapshotHeaderRule = (
       type: MODIFY_HEADERS,
       requestHeaders,
     },
-    condition: {
-      tabIds: [context.tabId],
-      requestDomains: [context.hostname],
-      resourceTypes: RESOURCE_TYPES,
-    },
+    condition: buildTabHeaderCondition(context.tabId),
   };
 };
 

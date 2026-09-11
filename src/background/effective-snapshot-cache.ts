@@ -83,6 +83,22 @@ export const createSnapshotCache = (ttlMs = SNAPSHOT_CACHE_TTL_MS) => {
   const readEntry = (tabId: number, frameId: number): SnapshotCacheEntry | undefined =>
     entries.get(getSnapshotCacheKey(tabId, frameId));
 
+  const readTopDecision = (
+    tabId: number,
+    now = Date.now(),
+  ): ResolutionDecision | undefined => {
+    const key = getSnapshotCacheKey(tabId, 0);
+    const entry = entries.get(key);
+    if (!entry) {
+      return undefined;
+    }
+    if (now - entry.cachedAt > ttlMs) {
+      entries.delete(key);
+      return undefined;
+    }
+    return entry.decision;
+  };
+
   const removeTab = (tabId: number): void => {
     for (const key of entries.keys()) {
       if (key.startsWith(`${tabId}:`)) {
@@ -96,6 +112,7 @@ export const createSnapshotCache = (ttlMs = SNAPSHOT_CACHE_TTL_MS) => {
     read,
     readDecision,
     readEntry,
+    readTopDecision,
     removeTab,
     set,
   };

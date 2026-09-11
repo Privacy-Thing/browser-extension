@@ -207,6 +207,7 @@ describe("buildHeaderRules", () => {
 
     expect(result).toHaveLength(1);
     expect(result[0]?.condition.tabIds).toEqual([7]);
+    expect(result[0]?.condition.requestDomains).toBeUndefined();
     expect(result[0]?.action.requestHeaders).toEqual(expectedLocaleHeaders("pl"));
   });
 
@@ -237,6 +238,7 @@ describe("buildHeaderRules", () => {
     );
 
     expect(result?.condition.tabIds).toEqual([7]);
+    expect(result?.condition.requestDomains).toBeUndefined();
     expect(result?.action.requestHeaders).toEqual([
       {
         header: "Accept-Language",

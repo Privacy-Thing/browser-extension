@@ -47,6 +47,7 @@ const makeDeps = (overrides: Partial<NavigationDeps> = {}): NavigationDeps => ({
   getExactHostname: vi.fn().mockImplementation((url: string) => new URL(url).hostname),
   resolveRuntimeDecision: vi.fn().mockResolvedValue(berlinDecision),
   readDecisionCache: vi.fn(),
+  readTopDecision: vi.fn(),
   cacheDecision: vi.fn(),
   injectFirefoxState: vi.fn().mockResolvedValue(undefined),
   seedChromiumSnapshot: vi.fn().mockResolvedValue(undefined),
@@ -152,7 +153,7 @@ describe("registerNavListeners — per-frame resolution", () => {
   });
 
   it.runIf(BUILD_BROWSER_TARGET === "chromium")(
-    "does not fetch tab state for Chromium committed frames",
+    "does not fetch tab state for Chromium committed top frames",
     async () => {
       const getPopupTabById = vi.fn().mockResolvedValue({ cookieStoreId: "ignored" });
       const deps = makeDeps({ getPopupTabById });
@@ -160,19 +161,24 @@ describe("registerNavListeners — per-frame resolution", () => {
 
       await fire(committedListeners, {
         tabId: 1,
-        frameId: 2,
-        url: "https://frame.example/",
+        frameId: 0,
+        url: "https://publer.com/",
       });
 
       expect(getPopupTabById).not.toHaveBeenCalled();
     },
   );
 
-  it("resolves a cross-origin subframe instead of inheriting the top-frame decision", async () => {
+  it("inherits the cached top-frame decision onto a cross-origin subframe", async () => {
     const resolveRuntimeDecision = vi.fn().mockResolvedValue(berlinDecision);
     const cacheDecision = vi.fn();
+    const readTopDecision = vi.fn().mockReturnValue(londonDecision);
 
-    const deps = makeDeps({ resolveRuntimeDecision, cacheDecision });
+    const deps = makeDeps({
+      resolveRuntimeDecision,
+      cacheDecision,
+      readTopDecision,
+    });
     registerNavListeners(deps);
 
     await fire(committedListeners, {
@@ -181,16 +187,38 @@ describe("registerNavListeners — per-frame resolution", () => {
       url: "https://challenges.cloudflare.com/cdn-cgi/challenge-platform/h/g/turnstile",
     });
 
-    expect(resolveRuntimeDecision).toHaveBeenCalledWith(
-      "challenges.cloudflare.com",
-      undefined,
-      "https://challenges.cloudflare.com/cdn-cgi/challenge-platform/h/g/turnstile",
-    );
+    expect(resolveRuntimeDecision).not.toHaveBeenCalled();
     expect(cacheDecision).toHaveBeenCalledWith({
       tabId: 1,
       frameId: 2,
       hostname: "challenges.cloudflare.com",
-      value: berlinDecision,
+      value: londonDecision,
+    });
+  });
+
+  it("inherits the top-frame decision onto any subframe host", async () => {
+    const resolveRuntimeDecision = vi.fn().mockResolvedValue(berlinDecision);
+    const cacheDecision = vi.fn();
+    const readTopDecision = vi.fn().mockReturnValue(londonDecision);
+
+    const deps = makeDeps({
+      resolveRuntimeDecision,
+      cacheDecision,
+      readTopDecision,
+    });
+    registerNavListeners(deps);
+
+    await fire(committedListeners, {
+      tabId: 1,
+      frameId: 2,
+      url: "https://cdn.example.net/pixel",
+    });
+
+    expect(cacheDecision).toHaveBeenCalledWith({
+      tabId: 1,
+      frameId: 2,
+      hostname: "cdn.example.net",
+      value: londonDecision,
     });
   });
 
@@ -209,11 +237,32 @@ describe("registerNavListeners — per-frame resolution", () => {
     expect(injectSnapshot).toHaveBeenCalledWith(1, 2, berlinDecision, "document-a");
   });
 
+  it.runIf(BUILD_BROWSER_TARGET === "chromium")(
+    "does not fetch tab state for a subframe when the top snapshot is cached",
+    async () => {
+      const getPopupTabById = vi.fn().mockResolvedValue({ cookieStoreId: "ignored" });
+      const deps = makeDeps({
+        getPopupTabById,
+        readTopDecision: vi.fn().mockReturnValue(londonDecision),
+      });
+      registerNavListeners(deps);
+
+      await fire(committedListeners, {
+        tabId: 1,
+        frameId: 2,
+        url: "https://frame.example/",
+      });
+
+      expect(getPopupTabById).not.toHaveBeenCalled();
+    },
+  );
+
   it("does not cross tab boundaries when resolving a subframe", async () => {
     const resolveRuntimeDecision = vi.fn().mockResolvedValue(berlinDecision);
     const cacheDecision = vi.fn();
+    const readTopDecision = vi.fn().mockReturnValue(undefined);
 
-    const deps = makeDeps({ resolveRuntimeDecision, cacheDecision });
+    const deps = makeDeps({ resolveRuntimeDecision, cacheDecision, readTopDecision });
     registerNavListeners(deps);
 
     await fire(committedListeners, {
@@ -222,6 +271,7 @@ describe("registerNavListeners — per-frame resolution", () => {
       url: "https://challenges.cloudflare.com/",
     });
 
+    expect(readTopDecision).toHaveBeenCalledWith(2);
     expect(resolveRuntimeDecision).toHaveBeenCalledWith(
       "challenges.cloudflare.com",
       undefined,
@@ -235,11 +285,56 @@ describe("registerNavListeners — per-frame resolution", () => {
     });
   });
 
-  it("resolves a subframe during onBeforeNavigate", async () => {
-    const resolveRuntimeDecision = vi.fn().mockResolvedValue(londonDecision);
+  it("seeds the top snapshot from the tab URL when the top cache is empty", async () => {
+    const resolveRuntimeDecision = vi.fn().mockImplementation((hostname: string) =>
+      hostname === "publer.com" ? londonDecision : berlinDecision,
+    );
+    const cacheDecision = vi.fn();
+    const getPopupTabById = vi.fn().mockResolvedValue({
+      url: "https://publer.com/dashboard",
+    });
+
+    const deps = makeDeps({
+      resolveRuntimeDecision,
+      cacheDecision,
+      getPopupTabById,
+    });
+    registerNavListeners(deps);
+
+    await fire(committedListeners, {
+      tabId: 1,
+      frameId: 2,
+      url: "https://cdn.example.net/pixel",
+    });
+
+    expect(resolveRuntimeDecision).toHaveBeenCalledWith(
+      "publer.com",
+      undefined,
+      "https://publer.com/dashboard",
+    );
+    expect(cacheDecision).toHaveBeenCalledWith({
+      tabId: 1,
+      frameId: 0,
+      hostname: "publer.com",
+      value: londonDecision,
+    });
+    expect(cacheDecision).toHaveBeenCalledWith({
+      tabId: 1,
+      frameId: 2,
+      hostname: "cdn.example.net",
+      value: londonDecision,
+    });
+  });
+
+  it("inherits the cached top-frame decision during onBeforeNavigate", async () => {
+    const resolveRuntimeDecision = vi.fn().mockResolvedValue(berlinDecision);
     const cacheDecision = vi.fn();
 
-    const deps = makeDeps({ resolveRuntimeDecision, cacheDecision });
+    const deps = makeDeps({
+      resolveRuntimeDecision,
+      cacheDecision,
+      readTopDecision: vi.fn().mockReturnValue(londonDecision),
+    });
     registerNavListeners(deps);
 
     await fire(beforeNavigateListeners, {
@@ -248,11 +343,7 @@ describe("registerNavListeners — per-frame resolution", () => {
       url: "https://challenges.cloudflare.com/",
     });
 
-    expect(resolveRuntimeDecision).toHaveBeenCalledWith(
-      "challenges.cloudflare.com",
-      undefined,
-      "https://challenges.cloudflare.com/",
-    );
+    expect(resolveRuntimeDecision).not.toHaveBeenCalled();
     expect(cacheDecision).toHaveBeenCalledWith({
       tabId: 1,
       frameId: 5,
