@@ -11,7 +11,8 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 - Experimental: every subframe in a tab now uses the top-frame runtime snapshot
   (locale, timezone, fingerprint, geolocation) so iframe and worker realms do
   not diverge from the page. Per-tab header rules apply to all requests in that
-  tab, not only the top hostname.
+  tab, including Trusted Site iframe hosts, and outrank Trusted Site allow
+  rules. Domain fencing session rules still apply only to the top-frame host.
 
 ### Fixed
 

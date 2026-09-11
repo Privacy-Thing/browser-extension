@@ -4,7 +4,10 @@ import {
 } from "@privacy-brand/refract-browser/common/firefox-shim-state";
 
 import { syncDynamicHeaderRules } from "@/background/dnr";
-import type { SnapshotCacheInput } from "@/background/effective-snapshot-cache";
+import type {
+  SnapshotCacheEntry,
+  SnapshotCacheInput,
+} from "@/background/effective-snapshot-cache";
 import { createFxRewriteHandlers } from "@/background/firefox-shared-worker-rewrite";
 import {
   restoreFxHashUrl,
@@ -422,6 +425,7 @@ const bindSnapshotCache = (cache: {
   read: (input: SnapshotCacheInput) => RuntimeSnapshot | null | undefined;
   readDecision: (input: SnapshotCacheInput) => ResolutionDecision | undefined;
   readTopDecision: (tabId: number) => ResolutionDecision | undefined;
+  readTopEntry: (tabId: number) => SnapshotCacheEntry | undefined;
 }) => {
   const updateSnapshotCache = (input: {
     tabId: number;
@@ -465,11 +469,23 @@ const bindSnapshotCache = (cache: {
       ...(cookieStoreId ? { cookieStoreId } : {}),
     });
   const readTopDecision = (tabId: number) => cache.readTopDecision(tabId);
+  const readTopEntry = (tabId: number) => {
+    const entry = cache.readTopEntry(tabId);
+    if (!entry) {
+      return undefined;
+    }
+    return {
+      hostname: entry.hostname,
+      decision: entry.decision,
+      ...(entry.cookieStoreId ? { cookieStoreId: entry.cookieStoreId } : {}),
+    };
+  };
   return {
     updateSnapshotCache,
     readSnapshotCache,
     readDecisionCache,
     readTopDecision,
+    readTopEntry,
   };
 };
 
@@ -488,6 +504,7 @@ export const createRuntimeResolverCtl = (deps: ResolutionControllerDeps) => {
     readSnapshotCache,
     readDecisionCache,
     readTopDecision,
+    readTopEntry,
   } = bindSnapshotCache(deps.runtimeState.effectiveSnapshotCache);
   const rewriteHandlers = createFxRewriteHandlers({
     getActiveTabContexts: deps.runtimeState.getActiveTabContexts,
@@ -531,18 +548,13 @@ export const createRuntimeResolverCtl = (deps: ResolutionControllerDeps) => {
       );
       return { ok: true, snapshot: cached.snapshot };
     }
-    const tabHostname = deps.runtimeState
-      .getActiveTabContexts()
-      .find((context) => context.tabId === tabId)?.hostname;
-    const inherited = await inheritTabSnapshot({
+    const inherited = inheritTabSnapshot({
       tabId,
       frameId,
       hostname: message.hostname,
       readTop: readTopDecision,
-      resolveHost: (hostname) => resolveRuntimeDecision(hostname, cookieStoreId),
       writeCache: updateSnapshotCache,
       ...(cookieStoreId ? { cookieStoreId } : {}),
-      ...(tabHostname ? { tabHostname } : {}),
     });
     if (inherited) {
       deps.logResolverEvent(
@@ -555,7 +567,6 @@ export const createRuntimeResolverCtl = (deps: ResolutionControllerDeps) => {
             frameId,
             cookieStoreId: cookieStoreId ?? null,
             resolved: inherited.snapshot !== null,
-            ...(tabHostname ? { topHostname: tabHostname } : {}),
           },
         },
       );
@@ -577,6 +588,7 @@ export const createRuntimeResolverCtl = (deps: ResolutionControllerDeps) => {
     readSnapshotCache,
     readDecisionCache,
     readTopDecision,
+    readTopEntry,
     ...rewriteHandlers,
     removeTabSnapshots: (tabId: number): void => {
       deps.clearBadgeRefreshTimer(tabId);

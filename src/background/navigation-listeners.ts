@@ -1,7 +1,4 @@
-import {
-  isHttpUrl,
-  resolveTopFrameDecision,
-} from "@/background/top-frame-snapshot";
+import { isHttpUrl, resolveTopFrameDecision } from "@/background/top-frame-snapshot";
 import { BUILD_BROWSER_TARGET } from "@/shared/build-flags";
 import type { ResolveSnapshotResponse } from "@/shared/types";
 
@@ -33,13 +30,20 @@ export type NavigationDeps = {
     cookieStoreId?: string,
     exactOrigin?: string,
   ) => Promise<RuntimeDecision>;
+  invalidateTabSnapshots: (tabId: number) => void;
   readDecisionCache: (
     tabId: number,
     frameId: number,
     hostname: string,
     cookieStoreId?: string,
   ) => RuntimeDecision | undefined;
-  readTopDecision: (tabId: number) => RuntimeDecision | undefined;
+  readTopEntry: (tabId: number) =>
+    | {
+        hostname: string;
+        decision: RuntimeDecision;
+        cookieStoreId?: string;
+      }
+    | undefined;
   cacheDecision: (input: {
     tabId: number;
     frameId: number;
@@ -128,6 +132,26 @@ const registerFirefoxRequest = (deps: NavigationDeps): void => {
   });
 };
 
+const withCookieStore = <T extends object>(
+  value: T,
+  cookieStoreId: string | undefined,
+): T & { cookieStoreId?: string } =>
+  cookieStoreId ? { ...value, cookieStoreId } : value;
+
+const syncTopFenceRule = (
+  deps: NavigationDeps,
+  frameId: number,
+  hostname: string,
+  decision: RuntimeDecision,
+): Promise<void> =>
+  frameId === 0
+    ? (deps.syncFenceDnrRule?.(
+        hostname,
+        decision.snapshot,
+        decision.fencesIdentity === true,
+      ) ?? Promise.resolve())
+    : Promise.resolve();
+
 const resolveNavDecision = async (
   deps: NavigationDeps,
   details: { tabId: number; frameId: number; url: string },
@@ -139,9 +163,12 @@ const resolveNavDecision = async (
   const hostname = deps.getExactHostname(details.url);
 
   if (details.frameId !== 0) {
-    const cachedTop = deps.readTopDecision(details.tabId);
+    const cachedTop = deps.readTopEntry(details.tabId);
     if (cachedTop !== undefined) {
-      return { hostname, decision: cachedTop };
+      return withCookieStore(
+        { hostname, decision: cachedTop.decision },
+        cachedTop.cookieStoreId,
+      );
     }
   }
 
@@ -156,42 +183,32 @@ const resolveNavDecision = async (
       snapshot: null,
       trustedSiteMatched: false,
     },
-    readTop: () => deps.readTopDecision(details.tabId),
+    readTop: () => deps.readTopEntry(details.tabId)?.decision,
     resolveTopFromTab: async () => {
       const topUrl = activeTab?.url;
       if (details.frameId === 0 || !isHttpUrl(topUrl)) {
         return null;
       }
       const topHost = deps.getExactHostname(topUrl);
-      return {
-        hostname: topHost,
-        decision: await deps.resolveRuntimeDecision(
-          topHost,
-          activeTab?.cookieStoreId,
-          topUrl,
-        ),
-        ...(activeTab?.cookieStoreId ? { cookieStoreId: activeTab.cookieStoreId } : {}),
-      };
+      return withCookieStore(
+        {
+          hostname: topHost,
+          decision: await deps.resolveRuntimeDecision(
+            topHost,
+            activeTab?.cookieStoreId,
+            topUrl,
+          ),
+        },
+        activeTab?.cookieStoreId,
+      );
     },
   });
 
   if (resolved.inherited) {
-    if (resolved.seededTop) {
-      deps.cacheDecision({
-        tabId: details.tabId,
-        frameId: 0,
-        hostname: resolved.seededTop.hostname,
-        value: resolved.decision,
-        ...(resolved.seededTop.cookieStoreId
-          ? { cookieStoreId: resolved.seededTop.cookieStoreId }
-          : {}),
-      });
-    }
-    return {
-      hostname,
-      decision: resolved.decision,
-      ...(activeTab?.cookieStoreId ? { cookieStoreId: activeTab.cookieStoreId } : {}),
-    };
+    return withCookieStore(
+      { hostname, decision: resolved.decision },
+      resolved.seededTop?.cookieStoreId ?? activeTab?.cookieStoreId,
+    );
   }
 
   const decision = await deps.resolveRuntimeDecision(
@@ -199,11 +216,7 @@ const resolveNavDecision = async (
     activeTab?.cookieStoreId,
     details.url,
   );
-  return {
-    hostname,
-    decision,
-    ...(activeTab?.cookieStoreId ? { cookieStoreId: activeTab.cookieStoreId } : {}),
-  };
+  return withCookieStore({ hostname, decision }, activeTab?.cookieStoreId);
 };
 
 const registerBeforeNavigate = (deps: NavigationDeps): void => {
@@ -220,9 +233,11 @@ const registerBeforeNavigate = (deps: NavigationDeps): void => {
     }
 
     // Clear stale page-activity data before the new page loads so the sidebar
-    // never shows categories from the previous navigation.
+    // never shows categories from the previous navigation. Drop the tab snapshot
+    // cache in the same turn so a subframe cannot inherit the previous site.
     if (details.frameId === 0) {
       deps.clearSurfaceAccess(details.tabId);
+      deps.invalidateTabSnapshots(details.tabId);
     }
 
     const hostname = deps.getExactHostname(details.url);
@@ -232,26 +247,27 @@ const registerBeforeNavigate = (deps: NavigationDeps): void => {
         details.frameId,
         hostname,
       );
-      const cachedDecision =
-        frameCached ??
-        (details.frameId !== 0 ? deps.readTopDecision(details.tabId) : undefined);
+      const cachedTop =
+        details.frameId !== 0 ? deps.readTopEntry(details.tabId) : undefined;
+      const cachedDecision = frameCached ?? cachedTop?.decision;
       if (cachedDecision !== undefined) {
         if (details.frameId !== 0 && frameCached === undefined) {
-          deps.cacheDecision({
-            tabId: details.tabId,
-            frameId: details.frameId,
-            hostname,
-            value: cachedDecision,
-          });
+          deps.cacheDecision(
+            withCookieStore(
+              {
+                tabId: details.tabId,
+                frameId: details.frameId,
+                hostname,
+                value: cachedDecision,
+              },
+              cachedTop?.cookieStoreId,
+            ),
+          );
         }
         deps
           .seedChromiumSnapshot(details.tabId, details.frameId, cachedDecision)
           .catch(() => undefined);
-        void deps.syncFenceDnrRule?.(
-          hostname,
-          cachedDecision.snapshot,
-          cachedDecision.fencesIdentity === true,
-        );
+        void syncTopFenceRule(deps, details.frameId, hostname, cachedDecision);
         return;
       }
     }
@@ -264,8 +280,11 @@ const registerBeforeNavigate = (deps: NavigationDeps): void => {
       // with the new document's first inline reads — skip it so the seed lands in
       // time and becomes the primary (artifact-free) bootstrap channel. Subframes
       // may still look up the tab when the top-frame snapshot is not cached yet.
-      const { hostname: resolvedHost, decision, cookieStoreId } =
-        await resolveNavDecision(deps, details);
+      const {
+        hostname: resolvedHost,
+        decision,
+        cookieStoreId,
+      } = await resolveNavDecision(deps, details);
 
       deps.cacheDecision({
         tabId: details.tabId,
@@ -290,11 +309,7 @@ const registerBeforeNavigate = (deps: NavigationDeps): void => {
 
       await Promise.all([
         deps.seedChromiumSnapshot(details.tabId, details.frameId, decision),
-        deps.syncFenceDnrRule?.(
-          resolvedHost,
-          decision.snapshot,
-          decision.fencesIdentity === true,
-        ) ?? Promise.resolve(),
+        syncTopFenceRule(deps, details.frameId, resolvedHost, decision),
       ]);
     })();
   });

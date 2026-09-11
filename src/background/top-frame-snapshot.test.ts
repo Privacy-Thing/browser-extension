@@ -116,14 +116,13 @@ describe("resolveTopFrameDecision", () => {
 });
 
 describe("inheritTabSnapshot", () => {
-  it("returns null for the top frame", async () => {
+  it("returns null for the top frame", () => {
     const writeCache = vi.fn();
-    const result = await inheritTabSnapshot({
+    const result = inheritTabSnapshot({
       tabId: 1,
       frameId: 0,
       hostname: "publer.com",
       readTop: () => london,
-      resolveHost: async () => berlin,
       writeCache,
     });
 
@@ -131,14 +130,13 @@ describe("inheritTabSnapshot", () => {
     expect(writeCache).not.toHaveBeenCalled();
   });
 
-  it("copies a cached top decision onto the subframe", async () => {
+  it("copies a cached top decision onto the subframe", () => {
     const writeCache = vi.fn();
-    const result = await inheritTabSnapshot({
+    const result = inheritTabSnapshot({
       tabId: 1,
       frameId: 4,
       hostname: "cdn.example.net",
       readTop: () => london,
-      resolveHost: async () => berlin,
       writeCache,
     });
 
@@ -149,5 +147,19 @@ describe("inheritTabSnapshot", () => {
       hostname: "cdn.example.net",
       value: london,
     });
+  });
+
+  it("does not seed frame 0 from an unconfirmed tab hostname", () => {
+    const writeCache = vi.fn();
+    const result = inheritTabSnapshot({
+      tabId: 1,
+      frameId: 4,
+      hostname: "cdn.example.net",
+      readTop: () => undefined,
+      writeCache,
+    });
+
+    expect(result).toBeNull();
+    expect(writeCache).not.toHaveBeenCalled();
   });
 });

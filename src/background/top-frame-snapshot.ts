@@ -22,8 +22,7 @@ export const pickTopFrameDecision = (
 };
 
 const isHttpUrl = (url: string | undefined): url is string =>
-  typeof url === "string" &&
-  (url.startsWith("https://") || url.startsWith("http://"));
+  typeof url === "string" && (url.startsWith("https://") || url.startsWith("http://"));
 
 export const resolveTopFrameDecision = async (input: {
   frameId: number;
@@ -66,14 +65,12 @@ export const resolveTopFrameDecision = async (input: {
   return { decision: input.ownDecision, inherited: false };
 };
 
-export const inheritTabSnapshot = async (input: {
+export const inheritTabSnapshot = (input: {
   tabId: number;
   frameId: number;
   hostname: string;
   cookieStoreId?: string;
   readTop: (tabId: number) => TopFrameDecision | undefined;
-  tabHostname?: string;
-  resolveHost: (hostname: string) => Promise<TopFrameDecision>;
   writeCache: (input: {
     tabId: number;
     frameId: number;
@@ -81,40 +78,22 @@ export const inheritTabSnapshot = async (input: {
     value: TopFrameDecision;
     cookieStoreId?: string;
   }) => void;
-}): Promise<TopFrameDecision | null> => {
+}): TopFrameDecision | null => {
   if (input.frameId === 0) {
     return null;
   }
   const cachedTop = input.readTop(input.tabId);
-  if (cachedTop) {
-    input.writeCache({
-      tabId: input.tabId,
-      frameId: input.frameId,
-      hostname: input.hostname,
-      value: cachedTop,
-      ...(input.cookieStoreId ? { cookieStoreId: input.cookieStoreId } : {}),
-    });
-    return cachedTop;
-  }
-  if (!input.tabHostname) {
+  if (!cachedTop) {
     return null;
   }
-  const inherited = await input.resolveHost(input.tabHostname);
-  input.writeCache({
-    tabId: input.tabId,
-    frameId: 0,
-    hostname: input.tabHostname,
-    value: inherited,
-    ...(input.cookieStoreId ? { cookieStoreId: input.cookieStoreId } : {}),
-  });
   input.writeCache({
     tabId: input.tabId,
     frameId: input.frameId,
     hostname: input.hostname,
-    value: inherited,
+    value: cachedTop,
     ...(input.cookieStoreId ? { cookieStoreId: input.cookieStoreId } : {}),
   });
-  return inherited;
+  return cachedTop;
 };
 
 export { isHttpUrl };

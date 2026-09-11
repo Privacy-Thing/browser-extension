@@ -149,6 +149,12 @@ describe("createSnapshotCache", () => {
     });
 
     expect(cache.readTopDecision(1, 200)).toEqual(decision);
+    expect(cache.readTopEntry(1, 200)).toEqual(
+      expect.objectContaining({
+        hostname: "publer.com",
+        decision,
+      }),
+    );
   });
 
   it("expires the top-frame decision on the same TTL as other entries", () => {
@@ -163,6 +169,7 @@ describe("createSnapshotCache", () => {
     });
 
     expect(cache.readTopDecision(1, 100 + SNAPSHOT_CACHE_TTL_MS + 1)).toBeUndefined();
+    expect(cache.readTopEntry(1, 100 + SNAPSHOT_CACHE_TTL_MS + 1)).toBeUndefined();
   });
 
   it("removes every frame entry for a tab", () => {

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { createSnapshotCache } from "@/background/effective-snapshot-cache";
 import {
   registerNavListeners,
   type NavigationDeps,
@@ -38,6 +39,10 @@ const londonSnapshot = makeSnapshot("en-GB");
 const berlinSnapshot = makeSnapshot("de-DE");
 const londonDecision = { snapshot: londonSnapshot, trustedSiteMatched: false };
 const berlinDecision = { snapshot: berlinSnapshot, trustedSiteMatched: false };
+const londonTop = {
+  hostname: "publer.com",
+  decision: londonDecision,
+};
 
 const makeDeps = (overrides: Partial<NavigationDeps> = {}): NavigationDeps => ({
   listenFirefoxRequest: vi.fn(),
@@ -46,8 +51,9 @@ const makeDeps = (overrides: Partial<NavigationDeps> = {}): NavigationDeps => ({
   getPopupTabById: vi.fn().mockResolvedValue(undefined),
   getExactHostname: vi.fn().mockImplementation((url: string) => new URL(url).hostname),
   resolveRuntimeDecision: vi.fn().mockResolvedValue(berlinDecision),
+  invalidateTabSnapshots: vi.fn(),
   readDecisionCache: vi.fn(),
-  readTopDecision: vi.fn(),
+  readTopEntry: vi.fn(),
   cacheDecision: vi.fn(),
   injectFirefoxState: vi.fn().mockResolvedValue(undefined),
   seedChromiumSnapshot: vi.fn().mockResolvedValue(undefined),
@@ -172,12 +178,12 @@ describe("registerNavListeners — per-frame resolution", () => {
   it("inherits the cached top-frame decision onto a cross-origin subframe", async () => {
     const resolveRuntimeDecision = vi.fn().mockResolvedValue(berlinDecision);
     const cacheDecision = vi.fn();
-    const readTopDecision = vi.fn().mockReturnValue(londonDecision);
+    const readTopEntry = vi.fn().mockReturnValue(londonTop);
 
     const deps = makeDeps({
       resolveRuntimeDecision,
       cacheDecision,
-      readTopDecision,
+      readTopEntry,
     });
     registerNavListeners(deps);
 
@@ -199,12 +205,12 @@ describe("registerNavListeners — per-frame resolution", () => {
   it("inherits the top-frame decision onto any subframe host", async () => {
     const resolveRuntimeDecision = vi.fn().mockResolvedValue(berlinDecision);
     const cacheDecision = vi.fn();
-    const readTopDecision = vi.fn().mockReturnValue(londonDecision);
+    const readTopEntry = vi.fn().mockReturnValue(londonTop);
 
     const deps = makeDeps({
       resolveRuntimeDecision,
       cacheDecision,
-      readTopDecision,
+      readTopEntry,
     });
     registerNavListeners(deps);
 
@@ -243,7 +249,7 @@ describe("registerNavListeners — per-frame resolution", () => {
       const getPopupTabById = vi.fn().mockResolvedValue({ cookieStoreId: "ignored" });
       const deps = makeDeps({
         getPopupTabById,
-        readTopDecision: vi.fn().mockReturnValue(londonDecision),
+        readTopEntry: vi.fn().mockReturnValue(londonTop),
       });
       registerNavListeners(deps);
 
@@ -260,9 +266,9 @@ describe("registerNavListeners — per-frame resolution", () => {
   it("does not cross tab boundaries when resolving a subframe", async () => {
     const resolveRuntimeDecision = vi.fn().mockResolvedValue(berlinDecision);
     const cacheDecision = vi.fn();
-    const readTopDecision = vi.fn().mockReturnValue(undefined);
+    const readTopEntry = vi.fn().mockReturnValue(undefined);
 
-    const deps = makeDeps({ resolveRuntimeDecision, cacheDecision, readTopDecision });
+    const deps = makeDeps({ resolveRuntimeDecision, cacheDecision, readTopEntry });
     registerNavListeners(deps);
 
     await fire(committedListeners, {
@@ -271,7 +277,7 @@ describe("registerNavListeners — per-frame resolution", () => {
       url: "https://challenges.cloudflare.com/",
     });
 
-    expect(readTopDecision).toHaveBeenCalledWith(2);
+    expect(readTopEntry).toHaveBeenCalledWith(2);
     expect(resolveRuntimeDecision).toHaveBeenCalledWith(
       "challenges.cloudflare.com",
       undefined,
@@ -285,10 +291,12 @@ describe("registerNavListeners — per-frame resolution", () => {
     });
   });
 
-  it("seeds the top snapshot from the tab URL when the top cache is empty", async () => {
-    const resolveRuntimeDecision = vi.fn().mockImplementation((hostname: string) =>
-      hostname === "publer.com" ? londonDecision : berlinDecision,
-    );
+  it("inherits from the tab URL without seeding an unconfirmed frame 0", async () => {
+    const resolveRuntimeDecision = vi
+      .fn()
+      .mockImplementation((hostname: string) =>
+        hostname === "publer.com" ? londonDecision : berlinDecision,
+      );
     const cacheDecision = vi.fn();
     const getPopupTabById = vi.fn().mockResolvedValue({
       url: "https://publer.com/dashboard",
@@ -312,12 +320,9 @@ describe("registerNavListeners — per-frame resolution", () => {
       undefined,
       "https://publer.com/dashboard",
     );
-    expect(cacheDecision).toHaveBeenCalledWith({
-      tabId: 1,
-      frameId: 0,
-      hostname: "publer.com",
-      value: londonDecision,
-    });
+    expect(cacheDecision).not.toHaveBeenCalledWith(
+      expect.objectContaining({ tabId: 1, frameId: 0 }),
+    );
     expect(cacheDecision).toHaveBeenCalledWith({
       tabId: 1,
       frameId: 2,
@@ -333,7 +338,7 @@ describe("registerNavListeners — per-frame resolution", () => {
     const deps = makeDeps({
       resolveRuntimeDecision,
       cacheDecision,
-      readTopDecision: vi.fn().mockReturnValue(londonDecision),
+      readTopEntry: vi.fn().mockReturnValue(londonTop),
     });
     registerNavListeners(deps);
 
@@ -352,8 +357,111 @@ describe("registerNavListeners — per-frame resolution", () => {
     });
   });
 
+  it("drops the tab snapshot cache when top-frame navigation starts", async () => {
+    const invalidateTabSnapshots = vi.fn();
+    const deps = makeDeps({ invalidateTabSnapshots });
+    registerNavListeners(deps);
+
+    await fire(beforeNavigateListeners, {
+      tabId: 1,
+      frameId: 0,
+      url: "https://new.example/",
+    });
+
+    expect(invalidateTabSnapshots).toHaveBeenCalledWith(1);
+  });
+
+  it("does not inherit a previous top identity after top-frame navigation starts", async () => {
+    const cache = createSnapshotCache();
+    cache.set({
+      tabId: 1,
+      frameId: 0,
+      hostname: "old.example",
+      decision: londonDecision,
+      now: 100,
+    });
+    const resolveRuntimeDecision = vi.fn().mockResolvedValue(berlinDecision);
+    const deps = makeDeps({
+      invalidateTabSnapshots: (tabId) => cache.removeTab(tabId),
+      readTopEntry: (tabId) => {
+        const entry = cache.readTopEntry(tabId);
+        if (!entry) {
+          return undefined;
+        }
+        return {
+          hostname: entry.hostname,
+          decision: entry.decision,
+          ...(entry.cookieStoreId ? { cookieStoreId: entry.cookieStoreId } : {}),
+        };
+      },
+      readDecisionCache: (tabId, frameId, hostname, cookieStoreId) =>
+        cache.readDecision({
+          tabId,
+          frameId,
+          hostname,
+          ...(cookieStoreId ? { cookieStoreId } : {}),
+        }),
+      cacheDecision: (input) =>
+        cache.set({
+          tabId: input.tabId,
+          frameId: input.frameId,
+          hostname: input.hostname,
+          decision: input.value,
+          ...(input.cookieStoreId ? { cookieStoreId: input.cookieStoreId } : {}),
+        }),
+      resolveRuntimeDecision,
+    });
+    registerNavListeners(deps);
+
+    beforeNavigateListeners[0]?.({
+      tabId: 1,
+      frameId: 0,
+      url: "https://new.example/",
+    });
+    expect(cache.readTopDecision(1)).toBeUndefined();
+
+    await fire(beforeNavigateListeners, {
+      tabId: 1,
+      frameId: 2,
+      url: "https://cdn.example.net/pixel",
+    });
+
+    expect(
+      cache.readDecision({ tabId: 1, frameId: 2, hostname: "cdn.example.net" }),
+    ).not.toEqual(londonDecision);
+  });
+
+  it.runIf(BUILD_BROWSER_TARGET === "firefox")(
+    "preserves cookieStoreId when inheriting a cached top decision",
+    async () => {
+      const cacheDecision = vi.fn();
+      const deps = makeDeps({
+        cacheDecision,
+        readTopEntry: vi.fn().mockReturnValue({
+          ...londonTop,
+          cookieStoreId: "firefox-container-1",
+        }),
+      });
+      registerNavListeners(deps);
+
+      await fire(committedListeners, {
+        tabId: 1,
+        frameId: 2,
+        url: "https://cdn.example.net/pixel",
+      });
+
+      expect(cacheDecision).toHaveBeenCalledWith({
+        tabId: 1,
+        frameId: 2,
+        hostname: "cdn.example.net",
+        value: londonDecision,
+        cookieStoreId: "firefox-container-1",
+      });
+    },
+  );
+
   it.runIf(BUILD_BROWSER_TARGET === "chromium")(
-    "seeds a cached Chromium decision before asynchronous resolution",
+    "seeds a cached Chromium subframe from the top entry before asynchronous resolution",
     () => {
       const loadRuntimeCaches = vi.fn().mockResolvedValue(undefined);
       const resolveRuntimeDecision = vi.fn().mockResolvedValue(berlinDecision);
@@ -361,20 +469,62 @@ describe("registerNavListeners — per-frame resolution", () => {
       const deps = makeDeps({
         loadRuntimeCaches,
         resolveRuntimeDecision,
-        readDecisionCache: vi.fn().mockReturnValue(londonDecision),
+        readTopEntry: vi.fn().mockReturnValue(londonTop),
         seedChromiumSnapshot,
       });
       registerNavListeners(deps);
 
       beforeNavigateListeners[0]?.({
         tabId: 1,
-        frameId: 0,
-        url: "https://publer.com/next",
+        frameId: 5,
+        url: "https://cdn.example.net/pixel",
       });
 
-      expect(seedChromiumSnapshot).toHaveBeenCalledWith(1, 0, londonDecision);
+      expect(seedChromiumSnapshot).toHaveBeenCalledWith(1, 5, londonDecision);
       expect(loadRuntimeCaches).not.toHaveBeenCalled();
       expect(resolveRuntimeDecision).not.toHaveBeenCalled();
+    },
+  );
+
+  it.runIf(BUILD_BROWSER_TARGET === "chromium")(
+    "does not sync fence DNR for inherited subframes",
+    async () => {
+      const syncFenceDnrRule = vi.fn().mockResolvedValue(undefined);
+      const deps = makeDeps({
+        syncFenceDnrRule,
+        readTopEntry: vi.fn().mockReturnValue(londonTop),
+      });
+      registerNavListeners(deps);
+
+      await fire(beforeNavigateListeners, {
+        tabId: 1,
+        frameId: 5,
+        url: "https://cdn.example.net/pixel",
+      });
+
+      expect(syncFenceDnrRule).not.toHaveBeenCalled();
+    },
+  );
+
+  it.runIf(BUILD_BROWSER_TARGET === "chromium")(
+    "syncs fence DNR for top-frame navigations",
+    async () => {
+      const syncFenceDnrRule = vi.fn().mockResolvedValue(undefined);
+      const resolveRuntimeDecision = vi.fn().mockResolvedValue(londonDecision);
+      const deps = makeDeps({ syncFenceDnrRule, resolveRuntimeDecision });
+      registerNavListeners(deps);
+
+      await fire(beforeNavigateListeners, {
+        tabId: 1,
+        frameId: 0,
+        url: "https://publer.com/",
+      });
+
+      expect(syncFenceDnrRule).toHaveBeenCalledWith(
+        "publer.com",
+        londonSnapshot,
+        false,
+      );
     },
   );
 });
