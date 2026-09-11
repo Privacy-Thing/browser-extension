@@ -1,7 +1,11 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { PopupButton } from "./PopupButton";
 import { ExternalLinkIcon, InfoIcon, TrashIcon } from "./PopupIcons";
+import {
+  createPopupSelectDismissGuard,
+  lockPopupSelectHostDismiss,
+} from "./popup-select-dismiss-guard";
 
 import type { SharedWorkerHandlingMode } from "@/shared/types";
 import { Label } from "@/ui/components/ui/label";
@@ -86,25 +90,62 @@ const PopupSheetSelectField = ({
   value: string;
   onValueChange: (value: string) => void;
   options: ReadonlyArray<{ value: string; label: string }>;
-}) => (
-  <div className="gw-popup-sheet-field">
-    <label htmlFor={id} className="gw-popup-sheet-label">
-      {label}
-    </label>
-    <Select value={value} onValueChange={onValueChange}>
-      <SelectTrigger id={id} className="gw-popup-sheet-select">
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        {options.map((option) => (
-          <SelectItem key={option.value} value={option.value}>
-            {option.label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  </div>
-);
+}) => {
+  const [open, setOpen] = useState(false);
+  const dismissGuardRef = useRef(createPopupSelectDismissGuard());
+
+  useEffect(() => () => dismissGuardRef.current.disarm(), []);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    return lockPopupSelectHostDismiss();
+  }, [open]);
+
+  return (
+    <div className="gw-popup-sheet-field">
+      <label htmlFor={id} className="gw-popup-sheet-label">
+        {label}
+      </label>
+      <Select
+        open={open}
+        value={value}
+        onOpenChange={(nextOpen) => {
+          if (nextOpen) {
+            dismissGuardRef.current.arm();
+            setOpen(true);
+            return;
+          }
+          if (dismissGuardRef.current.shouldIgnoreClose()) return;
+          setOpen(false);
+        }}
+        onValueChange={(nextValue) => {
+          dismissGuardRef.current.disarm();
+          setOpen(false);
+          onValueChange(nextValue);
+        }}
+      >
+        <SelectTrigger id={id} className="gw-popup-sheet-select">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent
+          onCloseAutoFocus={(event) => event.preventDefault()}
+          onEscapeKeyDown={() => dismissGuardRef.current.disarm()}
+          onPointerDownOutside={(event) => {
+            if (dismissGuardRef.current.shouldIgnoreClose()) {
+              event.preventDefault();
+            }
+          }}
+        >
+          {options.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+};
 
 const PopupAdvancedAccordion = ({
   title,
