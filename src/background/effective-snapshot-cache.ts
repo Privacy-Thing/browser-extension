@@ -5,6 +5,7 @@ export const SNAPSHOT_CACHE_TTL_MS = 5 * 60 * 1_000;
 export type ResolutionDecision = {
   snapshot: RuntimeSnapshot | null;
   trustedSiteMatched: boolean;
+  fencesIdentity?: boolean;
 };
 
 export type SnapshotCacheEntry = {
@@ -83,6 +84,32 @@ export const createSnapshotCache = (ttlMs = SNAPSHOT_CACHE_TTL_MS) => {
   const readEntry = (tabId: number, frameId: number): SnapshotCacheEntry | undefined =>
     entries.get(getSnapshotCacheKey(tabId, frameId));
 
+  /**
+   * TTL-aware top-frame entry. Hostname is not checked: callers must drop the
+   * tab cache when a top-frame navigation starts so a subframe cannot inherit
+   * the previous site.
+   */
+  const readTopEntry = (
+    tabId: number,
+    now = Date.now(),
+  ): SnapshotCacheEntry | undefined => {
+    const key = getSnapshotCacheKey(tabId, 0);
+    const entry = entries.get(key);
+    if (!entry) {
+      return undefined;
+    }
+    if (now - entry.cachedAt > ttlMs) {
+      entries.delete(key);
+      return undefined;
+    }
+    return entry;
+  };
+
+  const readTopDecision = (
+    tabId: number,
+    now = Date.now(),
+  ): ResolutionDecision | undefined => readTopEntry(tabId, now)?.decision;
+
   const removeTab = (tabId: number): void => {
     for (const key of entries.keys()) {
       if (key.startsWith(`${tabId}:`)) {
@@ -96,6 +123,8 @@ export const createSnapshotCache = (ttlMs = SNAPSHOT_CACHE_TTL_MS) => {
     read,
     readDecision,
     readEntry,
+    readTopEntry,
+    readTopDecision,
     removeTab,
     set,
   };
