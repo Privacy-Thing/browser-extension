@@ -1176,9 +1176,12 @@ test("keeps the main-frame DNR rule after a hostless srcdoc background fallback"
     .poll(async () => (await readTabSessionRules()).length)
     .toBeGreaterThan(0);
   const beforeRules = await readTabSessionRules();
-  const hostname = new URL(serverUrl).hostname;
   expect(
-    beforeRules.some((rule) => rule.condition.requestDomains?.includes(hostname)),
+    beforeRules.some(
+      (rule) =>
+        rule.condition.tabIds?.includes(tabId as number) &&
+        rule.condition.requestDomains === undefined,
+    ),
   ).toBe(true);
 
   await optionsPage.evaluate(

@@ -76,6 +76,10 @@ const CSP_RESOURCE_TYPES = [
   "sub_frame",
 ] as chrome.declarativeNetRequest.ResourceType[];
 const toTabRuleId = (tabId: number): number => TAB_RULE_ID_BASE + tabId;
+const buildTabHeaderCondition = (tabId: number): DynamicHeaderRule["condition"] => ({
+  tabIds: [tabId],
+  resourceTypes: RESOURCE_TYPES,
+});
 const RULE_PRIORITY_BASE = 100;
 const MAX_HOST_PATTERN_LENGTH = 253;
 const RULE_WILDCARD_RANGE = MAX_HOST_PATTERN_LENGTH + 1;
@@ -88,8 +92,12 @@ const MAX_DOMAIN_RULE_PRIORITY =
   DOMAIN_RULE_EXACT_SCALE +
   RULE_SUBDOMAIN_SCALE +
   MAX_HOST_PATTERN_LENGTH;
-const TAB_RULE_PRIORITY = MAX_DOMAIN_RULE_PRIORITY + 1;
-const TRUSTED_ALLOW_PRIORITY = TAB_RULE_PRIORITY + 1;
+// Domain fallback < trusted-site allow < tab-wide modifyHeaders. Chrome only
+// applies modifyHeaders when its priority is strictly above a matching allow,
+// so tab rules must outrank Trusted Site bypasses or iframe hosts on the
+// allowlist would keep the real Accept-Language / Client Hints.
+const TRUSTED_ALLOW_PRIORITY = MAX_DOMAIN_RULE_PRIORITY + 1;
+const TAB_RULE_PRIORITY = TRUSTED_ALLOW_PRIORITY + 1;
 const URL_REGEX_PREFIX = "^[a-z][a-z0-9+.-]*://(?:[^/?#]*@)?";
 const HEADER_URL_RE_PREFIX = "^(?:https?|wss?)://(?:[^/?#]*@)?";
 const URL_REGEX_SUFFIX = "(?::\\d+)?(?:[/?#]|$)";
@@ -369,12 +377,14 @@ const getDomainRulePriority = (pattern: string): number => {
     specificity.subdomainOnlyBonus * RULE_SUBDOMAIN_SCALE +
     wildcardBonus;
 
-  return Math.min(priority, TAB_RULE_PRIORITY - 1);
+  return Math.min(priority, MAX_DOMAIN_RULE_PRIORITY);
 };
 
 /**
  * Builds per-tab DNR header rules from the same runtime snapshot used by page
  * injection, keeping network Client Hints aligned with JS-visible values.
+ * Tab rules are scoped only by `tabIds` so subframe requests share the top
+ * frame's Accept-Language and client hints.
  */
 export type HeaderRuleInput = {
   contexts: readonly EffectiveTabContext[];
@@ -447,11 +457,7 @@ export const buildHeaderRules = ({
         type: MODIFY_HEADERS,
         requestHeaders,
       },
-      condition: {
-        tabIds: [context.tabId],
-        requestDomains: [context.hostname],
-        resourceTypes: RESOURCE_TYPES,
-      },
+      condition: buildTabHeaderCondition(context.tabId),
     });
   }
 
@@ -478,11 +484,7 @@ export const buildSnapshotHeaderRule = (
       type: MODIFY_HEADERS,
       requestHeaders,
     },
-    condition: {
-      tabIds: [context.tabId],
-      requestDomains: [context.hostname],
-      resourceTypes: RESOURCE_TYPES,
-    },
+    condition: buildTabHeaderCondition(context.tabId),
   };
 };
 

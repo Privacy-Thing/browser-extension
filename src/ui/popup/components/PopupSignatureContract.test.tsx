@@ -205,6 +205,12 @@ describe("popup signature UI contract", () => {
     );
   });
 
+  it("keeps rule-editor selects on the shared Select component", () => {
+    expect(popupRuleFormSource).toContain("@/ui/components/ui/select");
+    expect(popupRuleFormSource).toContain("SelectTrigger");
+    expect(popupRuleSheetSource).toContain("event.defaultPrevented");
+  });
+
   it("keeps scroll cues bound to the workspace scrollport", () => {
     expect(popupCss).toContain(".gw-popup-sheet-header::after");
     expect(popupCss).toContain(

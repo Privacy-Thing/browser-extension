@@ -1033,6 +1033,31 @@ export const RuleEditor: Story = {
     await expect(
       ruleMode.getBoundingClientRect().left - scrollport.getBoundingClientRect().left,
     ).toBeGreaterThanOrEqual(4);
+
+    const user = userEvent.setup();
+    await user.click(ruleMode);
+    const suffixOption = await within(canvasElement.ownerDocument.body).findByRole(
+      "option",
+      { name: t.popup.ruleTypeSuffix },
+    );
+    await expect(suffixOption).toBeVisible();
+
+    const view = canvasElement.ownerDocument.defaultView;
+    view?.dispatchEvent(new Event("resize"));
+    view?.dispatchEvent(new Event("blur"));
+    await expect(suffixOption).toBeVisible();
+    await expect(ruleMode).toHaveAttribute("aria-expanded", "true");
+    await user.click(suffixOption);
+    await expect(ruleMode).toHaveTextContent(t.popup.ruleTypeSuffix);
+    await user.click(ruleMode);
+    await expect(
+      await within(canvasElement.ownerDocument.body).findByRole("option", {
+        name: t.popup.ruleTypeExact,
+      }),
+    ).toBeVisible();
+    await user.keyboard("{Escape}");
+    await expect(ruleMode).toHaveAttribute("aria-expanded", "false");
+    await expect(ruleMode).toHaveFocus();
   },
 };
 

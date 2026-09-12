@@ -1,5 +1,6 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
+import { lockSelectHostDismiss } from "./popup-select-dismiss-guard";
 import { PopupButton } from "./PopupButton";
 import { ExternalLinkIcon, InfoIcon, TrashIcon } from "./PopupIcons";
 
@@ -86,25 +87,45 @@ const PopupSheetSelectField = ({
   value: string;
   onValueChange: (value: string) => void;
   options: ReadonlyArray<{ value: string; label: string }>;
-}) => (
-  <div className="gw-popup-sheet-field">
-    <label htmlFor={id} className="gw-popup-sheet-label">
-      {label}
-    </label>
-    <Select value={value} onValueChange={onValueChange}>
-      <SelectTrigger id={id} className="gw-popup-sheet-select">
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        {options.map((option) => (
-          <SelectItem key={option.value} value={option.value}>
-            {option.label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  </div>
-);
+}) => {
+  const unlockHostDismissRef = useRef<(() => void) | undefined>(undefined);
+
+  useEffect(
+    () => () => {
+      unlockHostDismissRef.current?.();
+    },
+    [],
+  );
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    unlockHostDismissRef.current?.();
+    unlockHostDismissRef.current = nextOpen ? lockSelectHostDismiss() : undefined;
+  };
+
+  return (
+    <div className="gw-popup-sheet-field">
+      <label htmlFor={id} className="gw-popup-sheet-label">
+        {label}
+      </label>
+      <Select
+        value={value}
+        onOpenChange={handleOpenChange}
+        onValueChange={onValueChange}
+      >
+        <SelectTrigger id={id} className="gw-popup-sheet-select">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+};
 
 const PopupAdvancedAccordion = ({
   title,

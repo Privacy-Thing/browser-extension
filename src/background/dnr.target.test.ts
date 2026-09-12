@@ -207,6 +207,7 @@ describe("buildHeaderRules", () => {
 
     expect(result).toHaveLength(1);
     expect(result[0]?.condition.tabIds).toEqual([7]);
+    expect(result[0]?.condition.requestDomains).toBeUndefined();
     expect(result[0]?.action.requestHeaders).toEqual(expectedLocaleHeaders("pl"));
   });
 
@@ -237,6 +238,7 @@ describe("buildHeaderRules", () => {
     );
 
     expect(result?.condition.tabIds).toEqual([7]);
+    expect(result?.condition.requestDomains).toBeUndefined();
     expect(result?.action.requestHeaders).toEqual([
       {
         header: "Accept-Language",
@@ -708,6 +710,34 @@ describe("buildHeaderRules", () => {
     expect(result[0]?.priority).toBeGreaterThan(
       buildDomainFallbackRules(profiles, rules, false)[0]?.priority ?? 0,
     );
+  });
+
+  it("keeps per-tab header rules above trusted-site allow rules", () => {
+    const profiles: Location[] = [
+      {
+        id: "warsaw",
+        label: "Warsaw",
+        latitude: 52.2297,
+        longitude: 21.0122,
+        accuracy: 25,
+        noiseRadius: 50,
+        language: "pl",
+        languages: ["pl"],
+        timeZone: "Europe/Warsaw",
+      },
+    ];
+    const rules: DomainRule[] = [{ pattern: "*", locationId: "warsaw", enabled: true }];
+    const tabRules = buildHeaderRules(
+      [{ tabId: 7, hostname: "spoofed.example" }],
+      profiles,
+      rules,
+      false,
+    );
+    const trustedAllow = buildTrustedBypassRules([
+      { pattern: "cdn.example.net", enabled: true },
+    ]);
+
+    expect(tabRules[0]?.priority).toBeGreaterThan(trustedAllow[0]?.priority ?? 0);
   });
 });
 

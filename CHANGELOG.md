@@ -13,6 +13,14 @@ The format is based on Keep a Changelog and the project follows Semantic Version
   before the first sync, preserves unrelated Control D resources, and guides
   users through manual browser DoH setup.
 
+### Changed
+
+- Experimental: every subframe in a tab now uses the top-frame runtime snapshot
+  (locale, timezone, fingerprint, geolocation) so iframe and worker realms do
+  not diverge from the page. Per-tab header rules apply to all requests in that
+  tab, including Trusted Site iframe hosts, and outrank Trusted Site allow
+  rules. Domain fencing session rules still apply only to the top-frame host.
+
 ### Fixed
 
 - Keep Control D synchronization attached to resources by their saved IDs when
@@ -20,8 +28,15 @@ The format is based on Keep a Changelog and the project follows Semantic Version
   name conflict, and keep preview and sync on one prepared regional-route
   snapshot without rewriting Control D hostname patterns. Hide automatic route
   matches until a fallback needs confirmation or the user opens overrides.
+- Keep popup rule-editor Selects open through leftover opening-pointer dismisses
+  and host window resize/blur that Radix treats as dismiss, without replacing
+  the shared Select.
 - Confirm installed Battery protection before a page first queries the API, and clear
   stale integrity evidence after the protection recovers.
+
+## [0.9.3.5] - 2026-09-10
+
+- Refreshed extension metadata (hardware profiles, Chrome versions, locale data) from upstream sources to keep spoofed fingerprints current.
 
 ## [0.9.3.4] - 2026-09-07
 

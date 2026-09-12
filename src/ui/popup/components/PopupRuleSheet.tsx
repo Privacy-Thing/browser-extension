@@ -273,7 +273,7 @@ const useSheetLifecycle = (
     workspaceRef.current?.focus({ preventScroll: true });
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
+      if (event.key !== "Escape" || event.defaultPrevented) return;
       event.preventDefault();
       onOpenChangeRef.current?.(false);
     };
