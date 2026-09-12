@@ -1,4 +1,4 @@
-export type PopupSelectDismissGuard = {
+export type SelectDismissGuard = {
   arm: () => void;
   disarm: () => void;
   shouldIgnoreClose: () => boolean;
@@ -43,6 +43,35 @@ const defaultClock = (): GuardClock => ({
   cancelAnimationFrame: (id) => window.cancelAnimationFrame(id),
 });
 
+const runAfterPaint = (clock: GuardClock, callback: () => void): (() => void) => {
+  let first = 0;
+  let second = 0;
+  const queueSecond = () => {
+    second = clock.requestAnimationFrame(callback);
+  };
+  first = clock.requestAnimationFrame(queueSecond);
+  return () => {
+    clock.cancelAnimationFrame(first);
+    clock.cancelAnimationFrame(second);
+  };
+};
+
+const releaseAfterSettle = (
+  clock: GuardClock,
+  shouldRelease: () => boolean,
+  release: () => void,
+  cleanups: Array<() => void>,
+) => {
+  const onTimeout = () => {
+    const cancelPaint = runAfterPaint(clock, () => {
+      if (shouldRelease()) release();
+    });
+    cleanups.push(cancelPaint);
+  };
+  const settleId = clock.setTimeout(onTimeout, OPENING_SETTLE_MS);
+  cleanups.push(() => clock.clearTimeout(settleId));
+};
+
 /**
  * Radix Select always closes on window `resize` and `blur`. In the extension
  * popup those events come from host chrome (sidecar sizing, Helium focus),
@@ -50,9 +79,7 @@ const defaultClock = (): GuardClock => ({
  * lifetime so a delayed host event cannot close the menu after the opening
  * pointer has settled.
  */
-export const lockPopupSelectHostDismiss = (
-  host: HostEventTarget = window,
-): (() => void) => {
+export const lockSelectHostDismiss = (host: HostEventTarget = window): (() => void) => {
   const swallow = (event: Event) => {
     event.stopImmediatePropagation();
   };
@@ -66,12 +93,12 @@ export const lockPopupSelectHostDismiss = (
 
 /**
  * Radix Select opens on pointerdown, then closes itself on the leftover
- * opening pointer. Ignore that host-side dismiss until the opening gesture
- * has settled.
+ * opening pointer. Ignore that host-side dismiss until a later pointer
+ * begins, or until the opening gesture has settled without one (keyboard).
  */
-export const createPopupSelectDismissGuard = (
+export const createSelectDismissGuard = (
   clock: GuardClock = defaultClock(),
-): PopupSelectDismissGuard => {
+): SelectDismissGuard => {
   let ignoreClose = false;
   const cleanups: Array<() => void> = [];
 
@@ -86,50 +113,24 @@ export const createPopupSelectDismissGuard = (
     runCleanups();
   };
 
+  const release = () => {
+    ignoreClose = false;
+  };
+
   const arm = () => {
     disarm();
     ignoreClose = true;
 
-    let pointerHeld = true;
-    let settleFrame = 0;
-
-    const maybeRelease = () => {
-      if (pointerHeld) return;
-      clock.cancelAnimationFrame(settleFrame);
-      settleFrame = clock.requestAnimationFrame(() => {
-        settleFrame = clock.requestAnimationFrame(() => {
-          if (!pointerHeld) ignoreClose = false;
-        });
-      });
+    const onNewPointerDown = () => {
+      clock.removeEventListener("pointerdown", onNewPointerDown, true);
+      release();
     };
+    clock.addEventListener("pointerdown", onNewPointerDown, true);
+    cleanups.push(() =>
+      clock.removeEventListener("pointerdown", onNewPointerDown, true),
+    );
 
-    const onGestureEnd = () => {
-      clock.removeEventListener("pointerup", onGestureEnd, true);
-      clock.removeEventListener("pointercancel", onGestureEnd, true);
-
-      const finishPointer = () => {
-        pointerHeld = false;
-        maybeRelease();
-      };
-      const onClick = () => {
-        clock.removeEventListener("click", onClick, true);
-        const settleId = clock.setTimeout(finishPointer, OPENING_SETTLE_MS);
-        cleanups.push(() => clock.clearTimeout(settleId));
-      };
-      clock.addEventListener("click", onClick, true);
-      cleanups.push(() => clock.removeEventListener("click", onClick, true));
-      const timeoutId = clock.setTimeout(finishPointer, OPENING_SETTLE_MS);
-      cleanups.push(() => clock.clearTimeout(timeoutId));
-    };
-
-    clock.addEventListener("pointerup", onGestureEnd, true);
-    clock.addEventListener("pointercancel", onGestureEnd, true);
-
-    cleanups.push(() => {
-      clock.removeEventListener("pointerup", onGestureEnd, true);
-      clock.removeEventListener("pointercancel", onGestureEnd, true);
-      clock.cancelAnimationFrame(settleFrame);
-    });
+    releaseAfterSettle(clock, () => ignoreClose, release, cleanups);
   };
 
   return {

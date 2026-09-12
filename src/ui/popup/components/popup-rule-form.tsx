@@ -1,11 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
+import {
+  createSelectDismissGuard,
+  lockSelectHostDismiss,
+} from "./popup-select-dismiss-guard";
 import { PopupButton } from "./PopupButton";
 import { ExternalLinkIcon, InfoIcon, TrashIcon } from "./PopupIcons";
-import {
-  createPopupSelectDismissGuard,
-  lockPopupSelectHostDismiss,
-} from "./popup-select-dismiss-guard";
 
 import type { SharedWorkerHandlingMode } from "@/shared/types";
 import { Label } from "@/ui/components/ui/label";
@@ -92,13 +92,13 @@ const PopupSheetSelectField = ({
   options: ReadonlyArray<{ value: string; label: string }>;
 }) => {
   const [open, setOpen] = useState(false);
-  const dismissGuardRef = useRef(createPopupSelectDismissGuard());
+  const dismissGuardRef = useRef(createSelectDismissGuard());
 
   useEffect(() => () => dismissGuardRef.current.disarm(), []);
 
   useLayoutEffect(() => {
     if (!open) return;
-    return lockPopupSelectHostDismiss();
+    return lockSelectHostDismiss();
   }, [open]);
 
   return (

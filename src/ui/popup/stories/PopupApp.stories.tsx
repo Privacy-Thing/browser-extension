@@ -1034,7 +1034,7 @@ export const RuleEditor: Story = {
       ruleMode.getBoundingClientRect().left - scrollport.getBoundingClientRect().left,
     ).toBeGreaterThanOrEqual(4);
 
-    const user = userEvent.setup({ delay: 120 });
+    const user = userEvent.setup();
     await user.click(ruleMode);
     const suffixOption = await within(canvasElement.ownerDocument.body).findByRole(
       "option",
@@ -1043,9 +1043,6 @@ export const RuleEditor: Story = {
     await expect(suffixOption).toBeVisible();
 
     const view = canvasElement.ownerDocument.defaultView;
-    await new Promise((resolve) => {
-      view?.setTimeout(resolve, 600);
-    });
     view?.dispatchEvent(new Event("resize"));
     view?.dispatchEvent(new Event("blur"));
     await expect(suffixOption).toBeVisible();
@@ -1059,6 +1056,7 @@ export const RuleEditor: Story = {
       }),
     ).toBeVisible();
     await user.keyboard("{Escape}");
+    await expect(ruleMode).toHaveAttribute("aria-expanded", "false");
   },
 };
 

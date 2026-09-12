@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
-  createPopupSelectDismissGuard,
-  lockPopupSelectHostDismiss,
+  createSelectDismissGuard,
+  lockSelectHostDismiss,
 } from "./popup-select-dismiss-guard";
 
 type Listener = EventListener;
@@ -30,7 +30,9 @@ const createClock = () => {
   };
 
   const flushTimeouts = (maxDelay = 50) => {
-    const pending = [...timeouts.entries()].filter(([, item]) => item.delay <= maxDelay);
+    const pending = [...timeouts.entries()].filter(
+      ([, item]) => item.delay <= maxDelay,
+    );
     for (const [id] of pending) timeouts.delete(id);
     for (const [, item] of pending) item.callback();
   };
@@ -44,8 +46,7 @@ const createClock = () => {
   return {
     clock: {
       addEventListener: (type: string, listener: Listener) => add(type, listener),
-      removeEventListener: (type: string, listener: Listener) =>
-        remove(type, listener),
+      removeEventListener: (type: string, listener: Listener) => remove(type, listener),
       setTimeout: (callback: () => void, delay = 0) => {
         const id = nextId;
         nextId += 1;
@@ -71,7 +72,7 @@ const createClock = () => {
   };
 };
 
-describe("lockPopupSelectHostDismiss", () => {
+describe("lockSelectHostDismiss", () => {
   it("swallows window resize and blur at capture before later listeners", () => {
     const added: Array<{
       type: string;
@@ -99,7 +100,7 @@ describe("lockPopupSelectHostDismiss", () => {
       },
     };
 
-    const unlock = lockPopupSelectHostDismiss(host);
+    const unlock = lockSelectHostDismiss(host);
     expect(added.map((entry) => [entry.type, entry.capture])).toEqual([
       ["resize", true],
       ["blur", true],
@@ -123,21 +124,45 @@ describe("lockPopupSelectHostDismiss", () => {
   });
 });
 
-describe("createPopupSelectDismissGuard", () => {
-  it("keeps ignoring dismiss through two animation frames and the opening pointer", () => {
+describe("createSelectDismissGuard", () => {
+  it("keeps ignoring the leftover opening pointer until paint after settle", () => {
     const { clock, dispatch, flushTimeouts, flushFrame } = createClock();
-    const guard = createPopupSelectDismissGuard(clock);
+    const guard = createSelectDismissGuard(clock);
 
     guard.arm();
     expect(guard.shouldIgnoreClose()).toBe(true);
 
+    dispatch("pointerup");
+    dispatch("click");
     flushFrame();
     flushFrame();
     expect(guard.shouldIgnoreClose()).toBe(true);
 
-    dispatch("pointerup");
+    flushTimeouts();
     expect(guard.shouldIgnoreClose()).toBe(true);
+    flushFrame();
+    flushFrame();
+    expect(guard.shouldIgnoreClose()).toBe(false);
+  });
+
+  it("releases on a later pointerdown so outside dismissal can close", () => {
+    const { clock, dispatch } = createClock();
+    const guard = createSelectDismissGuard(clock);
+
+    guard.arm();
+    dispatch("pointerup");
     dispatch("click");
+    expect(guard.shouldIgnoreClose()).toBe(true);
+
+    dispatch("pointerdown");
+    expect(guard.shouldIgnoreClose()).toBe(false);
+  });
+
+  it("releases after keyboard open when no pointer gesture is observed", () => {
+    const { clock, flushTimeouts, flushFrame } = createClock();
+    const guard = createSelectDismissGuard(clock);
+
+    guard.arm();
     expect(guard.shouldIgnoreClose()).toBe(true);
 
     flushTimeouts();
@@ -149,7 +174,7 @@ describe("createPopupSelectDismissGuard", () => {
 
   it("stops ignoring immediately when a value is chosen", () => {
     const { clock, dispatch } = createClock();
-    const guard = createPopupSelectDismissGuard(clock);
+    const guard = createSelectDismissGuard(clock);
 
     guard.arm();
     dispatch("pointerup");
