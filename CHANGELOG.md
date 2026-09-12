@@ -16,6 +16,9 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ### Fixed
 
+- Keep popup rule-editor Selects open through leftover opening-pointer dismisses
+  and host window resize/blur that Radix treats as dismiss, without replacing
+  the shared Select.
 - Confirm installed Battery protection before a page first queries the API, and clear
   stale integrity evidence after the protection recovers.
 

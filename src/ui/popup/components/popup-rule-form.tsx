@@ -1,5 +1,6 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
+import { createSelectDismissGuard } from "./popup-select-dismiss-guard";
 import { PopupButton } from "./PopupButton";
 import { ExternalLinkIcon, InfoIcon, TrashIcon } from "./PopupIcons";
 
@@ -86,25 +87,56 @@ const PopupSheetSelectField = ({
   value: string;
   onValueChange: (value: string) => void;
   options: ReadonlyArray<{ value: string; label: string }>;
-}) => (
-  <div className="gw-popup-sheet-field">
-    <label htmlFor={id} className="gw-popup-sheet-label">
-      {label}
-    </label>
-    <Select value={value} onValueChange={onValueChange}>
-      <SelectTrigger id={id} className="gw-popup-sheet-select">
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        {options.map((option) => (
-          <SelectItem key={option.value} value={option.value}>
-            {option.label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  </div>
-);
+}) => {
+  const [open, setOpen] = useState(false);
+  const dismissGuardRef = useRef(createSelectDismissGuard());
+
+  useEffect(() => () => dismissGuardRef.current.disarm(), []);
+
+  return (
+    <div className="gw-popup-sheet-field">
+      <label htmlFor={id} className="gw-popup-sheet-label">
+        {label}
+      </label>
+      <Select
+        open={open}
+        value={value}
+        onOpenChange={(nextOpen) => {
+          if (nextOpen) {
+            dismissGuardRef.current.arm();
+            setOpen(true);
+            return;
+          }
+          if (dismissGuardRef.current.shouldIgnoreClose()) return;
+          setOpen(false);
+        }}
+        onValueChange={(nextValue) => {
+          dismissGuardRef.current.disarm();
+          setOpen(false);
+          onValueChange(nextValue);
+        }}
+      >
+        <SelectTrigger id={id} className="gw-popup-sheet-select">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent
+          onEscapeKeyDown={() => dismissGuardRef.current.disarm()}
+          onPointerDownOutside={(event) => {
+            if (dismissGuardRef.current.shouldIgnoreClose()) {
+              event.preventDefault();
+            }
+          }}
+        >
+          {options.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+};
 
 const PopupAdvancedAccordion = ({
   title,
