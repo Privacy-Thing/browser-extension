@@ -1,9 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
-import {
-  createSelectDismissGuard,
-  lockSelectHostDismiss,
-} from "./popup-select-dismiss-guard";
+import { createSelectDismissGuard } from "./popup-select-dismiss-guard";
 import { PopupButton } from "./PopupButton";
 import { ExternalLinkIcon, InfoIcon, TrashIcon } from "./PopupIcons";
 
@@ -96,11 +93,6 @@ const PopupSheetSelectField = ({
 
   useEffect(() => () => dismissGuardRef.current.disarm(), []);
 
-  useLayoutEffect(() => {
-    if (!open) return;
-    return lockSelectHostDismiss();
-  }, [open]);
-
   return (
     <div className="gw-popup-sheet-field">
       <label htmlFor={id} className="gw-popup-sheet-label">
@@ -128,7 +120,6 @@ const PopupSheetSelectField = ({
           <SelectValue />
         </SelectTrigger>
         <SelectContent
-          onCloseAutoFocus={(event) => event.preventDefault()}
           onEscapeKeyDown={() => dismissGuardRef.current.disarm()}
           onPointerDownOutside={(event) => {
             if (dismissGuardRef.current.shouldIgnoreClose()) {

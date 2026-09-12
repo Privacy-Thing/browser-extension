@@ -1057,6 +1057,7 @@ export const RuleEditor: Story = {
     ).toBeVisible();
     await user.keyboard("{Escape}");
     await expect(ruleMode).toHaveAttribute("aria-expanded", "false");
+    await expect(ruleMode).toHaveFocus();
   },
 };
 

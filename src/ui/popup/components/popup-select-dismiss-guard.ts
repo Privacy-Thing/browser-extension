@@ -17,19 +17,6 @@ type GuardClock = {
   cancelAnimationFrame: (id: number) => void;
 };
 
-type HostEventTarget = {
-  addEventListener: (
-    type: string,
-    listener: EventListener,
-    options?: boolean | AddEventListenerOptions,
-  ) => void;
-  removeEventListener: (
-    type: string,
-    listener: EventListener,
-    options?: boolean | EventListenerOptions,
-  ) => void;
-};
-
 const OPENING_SETTLE_MS = 50;
 
 const defaultClock = (): GuardClock => ({
@@ -72,34 +59,37 @@ const releaseAfterSettle = (
   cleanups.push(() => clock.clearTimeout(settleId));
 };
 
-/**
- * Radix Select always closes on window `resize` and `blur`. In the extension
- * popup those events come from host chrome (sidecar sizing, Helium focus),
- * not from the user dismissing the menu. Swallow them for the whole open
- * lifetime so a delayed host event cannot close the menu after the opening
- * pointer has settled.
- */
-export const lockSelectHostDismiss = (host: HostEventTarget = window): (() => void) => {
-  const swallow = (event: Event) => {
-    event.stopImmediatePropagation();
+const listenForHostDismiss = (
+  clock: GuardClock,
+  setHostClose: (value: boolean) => void,
+  cleanups: Array<() => void>,
+) => {
+  const clearHost = () => setHostClose(false);
+  const onHostEvent = () => {
+    setHostClose(true);
+    const clearId = clock.setTimeout(clearHost, 0);
+    cleanups.push(() => clock.clearTimeout(clearId));
   };
-  host.addEventListener("resize", swallow, true);
-  host.addEventListener("blur", swallow, true);
-  return () => {
-    host.removeEventListener("resize", swallow, true);
-    host.removeEventListener("blur", swallow, true);
-  };
+  clock.addEventListener("resize", onHostEvent, true);
+  clock.addEventListener("blur", onHostEvent, true);
+  cleanups.push(() => {
+    clock.removeEventListener("resize", onHostEvent, true);
+    clock.removeEventListener("blur", onHostEvent, true);
+  });
 };
 
 /**
  * Radix Select opens on pointerdown, then closes itself on the leftover
  * opening pointer. Ignore that host-side dismiss until a later pointer
  * begins, or until the opening gesture has settled without one (keyboard).
+ * Window resize/blur still reach later listeners; the guard only ignores
+ * the close Radix would issue from those host events.
  */
 export const createSelectDismissGuard = (
   clock: GuardClock = defaultClock(),
 ): SelectDismissGuard => {
   let ignoreClose = false;
+  let hostClose = false;
   const cleanups: Array<() => void> = [];
 
   const runCleanups = () => {
@@ -110,6 +100,7 @@ export const createSelectDismissGuard = (
 
   const disarm = () => {
     ignoreClose = false;
+    hostClose = false;
     runCleanups();
   };
 
@@ -130,12 +121,19 @@ export const createSelectDismissGuard = (
       clock.removeEventListener("pointerdown", onNewPointerDown, true),
     );
 
+    listenForHostDismiss(
+      clock,
+      (value) => {
+        hostClose = value;
+      },
+      cleanups,
+    );
     releaseAfterSettle(clock, () => ignoreClose, release, cleanups);
   };
 
   return {
     arm,
     disarm,
-    shouldIgnoreClose: () => ignoreClose,
+    shouldIgnoreClose: () => ignoreClose || hostClose,
   };
 };
