@@ -328,7 +328,7 @@ jobs:
             build/artifacts/*-${{ env.PT_ARTIFACT_VERSION_LABEL }}-source.zip
 
       - name: Publish GitHub stable release
-        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3
         with:
           tag_name: ${{ env.RELEASE_TAG }}
           body_path: build/artifacts/release-notes.md
@@ -488,7 +488,7 @@ jobs:
             build/artifacts/beta-release-notes.md
 
       - name: Publish GitHub beta prerelease
-        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3
         with:
           token: ${{ steps.app_token.outputs.token || github.token }}
           tag_name: ${{ env.BETA_TAG }}
