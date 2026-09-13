@@ -1,6 +1,8 @@
 import { z } from "zod";
 
 export const CONTROL_D_API_ORIGIN = "https://api.controld.com/*";
+export const CONTROL_D_API_GUIDE_URL =
+  "https://docs.controld.com/reference/get-started";
 export const CONTROL_D_GUIDE_URL = "https://docs.controld.com/docs/browsers-platform";
 export const CONTROL_D_STATUS_URL = "https://controld.com/status";
 
@@ -8,17 +10,24 @@ export const CONTROL_D_COMMANDS = {
   getState: "pt.control-d.get-state",
   setEnabled: "pt.control-d.set-enabled",
   connect: "pt.control-d.connect",
+  discover: "pt.control-d.discover",
+  selectNew: "pt.control-d.select-new",
+  adopt: "pt.control-d.adopt",
   preview: "pt.control-d.preview",
   apply: "pt.control-d.apply",
   syncNow: "pt.control-d.sync-now",
   repair: "pt.control-d.repair",
   updateMapping: "pt.control-d.update-mapping",
+  confirmDns: "pt.control-d.confirm-dns",
   dnsAction: "pt.control-d.dns-action",
   disconnect: "pt.control-d.disconnect",
 } as const;
 
 export type ControlDStatus =
   "disconnected" | "ready" | "syncing" | "conflict" | "auth-error" | "error";
+
+export type ControlDResourceIdentity = { code: string };
+export type ControlDDnsVerification = { endpointId: string; verifiedAt: string };
 
 export type ControlDMapping = {
   locationId: string;
@@ -35,22 +44,38 @@ export type ControlDManagedFolder = {
   remoteHash: string;
 };
 
-export type ControlDConfig = {
-  version: 1;
-  instanceId: string;
+export type ControlDConfigV2 = {
+  version: 2;
   enabled: boolean;
   connected: boolean;
   autoSyncEnabled: boolean;
   status: ControlDStatus;
+  resourceIdentity: ControlDResourceIdentity | null;
   profileId: string | null;
   endpointId: string | null;
   resolverDoh: string | null;
+  dnsVerification: ControlDDnsVerification | null;
   managedFolders: Record<string, ControlDManagedFolder>;
   locationMappings: Record<string, ControlDMapping>;
   lastSyncedHash: string | null;
   lastAttemptAt: string | null;
   lastSuccessAt: string | null;
   lastError: string | null;
+};
+
+// eslint-disable-next-line sonarjs/redundant-type-aliases
+export type ControlDConfig = ControlDConfigV2;
+
+// eslint-disable-next-line local/max-symbol-name-length
+export type ControlDRecoveryCandidate = {
+  code: string;
+  profileId: string;
+  profileName: string;
+  endpointId: string | null;
+  endpointName: string | null;
+  managedFolderCount: number;
+  compatibility: "ready" | "profile-only" | "ambiguous";
+  issue: string | null;
 };
 
 export type ControlDProxyLocation = {
@@ -105,10 +130,14 @@ export type ControlDPublicState = {
   autoSyncEnabled: boolean;
   status: ControlDStatus;
   hasApiKey: boolean;
+  setupStatus: "unselected" | "selected";
+  resourceCode: string | null;
   profileId: string | null;
   endpointId: string | null;
   hasResolver: boolean;
   resolverDoh: string | null;
+  dnsStatus: "unavailable" | "pending" | "verified";
+  dnsVerifiedAt: string | null;
   lastAttemptAt: string | null;
   lastSuccessAt: string | null;
   lastError: string | null;
@@ -134,9 +163,8 @@ const managedFolderSchema = z.object({
 });
 
 export const controlDConfigSchema = z.object({
-  version: z.literal(1),
-  instanceId: z.string().min(1),
-  enabled: z.boolean().optional(),
+  version: z.literal(2),
+  enabled: z.boolean(),
   connected: z.boolean(),
   autoSyncEnabled: z.boolean(),
   status: z.enum([
@@ -147,9 +175,13 @@ export const controlDConfigSchema = z.object({
     "auth-error",
     "error",
   ]),
+  resourceIdentity: z.object({ code: z.string().min(1) }).nullable(),
   profileId: z.string().min(1).nullable(),
   endpointId: z.string().min(1).nullable(),
   resolverDoh: z.string().min(1).nullable(),
+  dnsVerification: z
+    .object({ endpointId: z.string().min(1), verifiedAt: z.string().min(1) })
+    .nullable(),
   managedFolders: z.record(z.string(), managedFolderSchema),
   locationMappings: z.record(z.string(), mappingSchema),
   lastSyncedHash: z.string().nullable(),
@@ -162,17 +194,20 @@ export type ControlDCommand =
   | { type: typeof CONTROL_D_COMMANDS.getState }
   | { type: typeof CONTROL_D_COMMANDS.setEnabled; enabled: boolean }
   | { type: typeof CONTROL_D_COMMANDS.connect; apiKey: string }
-  | { type: typeof CONTROL_D_COMMANDS.preview }
+  | { type: typeof CONTROL_D_COMMANDS.discover }
+  | { type: typeof CONTROL_D_COMMANDS.selectNew }
   | {
-      type: typeof CONTROL_D_COMMANDS.apply;
-      confirmApproximate: boolean;
+      type: typeof CONTROL_D_COMMANDS.adopt;
+      profileId: string;
+      endpointId: string | null;
+      code: string;
     }
+  | { type: typeof CONTROL_D_COMMANDS.preview }
+  | { type: typeof CONTROL_D_COMMANDS.apply; confirmApproximate: boolean }
   | { type: typeof CONTROL_D_COMMANDS.syncNow }
   | { type: typeof CONTROL_D_COMMANDS.repair }
-  | {
-      type: typeof CONTROL_D_COMMANDS.updateMapping;
-      mapping: ControlDMapping;
-    }
+  | { type: typeof CONTROL_D_COMMANDS.updateMapping; mapping: ControlDMapping }
+  | { type: typeof CONTROL_D_COMMANDS.confirmDns; verified: boolean }
   | {
       type: typeof CONTROL_D_COMMANDS.dnsAction;
       action: "copy-resolver" | "open-settings" | "open-status" | "open-guide";

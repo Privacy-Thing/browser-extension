@@ -2,7 +2,7 @@ import React from "react";
 
 import {
   ControlDFeatureToggle,
-  ControlDPanel,
+  ControlDSubpage,
   isIntegrationAvailable as isExperimentalIntegrationAvailable,
 } from "@/experimental/control-d/ui-entry";
 import { cn } from "@/ui/components/lib/utils";
@@ -358,13 +358,11 @@ const DangerCard = () => {
 
 const AdvancedOverview = () => {
   const { highlightedAnchorId } = useSettings();
-  const [controlDEnabled, setControlDEnabled] = React.useState(false);
   return (
     <div className="grid grid-cols-12 gap-5">
       <div className="col-span-12 lg:col-span-8 flex flex-col gap-5">
         <RuntimeCard />
-        <ExperimentalCard onIntegrationToggle={setControlDEnabled} />
-        {controlDEnabled ? <ControlDPanel /> : null}
+        <ExperimentalCard onIntegrationToggle={() => undefined} />
         <DangerCard />
       </div>
       <div className="col-span-12 lg:col-span-4">
@@ -384,15 +382,22 @@ const AdvancedOverview = () => {
 
 export const AdvancedTab = () => {
   const { logsHostFilter, settingsSubpageView } = useSettings();
+  const showExperiment =
+    settingsSubpageView === "experimentalIntegration" &&
+    isExperimentalIntegrationAvailable();
+  let content = <AdvancedOverview />;
+  if (settingsSubpageView === "logs") {
+    content = (
+      <React.Suspense fallback={null}>
+        <LazyLogsSubpage initialHostFilter={logsHostFilter} />
+      </React.Suspense>
+    );
+  } else if (showExperiment) {
+    content = <ControlDSubpage />;
+  }
   return (
     <TabsContent value="advanced" data-panel="advanced" id={PAGE_ANCHORS.advanced}>
-      {settingsSubpageView === "logs" ? (
-        <React.Suspense fallback={null}>
-          <LazyLogsSubpage initialHostFilter={logsHostFilter} />
-        </React.Suspense>
-      ) : (
-        <AdvancedOverview />
-      )}
+      {content}
     </TabsContent>
   );
 };

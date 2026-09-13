@@ -1,17 +1,19 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { expect, userEvent, waitFor, within } from "storybook/test";
+import { expect, userEvent, within } from "storybook/test";
 
 import {
   CONTROL_D_COMMANDS,
   type ControlDDiff,
   type ControlDPreparedSnapshot,
   type ControlDPublicState,
+  type ControlDRecoveryCandidate,
 } from "../../../experimental/control-d/contracts";
-import { ControlDPanel } from "../../../experimental/control-d/ui-entry";
+import { ControlDSubpage } from "../../../experimental/control-d/ui-entry";
 
 import { EXTENSION_STORAGE_KEYS } from "@/shared/extension-contract";
 import { DEFAULT_PREFERENCES } from "@/shared/settings-defaults";
 import type { ThemeMode } from "@/shared/types";
+import { AppPageFrame } from "@/ui/shared/AppPageFrame";
 import { ThemeProvider } from "@/ui/shared/ThemeProvider";
 
 const baseState: ControlDPublicState = {
@@ -20,10 +22,14 @@ const baseState: ControlDPublicState = {
   autoSyncEnabled: true,
   status: "ready",
   hasApiKey: true,
+  setupStatus: "selected",
+  resourceCode: "ABCDE-FGHJK",
   profileId: "profile-1",
   endpointId: "device-1",
   hasResolver: true,
   resolverDoh: "https://dns.controld.com/private-resolver-token",
+  dnsStatus: "verified",
+  dnsVerifiedAt: "2026-09-10T14:30:00.000Z",
   lastAttemptAt: "2026-09-10T14:28:00.000Z",
   lastSuccessAt: "2026-09-10T14:28:00.000Z",
   lastError: null,
@@ -93,151 +99,18 @@ const proxies = [
     longitude: -75.7,
   },
 ];
-
 const snapshot: ControlDPreparedSnapshot = { diff, proxies };
-
-const installBoundary = (
-  state: ControlDPublicState,
-  themeMode: ThemeMode = "light",
-  preparedSnapshot: ControlDPreparedSnapshot = snapshot,
-): void => {
-  Reflect.set(globalThis, "chrome", {
-    runtime: {
-      id: "storybook-control-d",
-      sendMessage: async (message: { type?: string }) => {
-        if (
-          message.type === CONTROL_D_COMMANDS.preview ||
-          message.type === CONTROL_D_COMMANDS.syncNow ||
-          message.type === CONTROL_D_COMMANDS.apply ||
-          message.type === CONTROL_D_COMMANDS.repair
-        ) {
-          await Promise.resolve();
-          return { ok: true, state, snapshot: preparedSnapshot };
-        }
-        return { ok: true, state };
-      },
-      getManifest: () => ({
-        optional_host_permissions: ["https://api.controld.com/*"],
-      }),
-    },
-    permissions: {
-      contains: async () => true,
-      request: async () => true,
-    },
-    storage: {
-      local: {
-        get: async () => ({
-          [EXTENSION_STORAGE_KEYS.preferences]: {
-            ...DEFAULT_PREFERENCES,
-            themeMode,
-          },
-        }),
-        set: async () => undefined,
-        remove: async () => undefined,
-      },
-      onChanged: {
-        addListener: () => undefined,
-        removeListener: () => undefined,
-      },
-    },
-    tabs: { create: async () => undefined },
-  });
-};
-
-const Surface = ({
-  state,
-  themeMode,
-  preparedSnapshot,
-}: {
-  state: ControlDPublicState;
-  themeMode?: ThemeMode;
-  preparedSnapshot?: ControlDPreparedSnapshot;
-}) => {
-  installBoundary(state, themeMode, preparedSnapshot);
-  return (
-    <ThemeProvider>
-      <main className="mx-auto w-full max-w-4xl p-6">
-        <ControlDPanel />
-      </main>
-    </ThemeProvider>
-  );
-};
-
-const meta = {
-  title: "Options/Control D",
-  component: ControlDPanel,
-  parameters: { layout: "fullscreen", privacyThing: { surface: "options" } },
-} satisfies Meta<typeof ControlDPanel>;
-
-export default meta;
-type Story = StoryObj<typeof meta>;
-
-export const Disconnected: Story = {
-  render: () => (
-    <Surface
-      state={{
-        ...baseState,
-        connected: false,
-        autoSyncEnabled: false,
-        status: "disconnected",
-        hasApiKey: false,
-        profileId: null,
-        endpointId: null,
-        hasResolver: false,
-        resolverDoh: null,
-        lastAttemptAt: null,
-        lastSuccessAt: null,
-      }}
-    />
-  ),
-};
-
-export const Ready: Story = {
-  render: () => <Surface state={baseState} />,
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await expect(
-      await canvas.findByRole("button", { name: "Manage route overrides" }),
-    ).toBeVisible();
-    await expect(canvas.queryByText("Route overrides")).not.toBeInTheDocument();
-    await expect(canvas.queryByText("Warsaw, Poland")).not.toBeInTheDocument();
-    await expect(canvas.queryByText("Ottawa, Canada")).not.toBeInTheDocument();
-    await expect(canvas.queryByText("Paris, France")).not.toBeInTheDocument();
-    await expect(canvas.queryAllByRole("combobox")).toHaveLength(0);
-    await expect(canvas.queryByText("Folders to create")).not.toBeInTheDocument();
-    await expect(canvas.queryByText("Preview changes")).not.toBeInTheDocument();
-    await expect(canvas.queryByText(/need review/i)).not.toBeInTheDocument();
-
-    await userEvent.click(
-      canvas.getByRole("button", { name: "Manage route overrides" }),
-    );
-    await expect(await canvas.findByText("Route overrides")).toBeVisible();
-    await expect(canvas.getByText("Warsaw, Poland")).toBeVisible();
-    await expect(canvas.getByText("Ottawa, Canada")).toBeVisible();
-    await expect(canvas.getByText("Paris, France")).toBeVisible();
-    await expect(canvas.queryAllByRole("combobox")).toHaveLength(0);
-    await expect(canvas.getByText("Control D is up to date.")).toBeVisible();
-
-    await userEvent.click(canvas.getAllByRole("button", { name: "Change" })[0]!);
-    const exitSelect = canvas.getByRole("combobox", {
-      name: "Choose Control D exit for Warsaw",
-    });
-    await expect(exitSelect).toHaveTextContent("Warsaw, Poland");
-    await userEvent.click(exitSelect);
-    await expect(
-      await within(document.body).findByRole("option", { name: "Warsaw, Poland" }),
-    ).toBeVisible();
-    await userEvent.keyboard("{Escape}");
-
-    await userEvent.click(canvas.getByRole("button", { name: "Cancel" }));
-    await userEvent.click(canvas.getByRole("button", { name: "Sync now" }));
-    await expect(canvas.getByText("Warsaw, Poland")).toBeVisible();
-    await expect(
-      canvas.queryByText("Control D exit unavailable"),
-    ).not.toBeInTheDocument();
+const firstSnapshot: ControlDPreparedSnapshot = {
+  proxies,
+  diff: {
+    ...diff,
+    createProfile: true,
+    createEndpoint: true,
+    createFolders: 2,
+    addRules: 6,
+    unchangedRules: 0,
   },
 };
-
 const approximateSnapshot: ControlDPreparedSnapshot = {
   proxies: [
     ...proxies,
@@ -251,14 +124,12 @@ const approximateSnapshot: ControlDPreparedSnapshot = {
     },
   ],
   diff: {
-    ...diff,
-    unchangedRules: 0,
-    addRules: 1,
+    ...firstSnapshot.diff,
     warnings: [
       {
         code: "approximate-location",
         locationId: "rio",
-        message: "Rio de Janeiro uses the nearest available exit in Sao Paulo.",
+        message: "Control D has no exit in Brazil; Rio maps to Sao Paulo.",
       },
     ],
     mappings: [
@@ -274,73 +145,200 @@ const approximateSnapshot: ControlDPreparedSnapshot = {
     requiresApproximationConfirmation: true,
   },
 };
-
-export const FirstSynchronization: Story = {
-  render: () => (
-    <Surface
-      state={{
-        ...baseState,
-        autoSyncEnabled: false,
-        lastAttemptAt: null,
-        lastSuccessAt: null,
-      }}
-      preparedSnapshot={approximateSnapshot}
-    />
-  ),
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await expect(await canvas.findByText("Sao Paulo, Brazil")).toBeVisible();
-    await expect(
-      canvas.getByText(
-        "Nearest available exit; change it if you prefer another location.",
-      ),
-    ).toBeVisible();
-    await expect(canvas.queryByText("Preview changes")).not.toBeInTheDocument();
-    await expect(
-      canvas.getByRole("button", { name: "Apply synchronization" }),
-    ).toBeDisabled();
-    await userEvent.click(
-      canvas.getByText("I accept the cross-country fallback shown below."),
-    );
-    await expect(
-      canvas.getByRole("button", { name: "Apply synchronization" }),
-    ).toBeEnabled();
+const candidates: ControlDRecoveryCandidate[] = [
+  {
+    code: "ABCDE-FGHJK",
+    profileId: "profile-1",
+    profileName: "Privacy Thing ABCDE-FGHJK",
+    endpointId: "device-1",
+    endpointName: "PT Browser ABCDE-FGHJK",
+    managedFolderCount: 3,
+    compatibility: "ready",
+    issue: null,
   },
+  {
+    code: "MNPQR-STVWX",
+    profileId: "profile-2",
+    profileName: "Privacy Thing MNPQR-STVWX",
+    endpointId: null,
+    endpointName: null,
+    managedFolderCount: 2,
+    compatibility: "profile-only",
+    issue: null,
+  },
+];
+
+const installBoundary = (
+  state: ControlDPublicState,
+  preparedSnapshot: ControlDPreparedSnapshot,
+  recoveryCandidates: ControlDRecoveryCandidate[],
+  themeMode: ThemeMode,
+): void => {
+  Reflect.set(globalThis, "chrome", {
+    runtime: {
+      id: "storybook-control-d",
+      sendMessage: async (message: { type?: string }) => {
+        if (
+          message.type === CONTROL_D_COMMANDS.discover ||
+          message.type === CONTROL_D_COMMANDS.connect
+        ) {
+          return { ok: true, state, candidates: recoveryCandidates };
+        }
+        if (
+          [
+            CONTROL_D_COMMANDS.preview,
+            CONTROL_D_COMMANDS.syncNow,
+            CONTROL_D_COMMANDS.apply,
+            CONTROL_D_COMMANDS.repair,
+          ].includes(message.type as never)
+        ) {
+          return { ok: true, state, snapshot: preparedSnapshot };
+        }
+        return { ok: true, state };
+      },
+      getManifest: () => ({
+        optional_host_permissions: ["https://api.controld.com/*"],
+      }),
+      getURL: (path: string) => path,
+    },
+    permissions: { contains: async () => true, request: async () => true },
+    storage: {
+      local: {
+        get: async () => ({
+          [EXTENSION_STORAGE_KEYS.preferences]: { ...DEFAULT_PREFERENCES, themeMode },
+        }),
+        set: async () => undefined,
+        remove: async () => undefined,
+      },
+      onChanged: { addListener: () => undefined, removeListener: () => undefined },
+    },
+    tabs: { create: async () => undefined },
+  });
 };
 
+const Surface = ({
+  state,
+  preparedSnapshot = snapshot,
+  recoveryCandidates = [],
+  themeMode = "light",
+}: {
+  state: ControlDPublicState;
+  preparedSnapshot?: ControlDPreparedSnapshot;
+  recoveryCandidates?: ControlDRecoveryCandidate[];
+  themeMode?: ThemeMode;
+}) => {
+  installBoundary(state, preparedSnapshot, recoveryCandidates, themeMode);
+  return (
+    <ThemeProvider>
+      <AppPageFrame
+        title="Privacy Thing settings"
+        hideTitle
+        pageClassName="max-w-[1120px] px-4 sm:px-6"
+      >
+        <ControlDSubpage />
+      </AppPageFrame>
+    </ThemeProvider>
+  );
+};
+
+const meta = {
+  title: "Options/Control D",
+  component: ControlDSubpage,
+  parameters: { layout: "fullscreen", privacyThing: { surface: "options" } },
+} satisfies Meta<typeof ControlDSubpage>;
+
+export default meta;
+type Story = StoryObj<typeof meta>;
+
+const disconnected: ControlDPublicState = {
+  ...baseState,
+  connected: false,
+  autoSyncEnabled: false,
+  status: "disconnected",
+  hasApiKey: false,
+  setupStatus: "unselected",
+  resourceCode: null,
+  profileId: null,
+  endpointId: null,
+  hasResolver: false,
+  resolverDoh: null,
+  dnsStatus: "unavailable",
+  dnsVerifiedAt: null,
+  lastAttemptAt: null,
+  lastSuccessAt: null,
+};
+
+const choosing: ControlDPublicState = {
+  ...disconnected,
+  connected: true,
+  status: "ready",
+  hasApiKey: true,
+};
+const firstSync: ControlDPublicState = {
+  ...baseState,
+  autoSyncEnabled: false,
+  profileId: null,
+  endpointId: null,
+  hasResolver: false,
+  resolverDoh: null,
+  dnsStatus: "unavailable",
+  dnsVerifiedAt: null,
+  lastAttemptAt: null,
+  lastSuccessAt: null,
+};
+const dnsPending: ControlDPublicState = {
+  ...baseState,
+  dnsStatus: "pending",
+  dnsVerifiedAt: null,
+};
+
+export const Account: Story = { render: () => <Surface state={disconnected} /> };
+export const NoExistingSetup: Story = { render: () => <Surface state={choosing} /> };
+export const ExistingSetups: Story = {
+  render: () => <Surface state={choosing} recoveryCandidates={candidates} />,
+};
+export const FirstSynchronization: Story = {
+  render: () => <Surface state={firstSync} preparedSnapshot={firstSnapshot} />,
+};
+export const ApproximateRoute: Story = {
+  render: () => <Surface state={firstSync} preparedSnapshot={approximateSnapshot} />,
+};
+export const BrowserDns: Story = { render: () => <Surface state={dnsPending} /> };
+export const Active: Story = { render: () => <Surface state={baseState} /> };
 export const Conflict: Story = {
   render: () => (
     <Surface
       state={{
-        ...baseState,
-        autoSyncEnabled: false,
+        ...firstSync,
         status: "conflict",
+        profileId: "profile-1",
+        endpointId: "device-1",
         lastError:
-          "Managed Control D rules changed remotely. Review the diff before repairing them.",
+          "Managed rules changed remotely. Review the diff before repairing them.",
       }}
     />
   ),
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await waitFor(() =>
-      expect(
-        canvas.getByRole("button", { name: "Repair managed rules" }),
-      ).toBeVisible(),
-    );
-  },
 };
-
 export const Syncing: Story = {
   render: () => <Surface state={{ ...baseState, status: "syncing" }} />,
 };
-
-export const DarkReady: Story = {
+export const DarkActive: Story = {
   render: () => <Surface state={baseState} themeMode="dark" />,
+};
+
+export const SelectInteraction: Story = {
+  render: () => <Surface state={firstSync} preparedSnapshot={approximateSnapshot} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    await expect(await canvas.findByText("Sao Paulo, Brazil")).toBeVisible();
+    await userEvent.click(canvas.getByRole("button", { name: "Change" }));
+    const select = canvas.getByRole("combobox", {
+      name: "Choose Control D exit for Rio de Janeiro",
+    });
+    await userEvent.click(select);
     await expect(
-      await canvas.findByRole("button", { name: "Manage route overrides" }),
+      await within(document.body).findByRole("option", { name: "Warsaw, Poland" }),
     ).toBeVisible();
-    await expect(canvas.queryByText("Warsaw, Poland")).not.toBeInTheDocument();
+    await userEvent.keyboard("{Escape}");
   },
 };

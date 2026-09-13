@@ -1,4 +1,5 @@
 import type { ControlDMapping, ControlDProxyLocation } from "./contracts";
+import { controlDText as t } from "./ui-copy";
 
 import { Button } from "@/ui/components/ui/button";
 import {
@@ -9,26 +10,25 @@ import {
   SelectValue,
 } from "@/ui/components/ui/select";
 
-const ruleCountLabel = (count: number): string =>
-  `${count} ${count === 1 ? "rule" : "rules"}`;
+const ruleCountLabel = (count: number): string => t.route.ruleCount(count);
 
 const proxyLabel = (
   mapping: ControlDMapping,
   proxy: ControlDProxyLocation | undefined,
 ): string => {
   if (proxy) return `${proxy.city}, ${proxy.countryName}`;
-  if (mapping.status === "skipped") return "Not synchronized";
-  return "Control D exit unavailable";
+  if (mapping.status === "skipped") return t.route.notSynchronized;
+  return t.route.unavailable;
 };
 
 const mappingDescription = (status: ControlDMapping["status"]): string => {
   if (status === "exact") {
-    return "Automatically matched to the nearest exit in the same country.";
+    return t.route.exact;
   }
   if (status === "approximate") {
-    return "Nearest available exit; change it if you prefer another location.";
+    return t.route.approximate;
   }
-  return "This regional profile is excluded from synchronization.";
+  return t.route.skipped;
 };
 
 type RouteProps = {
@@ -52,9 +52,9 @@ export const ControlDRegionalRoute = ({
 }: RouteProps) => {
   const label = mapping.locationLabel ?? mapping.locationId;
   const selectedProxyLabel = proxyLabel(mapping, proxy);
-  let actionLabel = "Change";
-  if (editing) actionLabel = "Cancel";
-  else if (mapping.status === "skipped" || !proxy) actionLabel = "Choose exit";
+  let actionLabel: string = t.route.change;
+  if (editing) actionLabel = t.common.cancel;
+  else if (mapping.status === "skipped" || !proxy) actionLabel = t.route.choose;
 
   return (
     <div
@@ -75,11 +75,11 @@ export const ControlDRegionalRoute = ({
               onMappingChange(mapping, value === "skip" ? "" : value)
             }
           >
-            <SelectTrigger aria-label={`Choose Control D exit for ${label}`}>
+            <SelectTrigger aria-label={t.route.selectLabel(label)}>
               <SelectValue>{selectedProxyLabel}</SelectValue>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="skip">Do not synchronize</SelectItem>
+              <SelectItem value="skip">{t.route.skip}</SelectItem>
               {proxies.map((availableProxy) => (
                 <SelectItem key={availableProxy.pk} value={availableProxy.pk}>
                   {availableProxy.city}, {availableProxy.countryName}

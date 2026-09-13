@@ -4,25 +4,20 @@ import {
   type ControlDPublicState,
 } from "@/experimental/control-d/contracts";
 
-const CONFIG_KEY = "pt.experimental.control-d.config.v1";
-const API_KEY = "pt.experimental.control-d.api-key.v1";
-
-const OBSOLETE_NAME_CONFLICTS = new Set([
-  "The managed Control D endpoint was renamed.",
-  "The managed Control D profile was renamed.",
-  "The managed profile was renamed.",
-]);
+const CONFIG_KEY = "pt.experimental.control-d.v2.config";
+const API_KEY = "pt.experimental.control-d.v2.api-key";
 
 const createDefaultConfig = (): ControlDConfig => ({
-  version: 1,
-  instanceId: crypto.randomUUID(),
+  version: 2,
   enabled: false,
   connected: false,
   autoSyncEnabled: false,
   status: "disconnected",
+  resourceIdentity: null,
   profileId: null,
   endpointId: null,
   resolverDoh: null,
+  dnsVerification: null,
   managedFolders: {},
   locationMappings: {},
   lastSyncedHash: null,
@@ -50,29 +45,8 @@ export const loadControlDConfig = async (): Promise<ControlDConfig> => {
         },
       ]),
     );
-    const config: ControlDConfig = {
-      ...parsed.data,
-      enabled: parsed.data.enabled ?? parsed.data.connected,
-      locationMappings,
-    };
-    if (
-      config.connected &&
-      config.lastSyncedHash &&
-      config.lastError &&
-      OBSOLETE_NAME_CONFLICTS.has(config.lastError)
-    ) {
-      const recovered: ControlDConfig = {
-        ...config,
-        autoSyncEnabled: true,
-        status: "ready",
-        lastError: null,
-      };
-      await saveControlDConfig(recovered);
-      return recovered;
-    }
-    return config;
+    return { ...parsed.data, locationMappings };
   }
-
   const config = createDefaultConfig();
   await chrome.storage.local.set({ [CONFIG_KEY]: config });
   return config;
@@ -98,19 +72,30 @@ export const forgetControlDApiKey = async (): Promise<void> => {
 
 export const toControlDPublicState = async (
   config: ControlDConfig,
-): Promise<ControlDPublicState> => ({
-  enabled: config.enabled,
-  connected: config.connected,
-  autoSyncEnabled: config.autoSyncEnabled,
-  status: config.status,
-  hasApiKey: (await loadControlDApiKey()) !== null,
-  profileId: config.profileId,
-  endpointId: config.endpointId,
-  hasResolver: config.resolverDoh !== null,
-  resolverDoh: config.resolverDoh,
-  lastAttemptAt: config.lastAttemptAt,
-  lastSuccessAt: config.lastSuccessAt,
-  lastError: config.lastError,
-});
+): Promise<ControlDPublicState> => {
+  const dnsVerified =
+    config.endpointId !== null &&
+    config.dnsVerification?.endpointId === config.endpointId;
+  let dnsStatus: ControlDPublicState["dnsStatus"] = "unavailable";
+  if (config.resolverDoh) dnsStatus = dnsVerified ? "verified" : "pending";
+  return {
+    enabled: config.enabled,
+    connected: config.connected,
+    autoSyncEnabled: config.autoSyncEnabled,
+    status: config.status,
+    hasApiKey: (await loadControlDApiKey()) !== null,
+    setupStatus: config.resourceIdentity ? "selected" : "unselected",
+    resourceCode: config.resourceIdentity?.code ?? null,
+    profileId: config.profileId,
+    endpointId: config.endpointId,
+    hasResolver: config.resolverDoh !== null,
+    resolverDoh: config.resolverDoh,
+    dnsStatus,
+    dnsVerifiedAt: dnsVerified ? (config.dnsVerification?.verifiedAt ?? null) : null,
+    lastAttemptAt: config.lastAttemptAt,
+    lastSuccessAt: config.lastSuccessAt,
+    lastError: config.lastError,
+  };
+};
 
 export const CONTROL_D_STORE_KEYS = [CONFIG_KEY, API_KEY] as const;

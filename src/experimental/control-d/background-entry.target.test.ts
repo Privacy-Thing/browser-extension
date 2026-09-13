@@ -81,17 +81,25 @@ beforeEach(() => {
 });
 
 describe("Control D background entry", () => {
+  const request = (message: unknown) =>
+    new Promise<Record<string, unknown>>((resolve) => {
+      messageListener(message, { id: "extension-id" }, (response) =>
+        resolve(response as Record<string, unknown>),
+      );
+    });
+
   it("returns the same prepared snapshot after preview and synchronization", async () => {
     const config: ControlDConfig = {
-      version: 1,
-      instanceId: "existing-instance",
+      version: 2,
       enabled: true,
       connected: true,
       autoSyncEnabled: false,
       status: "ready",
+      resourceIdentity: { code: "ABCDE-FGHJK" },
       profileId: "profile-id",
       endpointId: "endpoint-id",
       resolverDoh: "https://example.test/private-resolver",
+      dnsVerification: null,
       managedFolders: {},
       locationMappings: {},
       lastSyncedHash: "hash",
@@ -145,14 +153,7 @@ describe("Control D background entry", () => {
     vi.mocked(applyControlDSync).mockResolvedValueOnce(config);
     registerControlD({ getDebugMode: async () => false });
 
-    const request = (type: string) =>
-      new Promise<Record<string, unknown>>((resolve) => {
-        messageListener({ type }, { id: "extension-id" }, (response) =>
-          resolve(response as Record<string, unknown>),
-        );
-      });
-
-    const previewResponse = await request(CONTROL_D_COMMANDS.preview);
+    const previewResponse = await request({ type: CONTROL_D_COMMANDS.preview });
     expect(previewResponse).toMatchObject({ ok: true, snapshot: expectedSnapshot });
     expect(previewResponse).not.toHaveProperty("diff");
     expect(storageState[CONTROL_D_STORE_KEYS[0]]).toMatchObject({
@@ -160,10 +161,73 @@ describe("Control D background entry", () => {
       lastError: null,
     });
 
-    const syncResponse = await request(CONTROL_D_COMMANDS.syncNow);
+    const syncResponse = await request({ type: CONTROL_D_COMMANDS.syncNow });
 
     expect(syncResponse).toMatchObject({ ok: true, snapshot: expectedSnapshot });
     expect(syncResponse).not.toHaveProperty("diff");
+  });
+
+  it("creates a new resource identity without running synchronization", async () => {
+    storageState[CONTROL_D_STORE_KEYS[1]] = "api-key";
+    registerControlD({ getDebugMode: async () => false });
+
+    const response = await request({ type: CONTROL_D_COMMANDS.selectNew });
+
+    expect(response).toMatchObject({
+      ok: true,
+      state: { setupStatus: "selected", profileId: null, endpointId: null },
+    });
+    expect(storageState[CONTROL_D_STORE_KEYS[0]]).toMatchObject({
+      version: 2,
+      resourceIdentity: {
+        code: expect.stringMatching(/^[0-9A-HJKMNP-TV-Z]{5}-[0-9A-HJKMNP-TV-Z]{5}$/),
+      },
+      profileId: null,
+      endpointId: null,
+    });
+    expect(prepareControlDSync).not.toHaveBeenCalled();
+    expect(applyControlDSync).not.toHaveBeenCalled();
+  });
+
+  it("binds DNS confirmation to the current endpoint and clears it on disconnect", async () => {
+    storageState[CONTROL_D_STORE_KEYS[0]] = {
+      version: 2,
+      enabled: true,
+      connected: true,
+      autoSyncEnabled: true,
+      status: "ready",
+      resourceIdentity: { code: "ABCDE-FGHJK" },
+      profileId: "profile-id",
+      endpointId: "endpoint-id",
+      resolverDoh: "https://dns.controld.com/private",
+      dnsVerification: null,
+      managedFolders: {},
+      locationMappings: {},
+      lastSyncedHash: "hash",
+      lastAttemptAt: null,
+      lastSuccessAt: "2026-09-10T10:00:00.000Z",
+      lastError: null,
+    };
+    storageState[CONTROL_D_STORE_KEYS[1]] = "api-key";
+    registerControlD({ getDebugMode: async () => false });
+
+    const confirmed = await request({
+      type: CONTROL_D_COMMANDS.confirmDns,
+      verified: true,
+    });
+    expect(confirmed).toMatchObject({ ok: true, state: { dnsStatus: "verified" } });
+
+    const disconnected = await request({ type: CONTROL_D_COMMANDS.disconnect });
+    expect(disconnected).toMatchObject({
+      ok: true,
+      state: { connected: false, dnsStatus: "pending" },
+    });
+    expect(storageState[CONTROL_D_STORE_KEYS[0]]).toMatchObject({
+      profileId: "profile-id",
+      endpointId: "endpoint-id",
+      dnsVerification: null,
+    });
+    expect(storageState[CONTROL_D_STORE_KEYS[1]]).toBeUndefined();
   });
 
   it("persists a toggle action in extension logs when debug mode comes from storage", async () => {
@@ -229,15 +293,16 @@ describe("Control D background entry", () => {
 
   it("schedules automatic reconciliation when an applied integration starts", async () => {
     storageState[CONTROL_D_STORE_KEYS[0]] = {
-      version: 1,
-      instanceId: "existing-instance",
+      version: 2,
       enabled: true,
       connected: true,
       autoSyncEnabled: true,
       status: "ready",
+      resourceIdentity: { code: "ABCDE-FGHJK" },
       profileId: "profile-id",
       endpointId: "endpoint-id",
       resolverDoh: "https://example.test/private-resolver",
+      dnsVerification: null,
       managedFolders: {},
       locationMappings: {},
       lastSyncedHash: "hash",

@@ -15,7 +15,9 @@ import {
   prepareControlDSync,
   type ControlDPreparedSync,
 } from "./reconcile";
+import { adoptRecoverySet, discoverRecoverySets } from "./recovery";
 import { redactControlDLogValue } from "./redaction";
+import { generateResourceCode } from "./resource-names";
 import {
   forgetControlDApiKey,
   loadControlDApiKey,
@@ -271,8 +273,8 @@ const createController = (deps: BackgroundEntryDeps) => {
       const config = await loadControlDConfig();
       try {
         const client = createClient(apiKey);
-        const [profiles, proxies] = await Promise.all([
-          client.listProfiles(),
+        const [candidates, proxies] = await Promise.all([
+          discoverRecoverySets(client),
           client.listProxies(),
         ]);
         if (proxies.length === 0) throw new Error("No usable proxy locations found.");
@@ -288,11 +290,15 @@ const createController = (deps: BackgroundEntryDeps) => {
         log(
           deps,
           "control-d.connection.success",
-          { profileCount: profiles.length, proxyCount: proxies.length },
+          { recoveryCandidates: candidates.length, proxyCount: proxies.length },
           undefined,
           apiKey,
         );
-        return { ok: true, state: await toControlDPublicState(next) };
+        return {
+          ok: true,
+          state: await toControlDPublicState(next),
+          candidates,
+        };
       } catch (error) {
         const failed = await saveFailure(config, error);
         log(
@@ -318,6 +324,7 @@ const createController = (deps: BackgroundEntryDeps) => {
         connected: false,
         autoSyncEnabled: false,
         status: "disconnected",
+        dnsVerification: null,
         lastError: null,
       };
       await saveControlDConfig(next);
@@ -365,6 +372,81 @@ const createController = (deps: BackgroundEntryDeps) => {
         error: "Connect a Control D API key first.",
         state: await toControlDPublicState(config),
       };
+    }
+
+    if (command.type === CONTROL_D_COMMANDS.discover) {
+      try {
+        const candidates = await discoverRecoverySets(createClient(apiKey));
+        return {
+          ok: true,
+          state: await toControlDPublicState(config),
+          candidates,
+        };
+      } catch (error) {
+        return {
+          ok: false,
+          error: errorMessage(error),
+          state: await toControlDPublicState(config),
+        };
+      }
+    }
+
+    if (command.type === CONTROL_D_COMMANDS.selectNew) {
+      const next: ControlDConfig = {
+        ...config,
+        resourceIdentity: { code: generateResourceCode() },
+        profileId: null,
+        endpointId: null,
+        resolverDoh: null,
+        dnsVerification: null,
+        managedFolders: {},
+        locationMappings: {},
+        autoSyncEnabled: false,
+        status: "ready",
+        lastSyncedHash: null,
+        lastSuccessAt: null,
+        lastError: null,
+      };
+      await saveControlDConfig(next);
+      return { ok: true, state: await toControlDPublicState(next) };
+    }
+
+    if (command.type === CONTROL_D_COMMANDS.adopt) {
+      try {
+        const next = await adoptRecoverySet({
+          client: createClient(apiKey),
+          config,
+          profileId: command.profileId,
+          endpointId: command.endpointId,
+          code: command.code,
+        });
+        await saveControlDConfig(next);
+        return { ok: true, state: await toControlDPublicState(next) };
+      } catch (error) {
+        return {
+          ok: false,
+          error: errorMessage(error),
+          state: await toControlDPublicState(config),
+        };
+      }
+    }
+
+    if (command.type === CONTROL_D_COMMANDS.confirmDns) {
+      if (!config.endpointId || !config.resolverDoh) {
+        return {
+          ok: false,
+          error: "Synchronize an endpoint before confirming browser DNS.",
+          state: await toControlDPublicState(config),
+        };
+      }
+      const next: ControlDConfig = {
+        ...config,
+        dnsVerification: command.verified
+          ? { endpointId: config.endpointId, verifiedAt: new Date().toISOString() }
+          : null,
+      };
+      await saveControlDConfig(next);
+      return { ok: true, state: await toControlDPublicState(next) };
     }
 
     if (command.type === CONTROL_D_COMMANDS.preview) {

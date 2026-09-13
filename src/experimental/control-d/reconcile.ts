@@ -31,9 +31,15 @@ export type ControlDPreparedSync = {
   diff: ControlDDiff;
 };
 
+const resourceCode = (config: ControlDConfig): string => {
+  if (!config.resourceIdentity) {
+    throw new Error("Choose a new or existing Control D setup first.");
+  }
+  return config.resourceIdentity.code;
+};
 const profileName = controlDProfileName;
-const endpointName = (instanceId: string): string =>
-  controlDEndpointName(instanceId, __PT_BROWSER_TARGET__);
+const endpointName = (code: string): string =>
+  controlDEndpointName(code, __PT_BROWSER_TARGET__);
 const folderName = controlDFolderName;
 const ruleComment = controlDRuleComment;
 const normalizedResourceName = (name: string): string =>
@@ -131,6 +137,7 @@ export const prepareControlDSync = async (
   client: ControlDClient,
   config: ControlDConfig,
 ): Promise<ControlDPreparedSync> => {
+  resourceCode(config);
   const [rules, locations, proxies, profiles] = await Promise.all([
     loadRules(),
     loadLocations(),
@@ -187,7 +194,7 @@ export const prepareControlDSync = async (
         hostnames,
         group.id,
         proxyPk,
-        ruleComment(config.instanceId),
+        ruleComment(resourceCode(config)),
       );
       counts.addRules += folderCounts.addRules;
       counts.updateRules += folderCounts.updateRules;
@@ -256,7 +263,7 @@ const ensureProfile = async (
   client: ControlDClient,
   config: ControlDConfig,
 ): Promise<string> => {
-  const name = profileName(config.instanceId);
+  const name = profileName(resourceCode(config));
   const profiles = await client.listProfiles();
   if (config.profileId) {
     const managed = profiles.find((profile) => profile.id === config.profileId);
@@ -290,7 +297,7 @@ const ensureEndpoint = async (
     return { id: existing.id, resolverDoh: existing.resolverDoh };
   }
 
-  const name = endpointName(config.instanceId);
+  const name = endpointName(resourceCode(config));
   const existing = (await client.listDevices()).filter((device) =>
     resourceNameMatches(device.name, name),
   );
@@ -411,7 +418,7 @@ export const applyControlDSync = async ({
       if (known) {
         throw new ControlDConflictError(`Managed folder ${known.folderId} is missing.`);
       }
-      const name = folderName(nextConfig.instanceId, proxyPk);
+      const name = folderName(resourceCode(nextConfig), proxyPk);
       const matches = groups.filter((candidate) =>
         resourceNameMatches(candidate.name, name),
       );
@@ -463,7 +470,7 @@ export const applyControlDSync = async ({
             (rule.via !== null && rule.via !== proxyPk) ||
             (rule.status !== null && rule.status !== 1) ||
             (rule.comment !== null &&
-              rule.comment !== ruleComment(nextConfig.instanceId))),
+              rule.comment !== ruleComment(resourceCode(nextConfig)))),
       )
       .map((rule) => rule.hostname);
 
@@ -473,14 +480,14 @@ export const applyControlDSync = async ({
       group.id,
       proxyPk,
       toCreate,
-      ruleComment(nextConfig.instanceId),
+      ruleComment(resourceCode(nextConfig)),
     );
     await client.updateRules(
       profileId,
       group.id,
       proxyPk,
       toUpdate,
-      ruleComment(nextConfig.instanceId),
+      ruleComment(resourceCode(nextConfig)),
     );
 
     const finalRules = await client.listRules(profileId, group.id);
@@ -509,6 +516,10 @@ export const applyControlDSync = async ({
     profileId,
     endpointId: endpoint.id,
     resolverDoh: endpoint.resolverDoh ?? nextConfig.resolverDoh,
+    dnsVerification:
+      nextConfig.dnsVerification?.endpointId === endpoint.id
+        ? nextConfig.dnsVerification
+        : null,
     managedFolders,
     lastSyncedHash: await hashControlDValue(prepared.compilation.rules),
     lastAttemptAt: new Date().toISOString(),

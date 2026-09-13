@@ -4,4 +4,6 @@ export const ControlDFeatureToggle = (_props: {
 
 export const ControlDPanel = () => null;
 
+export const ControlDSubpage = () => null;
+
 export const isIntegrationAvailable = (): boolean => false;

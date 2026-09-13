@@ -1,0 +1,141 @@
+export const controlDText = {
+  title: "Control D",
+  featureTitle: "Control D integration",
+  featureDescription:
+    "Synchronize regional rules with a separate Control D profile. Available only in beta and local builds.",
+  open: "Open Control D",
+  back: "Back to Advanced",
+  lead: "Publish compatible regional rules to an isolated Control D profile. Synchronization is one-way.",
+  progressLabel: "Control D setup progress",
+  enableLabel: "Enable Control D integration",
+  status: {
+    loading: "Loading",
+    disconnected: "Not connected",
+    authError: "Authorization failed",
+    conflict: "Needs attention",
+    syncError: "Sync error",
+    syncing: "Synchronizing",
+    chooseSetup: "Choose setup",
+    review: "Ready to review",
+    dnsPending: "Rules synced · DNS not verified",
+    active: "Active",
+  },
+  steps: ["Control D account", "Choose setup", "Review rules", "Browser DNS"],
+  account: {
+    title: "Connect your account",
+    description:
+      "Use a write-enabled API key. It stays in this extension installation and is never exported or browser-synced.",
+    placeholder: "Control D API key",
+    connect: "Connect",
+    connectedTitle: "API access verified",
+    connectedDescription:
+      "Privacy Thing can read your Control D account. Nothing has been created or changed yet.",
+    docs: "API instructions",
+    permissionDenied: "Access to the Control D API was not granted.",
+  },
+  setup: {
+    title: "Choose a setup",
+    description:
+      "Create an isolated setup or explicitly reconnect one previously created by Privacy Thing.",
+    none: "No compatible Privacy Thing profiles were found in this account.",
+    existing: "Existing Privacy Thing setups",
+    folders: (count: number) =>
+      `${count} managed route folder${count === 1 ? "" : "s"}`,
+    missingEndpoint: "Endpoint will be created when you apply synchronization.",
+    blocked: "This setup needs manual cleanup in Control D before it can be used.",
+    useExisting: "Use existing setup",
+    createNew: "Create new setup",
+    confirmTitle: "Use this existing setup?",
+    confirmDescription:
+      "Privacy Thing will link this installation to the selected profile. No remote changes happen until you review and apply synchronization.",
+  },
+  rules: {
+    title: "Review synchronization",
+    description:
+      "Review every planned write before Privacy Thing creates or updates managed resources.",
+    preview: "Refresh preview",
+    apply: "Apply synchronization",
+    repair: "Repair managed rules",
+    sync: "Sync now",
+    routes: "Route overrides",
+    showRoutes: "Review route overrides",
+    hideRoutes: "Hide route overrides",
+    acceptApproximate: "I accept the approximate routes shown below.",
+    upToDate: "Managed rules are up to date.",
+    routeDescription:
+      "Automatic choices are shown first. Override only the routes that need a different exit.",
+  },
+  dns: {
+    title: "Configure browser DNS",
+    description:
+      "Secure DNS remains a browser setting. Privacy Thing cannot change or inspect it automatically.",
+    copy: "Copy resolver",
+    copied: "Resolver copied",
+    settings: "Open DNS settings",
+    verify: "Verify on Control D",
+    guide: "Setup instructions",
+    confirm: "I verified this resolver",
+    verified: "DNS verified",
+    verifiedDescription:
+      "You confirmed that the Control D status page reports this endpoint.",
+    verifiedState: "Verified",
+    unverifiedState: "Not verified",
+  },
+  overview: {
+    title: "Integration overview",
+    account: "API account",
+    rules: "Managed rules",
+    dns: "Browser DNS",
+    review: "Review routes",
+    verify: "Verify DNS again",
+    setupLabel: (code: string) => `Managed setup ${code}`,
+    syncedAt: (time: string) => `Synced ${time}`,
+  },
+  summary: {
+    profiles: "Profiles",
+    endpoints: "Endpoints",
+    folders: "Folders",
+    add: "Add",
+    update: "Update",
+    remove: "Remove",
+  },
+  disconnect: {
+    action: "Disconnect",
+    title: "Disconnect Control D?",
+    description:
+      "Privacy Thing will forget the API key and stop synchronization. Remote resources and your browser DNS setting will remain unchanged.",
+    confirm: "Disconnect integration",
+  },
+  common: {
+    cancel: "Cancel",
+    continue: "Continue",
+    notYet: "Not yet",
+    working: "Working…",
+    selected: "Selected",
+    requestFailed: "Control D request failed.",
+    copyFailed: "The resolver could not be copied.",
+    confirmedAt: (time: string) => `Confirmed ${time}`,
+    applyFirst:
+      "Apply synchronization first to create the browser endpoint and resolver.",
+  },
+  help: {
+    title: "How this works",
+    identity:
+      "Privacy Thing only manages resources carrying the setup code shown here.",
+    separation:
+      "Account access, rule synchronization, and browser DNS are separate steps.",
+    retention: "Remote resources are never removed automatically.",
+  },
+  route: {
+    ruleCount: (count: number) => `${count} ${count === 1 ? "rule" : "rules"}`,
+    notSynchronized: "Not synchronized",
+    unavailable: "Control D exit unavailable",
+    exact: "Automatically matched to the nearest exit in the same country.",
+    approximate: "Nearest available exit; change it if you prefer another location.",
+    skipped: "This regional profile is excluded from synchronization.",
+    change: "Change",
+    choose: "Choose exit",
+    skip: "Do not synchronize",
+    selectLabel: (location: string) => `Choose Control D exit for ${location}`,
+  },
+} as const;

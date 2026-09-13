@@ -38,15 +38,16 @@ const berlinProxy: ControlDProxyLocation = {
 };
 
 const config = (): ControlDConfig => ({
-  version: 1,
-  instanceId: "instance-1",
+  version: 2,
   enabled: true,
   connected: true,
   autoSyncEnabled: false,
   status: "ready",
+  resourceIdentity: { code: "ABCDE-FGHJK" },
   profileId: null,
   endpointId: null,
   resolverDoh: null,
+  dnsVerification: null,
   managedFolders: {},
   locationMappings: {},
   lastSyncedHash: null,

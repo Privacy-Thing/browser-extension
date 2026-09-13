@@ -28,90 +28,44 @@ beforeEach(() => {
 });
 
 describe("Control D storage", () => {
-  it("keeps its API key outside all ordinary settings keys", async () => {
+  it("uses a private namespace disjoint from production settings", () => {
+    expect(CONTROL_D_STORE_KEYS).toEqual([
+      "pt.experimental.control-d.v2.config",
+      "pt.experimental.control-d.v2.api-key",
+    ]);
     expect(
       CONTROL_D_STORE_KEYS.some((key) =>
         Object.values(EXTENSION_STORAGE_KEYS).includes(key as never),
       ),
     ).toBe(false);
-
-    await saveControlDApiKey("secret");
-    expect(await loadControlDApiKey()).toBe("secret");
-    await forgetControlDApiKey();
-    expect(await loadControlDApiKey()).toBeNull();
   });
 
-  it("creates a versioned config without interpreting malformed older data", async () => {
-    state[CONTROL_D_STORE_KEYS[0]] = { version: 0, profileId: "foreign" };
-
+  it("creates v2 without reading or changing old experimental keys", async () => {
+    const oldValue = { version: 1, instanceId: "old-instance" };
+    state["pt.experimental.control-d.config.v1"] = oldValue;
     const config = await loadControlDConfig();
-
     expect(config).toMatchObject({
-      version: 1,
+      version: 2,
       enabled: false,
       connected: false,
-      autoSyncEnabled: false,
+      resourceIdentity: null,
       profileId: null,
       endpointId: null,
     });
-    expect(config.instanceId).toBeTruthy();
+    expect(state["pt.experimental.control-d.config.v1"]).toBe(oldValue);
   });
 
-  it("keeps an existing connected integration visible after adding the feature switch", async () => {
-    state[CONTROL_D_STORE_KEYS[0]] = {
-      version: 1,
-      instanceId: "existing-instance",
-      connected: true,
-      autoSyncEnabled: true,
-      status: "ready",
-      profileId: "profile-id",
-      endpointId: "endpoint-id",
-      resolverDoh: "https://example.test/private-resolver",
-      managedFolders: {},
-      locationMappings: {},
-      lastSyncedHash: "hash",
-      lastAttemptAt: "2026-09-10T10:00:00.000Z",
-      lastSuccessAt: "2026-09-10T10:00:00.000Z",
-      lastError: null,
-    };
-
-    const config = await loadControlDConfig();
-
-    expect(config.enabled).toBe(true);
-    expect(config.connected).toBe(true);
-    expect(config.profileId).toBe("profile-id");
+  it("replaces only malformed v2 config", async () => {
+    state[CONTROL_D_STORE_KEYS[0]] = { version: 2, profileId: "foreign" };
+    state["unrelated.production.key"] = { keep: true };
+    expect((await loadControlDConfig()).resourceIdentity).toBeNull();
+    expect(state["unrelated.production.key"]).toEqual({ keep: true });
   });
 
-  it("recovers automatic sync disabled by the obsolete endpoint-name conflict", async () => {
-    state[CONTROL_D_STORE_KEYS[0]] = {
-      version: 1,
-      instanceId: "existing-instance",
-      enabled: true,
-      connected: true,
-      autoSyncEnabled: false,
-      status: "conflict",
-      profileId: "profile-id",
-      endpointId: "endpoint-id",
-      resolverDoh: "https://example.test/private-resolver",
-      managedFolders: {},
-      locationMappings: {},
-      lastSyncedHash: "hash",
-      lastAttemptAt: "2026-09-10T14:23:54.000Z",
-      lastSuccessAt: "2026-09-10T11:09:48.000Z",
-      lastError: "The managed Control D endpoint was renamed.",
-    };
-
-    const config = await loadControlDConfig();
-
-    expect(config).toMatchObject({
-      autoSyncEnabled: true,
-      status: "ready",
-      lastError: null,
-    });
-    expect(state[CONTROL_D_STORE_KEYS[0]]).toMatchObject({
-      autoSyncEnabled: true,
-      status: "ready",
-      lastError: null,
-    });
+  it("stores and forgets only the private API key", async () => {
+    await saveControlDApiKey(" secret ");
+    expect(await loadControlDApiKey()).toBe("secret");
+    await forgetControlDApiKey();
+    expect(await loadControlDApiKey()).toBeNull();
   });
 });

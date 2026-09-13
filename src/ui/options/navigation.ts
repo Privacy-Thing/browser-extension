@@ -36,6 +36,7 @@ export const PAGE_ANCHORS: Record<SettingsTab, string> = {
 
 export const SETTINGS_SUBPAGE_ANCHORS = {
   logs: "page-logs",
+  experimentalIntegration: "page-experimental-integration",
   privacyPolicy: "page-privacy-policy",
   thirdPartyNotices: "page-third-party-notices",
   license: "page-license",
@@ -146,6 +147,7 @@ const STATIC_ANCHOR_TO_TAB: Record<string, SettingsTab> = {
   [PAGE_ANCHORS.advanced]: "advanced",
   [PAGE_ANCHORS.about]: "about",
   [SETTINGS_SUBPAGE_ANCHORS.logs]: "advanced",
+  [SETTINGS_SUBPAGE_ANCHORS.experimentalIntegration]: "advanced",
   [SETTINGS_SUBPAGE_ANCHORS.privacyPolicy]: "about",
   [SETTINGS_SUBPAGE_ANCHORS.thirdPartyNotices]: "about",
   [SETTINGS_SUBPAGE_ANCHORS.license]: "about",
@@ -224,6 +226,7 @@ const ANCHOR_ALIASES: Record<string, string> = {
 
 const SUBPAGE_VIEW_BY_ANCHOR: Partial<Record<string, SettingsSubpageView>> = {
   [SETTINGS_SUBPAGE_ANCHORS.logs]: "logs",
+  [SETTINGS_SUBPAGE_ANCHORS.experimentalIntegration]: "experimentalIntegration",
   [SETTINGS_SUBPAGE_ANCHORS.privacyPolicy]: "privacyPolicy",
   [SETTINGS_SUBPAGE_ANCHORS.thirdPartyNotices]: "thirdPartyNotices",
   [SETTINGS_SUBPAGE_ANCHORS.license]: "license",
