@@ -6,6 +6,11 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ## [Unreleased]
 
+### Added
+
+- X-Ray now counts BatteryManager property reads (`charging`, `chargingTime`,
+  `dischargingTime`, `level`) in addition to `navigator.getBattery`.
+
 ### Changed
 
 - Experimental: every subframe in a tab now uses the top-frame runtime snapshot

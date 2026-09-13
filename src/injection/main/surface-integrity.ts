@@ -127,6 +127,20 @@ export const registerPermIntegrity = (
   });
 };
 
+const GETTER_METHOD_IDS = {
+  charging: "battery.manager.charging",
+  chargingTime: "battery.manager.chargingTime",
+  dischargingTime: "battery.manager.dischargingTime",
+  level: "battery.manager.level",
+} as const satisfies Record<string, SpoofingSurfaceMethodId>;
+
+const batteryManagerMethodId = (
+  key: PropertyKey,
+): SpoofingSurfaceMethodId | undefined =>
+  typeof key === "string" && key in GETTER_METHOD_IDS
+    ? GETTER_METHOD_IDS[key as keyof typeof GETTER_METHOD_IDS]
+    : undefined;
+
 const registerBatteryManager = (
   integrity: RuntimeIntegrityContext,
   installation: BatteryPatchInstallation,
@@ -136,13 +150,15 @@ const registerBatteryManager = (
   for (let index = 0; index < managerAnchors.length; index += 1) {
     const anchor = managerAnchors[index]!;
     if (privateWeakSetHas(registeredTargets, anchor.target)) continue;
+    const methodId = batteryManagerMethodId(anchor.key);
+    if (!methodId) continue;
     registerDescriptor({
       integrity,
       target: anchor.target,
       key: anchor.key,
       anchor: {
         surfaceId: "battery",
-        methodId: `battery.manager.${String(anchor.key)}` as SpoofingSurfaceMethodId,
+        methodId,
         // The getters are installed on the prototype before the first native
         // manager exists. Verify that prototype until a page receives the
         // manager; this never calls navigator.getBattery() itself.
