@@ -80,6 +80,11 @@ export const SURFACE_METHOD_LABELS: Record<SpoofingSurfaceMethodId, string> = {
   "clientHints.getHighEntropyValues":
     t.sidebar.accessed.methods.clientHintsGetHighEntropyValues,
   "battery.getBattery": t.sidebar.accessed.methods.batteryGetBattery,
+  "battery.manager.charging": t.sidebar.accessed.methods.batteryManagerCharging,
+  "battery.manager.chargingTime": t.sidebar.accessed.methods.batteryManagerChargingTime,
+  "battery.manager.dischargingTime":
+    t.sidebar.accessed.methods.batteryManagerDischargingTime,
+  "battery.manager.level": t.sidebar.accessed.methods.batteryManagerLevel,
   "webRTC.constructor": t.sidebar.accessed.methods.webRTCConstructor,
   "webRTC.createOffer": t.sidebar.accessed.methods.webRTCCreateOffer,
   "webRTC.createAnswer": t.sidebar.accessed.methods.webRTCCreateAnswer,

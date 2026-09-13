@@ -191,7 +191,16 @@ const SURFACE_METHODS = {
       labelKey: "clientHintsGetHighEntropyValues",
     },
   ],
-  battery: [{ id: "battery.getBattery", labelKey: "batteryGetBattery" }],
+  battery: [
+    { id: "battery.getBattery", labelKey: "batteryGetBattery" },
+    { id: "battery.manager.charging", labelKey: "batteryManagerCharging" },
+    { id: "battery.manager.chargingTime", labelKey: "batteryManagerChargingTime" },
+    {
+      id: "battery.manager.dischargingTime",
+      labelKey: "batteryManagerDischargingTime",
+    },
+    { id: "battery.manager.level", labelKey: "batteryManagerLevel" },
+  ],
   webRTC: [
     { id: "webRTC.constructor", labelKey: "webRTCConstructor" },
     { id: "webRTC.createOffer", labelKey: "webRTCCreateOffer" },

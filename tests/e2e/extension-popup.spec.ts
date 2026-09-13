@@ -102,7 +102,7 @@ test("confirms Battery protection before the page queries it", async ({
   });
   await expect
     .poll(async () => (await batteryAssessment())?.activity.queryCount)
-    .toBe(1);
+    .toBe(5);
   await expect
     .poll(async () => (await batteryAssessment())?.presentation)
     .toBe("protected");

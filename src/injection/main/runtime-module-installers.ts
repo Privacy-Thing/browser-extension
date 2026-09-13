@@ -130,7 +130,7 @@ const createEarlyModules = (verifyEarlyTemporal: boolean): RuntimeModules => {
     }),
     battery: wrapInstaller("battery", (state) => {
       const installation = installBatteryPatch(state.snapshot!, globalThis, {
-        onAccess: () => markSurfaceUsed("battery", "battery.getBattery"),
+        onAccess: (methodId) => markSurfaceUsed("battery", methodId),
       });
       if (installation.status === "installed") {
         registerBatteryIntegrity(

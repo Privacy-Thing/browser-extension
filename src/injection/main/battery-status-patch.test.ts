@@ -440,8 +440,34 @@ describe("installBatteryPatch", () => {
 
     realm.navigator.getBattery();
     expect(onAccess).toHaveBeenCalledOnce();
+    expect(onAccess).toHaveBeenLastCalledWith("battery.getBattery");
     realm.navigator.getBattery();
     expect(onAccess).toHaveBeenCalledTimes(2);
+    expect(onAccess).toHaveBeenLastCalledWith("battery.getBattery");
+  });
+
+  it("counts each BatteryManager getter read", async () => {
+    const realm = createRealm();
+    const onAccess = vi.fn();
+    installBatteryPatch(buildSnapshot(), realm.targetGlobal, { onAccess });
+    const battery = (await realm.navigator.getBattery()) as typeof realm.manager;
+
+    expect(onAccess).toHaveBeenCalledTimes(1);
+    expect(battery.charging).toBe(true);
+    expect(battery.chargingTime).toBe(0);
+    expect(battery.dischargingTime).toBe(Infinity);
+    expect(battery.level).toBe(1);
+    expect(onAccess.mock.calls).toEqual([
+      ["battery.getBattery"],
+      ["battery.manager.charging"],
+      ["battery.manager.chargingTime"],
+      ["battery.manager.dischargingTime"],
+      ["battery.manager.level"],
+    ]);
+
+    expect(battery.level).toBe(1);
+    expect(onAccess).toHaveBeenLastCalledWith("battery.manager.level");
+    expect(onAccess).toHaveBeenCalledTimes(6);
   });
 
   it("stays idempotent in one bundle and updates the access callback", async () => {
