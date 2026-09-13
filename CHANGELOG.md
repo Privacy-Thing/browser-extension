@@ -15,6 +15,8 @@ The format is based on Keep a Changelog and the project follows Semantic Version
   explicitly recover setups created with the v2 Privacy Thing naming scheme
   after reinstalling, while release builds preserve but never load its private
   storage namespace.
+- X-Ray now counts BatteryManager property reads (`charging`, `chargingTime`,
+  `dischargingTime`, `level`) in addition to `navigator.getBattery`.
 
 ### Changed
 

@@ -162,7 +162,7 @@ export class IframeRealmInstaller {
     if (BUILD_BROWSER_TARGET === "chromium") {
       this.#installSurface("battery", () => {
         const installation = installBatteryPatch(this.#snapshot, iframeGlobal, {
-          onAccess: () => markSurfaceUsed("battery", "battery.getBattery"),
+          onAccess: (methodId) => markSurfaceUsed("battery", methodId),
         });
         if (installation.status === "installed") {
           registerBatteryIntegrity(integrity, installation, iframeGlobal.navigator);

@@ -58,8 +58,15 @@ export type BatteryPatchInstallation = {
   onManagerReady: (callback: BatteryReadyCallback) => void;
 };
 
+export type BatteryAccessMethodId =
+  | "battery.getBattery"
+  | "battery.manager.charging"
+  | "battery.manager.chargingTime"
+  | "battery.manager.dischargingTime"
+  | "battery.manager.level";
+
 export type BatteryPatchOptions = {
-  onAccess?: () => void;
+  onAccess?: (methodId: BatteryAccessMethodId) => void;
 };
 
 const BATTERY_EVENTS = [
@@ -108,7 +115,7 @@ type BatteryInstallationState = {
   managerGetterAnchors: readonly BatteryDescriptorAnchor[];
   managerReadyCallbacks: Map<number, BatteryReadyCallback>;
   nextReadyCallbackId: number;
-  onAccess: (() => void) | undefined;
+  onAccess: ((methodId: BatteryAccessMethodId) => void) | undefined;
   observedManagers: WeakSet<object>;
   observedPromises: WeakSet<object>;
   patchedManagerPrototypes: WeakSet<object>;
@@ -177,12 +184,17 @@ const createInstallationView = (
   },
 });
 
+const batteryManagerMethodId = (key: BatteryGetterKey): BatteryAccessMethodId =>
+  `battery.manager.${key}`;
+
 const createFixedGetter = (
+  state: BatteryInstallationState,
   key: BatteryGetterKey,
   nativeGetter: () => unknown,
 ): (() => unknown) => {
   const holder = {
     get [key](): unknown {
+      state.onAccess?.(batteryManagerMethodId(key));
       privateReflectApply(nativeGetter, this, []);
       return FIXED_BATTERY_VALUES[key];
     },
@@ -245,7 +257,7 @@ const patchManagerPrototype = (
     const { descriptor, key, nativeGetter } = descriptors[index]!;
     const installedDescriptor: PropertyDescriptor = {
       ...descriptor,
-      get: createFixedGetter(key, nativeGetter),
+      get: createFixedGetter(state, key, nativeGetter),
     };
     privateDefineProperty(managerPrototype, key, installedDescriptor);
     privateArrayPush(anchors, {
@@ -408,7 +420,7 @@ const installGetBatteryWrapper = (
 ): Function => {
   const holder = {
     getBattery(this: BatteryNavigator): Promise<object> {
-      state.onAccess?.();
+      state.onAccess?.("battery.getBattery");
       const nativePromise = privateReflectApply<Promise<object>>(
         nativeGetBattery,
         this,
