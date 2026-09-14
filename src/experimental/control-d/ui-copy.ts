@@ -119,11 +119,26 @@ export const controlDText = {
       "Apply synchronization first to create the browser endpoint and resolver.",
   },
   help: {
-    title: "How this works",
-    identity:
-      "Privacy Thing only manages resources carrying the setup code shown here.",
-    separation:
-      "Account access, rule synchronization, and browser DNS are separate steps.",
+    account: {
+      title: "API key and privacy",
+      body: "Privacy Thing requests Control D access only after you press Connect. The key stays in this browser installation.",
+    },
+    setup: {
+      title: "New or existing setup",
+      body: "Choose whether to create an isolated setup or reconnect one carrying a Privacy Thing setup code.",
+    },
+    rules: {
+      title: "Review before writing",
+      body: "Nothing changes in Control D until you review the planned changes and apply synchronization.",
+    },
+    dns: {
+      title: "DNS stays under your control",
+      body: "Privacy Thing provides the resolver, but you configure Secure DNS and verify it in the browser yourself.",
+    },
+    overview: {
+      title: "Independent states",
+      body: "API access, synchronized rules, and verified browser DNS are tracked separately.",
+    },
     retention: "Remote resources are never removed automatically.",
   },
   route: {

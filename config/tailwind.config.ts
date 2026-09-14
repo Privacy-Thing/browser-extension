@@ -1,5 +1,10 @@
 import type { Config } from "tailwindcss";
 
+const experimentalSources =
+  process.env.PT_BUILD_CHANNEL === "release"
+    ? []
+    : ["../src/experimental/**/*.{ts,tsx,html}"];
+
 export default {
   darkMode: ["selector", '[data-theme="dark"]'],
   // Tailwind resolves plain content globs against the process cwd, not this
@@ -11,6 +16,7 @@ export default {
       "../.storybook/**/*.{ts,tsx,mdx}",
       "../src/ui/**/*.{ts,tsx,html}",
       "../packages/ui/src/**/*.{ts,tsx}",
+      ...experimentalSources,
     ],
   },
   theme: {

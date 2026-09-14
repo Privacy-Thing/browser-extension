@@ -186,7 +186,11 @@ const StepRail = ({
   dnsVerified: boolean;
   onSelect: (step: FlowStep) => void;
 }) => (
-  <ol className="grid gap-2 sm:grid-cols-4" aria-label={t.progressLabel}>
+  <ol
+    className="grid gap-1 rounded-lg border bg-muted/20 p-1 sm:grid-cols-2 lg:grid-cols-4"
+    aria-label={t.progressLabel}
+    data-control-d-step-rail
+  >
     {t.steps.map((label, index) => {
       const step = index as FlowStep;
       const active = current === step;
@@ -199,20 +203,18 @@ const StepRail = ({
             aria-current={active ? "step" : undefined}
             onClick={() => onSelect(step)}
             className={cn(
-              "flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-xs transition-colors",
-              active && "border-primary bg-primary/8 text-foreground",
-              !active &&
-                complete &&
-                "border-tone-success-border bg-tone-success-bg/45 text-foreground",
-              !active && !complete && "border-border bg-muted/25 text-muted-foreground",
-              step <= furthest && "hover:bg-muted/60",
+              "flex min-h-9 w-full items-center gap-2 rounded-md border border-transparent px-2.5 py-1.5 text-left text-xs transition-colors",
+              active && "border-primary/50 bg-background text-foreground shadow-sm",
+              !active && complete && "bg-tone-success-bg/35 text-foreground",
+              !active && !complete && "text-muted-foreground",
+              step <= furthest && "hover:bg-background/70",
             )}
           >
             <span
               className={cn(
                 "flex size-5 shrink-0 items-center justify-center rounded-full border text-[10px] font-semibold",
                 complete && "border-tone-success-border text-tone-success-text",
-                active && "border-primary text-primary",
+                active && "border-primary bg-primary text-primary-foreground",
               )}
             >
               {complete && !active ? "✓" : index + 1}
@@ -476,7 +478,8 @@ export const ControlDSubpage = () => {
           <Button
             type="button"
             size="sm"
-            variant="ghost"
+            variant="link"
+            className="h-auto px-0 py-0 text-xs"
             onClick={() => void openExternal("open-guide", CONTROL_D_API_GUIDE_URL)}
           >
             {t.account.docs}
@@ -828,23 +831,32 @@ export const ControlDSubpage = () => {
   else if (currentStep === 1) content = renderSetup();
   else if (currentStep === 2) content = renderRules();
 
+  const help =
+    active && stepOverride === null
+      ? t.help.overview
+      : ([t.help.account, t.help.setup, t.help.rules, t.help.dns] as const)[
+          currentStep
+        ];
+
   return (
     <div data-control-d-state={state?.status ?? "loading"} className="space-y-5">
       <AppSubpageHeader
         title={t.title}
         lead={t.lead}
         backLabel={t.back}
+        backAriaLabel={t.back}
+        backIconOnly
         backHref={`#${PAGE_ANCHORS.advanced}`}
         actions={<StatusBadge label={stateLabel(state)} />}
       />
-      <StepRail
-        current={currentStep}
-        furthest={inferredStep}
-        dnsVerified={state?.dnsStatus === "verified"}
-        onSelect={setStepOverride}
-      />
       <div className="grid grid-cols-12 gap-5">
         <div className="col-span-12 space-y-4 lg:col-span-8">
+          <StepRail
+            current={currentStep}
+            furthest={inferredStep}
+            dnsVerified={state?.dnsStatus === "verified"}
+            onSelect={setStepOverride}
+          />
           {(notice ?? state?.lastError) ? (
             <div
               role="alert"
@@ -859,9 +871,8 @@ export const ControlDSubpage = () => {
           {content}
         </div>
         <div className="col-span-12 lg:col-span-4">
-          <SettingsHelpCard title={t.help.title} collapsible defaultOpen>
-            <p>{t.help.identity}</p>
-            <p>{t.help.separation}</p>
+          <SettingsHelpCard title={help.title} collapsible defaultOpen={false}>
+            <p>{help.body}</p>
             <p>{t.help.retention}</p>
           </SettingsHelpCard>
         </div>

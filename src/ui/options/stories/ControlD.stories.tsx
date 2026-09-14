@@ -292,7 +292,23 @@ const dnsPending: ControlDPublicState = {
   dnsVerifiedAt: null,
 };
 
-export const Account: Story = { render: () => <Surface state={disconnected} /> };
+export const Account: Story = {
+  render: () => <Surface state={disconnected} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const progress = canvas.getByRole("list", {
+      name: "Control D setup progress",
+    });
+    const columns = window.getComputedStyle(progress).gridTemplateColumns.split(" ");
+    let expectedColumnCount = 1;
+    if (window.innerWidth >= 1024) expectedColumnCount = 4;
+    else if (window.innerWidth >= 640) expectedColumnCount = 2;
+    await expect(columns).toHaveLength(expectedColumnCount);
+    await expect(
+      canvas.getByRole("button", { name: "API instructions" }),
+    ).toBeVisible();
+  },
+};
 export const NoExistingSetup: Story = { render: () => <Surface state={choosing} /> };
 export const ExistingSetups: Story = {
   render: () => <Surface state={choosing} recoveryCandidates={candidates} />,
