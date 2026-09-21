@@ -38,6 +38,28 @@ describe("extension notification catalog", () => {
     ]);
   });
 
+  it("provides Spanish release notices without falling back to English", () => {
+    const notification = getReleaseNotice("notification-center-intro", "es-MX");
+
+    expect(notification?.title).toBe(
+      "Las notificaciones ya están en la ventana emergente",
+    );
+    expect(notification?.message).toEqual([
+      "Privacy Thing ahora muestra las novedades importantes y los avisos de compatibilidad en la ventana emergente.",
+      "Al abrir una notificación se marca como leída. Permanecerá disponible hasta que la descartes.",
+    ]);
+  });
+
+  it("provides Portuguese release notices without falling back to English", () => {
+    const notification = getReleaseNotice("notification-center-intro", "pt-BR");
+
+    expect(notification?.title).toBe("As notificações agora estão no pop-up");
+    expect(notification?.message).toEqual([
+      "Privacy Thing agora mostra atualizações importantes e avisos de compatibilidade no pop-up.",
+      "Ao abrir uma notificação, ela é marcada como lida e permanece disponível até que você a descarte.",
+    ]);
+  });
+
   it("includes the 0.9.0 rename announcement", () => {
     const source = notificationCatalog.notifications.find(
       (notification) => notification.id === "privacy-thing-rename",
