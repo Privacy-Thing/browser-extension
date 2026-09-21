@@ -1,0 +1,101 @@
+import { BRAND_DISPLAY_NAME } from "@/shared/brand";
+
+export const firefoxContainers = {
+  copyLinkLabel: "contêineres",
+  copyLinkHelpLabel: "ajuda de contêineres",
+  title: "Contêineres",
+  description: `Gerencie os Contêineres do Firefox e atribua a cada um um perfil regional opcional do ${BRAND_DISPLAY_NAME}.`,
+  refreshTitle: "Atualizar lista de contêineres",
+  refreshButton: "Atualizar lista",
+  createButton: "Novo contêiner",
+  deleteButton: "Excluir",
+  removeAssignmentButton: "Remover atribuição",
+  editActionTitle: (name: string) => `Editar contêiner “${name}”`,
+  deleteActionTitle: (name: string) => `Excluir contêiner “${name}”`,
+  removeAssignmentActionTitle: (name: string) =>
+    `Remover atribuição de perfil regional para o contêiner excluído “${name}”`,
+  showInactiveLabel: "Mostrar contêineres inativos",
+  filterPlaceholder: "Pesquisar contêineres...",
+  loading: "Carregando contêineres...",
+  noResults: "Nenhum contêiner corresponde ao filtro atual.",
+  columns: {
+    container: "Contêiner",
+    location: "Perfil regional",
+    actions: "Ações",
+  },
+  noLocationAssigned: "Nenhum perfil regional atribuído",
+  missingLocation: "O perfil regional atribuído não está disponível",
+  inactiveBadge: "Excluído",
+  deletedContainerLabel: "Contêiner excluído",
+  emptyTitle: "Ainda não há Contêineres do Firefox",
+  emptyBody: `Crie seu primeiro contêiner aqui ou nas configurações do Firefox e atribua a ele um perfil regional do ${BRAND_DISPLAY_NAME}.`,
+  unavailableTitle: "Contêineres do Firefox não disponíveis",
+  unavailableBody:
+    "Ative os Contêineres do Firefox e depois atualize a lista. Se o problema continuar, esta versão do Firefox pode não permitir que a extensão os gerencie.",
+  unavailableHint: `${BRAND_DISPLAY_NAME} pode gerenciar contêineres apenas quando os Contêineres do Firefox estiverem ativados.`,
+  editor: {
+    createTitle: "Criar contêiner",
+    editTitlePrefix: "Editar contêiner",
+    createDescription: `Escolha um nome, cor, ícone e configurações opcionais ${BRAND_DISPLAY_NAME} para o novo contêiner do Firefox.`,
+    editDescription: `Atualize as propriedades do contêiner do Firefox e suas configurações opcionais ${BRAND_DISPLAY_NAME} em uma única gravação.`,
+    saveButton: "Salvar",
+    previewUntitled: "Contêiner sem título",
+    nameRequired: "O nome do contêiner não pode estar vazio.",
+    defaultRulePreviewTitle: "Nenhuma configuração salva ainda",
+    defaultRulePreviewLocation: (label: string) =>
+      `Este contêiner ainda não possui configurações próprias do ${BRAND_DISPLAY_NAME}, por isso usa o perfil da Regra Padrão: ${label}. Salve as configurações do contêiner para criar uma configuração própria.`,
+    defaultRulePreviewProtections: `Este contêiner ainda não possui configurações próprias do ${BRAND_DISPLAY_NAME}, por isso usa apenas as proteções da Regra Padrão que não exigem um perfil regional. Salve as configurações do contêiner para criar uma configuração própria.`,
+    defaultRulePreviewUnconfigured: `Este contêiner ainda não possui configurações próprias do ${BRAND_DISPLAY_NAME}. A Regra Padrão está ativada, mas ainda não tem um perfil regional nem proteções personalizadas. Salve as configurações do contêiner ou termine de configurar a Regra Padrão.`,
+    defaultRulePreviewDisabled: `Este contêiner ainda não possui configurações próprias do ${BRAND_DISPLAY_NAME}. A Regra Padrão está desativada, portanto ${BRAND_DISPLAY_NAME} permanece desativado aqui. Salve as configurações do contêiner ou ative a Regra Padrão.`,
+    defaultRulePreviewMissing: `Este contêiner ainda não possui configurações próprias do ${BRAND_DISPLAY_NAME}. Não há uma Regra Padrão salva, portanto ${BRAND_DISPLAY_NAME} permanece desativado aqui. Salve as configurações do contêiner ou defina uma Regra Padrão.`,
+    fields: {
+      name: "Nome",
+      color: "Cor",
+      icon: "Ícone",
+      enabled: "Ativado",
+      location: "Perfil regional",
+      locationProfile: "Perfil regional",
+    },
+    unassignedLocation: "Nenhum perfil regional atribuído",
+    enabledHint:
+      "Quando desabilitado, esta atribuição de contêiner não se aplica. Suas configurações permanecem salvas.",
+    locationProfileHint:
+      "Escolha o perfil regional que este contêiner deve usar. Deixe sem atribuição para usar apenas as configurações de proteção do contêiner e o perfil da Regra Padrão, quando disponível.",
+    identity: {
+      sectionTitle: "Identidade",
+      sectionDescription:
+        "Este contêiner mantém sua própria identidade de simulação. Gere outra apenas quando quiser uma nova impressão digital e um estado limpo dos sites deste contêiner.",
+      actionDescription:
+        "Limpa os dados relacionados do site e inicia este contêiner com uma identidade nova.",
+      actionLabel: "Nova identidade",
+      confirmTitle: (name: string) => `Nova identidade para “${name}”?`,
+      confirmDescription:
+        "Isso limpa cookies, armazenamento, Service Workers e caches para sites vinculados a este contêiner. Em seguida, cria uma nova identidade de simulação.",
+      confirmDomainsLabel: `${BRAND_DISPLAY_NAME} limpará os dados do navegador para estes domínios:`,
+      confirmNoDomains: `Nenhum dado do navegador foi registrado para este contêiner ainda. ${BRAND_DISPLAY_NAME} ainda criará uma nova identidade de simulação.`,
+      confirmLabel: "Criar nova identidade",
+      rotateSuccess: "Nova identidade de contêiner salva.",
+      rotateError: "Falha ao criar uma nova identidade de contêiner.",
+    },
+  },
+  confirmations: {
+    deleteTitle: (name: string) => `Excluir contêiner “${name}”?`,
+    deleteBody: `Isso remove o contêiner do Firefox e limpa sua atribuição de perfil regional do ${BRAND_DISPLAY_NAME}.`,
+    removeOrphanTitle: "Remover atribuição do contêiner excluído?",
+    removeOrphanBody: `O contêiner do Firefox não existe mais. Isso limpará apenas a atribuição desatualizada do perfil regional do ${BRAND_DISPLAY_NAME}.`,
+  },
+  messages: {
+    created: (name: string) => `Contêiner “${name}” criado.`,
+    updated: (name: string) => `Contêiner “${name}” salvo.`,
+    deleted: (name: string) => `Contêiner “${name}” excluído.`,
+    orphanRemoved: "Removida a atribuição do contêiner obsoleto.",
+    saveFailed: "Falha ao salvar o contêiner.",
+    deleteFailed: "Falha ao excluir o contêiner.",
+  },
+  help: {
+    title: "Contêineres",
+    body1: `Os Contêineres do Firefox adicionam outra maneira de escolher configurações no Firefox. ${BRAND_DISPLAY_NAME} verifica primeiro as Regras de Domínio, depois a atribuição do contêiner.`,
+    body2: `O editor salva os detalhes do Contêiner do Firefox junto com as configurações do ${BRAND_DISPLAY_NAME}, como o estado de ativação, um perfil regional opcional e proteções personalizadas.`,
+    body3: `Linhas inativas representam atribuições cujo contêiner do Firefox foi removido fora do ${BRAND_DISPLAY_NAME}. Revise-as e limpe-as deliberadamente em vez de perdê-las silenciosamente.`,
+  },
+} as const;

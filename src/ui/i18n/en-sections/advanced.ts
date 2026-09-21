@@ -103,9 +103,11 @@ export const advanced = {
 
     language: {
       title: "Language",
-      description: `More languages are on the way. We’re working on new translations for ${BRAND_DISPLAY_NAME}.`,
-      option: "English",
-      soon: "SOON",
+      description: `${BRAND_DISPLAY_NAME} automatically follows your browser interface language.`,
+      optionEnglish: "English",
+      optionSpanish: "Spanish",
+      optionPortuguese: "Portuguese",
+      soon: "AUTO",
       copyLinkLabel: "language",
     },
 

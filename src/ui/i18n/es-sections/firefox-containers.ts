@@ -1,0 +1,101 @@
+import { BRAND_DISPLAY_NAME } from "@/shared/brand";
+
+export const firefoxContainers = {
+  copyLinkLabel: "contenedores",
+  copyLinkHelpLabel: "ayuda de contenedores",
+  title: "Contenedores",
+  description: `Gestiona los contenedores de Firefox y asigna a cada uno un perfil de ${BRAND_DISPLAY_NAME} desde un único lugar.`,
+  refreshTitle: "Actualizar lista de contenedores",
+  refreshButton: "Actualizar lista",
+  createButton: "Nuevo contenedor",
+  deleteButton: "Eliminar",
+  removeAssignmentButton: "Eliminar asignación",
+  editActionTitle: (name: string) => `Editar contenedor “${name}”`,
+  deleteActionTitle: (name: string) => `Eliminar contenedor “${name}”`,
+  removeAssignmentActionTitle: (name: string) =>
+    `Eliminar la asignación del contenedor eliminado «${name}»`,
+  showInactiveLabel: "Mostrar contenedores inactivos",
+  filterPlaceholder: "Buscar contenedores…",
+  loading: "Cargando contenedores…",
+  noResults: "Ningún contenedor coincide con el filtro actual.",
+  columns: {
+    container: "Contenedor",
+    location: "Perfil",
+    actions: "Acciones",
+  },
+  noLocationAssigned: "No hay perfil asignado",
+  missingLocation: "Falta el perfil asignado",
+  inactiveBadge: "Eliminado",
+  deletedContainerLabel: "Contenedor eliminado",
+  emptyTitle: "Aún no hay contenedores de Firefox",
+  emptyBody: `Crea tu primer contenedor aquí o en la configuración de Firefox y asígnale un perfil de ${BRAND_DISPLAY_NAME}.`,
+  unavailableTitle: "Los Contenedores de Firefox no están disponibles",
+  unavailableBody:
+    "Activa los Contenedores de Firefox, luego actualiza la lista. Si el problema continúa, es posible que esta versión de Firefox no permita que la extensión los gestione.",
+  unavailableHint: `${BRAND_DISPLAY_NAME} solo puede gestionar contenedores cuando los Contenedores de Firefox están activados.`,
+  editor: {
+    createTitle: "Crear contenedor",
+    editTitlePrefix: "Editar contenedor",
+    createDescription: `Elige el nombre, el color, el icono y, si quieres, la configuración de ${BRAND_DISPLAY_NAME} del nuevo contenedor de Firefox.`,
+    editDescription: `Actualiza a la vez las propiedades del contenedor de Firefox y su configuración opcional de ${BRAND_DISPLAY_NAME}.`,
+    saveButton: "Guardar",
+    previewUntitled: "Contenedor sin título",
+    nameRequired: "El nombre del contenedor no puede estar vacío.",
+    defaultRulePreviewTitle: "Aún no hay configuración guardada",
+    defaultRulePreviewLocation: (label: string) =>
+      `Este contenedor aún no tiene configuración propia de ${BRAND_DISPLAY_NAME}, por lo que usa el perfil de la Regla predeterminada: ${label}. Guarda la configuración del contenedor para asignarle sus propias opciones.`,
+    defaultRulePreviewProtections: `Este contenedor aún no tiene configuración propia de ${BRAND_DISPLAY_NAME}, por lo que solo usa las protecciones de la Regla predeterminada que no requieren un perfil. Guarda la configuración del contenedor para asignarle sus propias opciones.`,
+    defaultRulePreviewUnconfigured: `Este contenedor aún no tiene configuración propia de ${BRAND_DISPLAY_NAME}. La Regla predeterminada está activada, pero no tiene un perfil ni protecciones personalizadas. Configura el contenedor o termina de configurar la Regla predeterminada.`,
+    defaultRulePreviewDisabled: `Este contenedor aún no tiene configuración propia de ${BRAND_DISPLAY_NAME}. La Regla predeterminada está desactivada, por lo que ${BRAND_DISPLAY_NAME} permanece desactivado aquí. Configura el contenedor o activa la Regla predeterminada.`,
+    defaultRulePreviewMissing: `Este contenedor aún no tiene configuración propia de ${BRAND_DISPLAY_NAME} y no hay una Regla predeterminada guardada, por lo que ${BRAND_DISPLAY_NAME} permanece desactivado aquí. Configura el contenedor o crea una Regla predeterminada.`,
+    fields: {
+      name: "Nombre",
+      color: "Color",
+      icon: "Icono",
+      enabled: "Activado",
+      location: "Perfil",
+      locationProfile: "Perfil regional",
+    },
+    unassignedLocation: "No hay perfil asignado",
+    enabledHint:
+      "Cuando está desactivada, esta asignación de contenedor no se aplica. Sus opciones permanecen guardadas.",
+    locationProfileHint:
+      "Elige el perfil que debe usar este contenedor. Déjalo sin asignar para usar solo las protecciones del contenedor y, cuando esté disponible, el perfil de la Regla predeterminada.",
+    identity: {
+      sectionTitle: "Identidad",
+      sectionDescription:
+        "Este contenedor conserva su propia identidad simulada. Rótala únicamente cuando quieras una huella digital nueva y borrar el estado de los sitios asociados al contenedor.",
+      actionDescription:
+        "Borra los datos de sitios relacionados y comienza este contenedor con una identidad nueva.",
+      actionLabel: "Nueva identidad",
+      confirmTitle: (name: string) => `Nueva identidad para “${name}”?`,
+      confirmDescription:
+        "Esto borra cookies, almacenamiento, Service Workers y cachés de los sitios vinculados a este contenedor. Luego crea una nueva identidad de simulación.",
+      confirmDomainsLabel: `${BRAND_DISPLAY_NAME} borrará datos del navegador para estos dominios:`,
+      confirmNoDomains: `Aún no se han registrado datos del navegador para este contenedor. ${BRAND_DISPLAY_NAME} todavía creará una nueva identidad de simulación.`,
+      confirmLabel: "Crear nueva identidad",
+      rotateSuccess: "Se ha guardado una nueva identidad de contenedor.",
+      rotateError: "No se pudo crear una nueva identidad de contenedor.",
+    },
+  },
+  confirmations: {
+    deleteTitle: (name: string) => `Eliminar contenedor “${name}”?`,
+    deleteBody: `Esta acción elimina el contenedor de Firefox y borra su asignación de ${BRAND_DISPLAY_NAME}.`,
+    removeOrphanTitle: "¿Eliminar la asignación del contenedor eliminado?",
+    removeOrphanBody: `El contenedor de Firefox ya no existe. Esta acción solo borrará su asignación obsoleta de ${BRAND_DISPLAY_NAME}.`,
+  },
+  messages: {
+    created: (name: string) => `Se ha creado el contenedor «${name}».`,
+    updated: (name: string) => `Se ha guardado el contenedor «${name}».`,
+    deleted: (name: string) => `Se ha eliminado el contenedor «${name}».`,
+    orphanRemoved: "Se eliminó la asignación de contenedor obsoleta.",
+    saveFailed: "Error al guardar el contenedor.",
+    deleteFailed: "Error al eliminar el contenedor.",
+  },
+  help: {
+    title: "Contenedores",
+    body1: `Los contenedores ofrecen otra forma de elegir la configuración en Firefox. ${BRAND_DISPLAY_NAME} comprueba primero las reglas de dominio y después la asignación del contenedor.`,
+    body2: `El editor guarda los datos del contenedor de Firefox junto con opciones de ${BRAND_DISPLAY_NAME}, como el estado, un perfil opcional y protecciones personalizadas.`,
+    body3: `Las filas inactivas representan asignaciones cuyo contenedor de Firefox se eliminó fuera de ${BRAND_DISPLAY_NAME}. Revísalas y bórralas de forma explícita para evitar perderlas sin aviso.`,
+  },
+} as const;
