@@ -212,7 +212,7 @@ describe("OptionsTab Shared Worker handling", () => {
     );
   });
 
-  it("shows the disabled upcoming Language selector without saving settings", async () => {
+  it("shows the automatically selected UI language without saving settings", async () => {
     root = await renderWithRoot();
 
     const languageTrigger = document.getElementById("language-trigger");
@@ -221,7 +221,7 @@ describe("OptionsTab Shared Worker handling", () => {
     expect((languageTrigger as HTMLButtonElement).disabled).toBe(true);
     expect(languageTrigger?.textContent).toContain("English");
     expect(document.body.textContent).toContain("Language");
-    expect(document.body.textContent).toContain("SOON");
+    expect(document.body.textContent).toContain("AUTO");
     expect(scheduleAutosaveMock).not.toHaveBeenCalled();
   });
 
