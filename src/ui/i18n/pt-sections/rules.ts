@@ -46,7 +46,7 @@ export const rules = {
     description: `Defina as proteções padrão e o perfil regional opcional que ${BRAND_DISPLAY_NAME} usa quando nada mais específico tem prioridade.`,
     copyLinkLabel: "Regra Padrão",
     overridesBadge: (count: number) =>
-      `Configuração personalizada de ${count} ${count === 1 ? "" : "s"}`,
+      `${count} ${count === 1 ? "configuração personalizada" : "configurações personalizadas"}`,
     openInRules: "Editar em Regras de Domínio",
     editAriaLabel: "Editar Regra Padrão",
     editTitle: "Editar Regra Padrão",

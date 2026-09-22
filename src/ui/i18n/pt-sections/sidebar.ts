@@ -21,7 +21,7 @@ export const sidebar = {
     timezone: "Fuso horário",
     language: "Idioma",
     languages: "Idiomas",
-    acceptLanguage: "Aceitar-Idioma",
+    acceptLanguage: "Accept-Language",
     geolocation: "Geolocalização",
     accuracyNoise: "Precisão / Ruído",
     platform: "Plataforma",

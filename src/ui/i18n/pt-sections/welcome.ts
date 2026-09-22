@@ -38,8 +38,8 @@ export const welcome = {
     privacy: {
       title: "Sua navegação permanece local",
       description: `${BRAND_DISPLAY_NAME} armazena regras e perfis regionais localmente. Esta etapa é apenas sobre serviços de mapa externos opcionais: ative-os se quiser pesquisa e pré-visualizações durante a configuração, ou deixe desativado e insira as coordenadas manualmente.`,
-      descriptionBeforePolicy: `${BRAND_DISPLAY_NAME} armazena regras e perfis regionais localmente. A pesquisa e pré-visualizações de mapas opcionais usam serviços externos somente depois que você os permitir. Leia o`,
-      policyLink: "a política de privacidade",
+      descriptionBeforePolicy: `${BRAND_DISPLAY_NAME} armazena regras e perfis regionais localmente. A pesquisa e pré-visualizações de mapas opcionais usam serviços externos somente depois que você os permitir. Leia a`,
+      policyLink: "política de privacidade",
       descriptionAfterPolicy:
         " antes de decidir se essas solicitações se encaixam na sua configuração.",
       consentTitle: externalMapConsentCopy.title,

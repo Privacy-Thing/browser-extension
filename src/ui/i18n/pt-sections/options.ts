@@ -41,7 +41,7 @@ export const optionsPage = {
       },
       timeLocale: {
         label: "Hora e Localidade",
-        description: `Controla Data, Intl, navigator.language, navigator.languages e cabeçalhos de idioma. Quando isto está ligado, ${BRAND_DISPLAY_NAME} mantém esses valores alinhados com seu perfil regional ativo. Desative e os sites veem as configurações regionais reais do seu navegador.`,
+        description: `Controla Date, Intl, navigator.language, navigator.languages e cabeçalhos de idioma. Quando isto está ligado, ${BRAND_DISPLAY_NAME} mantém esses valores alinhados com seu perfil regional ativo. Desative e os sites veem as configurações regionais reais do seu navegador.`,
       },
       canvas: {
         label: "Tela de desenho (Canvas)",

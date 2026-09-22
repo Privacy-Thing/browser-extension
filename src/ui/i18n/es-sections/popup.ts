@@ -2,6 +2,9 @@ import type { SurfacePresentationState } from "@privacy-brand/xray-protocol";
 
 import { BRAND_DIAGNOSTICS_NAME, BRAND_DISPLAY_NAME } from "@/shared/brand";
 
+const formatCount = (count: number, singular: string, plural: string): string =>
+  `${count} ${count === 1 ? singular : plural}`;
+
 export const popup = {
   loading: "Cargando…",
   protectionProtected: "Protegido",
@@ -79,7 +82,7 @@ export const popup = {
   notificationsVersionLabel: "Versión",
   notificationsOpenLink: "Abrir enlace",
   notificationsBadgeLabel: (count: number) =>
-    `${count} notificación no leída${count === 1 ? "" : "s"}`,
+    formatCount(count, "notificación no leída", "notificaciones no leídas"),
   protectionCounts: (counts: Record<SurfacePresentationState, number>) => {
     // Roll the 9 presentation states up into the buckets a one-line summary
     // can carry without becoming unreadable. `browser-enforced`/`repaired`
@@ -88,16 +91,22 @@ export const popup = {
       counts.protected + counts["browser-enforced"] + counts.repaired;
     const degradedCount = counts.degraded + counts.unrecoverable;
     return [
-      ...(protectedCount > 0 ? [`${protectedCount} protegido`] : []),
-      ...(degradedCount > 0 ? [`${degradedCount} degradado`] : []),
+      ...(protectedCount > 0
+        ? [formatCount(protectedCount, "protegido", "protegidos")]
+        : []),
+      ...(degradedCount > 0
+        ? [formatCount(degradedCount, "degradado", "degradados")]
+        : []),
       ...(counts.pending > 0 ? [`${counts.pending} confirmando`] : []),
       ...(counts["native-by-policy"] > 0
-        ? [`${counts["native-by-policy"]} no modificado`]
+        ? [formatCount(counts["native-by-policy"], "no modificado", "no modificados")]
         : []),
       ...(counts["not-applicable"] > 0
-        ? [`${counts["not-applicable"]} no aplicable`]
+        ? [formatCount(counts["not-applicable"], "no aplicable", "no aplicables")]
         : []),
-      ...(counts.unknown > 0 ? [`${counts.unknown} desconocido`] : []),
+      ...(counts.unknown > 0
+        ? [formatCount(counts.unknown, "desconocido", "desconocidos")]
+        : []),
     ].join(" · ");
   },
   protectionException: (_surface: string) =>
