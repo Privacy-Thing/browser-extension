@@ -27,6 +27,10 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 - Confirm installed Battery protection before a page first queries the API, and clear
   stale integrity evidence after the protection recovers.
 
+## [0.9.3.8] - 2026-09-22
+
+- Refreshed extension metadata (hardware profiles, Chrome versions, locale data) from upstream sources to keep spoofed fingerprints current.
+
 ## [0.9.3.7] - 2026-09-19
 
 - Refreshed extension metadata (hardware profiles, Chrome versions, locale data) from upstream sources to keep spoofed fingerprints current.
