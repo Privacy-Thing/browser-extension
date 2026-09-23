@@ -96,13 +96,13 @@
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "sonner": "^2.0.8",
-    "tailwind-merge": "^3.6.0",
+    "tailwind-merge": "^3.7.0",
     "zod": "^3.24.2"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@go-task/cli": "^3.52.0",
-    "@mdn/browser-compat-data": "^8.0.11",
+    "@mdn/browser-compat-data": "^8.1.1",
     "@playwright/test": "1.58.2",
     "@privacy-brand/refract-browser": "workspace:*",
     "@privacy-brand/refract-core": "workspace:*",
@@ -142,7 +142,7 @@
     "tsx": "^4.23.12",
     "typescript": "^6.0.3",
     "vite": "^8.2.1",
-    "vitest": "^4.1.10",
+    "vitest": "^4.1.11",
     "web-ext": "^10.6.0"
   }
 }
