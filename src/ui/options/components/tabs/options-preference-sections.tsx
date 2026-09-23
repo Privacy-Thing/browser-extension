@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "@/ui/components/ui/select";
 import { Switch } from "@/ui/components/ui/switch";
-import { t } from "@/ui/i18n";
+import { t, UI_LOCALE } from "@/ui/i18n";
 import type { OptionsModel } from "@/ui/options/components/tabs/options-model";
 import { renderOsmConsentState } from "@/ui/options/components/tabs/options-surface-data";
 import {
@@ -150,7 +150,7 @@ const LanguageCard = () => (
     description={t.advanced.display.language.description}
     actionClassName="w-full sm:w-44"
     action={
-      <Select value="en" disabled>
+      <Select value={UI_LOCALE} disabled>
         <SelectTrigger
           id="language-trigger"
           aria-label={t.advanced.display.language.title}
@@ -158,7 +158,15 @@ const LanguageCard = () => (
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="en">{t.advanced.display.language.option}</SelectItem>
+          <SelectItem value="en">
+            {t.advanced.display.language.optionEnglish}
+          </SelectItem>
+          <SelectItem value="es">
+            {t.advanced.display.language.optionSpanish}
+          </SelectItem>
+          <SelectItem value="pt">
+            {t.advanced.display.language.optionPortuguese}
+          </SelectItem>
         </SelectContent>
       </Select>
     }

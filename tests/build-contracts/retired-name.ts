@@ -28,19 +28,33 @@ const readApprovedBuildStrings = async () => {
   const notifications = JSON.parse(notificationsSource) as {
     notifications: Array<{
       id: string;
-      title: { en: string };
-      message: { en: string[] };
+      title: Record<string, string>;
+      message: Record<string, string[]>;
     }>;
   };
   const rename = notifications.notifications.find(
     (notification) => notification.id === "privacy-thing-rename",
   );
-  if (!rename?.message.en[0]) {
+  if (!rename) {
     throw new Error("privacy-thing-rename notification is incomplete");
   }
 
+  const notification: string[] = [];
+  const locales = new Set([
+    ...Object.keys(rename.title),
+    ...Object.keys(rename.message),
+  ]);
+  for (const locale of locales) {
+    const title = rename.title[locale];
+    const openingParagraph = rename.message[locale]?.[0];
+    if (!title || !openingParagraph) {
+      throw new Error(`privacy-thing-rename notification is incomplete for ${locale}`);
+    }
+    notification.push(title, openingParagraph);
+  }
+
   return {
-    notification: [rename.title.en, rename.message.en[0]],
+    notification,
     firefoxManifest: Object.values(brand.channels).map(
       ({ firefoxExtensionId }) => firefoxExtensionId,
     ),
