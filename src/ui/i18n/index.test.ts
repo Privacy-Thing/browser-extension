@@ -14,6 +14,14 @@ describe("resolveUiLocale", () => {
     },
   );
 
+  it.each(["ru", "ru-RU", "RU-kz"])("selects Russian for %s", (language) => {
+    expect(resolveUiLocale(language)).toBe("ru");
+  });
+
+  it.each(["uk", "uk-UA", "UK-ua"])("selects Ukrainian for %s", (language) => {
+    expect(resolveUiLocale(language)).toBe("uk");
+  });
+
   it.each([undefined, "", "en", "en-US", "pl-PL"])(
     "falls back to English for %s",
     (language) => {

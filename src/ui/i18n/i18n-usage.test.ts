@@ -376,6 +376,13 @@ describe("UI i18n coverage", () => {
   it("keeps all locale packs aligned with the base locale shape", async () => {
     const baseKeys = collectLocaleLeafPaths(en);
     const localeModules = await collectLocaleModules();
+    expect(localeModules.map(({ code }) => code).sort()).toEqual([
+      "en",
+      "es",
+      "pt",
+      "ru",
+      "uk",
+    ]);
 
     for (const localeModule of localeModules) {
       const localeKeys = collectLocaleLeafPaths(localeModule.value);

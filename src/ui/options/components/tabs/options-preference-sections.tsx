@@ -167,6 +167,12 @@ const LanguageCard = () => (
           <SelectItem value="pt">
             {t.advanced.display.language.optionPortuguese}
           </SelectItem>
+          <SelectItem value="ru">
+            {t.advanced.display.language.optionRussian}
+          </SelectItem>
+          <SelectItem value="uk">
+            {t.advanced.display.language.optionUkrainian}
+          </SelectItem>
         </SelectContent>
       </Select>
     }

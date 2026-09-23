@@ -7,8 +7,10 @@
       "delivery": "upgrades-only",
       "title": {
         "en": "GeoWarp is now {{brand}}",
-        "es": "GeoWarp ahora es {{brand}}",
-        "pt": "GeoWarp agora é {{brand}}"
+        "es": "La extensión ahora se llama {{brand}}",
+        "pt": "A extensão agora se chama {{brand}}",
+        "ru": "Теперь расширение называется {{brand}}",
+        "uk": "Тепер розширення називається {{brand}}"
       },
       "message": {
         "en": [
@@ -16,12 +18,20 @@
           "Thank you for using it and being part of the journey so far. Building this extension has been an extraordinary journey for me, and I’m excited to see what the future brings."
         ],
         "es": [
-          "GeoWarp tiene un nuevo nombre: {{brand}}. La extensión que conoces sigue aquí y mantiene su propósito: darte el control sobre la ubicación y los datos del navegador que pueden ver los sitios web.",
+          "La extensión tiene un nuevo nombre: {{brand}}. Sigue siendo la extensión que conoces y mantiene su propósito: darte el control sobre la ubicación y los datos del navegador que pueden ver los sitios web.",
           "Gracias por usarla y por formar parte de este recorrido. Crear esta extensión ha sido una experiencia extraordinaria para mí y me ilusiona descubrir lo que traerá el futuro."
         ],
         "pt": [
-          "GeoWarp tem um novo nome: {{brand}}. A extensão que você conhece continua aqui, com o mesmo objetivo de dar a você controle sobre a localização e as informações do navegador que os sites podem ver.",
+          "A extensão tem um novo nome: {{brand}}. Ela continua a mesma, com o objetivo de dar a você controle sobre a localização e as informações do navegador que os sites podem ver.",
           "Agradecemos por usá-la e por fazer parte desta jornada. Criar esta extensão tem sido uma experiência extraordinária para mim, e estou animado para ver o que o futuro reserva."
+        ],
+        "ru": [
+          "У расширения новое имя: {{brand}}. Знакомое вам расширение осталось прежним. Оно по-прежнему помогает управлять тем, какие сведения о вашем местоположении и браузере видят сайты.",
+          "Спасибо, что пользуетесь расширением и прошли с ним этот путь. Работа над ним стала для меня необыкновенным опытом, и я с интересом жду того, что будет дальше."
+        ],
+        "uk": [
+          "Розширення має нову назву: {{brand}}. Знайоме вам розширення залишається тим самим. Воно й далі допомагає керувати тим, які відомості про ваше місцеперебування та браузер бачать сайти.",
+          "Дякую, що користуєтеся розширенням і пройшли з ним цей шлях. Робота над ним стала для мене надзвичайним досвідом, і я з цікавістю чекаю на те, що буде далі."
         ]
       }
     },
@@ -33,7 +43,9 @@
       "title": {
         "en": "Notifications are now in the popup",
         "es": "Las notificaciones ya están en la ventana emergente",
-        "pt": "As notificações agora estão no pop-up"
+        "pt": "As notificações agora estão no pop-up",
+        "ru": "Уведомления теперь в окне расширения",
+        "uk": "Сповіщення тепер у вікні розширення"
       },
       "message": {
         "en": [
@@ -47,6 +59,14 @@
         "pt": [
           "{{brand}} agora mostra atualizações importantes e avisos de compatibilidade no pop-up.",
           "Ao abrir uma notificação, ela é marcada como lida e permanece disponível até que você a descarte."
+        ],
+        "ru": [
+          "{{brand}} теперь показывает важные обновления и предупреждения о совместимости в окне расширения.",
+          "Когда вы открываете уведомление, оно отмечается как прочитанное. Оно остаётся доступным, пока вы его не закроете."
+        ],
+        "uk": [
+          "{{brand}} тепер показує важливі оновлення та попередження про сумісність у вікні розширення.",
+          "Після відкриття сповіщення позначається як прочитане. Воно залишається доступним, доки ви його не закриєте."
         ]
       }
     },
@@ -58,7 +78,9 @@
       "title": {
         "en": "Temporal API protection is ready to try",
         "es": "Ya puedes probar la protección de la API Temporal",
-        "pt": "A proteção da API Temporal está pronta para testes"
+        "pt": "A proteção da API Temporal está pronta para testes",
+        "ru": "Защиту Temporal API уже можно попробовать",
+        "uk": "Захист Temporal API вже можна спробувати"
       },
       "message": {
         "en": [
@@ -75,6 +97,16 @@
           "{{brand}} agora pode proteger chamadas nativas da API Temporal, incluindo o comportamento padrão de data, hora, configuração regional e fuso horário, junto com o restante da sua configuração.",
           "O recurso é experimental e vem desativado por padrão. Para testá-lo, abra Configurações → Avançado → Experimental e ative a API Temporal. Ele só funciona quando o navegador já oferece a API Temporal — {{brand}} não instala um polyfill.",
           "Quer saber mais? Use o link abaixo para consultar a documentação da API Temporal na Mozilla Developer Network."
+        ],
+        "ru": [
+          "{{brand}} теперь может защищать вызовы встроенного Temporal API: даты, время, региональные настройки и часовой пояс по умолчанию — вместе с остальными параметрами защиты.",
+          "Функция экспериментальная и по умолчанию выключена. Чтобы попробовать её, откройте Настройки → Дополнительно → Экспериментальные функции и включите Temporal API. Это работает только в браузерах, где Temporal уже доступен: {{brand}} не добавляет полифил.",
+          "Хотите узнать больше? Откройте документацию по Temporal API на Mozilla Developer Network по ссылке ниже."
+        ],
+        "uk": [
+          "{{brand}} тепер може захищати виклики вбудованого Temporal API: дати, час, регіональні налаштування та часовий пояс за замовчуванням — разом з іншими параметрами захисту.",
+          "Функція експериментальна й за замовчуванням вимкнена. Щоб спробувати її, відкрийте Налаштування → Додатково → Експериментальні функції та ввімкніть Temporal API. Це працює лише в браузерах, де Temporal уже доступний: {{brand}} не додає поліфіл.",
+          "Хочете дізнатися більше? Відкрийте документацію Temporal API на Mozilla Developer Network за посиланням нижче."
         ]
       },
       "actionUrl": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal"
@@ -87,7 +119,9 @@
       "title": {
         "en": "{{brand}} is now open source!",
         "es": "¡{{brand}} ya es de código abierto!",
-        "pt": "{{brand}} agora é de código aberto!"
+        "pt": "{{brand}} agora é de código aberto!",
+        "ru": "Исходный код {{brand}} открыт!",
+        "uk": "Вихідний код {{brand}} відкрито!"
       },
       "message": {
         "en": [
@@ -101,6 +135,14 @@
         "pt": [
           "{{brand}} agora é de código aberto. O código está disponível no GitHub sob a licença AGPL-3.0-or-later e os termos adicionais do projeto. Explore o repositório para entender como tudo funciona nos bastidores.",
           "Encontrou um bug comum? Abra uma issue e conte o que aconteceu. Problemas de segurança ou detecção devem continuar sendo enviados pelo formulário privado do GitHub."
+        ],
+        "ru": [
+          "Исходный код {{brand}} теперь открыт. Он доступен на GitHub по лицензии AGPL-3.0-or-later с дополнительными условиями проекта. Загляните в репозиторий, чтобы увидеть, как всё устроено.",
+          "Нашли обычную ошибку? Создайте issue и расскажите, что произошло. О проблемах безопасности или обнаружения защиты по-прежнему сообщайте через закрытую форму GitHub."
+        ],
+        "uk": [
+          "Вихідний код {{brand}} тепер відкрито. Він доступний на GitHub за ліцензією AGPL-3.0-or-later з додатковими умовами проєкту. Зазирніть до репозиторію, щоб побачити, як усе працює.",
+          "Знайшли звичайну помилку? Створіть issue та розкажіть, що сталося. Про проблеми безпеки або виявлення захисту й надалі повідомляйте через приватну форму GitHub."
         ]
       },
       "actionUrl": "https://github.com/Privacy-Thing/browser-extension"
@@ -113,7 +155,9 @@
       "title": {
         "en": "Domain fencing is ready to try",
         "es": "Ya puedes probar el aislamiento por dominio",
-        "pt": "O isolamento por domínio está pronto para testes"
+        "pt": "O isolamento por domínio está pronto para testes",
+        "ru": "Изоляцию по доменам уже можно попробовать",
+        "uk": "Ізоляцію за доменами вже можна спробувати"
       },
       "message": {
         "en": [
@@ -130,6 +174,16 @@
           "No Chrome e no Firefox, o isolamento por domínio atribui a cada site uma variante estável da impressão digital gerada quando a Regra Padrão se aplica. No Firefox, ele também separa as identidades atribuídas por meio de contêineres.",
           "Um site e seus subdomínios compartilham uma identidade, enquanto sites não relacionados recebem variantes distintas. O perfil regional escolhido não muda, e as Regras de Domínio configuradas manualmente não são isoladas.",
           "O isolamento por domínio é experimental e vem desativado por padrão. Para testá-lo, abra Configurações → Avançado → Experimental e ative Isolamento por domínio."
+        ],
+        "ru": [
+          "В Chrome и Firefox изоляция по доменам даёт каждому сайту собственный стабильный вариант созданного цифрового отпечатка, когда действует правило по умолчанию. В Firefox она также разделяет идентичности, назначенные через контейнеры.",
+          "Сайт и его поддомены используют одну идентичность, а несвязанные сайты получают разные варианты. Выбранный региональный профиль не меняется. Правила для доменов, настроенные вручную, не изолируются.",
+          "Изоляция по доменам — экспериментальная функция, по умолчанию выключенная. Чтобы попробовать её, откройте Настройки → Дополнительно → Экспериментальные функции и включите изоляцию по доменам."
+        ],
+        "uk": [
+          "У Chrome і Firefox ізоляція за доменами надає кожному сайту власний стабільний варіант створеного цифрового відбитка, коли діє правило за замовчуванням. У Firefox вона також розділяє ідентичності, призначені через контейнери.",
+          "Сайт і його піддомени використовують одну ідентичність, а не пов’язані між собою сайти отримують різні варіанти. Обраний регіональний профіль не змінюється. Правила для доменів, налаштовані вручну, не ізолюються.",
+          "Ізоляція за доменами — експериментальна функція, яку за замовчуванням вимкнено. Щоб спробувати її, відкрийте Налаштування → Додатково → Експериментальні функції та ввімкніть ізоляцію за доменами."
         ]
       }
     }

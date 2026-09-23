@@ -1,0 +1,42 @@
+import { BRAND_DISPLAY_NAME } from "@/shared/brand";
+
+export const common = {
+  copyLinkTo: (section: string) => `Скопировать ссылку: ${section}`,
+  actions: {
+    cancel: "Отмена",
+    reset: "Сбросить",
+    close: "Закрыть",
+    create: "Создать",
+    save: "Сохранить",
+    back: "Назад",
+    continue: "Продолжить",
+    edit: "Изменить",
+    delete: "Удалить",
+    duplicate: "Дублировать",
+    search: "Поиск",
+    clear: "Очистить",
+    deleteSelected: "Удалить выбранное",
+    clearSelection: "Снять выделение",
+    openPrivacyPolicy: "Открыть политику конфиденциальности",
+    allowOpenStreetMap: "Разрешить доступ к карте",
+    notNow: "Не сейчас",
+    openPlayground: "Открыть песочницу",
+  },
+  selectionCount: (count: number) => `Выбрано: ${count}`,
+  fields: {
+    name: "Название",
+    latitude: "Широта",
+    longitude: "Долгота",
+    accuracy: "Точность",
+    noiseRadius: "Макс. радиус (м)",
+    timeZone: "Часовой пояс",
+  },
+  coordinateRandomization: {
+    labelBefore: "Случайное смещение координат в пределах",
+    labelAfter: "км",
+    radiusInputLabel: "Радиус случайного смещения координат в километрах",
+    readWhy: "Зачем это нужно?",
+    tooltipPrivacy: `${BRAND_DISPLAY_NAME} защищает приватность. Профилями должно быть удобно пользоваться, но точное повторение координат из каталога или поиска может выделить пользователей ${BRAND_DISPLAY_NAME} среди других.`,
+    tooltipExact: `Нужна точная точка? Выключите этот переключатель, и ${BRAND_DISPLAY_NAME} будет использовать сохранённые координаты без смещения. Значения по умолчанию можно изменить в разделе «Настройки» → «Геолокация» → «Дополнительно».`,
+  },
+} as const;
