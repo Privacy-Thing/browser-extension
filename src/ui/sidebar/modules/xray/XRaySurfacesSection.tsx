@@ -273,20 +273,29 @@ const openOptionsAnchor = async (anchorId: string): Promise<void> => {
   });
 };
 
-const SHARED_WORKER_LABELS: Record<SharedWorkerStatus, string> = {
-  "native-compatibility": t.sidebar.surfaces.sharedWorkerNativeCompatibility,
-  "blob-wrapper-dedup-disabled": t.sidebar.surfaces.sharedWorkerBlobSpoofing,
-  "response-rewrite-preserved-identity":
-    t.sidebar.surfaces.sharedWorkerResponseRewriteSpoofing,
-  "response-rewrite-cache-sensitive":
-    t.sidebar.surfaces.sharedWorkerResponseRewriteCacheSensitive,
-  "module-rewrite-unsupported": t.sidebar.surfaces.sharedWorkerModuleUnsupported,
-  "identity-conflict": t.sidebar.surfaces.sharedWorkerIdentityConflict,
-  "response-rewrite-unavailable": t.sidebar.surfaces.sharedWorkerRewriteUnavailable,
-  "blocked-strict": t.sidebar.surfaces.sharedWorkerBlockedStrict,
-  "strict-rewrite-required": t.sidebar.surfaces.sharedWorkerStrictRewriteRequired,
-  "strict-blocked-cache-sensitive":
-    t.sidebar.surfaces.sharedWorkerStrictBlockedCacheSensitive,
+const sharedWorkerLabel = (status: SharedWorkerStatus): string => {
+  switch (status) {
+    case "native-compatibility":
+      return t.sidebar.surfaces.sharedWorkerNativeCompatibility;
+    case "blob-wrapper-dedup-disabled":
+      return t.sidebar.surfaces.sharedWorkerBlobSpoofing;
+    case "response-rewrite-preserved-identity":
+      return t.sidebar.surfaces.sharedWorkerResponseRewriteSpoofing;
+    case "response-rewrite-cache-sensitive":
+      return t.sidebar.surfaces.sharedWorkerResponseRewriteCacheSensitive;
+    case "module-rewrite-unsupported":
+      return t.sidebar.surfaces.sharedWorkerModuleUnsupported;
+    case "identity-conflict":
+      return t.sidebar.surfaces.sharedWorkerIdentityConflict;
+    case "response-rewrite-unavailable":
+      return t.sidebar.surfaces.sharedWorkerRewriteUnavailable;
+    case "blocked-strict":
+      return t.sidebar.surfaces.sharedWorkerBlockedStrict;
+    case "strict-rewrite-required":
+      return t.sidebar.surfaces.sharedWorkerStrictRewriteRequired;
+    case "strict-blocked-cache-sensitive":
+      return t.sidebar.surfaces.sharedWorkerStrictBlockedCacheSensitive;
+  }
 };
 
 const ProfileRow = ({
@@ -359,7 +368,7 @@ export const XRaySurfacesSection = ({
 
       <XRayValueRow
         label={<SharedWorkerLabel />}
-        value={SHARED_WORKER_LABELS[resolvedWorkerStatus]}
+        value={sharedWorkerLabel(resolvedWorkerStatus)}
       />
 
       {displayedProfileLabel ? (

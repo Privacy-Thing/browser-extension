@@ -6,21 +6,31 @@ export type ThemeAccentOption = {
   label: string;
 };
 
-export const ACCENT_OPTION_LABELS: Record<ThemeAccentPreset, string> = {
-  teal: t.advanced.display.accentColor.options.teal,
-  blue: t.advanced.display.accentColor.options.blue,
-  green: t.advanced.display.accentColor.options.green,
-  yellow: t.advanced.display.accentColor.options.yellow,
-  orange: t.advanced.display.accentColor.options.orange,
-  red: t.advanced.display.accentColor.options.red,
-  pink: t.advanced.display.accentColor.options.pink,
-  purple: t.advanced.display.accentColor.options.purple,
-  gray: t.advanced.display.accentColor.options.gray,
+export const accentOptionLabel = (preset: ThemeAccentPreset): string => {
+  switch (preset) {
+    case "teal":
+      return t.advanced.display.accentColor.options.teal;
+    case "blue":
+      return t.advanced.display.accentColor.options.blue;
+    case "green":
+      return t.advanced.display.accentColor.options.green;
+    case "yellow":
+      return t.advanced.display.accentColor.options.yellow;
+    case "orange":
+      return t.advanced.display.accentColor.options.orange;
+    case "red":
+      return t.advanced.display.accentColor.options.red;
+    case "pink":
+      return t.advanced.display.accentColor.options.pink;
+    case "purple":
+      return t.advanced.display.accentColor.options.purple;
+    case "gray":
+      return t.advanced.display.accentColor.options.gray;
+  }
 };
 
-export const THEME_ACCENT_OPTIONS: ThemeAccentOption[] = THEME_ACCENT_PRESETS.map(
-  (preset) => ({
+export const getThemeAccentOptions = (): ThemeAccentOption[] =>
+  THEME_ACCENT_PRESETS.map((preset) => ({
     preset,
-    label: ACCENT_OPTION_LABELS[preset],
-  }),
-);
+    label: accentOptionLabel(preset),
+  }));

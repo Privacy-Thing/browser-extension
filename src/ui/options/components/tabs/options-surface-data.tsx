@@ -43,10 +43,10 @@ const SURFACE_ANCHORS: Record<ConfigurableSurfaceKey, string> = {
   sharedWorker: SETTING_ANCHORS.options.sharedWorkerHandlingMode,
 };
 
-const SURFACE_COPY: Record<
+const getSurfaceCopy = (): Record<
   ConfigurableSurfaceKey,
   { label: string; description: ReactNode }
-> = {
+> => ({
   geolocation: {
     label: t.optionsPage.browserFingerprintSpoofing.items.geolocation.label,
     description: t.optionsPage.browserFingerprintSpoofing.items.geolocation.description,
@@ -143,7 +143,7 @@ const SURFACE_COPY: Record<
       </div>
     ),
   },
-};
+});
 
 export const buildSpoofingSurfaces = ({
   browserTarget,
@@ -155,9 +155,10 @@ export const buildSpoofingSurfaces = ({
   featureFlags?: FeatureFlags;
   nativeTemporalApi?: boolean;
   sharedSpoofing: SharedSpoofingConfig | undefined;
-}): SpoofingSurface[] =>
-  CONFIGURABLE_SURFACES.map((surface) => {
-    const copy = SURFACE_COPY[surface.key];
+}): SpoofingSurface[] => {
+  const surfaceCopy = getSurfaceCopy();
+  return CONFIGURABLE_SURFACES.map((surface) => {
+    const copy = surfaceCopy[surface.key];
     return {
       key: surface.key,
       anchorId: SURFACE_ANCHORS[surface.key],
@@ -176,6 +177,7 @@ export const buildSpoofingSurfaces = ({
       ),
     } satisfies SpoofingSurface;
   }).filter((surface) => surface.supported !== false);
+};
 
 export const renderOsmConsentState = (osmConsent: "unknown" | "granted" | "denied") => {
   if (osmConsent === "unknown") return t.advanced.privacy.osmConsent.stateUnknown;

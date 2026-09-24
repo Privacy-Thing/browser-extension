@@ -22,30 +22,33 @@ import {
 } from "@/ui/options/components/tabs/options-surface-data";
 import { AnimatedVersionHint } from "@/ui/options/components/tabs/options-version-hint";
 import { SECTION_ANCHORS, SETTING_ANCHORS } from "@/ui/options/navigation";
-import { SURFACE_METHOD_LABELS } from "@/ui/shared/surface-method-labels";
+import { getSurfaceMethodLabels } from "@/ui/shared/surface-method-labels";
 
-const MethodList = ({ methods }: Pick<SpoofingSurface, "methods">) => (
-  <details className="group min-w-0">
-    <summary className="list-none cursor-pointer select-none [&::-webkit-details-marker]:hidden">
-      <span className="inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground">
-        <span className="inline-block transition-transform group-open:rotate-90">
-          ›
+const MethodList = ({ methods }: Pick<SpoofingSurface, "methods">) => {
+  const methodLabels = getSurfaceMethodLabels();
+  return (
+    <details className="group min-w-0">
+      <summary className="list-none cursor-pointer select-none [&::-webkit-details-marker]:hidden">
+        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground">
+          <span className="inline-block transition-transform group-open:rotate-90">
+            ›
+          </span>
+          {t.optionsPage.browserFingerprintSpoofing.interceptsApis(methods.length)}
         </span>
-        {`Intercepts ${methods.length} browser APIs`}
-      </span>
-    </summary>
-    <div className="mt-2 flex flex-wrap gap-1">
-      {methods.map((method) => (
-        <span
-          key={method.id}
-          className="rounded bg-muted px-1.5 py-0.5 font-mono text-[0.72rem] text-foreground"
-        >
-          {SURFACE_METHOD_LABELS[method.id as SpoofingSurfaceMethodId]}
-        </span>
-      ))}
-    </div>
-  </details>
-);
+      </summary>
+      <div className="mt-2 flex flex-wrap gap-1">
+        {methods.map((method) => (
+          <span
+            key={method.id}
+            className="rounded bg-muted px-1.5 py-0.5 font-mono text-[0.72rem] text-foreground"
+          >
+            {methodLabels[method.id as SpoofingSurfaceMethodId]}
+          </span>
+        ))}
+      </div>
+    </details>
+  );
+};
 
 const SharedWorkerCard = ({
   model,
