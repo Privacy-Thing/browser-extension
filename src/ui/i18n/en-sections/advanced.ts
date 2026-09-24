@@ -107,6 +107,8 @@ export const advanced = {
       optionEnglish: "English",
       optionSpanish: "Spanish",
       optionPortuguese: "Portuguese",
+      optionRussian: "Russian",
+      optionUkrainian: "Ukrainian",
       soon: "AUTO",
       copyLinkLabel: "language",
     },

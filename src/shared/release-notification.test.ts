@@ -60,6 +60,25 @@ describe("extension notification catalog", () => {
     ]);
   });
 
+  it.each([
+    ["ru-RU", "Уведомления теперь в окне расширения"],
+    ["uk-UA", "Сповіщення тепер у вікні розширення"],
+  ])("provides %s release notices", (locale, title) => {
+    expect(getReleaseNotice("notification-center-intro", locale)?.title).toBe(title);
+  });
+
+  it("keeps Russian and Ukrainian notices complete with brand tokens", () => {
+    for (const notice of notificationCatalog.notifications) {
+      for (const locale of ["ru", "uk"] as const) {
+        expect(notice.title[locale]).toBeTruthy();
+        expect(notice.message[locale]).toHaveLength(notice.message.en.length);
+        expect(getReleaseNotice(notice.id, locale)?.message).toHaveLength(
+          notice.message.en.length,
+        );
+      }
+    }
+  });
+
   it("includes the 0.9.0 rename announcement", () => {
     const source = notificationCatalog.notifications.find(
       (notification) => notification.id === "privacy-thing-rename",
