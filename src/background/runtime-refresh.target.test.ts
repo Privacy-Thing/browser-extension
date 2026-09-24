@@ -80,8 +80,11 @@ describe("shouldReloadRuntimeTabs", () => {
       shouldReloadRuntimeTabs({
         themeMode: "dark",
         themeAccentPreset: "purple",
+        uiLocale: "es",
       }),
     ).toBe(false);
+    expect(shouldSyncPreload({ uiLocale: "ru" })).toBe(false);
+    expect(shouldSyncHeaderRules({ uiLocale: "uk" })).toBe(false);
   });
 });
 

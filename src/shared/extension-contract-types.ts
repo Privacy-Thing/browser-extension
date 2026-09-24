@@ -31,6 +31,7 @@ import type {
   XRaySurfaceCategory,
 } from "./spoofing-surfaces.js";
 import type { ThemeAccentPreset, ThemeMode } from "./theme-types.js";
+import type { UiLocalePreference } from "./ui-locale.js";
 
 export type ResolveSnapshotRequest = {
   type: typeof EXTENSION_COMMAND_TYPES.resolveRuntimeSnapshot;
@@ -57,6 +58,7 @@ export type ExtensionCommand =
     }
   | {
       type: typeof EXTENSION_COMMAND_TYPES.saveSimpleSettings;
+      uiLocale?: UiLocalePreference;
       themeMode?: ThemeMode;
       themeAccentPreset?: ThemeAccentPreset;
       debugMode?: boolean;
@@ -400,6 +402,7 @@ export type GetSettingsResponse = {
   rules: DomainRule[];
   trustedSites: TrustedSite[];
   globalFallbackRule?: GlobalFallbackRule | undefined;
+  uiLocale: UiLocalePreference;
   themeMode: ThemeMode;
   themeAccentPreset: ThemeAccentPreset;
   reduceMotion: boolean;
@@ -425,6 +428,7 @@ export type GetSettingsResponse = {
 export type SaveSettingsResponse =
   | {
       ok: true;
+      uiLocale: UiLocalePreference;
       themeMode: ThemeMode;
       themeAccentPreset: ThemeAccentPreset;
       reduceMotion: boolean;
@@ -468,6 +472,7 @@ export type ResetSettingsResponse = {
   rules: DomainRule[];
   trustedSites: TrustedSite[];
   globalFallbackRule?: GlobalFallbackRule | undefined;
+  uiLocale: UiLocalePreference;
   themeMode: ThemeMode;
   themeAccentPreset: ThemeAccentPreset;
   reduceMotion: boolean;
@@ -499,6 +504,7 @@ export type ImportSettingsResponse =
       locations: Location[];
       rules: DomainRule[];
       trustedSites: TrustedSite[];
+      uiLocale: UiLocalePreference;
       themeMode: ThemeMode;
       themeAccentPreset: ThemeAccentPreset;
       reduceMotion: boolean;
@@ -594,34 +600,13 @@ export type UpdateRuleResponse =
     };
 
 export type ToggleRuleResponse =
-  | {
-      ok: true;
-      state: PopupState;
-    }
-  | {
-      ok: false;
-      error: string;
-    };
+  { ok: true; state: PopupState } | { ok: false; error: string };
 
 export type DeleteRuleResponse =
-  | {
-      ok: true;
-      state: PopupState;
-    }
-  | {
-      ok: false;
-      error: string;
-    };
+  { ok: true; state: PopupState } | { ok: false; error: string };
 
 export type ApplySuggestionResponse =
-  | {
-      ok: true;
-      state: PopupState;
-    }
-  | {
-      ok: false;
-      error: string;
-    };
+  { ok: true; state: PopupState } | { ok: false; error: string };
 
 export type LocationDraftResponse =
   | {

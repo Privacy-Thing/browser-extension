@@ -79,6 +79,7 @@ const baseSettings = (
   includeDateCallsInBadgeCount: true,
   onboardingCompleted: true,
   notice: null,
+  uiLocale: "auto",
   ...overrides,
 });
 
@@ -86,6 +87,7 @@ const saveSimpleOk = (
   overrides: Partial<Extract<SaveSettingsResponse, { ok: true }>> = {},
 ): SaveSettingsResponse => ({
   ok: true,
+  uiLocale: "auto",
   themeMode: "system",
   themeAccentPreset: "teal",
   reduceMotion: false,

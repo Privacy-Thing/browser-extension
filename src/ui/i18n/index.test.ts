@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { resolveUiLocale } from "./index";
+import { applyUiLocalePreference, resolveUiLocale, t } from "./index";
 
 describe("resolveUiLocale", () => {
   it.each(["es", "es-ES", "es-MX", "ES-ar"])("selects Spanish for %s", (language) => {
@@ -28,4 +28,12 @@ describe("resolveUiLocale", () => {
       expect(resolveUiLocale(language)).toBe("en");
     },
   );
+
+  it("switches the active catalog without recapturing nested messages", () => {
+    const language = t.advanced.display.language;
+    applyUiLocalePreference("es");
+    expect(language.title).toBe("Idioma");
+    applyUiLocalePreference("en");
+    expect(language.title).toBe("Language");
+  });
 });

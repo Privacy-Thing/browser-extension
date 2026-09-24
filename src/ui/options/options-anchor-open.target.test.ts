@@ -122,6 +122,7 @@ const baseSettingsResponse: GetSettingsResponse = {
     ruleSeedKey: "seed123",
     fingerprintSurfaceOverrides: { geolocation: false },
   },
+  uiLocale: "auto",
   themeMode: "system",
   themeAccentPreset: DEFAULT_ACCENT_PRESET,
   reduceMotion: false,

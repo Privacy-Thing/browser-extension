@@ -1,5 +1,6 @@
 import { fireAndForget } from "@/shared/async";
 import type { ThemeAccentPreset } from "@/shared/types";
+import { isUiLocalePreference, type UiLocalePreference } from "@/shared/ui-locale";
 import { cn } from "@/ui/components/lib/utils";
 import {
   getSettingDescriptionId,
@@ -10,7 +11,6 @@ import { SettingsControlCard } from "@/ui/components/SettingsControlCard";
 import { SettingsHelpCard } from "@/ui/components/SettingsHelpCard";
 import { SettingsSectionCard } from "@/ui/components/SettingsSectionCard";
 import { SettingsSubcard } from "@/ui/components/SettingsSubcard";
-import { Badge } from "@/ui/components/ui/badge";
 import { Button } from "@/ui/components/ui/button";
 import {
   Select,
@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "@/ui/components/ui/select";
 import { Switch } from "@/ui/components/ui/switch";
-import { t, UI_LOCALE } from "@/ui/i18n";
+import { t } from "@/ui/i18n";
 import type { OptionsModel } from "@/ui/options/components/tabs/options-model";
 import { renderOsmConsentState } from "@/ui/options/components/tabs/options-surface-data";
 import {
@@ -31,6 +31,7 @@ import {
 import { icon } from "@/ui/options/utils";
 import { getThemeAccentTokens } from "@/ui/shared/theme";
 import { THEME_ACCENT_OPTIONS } from "@/ui/shared/theme-accent-options";
+import { useTheme } from "@/ui/shared/ThemeProvider";
 
 export const PrivacySection = ({ model }: { model: OptionsModel }) => (
   <SettingsSectionCard
@@ -137,47 +138,80 @@ const AccentChip = ({
   </Button>
 );
 
-const LanguageCard = () => (
-  <SettingsControlCard
-    anchorId={SETTING_ANCHORS.options.language}
-    copyLabel={t.common.copyLinkTo(t.advanced.display.language.copyLinkLabel)}
-    title={
-      <h3 className="flex items-center gap-2 text-sm font-semibold">
-        {t.advanced.display.language.title}
-        <Badge variant="outline">{t.advanced.display.language.soon}</Badge>
-      </h3>
-    }
-    description={t.advanced.display.language.description}
-    actionClassName="w-full sm:w-44"
-    action={
-      <Select value={UI_LOCALE} disabled>
-        <SelectTrigger
-          id="language-trigger"
-          aria-label={t.advanced.display.language.title}
+const TRANSLATION_REPORT_URL =
+  "https://github.com/Privacy-Thing/browser-extension/issues/new?template=bug_report.yml";
+
+export const commitLanguageSelection = (
+  value: string,
+  setUiLocale: (locale: UiLocalePreference) => Promise<void>,
+): void => {
+  if (!isUiLocalePreference(value)) return;
+  fireAndForget(setUiLocale(value));
+};
+
+const LanguageCard = ({ model }: { model: OptionsModel }) => {
+  const { setUiLocale, uiLocale } = useTheme();
+  return (
+    <SettingsControlCard
+      anchorId={SETTING_ANCHORS.options.language}
+      copyLabel={t.common.copyLinkTo(t.advanced.display.language.copyLinkLabel)}
+      title={
+        <h3 className="text-sm font-semibold">{t.advanced.display.language.title}</h3>
+      }
+      description={
+        <span className="flex flex-col gap-2">
+          <span>{t.advanced.display.language.description}</span>
+          <a
+            href={TRANSLATION_REPORT_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-foreground underline underline-offset-4"
+          >
+            {t.advanced.display.language.reportLabel}
+          </a>
+        </span>
+      }
+      focusControlOnTitleClick
+      actionClassName="w-full sm:w-52"
+      action={
+        <Select
+          value={uiLocale}
+          disabled={model.simpleDisabled}
+          onValueChange={(value) => {
+            commitLanguageSelection(value, setUiLocale);
+          }}
         >
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="en">
-            {t.advanced.display.language.optionEnglish}
-          </SelectItem>
-          <SelectItem value="es">
-            {t.advanced.display.language.optionSpanish}
-          </SelectItem>
-          <SelectItem value="pt">
-            {t.advanced.display.language.optionPortuguese}
-          </SelectItem>
-          <SelectItem value="ru">
-            {t.advanced.display.language.optionRussian}
-          </SelectItem>
-          <SelectItem value="uk">
-            {t.advanced.display.language.optionUkrainian}
-          </SelectItem>
-        </SelectContent>
-      </Select>
-    }
-  />
-);
+          <SelectTrigger
+            id="language-trigger"
+            aria-label={t.advanced.display.language.title}
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="auto">
+              {t.advanced.display.language.optionAutomatic}
+            </SelectItem>
+            <SelectItem value="en">
+              {t.advanced.display.language.optionEnglish}
+            </SelectItem>
+            <SelectItem value="es">
+              {t.advanced.display.language.optionSpanish}
+            </SelectItem>
+            <SelectItem value="pt">
+              {t.advanced.display.language.optionPortuguese}
+            </SelectItem>
+            <SelectItem value="ru">
+              {t.advanced.display.language.optionRussian}
+            </SelectItem>
+            <SelectItem value="uk">
+              {t.advanced.display.language.optionUkrainian}
+            </SelectItem>
+          </SelectContent>
+        </Select>
+      }
+    />
+  );
+};
 
 const ThemeCard = ({ model }: { model: OptionsModel }) => (
   <SettingsControlCard
@@ -386,7 +420,7 @@ export const AppearanceSection = ({ model }: { model: OptionsModel }) => (
     }
     contentClassName="flex flex-col gap-6 pt-6"
   >
-    <LanguageCard />
+    <LanguageCard model={model} />
     <ThemeCard model={model} />
     <AccentCard model={model} />
     <MotionCards model={model} />
