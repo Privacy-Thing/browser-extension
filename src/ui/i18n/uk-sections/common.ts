@@ -1,0 +1,42 @@
+import { BRAND_DISPLAY_NAME } from "@/shared/brand";
+
+export const common = {
+  copyLinkTo: (section: string) => `Скопіювати посилання: ${section}`,
+  actions: {
+    cancel: "Скасувати",
+    reset: "Скинути",
+    close: "Закрити",
+    create: "Створити",
+    save: "Зберегти",
+    back: "Назад",
+    continue: "Продовжити",
+    edit: "Редагувати",
+    delete: "Видалити",
+    duplicate: "Дублювати",
+    search: "Пошук",
+    clear: "Очистити",
+    deleteSelected: "Видалити вибране",
+    clearSelection: "Зняти виділення",
+    openPrivacyPolicy: "Відкрити політику конфіденційності",
+    allowOpenStreetMap: "Дозволити доступ до карти",
+    notNow: "Не зараз",
+    openPlayground: "Відкрити пісочницю",
+  },
+  selectionCount: (count: number) => `Вибрано: ${count}`,
+  fields: {
+    name: "Назва",
+    latitude: "Широта",
+    longitude: "Довгота",
+    accuracy: "Точність",
+    noiseRadius: "Макс. радіус (м)",
+    timeZone: "Часовий пояс",
+  },
+  coordinateRandomization: {
+    labelBefore: "Випадкове зміщення координат у межах",
+    labelAfter: "км",
+    radiusInputLabel: "Радіус випадкового зміщення координат у кілометрах",
+    readWhy: "Навіщо це потрібно?",
+    tooltipPrivacy: `${BRAND_DISPLAY_NAME} захищає приватність. Профілями має бути зручно користуватися, але точне повторення координат із каталогу або пошуку може вирізняти користувачів ${BRAND_DISPLAY_NAME} серед інших.`,
+    tooltipExact: `Потрібна точна точка? Вимкніть цей перемикач, і ${BRAND_DISPLAY_NAME} використовуватиме збережені координати без зміщення. Типові значення можна змінити в розділі «Налаштування» → «Геолокація» → «Додатково».`,
+  },
+} as const;

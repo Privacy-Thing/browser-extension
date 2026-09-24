@@ -13,7 +13,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const uiRoot = path.resolve(__dirname, "..");
 const i18nRoot = __dirname;
-const localeSectionsRoot = path.join(i18nRoot, "en-sections");
+const localeSectionRoots = fs
+  .readdirSync(i18nRoot, { withFileTypes: true })
+  .filter((entry) => entry.isDirectory() && entry.name.endsWith("-sections"))
+  .map((entry) => path.join(i18nRoot, entry.name));
 
 const collectLocaleLeafPaths = (
   value: unknown,
@@ -322,8 +325,8 @@ const collectLocaleModules = async (): Promise<
 
 describe("UI i18n coverage", () => {
   it("keeps the product name behind the shared branding token", () => {
-    const hardCodedProductNames = collectSourceFiles(localeSectionsRoot).flatMap(
-      (filePath) => {
+    const hardCodedProductNames = localeSectionRoots.flatMap((localeSectionsRoot) =>
+      collectSourceFiles(localeSectionsRoot).flatMap((filePath) => {
         const sourceFile = ts.createSourceFile(
           filePath,
           fs.readFileSync(filePath, "utf8"),
@@ -344,7 +347,7 @@ describe("UI i18n coverage", () => {
         };
         visit(sourceFile);
         return matches;
-      },
+      }),
     );
 
     expect(hardCodedProductNames).toEqual([]);
@@ -373,6 +376,13 @@ describe("UI i18n coverage", () => {
   it("keeps all locale packs aligned with the base locale shape", async () => {
     const baseKeys = collectLocaleLeafPaths(en);
     const localeModules = await collectLocaleModules();
+    expect(localeModules.map(({ code }) => code).sort()).toEqual([
+      "en",
+      "es",
+      "pt",
+      "ru",
+      "uk",
+    ]);
 
     for (const localeModule of localeModules) {
       const localeKeys = collectLocaleLeafPaths(localeModule.value);

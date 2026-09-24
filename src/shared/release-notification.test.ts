@@ -38,6 +38,47 @@ describe("extension notification catalog", () => {
     ]);
   });
 
+  it("provides Spanish release notices without falling back to English", () => {
+    const notification = getReleaseNotice("notification-center-intro", "es-MX");
+
+    expect(notification?.title).toBe(
+      "Las notificaciones ya están en la ventana emergente",
+    );
+    expect(notification?.message).toEqual([
+      "Privacy Thing ahora muestra las novedades importantes y los avisos de compatibilidad en la ventana emergente.",
+      "Al abrir una notificación se marca como leída. Permanecerá disponible hasta que la descartes.",
+    ]);
+  });
+
+  it("provides Portuguese release notices without falling back to English", () => {
+    const notification = getReleaseNotice("notification-center-intro", "pt-BR");
+
+    expect(notification?.title).toBe("As notificações agora estão no pop-up");
+    expect(notification?.message).toEqual([
+      "Privacy Thing agora mostra atualizações importantes e avisos de compatibilidade no pop-up.",
+      "Ao abrir uma notificação, ela é marcada como lida e permanece disponível até que você a descarte.",
+    ]);
+  });
+
+  it.each([
+    ["ru-RU", "Уведомления теперь в окне расширения"],
+    ["uk-UA", "Сповіщення тепер у вікні розширення"],
+  ])("provides %s release notices", (locale, title) => {
+    expect(getReleaseNotice("notification-center-intro", locale)?.title).toBe(title);
+  });
+
+  it("keeps Russian and Ukrainian notices complete with brand tokens", () => {
+    for (const notice of notificationCatalog.notifications) {
+      for (const locale of ["ru", "uk"] as const) {
+        expect(notice.title[locale]).toBeTruthy();
+        expect(notice.message[locale]).toHaveLength(notice.message.en.length);
+        expect(getReleaseNotice(notice.id, locale)?.message).toHaveLength(
+          notice.message.en.length,
+        );
+      }
+    }
+  });
+
   it("includes the 0.9.0 rename announcement", () => {
     const source = notificationCatalog.notifications.find(
       (notification) => notification.id === "privacy-thing-rename",

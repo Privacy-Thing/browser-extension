@@ -348,6 +348,7 @@ const buildAllowedRetiredLines = () => {
       "src/shared/extension-notifications.json",
       new Set([
         `"en": ${JSON.stringify(renameTitle)}`,
+        `"en": ${JSON.stringify(renameTitle)},`,
         `${JSON.stringify(renameParagraph)},`,
       ]),
     ],
