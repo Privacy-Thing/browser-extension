@@ -17,6 +17,8 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ### Changed
 
+- The interface language can be chosen in Settings. Automatic still follows the
+  browser language. Popup, sidebar, and Settings update without a reload.
 - Experimental: every subframe in a tab now uses the top-frame runtime snapshot
   (locale, timezone, fingerprint, geolocation) so iframe and worker realms do
   not diverge from the page. Per-tab header rules apply to all requests in that

@@ -4,6 +4,7 @@ import { act, createElement, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { commitLanguageSelection } from "@/ui/options/components/tabs/options-preference-sections";
 import { OptionsTab } from "@/ui/options/components/tabs/OptionsTab";
 
 const {
@@ -49,6 +50,8 @@ const {
     motionOverride: false,
     setReduceMotion: vi.fn(),
     setHighContrast: vi.fn(),
+    uiLocale: "auto" as const,
+    setUiLocale: vi.fn(),
   },
 }));
 
@@ -163,7 +166,9 @@ describe("OptionsTab Shared Worker handling", () => {
     useSettingsValue.sharedWorkerHandlingMode = "native";
     themeValue.reduceMotion = false;
     themeValue.motionOverride = false;
+    themeValue.uiLocale = "auto";
     themeValue.setReduceMotion.mockReset();
+    themeValue.setUiLocale.mockReset();
   });
 
   afterEach(async () => {
@@ -212,17 +217,30 @@ describe("OptionsTab Shared Worker handling", () => {
     );
   });
 
-  it("shows the automatically selected UI language without saving settings", async () => {
+  it("shows the language selector without saving settings", async () => {
     root = await renderWithRoot();
 
     const languageTrigger = document.getElementById("language-trigger");
+    const reportLink = document.querySelector(
+      'a[href="https://github.com/Privacy-Thing/browser-extension/issues/new?template=bug_report.yml"]',
+    );
 
     expect(languageTrigger).toBeInstanceOf(HTMLButtonElement);
-    expect((languageTrigger as HTMLButtonElement).disabled).toBe(true);
-    expect(languageTrigger?.textContent).toContain("English");
+    expect((languageTrigger as HTMLButtonElement).disabled).toBe(false);
+    expect(languageTrigger?.textContent).toContain("Automatic");
     expect(document.body.textContent).toContain("Language");
-    expect(document.body.textContent).toContain("AUTO");
+    expect(document.body.textContent).not.toContain("AUTO");
+    expect(reportLink?.textContent).toContain("Found a translation error? Report it");
     expect(scheduleAutosaveMock).not.toHaveBeenCalled();
+    expect(themeValue.setUiLocale).not.toHaveBeenCalled();
+  });
+
+  it("saves a chosen interface language and ignores unknown values", () => {
+    const setUiLocale = vi.fn(async () => undefined);
+    commitLanguageSelection("es", setUiLocale);
+    commitLanguageSelection("nope", setUiLocale);
+    expect(setUiLocale).toHaveBeenCalledTimes(1);
+    expect(setUiLocale).toHaveBeenCalledWith("es");
   });
 
   it("states which external requests map consent allows", async () => {

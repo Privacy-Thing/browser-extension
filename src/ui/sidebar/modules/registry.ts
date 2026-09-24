@@ -6,7 +6,9 @@ import { t } from "@/ui/i18n";
 export const SIDEBAR_MODULES: SidebarModule[] = [
   {
     id: "xray",
-    title: t.sidebar.xRayTitle,
+    get title() {
+      return t.sidebar.xRayTitle;
+    },
     Component: XRayModule,
   },
 ];

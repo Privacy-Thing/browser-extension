@@ -36,6 +36,7 @@ describe("applySettingsPayload", () => {
         },
       ],
       trustedSites: [{ pattern: "bank.example.com", enabled: true }],
+      uiLocale: "auto",
       themeMode: "dark",
       themeAccentPreset: "blue",
       reduceMotion: true,

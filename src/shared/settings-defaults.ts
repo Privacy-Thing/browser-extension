@@ -14,6 +14,7 @@ import {
   isThemeMode,
 } from "@/shared/theme-types";
 import type { OsmConsentState, ThemeAccentPreset, ThemeMode } from "@/shared/types";
+import { isUiLocalePreference, type UiLocalePreference } from "@/shared/ui-locale";
 
 /**
  * Canonical scalar preferences for the extension.
@@ -37,6 +38,7 @@ export type Preferences = {
   /** @deprecated Import/migration compatibility. Use sharedWorkerHandlingMode. */
   sharedWorkerCompatibilityMode: boolean;
   onboardingCompleted: boolean;
+  uiLocale: UiLocalePreference;
   themeMode: ThemeMode;
   themeAccentPreset: ThemeAccentPreset;
   reduceMotion: boolean;
@@ -69,6 +71,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   sharedWorkerHandlingMode: "strict",
   sharedWorkerCompatibilityMode: false,
   onboardingCompleted: false,
+  uiLocale: "auto",
   themeMode: DEFAULT_THEME_MODE,
   themeAccentPreset: DEFAULT_ACCENT_PRESET,
   reduceMotion: false,
@@ -95,6 +98,11 @@ const isWatchPositionDelay = (value: unknown): value is [number, number] =>
 
 const asRecord = (value: unknown): Record<string, unknown> =>
   typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
+
+const readUiLocale = (source: Record<string, unknown>): UiLocalePreference =>
+  isUiLocalePreference(source.uiLocale)
+    ? source.uiLocale
+    : DEFAULT_PREFERENCES.uiLocale;
 
 /**
  * Fills a partial/unknown preferences value with canonical defaults, validating
@@ -133,6 +141,7 @@ export const normalizePreferences = (raw: unknown): Preferences => {
       typeof source.onboardingCompleted === "boolean"
         ? source.onboardingCompleted
         : DEFAULT_PREFERENCES.onboardingCompleted,
+    uiLocale: readUiLocale(source),
     themeMode: isThemeMode(source.themeMode)
       ? source.themeMode
       : DEFAULT_PREFERENCES.themeMode,

@@ -5,11 +5,13 @@ import {
 } from "@privacy-thing/brand";
 import React from "react";
 
+import { BRAND_DISPLAY_NAME } from "@/shared/brand";
 import { BUILD_BROWSER_TARGET } from "@/shared/build-flags";
 import { Button } from "@/ui/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/components/ui/tabs";
 import { AppToaster } from "@/ui/components/ui/toast";
 import { t } from "@/ui/i18n";
+import { LocaleRefresh, useUiLocale } from "@/ui/i18n/LocaleRefresh";
 import { OPTIONS_HOVER_REACTION, OPTIONS_THING_TIMING } from "@/ui/options/brand-thing";
 import { ConfirmDialog } from "@/ui/options/components/modals/ConfirmDialog";
 import { GlobalFallbackRuleDialog } from "@/ui/options/components/modals/GlobalFallbackRuleDialog";
@@ -323,11 +325,19 @@ export const OptionsUi = () => {
   );
 };
 
-export const App = () => (
-  <ThemeProvider>
-    <SettingsProvider>
-      <OptionsUi />
-      <AppToaster />
-    </SettingsProvider>
-  </ThemeProvider>
-);
+export const App = () => {
+  const locale = useUiLocale();
+  React.useEffect(() => {
+    document.title = `${BRAND_DISPLAY_NAME} ${t.options.title}`;
+  }, [locale]);
+  return (
+    <ThemeProvider>
+      <SettingsProvider>
+        <LocaleRefresh>
+          <OptionsUi />
+          <AppToaster />
+        </LocaleRefresh>
+      </SettingsProvider>
+    </ThemeProvider>
+  );
+};

@@ -17,7 +17,7 @@ import type {
   PopupSiteSuggestion,
   WorkerInjectionMode,
 } from "@/shared/types";
-import { t, UI_LOCALE } from "@/ui/i18n";
+import { getActiveUiLocale, t } from "@/ui/i18n";
 
 export type NotificationDisplayState = "unread" | "acknowledged" | "resolved";
 
@@ -33,12 +33,12 @@ const getReleaseNotification = (
 ): ReleaseNotice | null => {
   if (notification.kind !== "significant-update") return null;
   return (
-    getReleaseNotice(notification.id, UI_LOCALE) ??
+    getReleaseNotice(notification.id, getActiveUiLocale()) ??
     (notification.channel && notification.introducedInVersion
       ? (getVersionNotices(
           notification.channel,
           notification.introducedInVersion,
-          UI_LOCALE,
+          getActiveUiLocale(),
         )[0] ?? null)
       : null)
   );

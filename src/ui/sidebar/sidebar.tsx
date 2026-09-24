@@ -9,6 +9,7 @@ import { SidebarShell } from "./SidebarShell";
 
 import { BRAND_DISPLAY_NAME } from "@/shared/brand";
 import { AppToaster } from "@/ui/components/ui/toast";
+import { LocaleRefresh } from "@/ui/i18n/LocaleRefresh";
 import { installSettingsAPI } from "@/ui/internal-api/settings-api";
 import { ThemeProvider } from "@/ui/shared/ThemeProvider";
 
@@ -18,8 +19,10 @@ document.title = BRAND_DISPLAY_NAME;
 
 const App = () => (
   <ThemeProvider>
-    <SidebarShell />
-    <AppToaster />
+    <LocaleRefresh>
+      <SidebarShell />
+      <AppToaster />
+    </LocaleRefresh>
   </ThemeProvider>
 );
 

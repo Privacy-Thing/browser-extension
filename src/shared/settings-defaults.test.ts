@@ -147,6 +147,12 @@ describe("normalizePreferences", () => {
     expect(result).not.toHaveProperty("foo");
   });
 
+  it("falls back to automatic when the interface language is invalid", () => {
+    expect(normalizePreferences({ uiLocale: "sepia" }).uiLocale).toBe("auto");
+    expect(normalizePreferences({}).uiLocale).toBe("auto");
+    expect(normalizePreferences({ uiLocale: "uk" }).uiLocale).toBe("uk");
+  });
+
   it("rejects invalid theme and default radius values", () => {
     const result = normalizePreferences({
       themeMode: "sepia",
