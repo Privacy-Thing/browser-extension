@@ -104,13 +104,14 @@ export const advanced = {
 
     language: {
       title: "Idioma",
-      description: `${BRAND_DISPLAY_NAME} usa automáticamente el idioma de la interfaz del navegador.`,
+      description: `${BRAND_DISPLAY_NAME} sigue el idioma del navegador en Automático. Elige un idioma para usarlo en su lugar.`,
+      optionAutomatic: "Automático",
       optionEnglish: "Inglés",
       optionSpanish: "Español",
       optionPortuguese: "Portugués",
       optionRussian: "Ruso",
       optionUkrainian: "Ucraniano",
-      soon: "AUTOMÁTICO",
+      reportLabel: "¿Encontraste un error de traducción? Infórmalo",
       copyLinkLabel: "idioma",
     },
 

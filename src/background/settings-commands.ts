@@ -184,6 +184,7 @@ const persistImport = async (settings: ImportedSettings): Promise<void> => {
     saveContainerAssignments(containerAssignments),
     clearSiteSuggestions(),
     savePreferences({
+      uiLocale: settings.uiLocale,
       themeMode: settings.themeMode,
       themeAccentPreset: settings.themeAccentPreset,
       reduceMotion: settings.reduceMotion,
@@ -243,6 +244,7 @@ const buildImportResponse = (settings: ImportedSettings): ImportSettingsResponse
   locations: settings.locations,
   rules: settings.rules,
   trustedSites: settings.trustedSites,
+  uiLocale: settings.uiLocale,
   themeMode: settings.themeMode,
   themeAccentPreset: settings.themeAccentPreset,
   reduceMotion: settings.reduceMotion,

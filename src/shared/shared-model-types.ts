@@ -55,6 +55,7 @@ import type {
 import { XRAY_SURFACE_CATEGORIES } from "./spoofing-surfaces.js";
 import { DEFAULT_ACCENT_PRESET, THEME_ACCENT_PRESETS } from "./theme-types.js";
 import type { ThemeAccentPreset, ThemeMode } from "./theme-types.js";
+import type { UiLocalePreference } from "./ui-locale.js";
 
 export type {
   BrowserClientHintBrand,
@@ -327,6 +328,7 @@ export type ExportedSettings = {
   rules: DomainRule[];
   trustedSites?: TrustedSite[];
   globalFallbackRule?: GlobalFallbackRule | undefined;
+  uiLocale?: UiLocalePreference;
   themeMode?: ThemeMode;
   themeAccentPreset?: ThemeAccentPreset;
   reduceMotion?: boolean;

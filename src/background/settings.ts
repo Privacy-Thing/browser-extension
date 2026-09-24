@@ -16,8 +16,11 @@ import {
   locationProfilesSchema,
 } from "@/shared/profile-schema";
 import { withAuthKey, withContainerSeed, withRuleSeedKey } from "@/shared/rule-seed";
-import { normalizePreferences } from "@/shared/settings-defaults";
-import { MAX_RANDOM_RADIUS_KM, MIN_RANDOM_RADIUS_KM } from "@/shared/settings-defaults";
+import {
+  MAX_RANDOM_RADIUS_KM,
+  MIN_RANDOM_RADIUS_KM,
+  normalizePreferences,
+} from "@/shared/settings-defaults";
 import { DEFAULT_THEME_MODE } from "@/shared/theme-types";
 import { DEFAULT_ACCENT_PRESET, THEME_ACCENT_PRESETS } from "@/shared/types";
 import type {
@@ -33,6 +36,7 @@ import type {
   ThemeAccentPreset,
   ThemeMode,
 } from "@/shared/types";
+import { UI_LOCALE_PREFERENCES, type UiLocalePreference } from "@/shared/ui-locale";
 
 const THEME_MODE_VALUES = ["light", "dark", "system"] as const;
 const OSM_CONSENT_VALUES = ["unknown", "granted", "denied"] as const;
@@ -57,6 +61,7 @@ const normalizeLegacySpoofing = <
 
 const settingsCommandSchema = z
   .object({
+    uiLocale: z.enum(UI_LOCALE_PREFERENCES).optional(),
     themeMode: z.enum(THEME_MODE_VALUES).optional(),
     themeAccentPreset: z.enum(THEME_ACCENT_PRESETS).optional(),
     reduceMotion: z.boolean().optional(),
@@ -258,6 +263,7 @@ export const validateImportedSettings = (
   rules: DomainRule[];
   trustedSites: TrustedSite[];
   globalFallbackRule?: GlobalFallbackRule | undefined;
+  uiLocale: UiLocalePreference;
   themeMode: ThemeMode;
   themeAccentPreset: ThemeAccentPreset;
   reduceMotion: boolean;
@@ -323,6 +329,7 @@ export const validateImportedSettings = (
   return {
     ...validated,
     trustedSites,
+    uiLocale: preferences.uiLocale,
     themeMode: sanitizeThemeMode(settings.themeMode),
     themeAccentPreset: sanitizeAccent(settings.themeAccentPreset),
     reduceMotion: preferences.reduceMotion,

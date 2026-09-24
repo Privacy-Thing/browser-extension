@@ -42,6 +42,7 @@ import type {
 } from "@/shared/types";
 
 type ResolvedSimpleSettings = {
+  nextUiLocale: Preferences["uiLocale"];
   nextThemeMode: ThemeMode;
   nextTrustedSites: TrustedSite[];
   nextThemeAccentPreset: ThemeAccentPreset;
@@ -177,6 +178,7 @@ const resolveSettings = async (
     loadCurrent: getGlobalFallbackRule,
   });
   return {
+    nextUiLocale: nextCommand.uiLocale ?? currentPreferences.uiLocale,
     nextThemeMode,
     nextTrustedSites,
     nextThemeAccentPreset,
@@ -230,6 +232,7 @@ const buildPreferencesPatch = (
 ): Partial<Preferences> => {
   const patch: Partial<Preferences> = {};
   for (const key of [
+    "uiLocale",
     "themeMode",
     "themeAccentPreset",
     "reduceMotion",
@@ -342,6 +345,7 @@ const cacheResolvedSettings = (
 
 const buildSaveResponse = (settings: ResolvedSimpleSettings): SaveSettingsResponse => ({
   ok: true,
+  uiLocale: settings.nextUiLocale,
   themeMode: settings.nextThemeMode,
   themeAccentPreset: settings.nextThemeAccentPreset,
   reduceMotion: settings.nextReduceMotion,

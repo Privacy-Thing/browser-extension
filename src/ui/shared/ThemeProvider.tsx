@@ -24,6 +24,8 @@ import {
   type ThemeMode,
   type SaveSettingsResponse,
 } from "@/shared/types";
+import type { UiLocalePreference } from "@/shared/ui-locale";
+import { applyUiLocalePreference } from "@/ui/i18n";
 import { migrateLegacyPrefs } from "@/ui/shared/preferences-migration";
 import { sendRuntimeMessage, sendMessageOrThrow } from "@/ui/shared/runtime-messaging";
 import {
@@ -43,6 +45,8 @@ interface ThemeContextValue {
   setReduceMotion: (enabled: boolean) => Promise<void>;
   highContrast: boolean;
   setHighContrast: (enabled: boolean) => Promise<void>;
+  uiLocale: UiLocalePreference;
+  setUiLocale: (uiLocale: UiLocalePreference) => Promise<void>;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -83,6 +87,7 @@ type ThemeSetters = {
   setContrast: React.Dispatch<React.SetStateAction<boolean>>;
   setMotion: React.Dispatch<React.SetStateAction<boolean>>;
   setPreference: React.Dispatch<React.SetStateAction<ThemeMode>>;
+  setUiLocale: React.Dispatch<React.SetStateAction<UiLocalePreference>>;
 };
 
 const applyStoredPreferences = (prefs: Preferences, setters: ThemeSetters): void => {
@@ -90,6 +95,8 @@ const applyStoredPreferences = (prefs: Preferences, setters: ThemeSetters): void
   setters.setAccent(prefs.themeAccentPreset);
   setters.setMotion(prefs.reduceMotion);
   setters.setContrast(prefs.highContrastMode);
+  setters.setUiLocale(prefs.uiLocale);
+  applyUiLocalePreference(prefs.uiLocale);
 };
 
 const useInitialPreferences = (
@@ -243,7 +250,21 @@ const useThemeActions = (setters: ThemeSetters) => {
     },
     [persist, setters],
   );
-  return { setAccentPreset, setHighContrast, setPreference, setReduceMotion };
+  const setUiLocale = useCallback(
+    async (next: UiLocalePreference) => {
+      setters.setUiLocale(next);
+      applyUiLocalePreference(next);
+      await persist({ uiLocale: next });
+    },
+    [persist, setters],
+  );
+  return {
+    setAccentPreset,
+    setHighContrast,
+    setPreference,
+    setReduceMotion,
+    setUiLocale,
+  };
 };
 
 export function ThemeProvider({
@@ -271,6 +292,9 @@ export function ThemeProvider({
   const [highContrastMode, setHighContrastMode] = useState(
     DEFAULT_PREFERENCES.highContrastMode,
   );
+  const [uiLocale, setUiLocaleState] = useState<UiLocalePreference>(
+    DEFAULT_PREFERENCES.uiLocale,
+  );
   const [initialPreferencesReady, setPrefsReady] = useState(!deferInitialPaint);
   const theme = preference === "system" ? systemTheme : preference;
   const effectiveReduceMotion = reduceMotion || systemReduceMotion;
@@ -280,6 +304,7 @@ export function ThemeProvider({
       setContrast: setHighContrastMode,
       setMotion: setReduceMotionState,
       setPreference: setPreferenceState,
+      setUiLocale: setUiLocaleState,
     }),
     [],
   );
@@ -293,8 +318,13 @@ export function ThemeProvider({
     theme,
   });
   usePreferenceSync(setters);
-  const { setAccentPreset, setHighContrast, setPreference, setReduceMotion } =
-    useThemeActions(setters);
+  const {
+    setAccentPreset,
+    setHighContrast,
+    setPreference,
+    setReduceMotion,
+    setUiLocale,
+  } = useThemeActions(setters);
 
   const value = useMemo<ThemeContextValue>(
     () => ({
@@ -308,6 +338,8 @@ export function ThemeProvider({
       setReduceMotion,
       highContrast: highContrastMode,
       setHighContrast,
+      uiLocale,
+      setUiLocale,
     }),
     [
       theme,
@@ -320,6 +352,8 @@ export function ThemeProvider({
       setReduceMotion,
       highContrastMode,
       setHighContrast,
+      uiLocale,
+      setUiLocale,
     ],
   );
 

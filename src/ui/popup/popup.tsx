@@ -8,6 +8,7 @@ import { createRoot } from "react-dom/client";
 import { PopupApp } from "./PopupApp";
 
 import { BRAND_DISPLAY_NAME } from "@/shared/brand";
+import { LocaleRefresh } from "@/ui/i18n/LocaleRefresh";
 import { installSettingsAPI } from "@/ui/internal-api/settings-api";
 import { ThemeProvider } from "@/ui/shared/ThemeProvider";
 
@@ -16,7 +17,9 @@ document.title = BRAND_DISPLAY_NAME;
 
 const App = () => (
   <ThemeProvider deferInitialPaint>
-    <PopupApp />
+    <LocaleRefresh>
+      <PopupApp />
+    </LocaleRefresh>
   </ThemeProvider>
 );
 

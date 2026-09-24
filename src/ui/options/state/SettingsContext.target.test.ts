@@ -38,6 +38,7 @@ const baseSettingsResponse: GetSettingsResponse = {
   locations: [],
   rules: [],
   trustedSites: [],
+  uiLocale: "auto",
   themeMode: "system",
   themeAccentPreset: "teal",
   reduceMotion: false,
@@ -62,6 +63,7 @@ const baseSettingsResponse: GetSettingsResponse = {
 
 const baseSaveResponse = {
   ok: true,
+  uiLocale: "auto",
   themeMode: "system",
   themeAccentPreset: "teal",
   reduceMotion: false,
