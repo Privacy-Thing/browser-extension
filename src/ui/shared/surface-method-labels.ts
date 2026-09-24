@@ -1,7 +1,7 @@
 import type { SpoofingSurfaceMethodId } from "@/shared/spoofing-surfaces";
 import { t } from "@/ui/i18n";
 
-export const SURFACE_METHOD_LABELS: Record<SpoofingSurfaceMethodId, string> = {
+export const getSurfaceMethodLabels = (): Record<SpoofingSurfaceMethodId, string> => ({
   "geolocation.getCurrentPosition":
     t.sidebar.accessed.methods.geolocationGetCurrentPosition,
   "geolocation.watchPosition": t.sidebar.accessed.methods.geolocationWatchPosition,
@@ -91,4 +91,4 @@ export const SURFACE_METHOD_LABELS: Record<SpoofingSurfaceMethodId, string> = {
   "worker.constructor": t.sidebar.accessed.methods.workerConstructor,
   "serviceWorker.register": t.sidebar.accessed.methods.serviceWorkerRegister,
   "sharedWorker.constructor": t.sidebar.accessed.methods.sharedWorkerConstructor,
-};
+});

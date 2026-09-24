@@ -479,14 +479,14 @@ const AboutSidebar = () => {
           <p className="text-sm text-muted-foreground">
             {t.about.projectLinks.description}
           </p>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="flex flex-wrap gap-2">
             {projectLinks.map((link) => (
               <Button
                 key={link.url}
                 asChild
                 size="sm"
                 variant="secondary"
-                className="w-full min-w-0 px-2"
+                className="h-auto max-w-full whitespace-normal px-2 py-1.5 text-center leading-snug"
               >
                 <a href={link.url} target="_blank" rel="noopener noreferrer">
                   {icon(link.icon)}
