@@ -14,6 +14,7 @@ import {
   expectAnchorInViewport,
   importSettings,
   openSettingsTab,
+  saveSimpleSettings,
 } from "./extension-test.helpers";
 import { expect, test } from "./fixtures";
 
@@ -32,6 +33,29 @@ test("loads the options page from the extension", async ({ context, extensionId 
   await expect(page.locator("#rules-preview-hostname-preview")).toHaveCount(0);
   await openSettingsTab(page, "advanced");
   await expect(page.locator("#export-settings")).toBeVisible();
+  const hasControlDPermission = await page.evaluate(() =>
+    (chrome.runtime.getManifest().optional_host_permissions ?? []).includes(
+      "https://api.controld.com/*",
+    ),
+  );
+  const controlDToggle = page.getByRole("switch", {
+    name: "Enable Control D integration",
+  });
+  await expect(controlDToggle).toHaveCount(hasControlDPermission ? 1 : 0);
+  if (hasControlDPermission) {
+    await expect(
+      page.getByRole("heading", { name: "Control D", exact: true }),
+    ).toHaveCount(0);
+    await controlDToggle.click();
+    await expect(
+      page.getByRole("heading", { name: "Control D", exact: true }),
+    ).toBeVisible();
+    await expect(page.getByLabel("Control D API key")).toHaveAttribute(
+      "type",
+      "password",
+    );
+    await expect(page.locator("[data-control-d-state]")).toContainText("Not connected");
+  }
   await openSettingsTab(page, "about");
   await expect(page.locator("#about-version")).toHaveText(/^\d+\.\d+/);
   await expect(page.getByRole("link", { name: "Tomasz Janusz" })).toHaveAttribute(
@@ -49,6 +73,32 @@ test("loads the options page from the extension", async ({ context, extensionId 
   await expect(
     page.getByText(/Advanced still contains other in-progress features/),
   ).toHaveCount(0);
+});
+
+test("shows Control D actions in View Logs when debug mode is enabled", async ({
+  context,
+  extensionId,
+}) => {
+  const page = await context.newPage();
+  const optionsUrl = `chrome-extension://${extensionId}/src/ui/options/index.html`;
+  await page.goto(optionsUrl);
+  await saveSimpleSettings(page, { debugMode: true });
+  await openSettingsTab(page, "advanced");
+
+  const controlDToggle = page.getByRole("switch", {
+    name: "Enable Control D integration",
+  });
+  if ((await controlDToggle.count()) === 0) return;
+
+  await controlDToggle.click();
+  await expect(
+    page.getByRole("heading", { name: "Control D", exact: true }),
+  ).toBeVisible();
+  await page.goto(`${optionsUrl}#page-logs`);
+
+  await expect(
+    page.getByText("control-d.integration.toggled", { exact: true }),
+  ).toBeVisible();
 });
 
 test("keeps the selected settings tab in the URL across reloads", async ({

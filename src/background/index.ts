@@ -43,7 +43,10 @@ import {
   resolvePopupNotification as resolvePopupNotificationStore,
   syncUpdateNotices,
 } from "@/background/storage/popup-notifications";
-import { getOnboardingCompleted } from "@/background/storage/preferences";
+import {
+  getOnboardingCompleted,
+  getPreferences,
+} from "@/background/storage/preferences";
 import {
   setTrustedSiteEnabled,
   upsertTrustedSite,
@@ -66,6 +69,7 @@ import {
   recordSurfaceEvidence,
 } from "@/background/surface-evidence-tracker";
 import { createXRayHandlers } from "@/background/xray-commands";
+import { registerControlD } from "@/experimental/control-d/background-entry";
 import { fireAndForget } from "@/shared/async";
 import { BRAND_DISPLAY_NAME } from "@/shared/brand";
 import { BUILD_BROWSER_TARGET, BUILD_CHANNEL } from "@/shared/build-flags";
@@ -338,6 +342,11 @@ const {
 // Blocking Firefox webRequest listeners must exist before content-script
 // messages can reach the background router.
 registerRewriteListeners();
+
+registerControlD({
+  getDebugMode: async () =>
+    runtimeState.getLastKnownDebugMode() ?? (await getPreferences()).debugMode,
+});
 
 registerMessageRouter({
   isSupportedWebUrl,

@@ -24,6 +24,21 @@ describe("extension manifest", () => {
     expect(resolveBrandDisplayName("stable")).toBe("Privacy Thing (Preview)");
   });
 
+  it("declares Control D API access only for beta and local builds", () => {
+    const releaseManifest = createManifest({ buildChannel: "release" });
+    const betaManifest = createManifest({ buildChannel: "beta" });
+    const localManifest = createManifest({ buildChannel: "local" });
+
+    expect(releaseManifest).not.toHaveProperty("optional_host_permissions");
+    expect(betaManifest.optional_host_permissions).toEqual([
+      "https://api.controld.com/*",
+    ]);
+    expect(localManifest.optional_host_permissions).toEqual([
+      "https://api.controld.com/*",
+    ]);
+    expect(releaseManifest.permissions).not.toContain("proxy");
+  });
+
   it("declares Firefox toolbar theme icons without adding them to Chromium", () => {
     const firefoxManifest = createManifest({ browserTarget: "firefox" });
     const chromiumManifest = createManifest({ browserTarget: "chromium" });

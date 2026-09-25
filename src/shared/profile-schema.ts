@@ -90,6 +90,11 @@ export const locationProfileSchema = z.object({
   label: z.string().min(1),
   latitude: z.number().min(-90).max(90),
   longitude: z.number().min(-180).max(180),
+  countryCode: z
+    .string()
+    .regex(/^[A-Za-z]{2}$/)
+    .transform((value) => value.toUpperCase())
+    .optional(),
   accuracy: z.number().positive(),
   noiseRadius: z.number().nonnegative().optional().default(50),
   language: z.string().min(2),

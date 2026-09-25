@@ -8,6 +8,13 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ### Added
 
+- Added an experimental, one-way Control D regional DNS integration to local
+  and beta builds. It previews managed rule changes, requires confirmation
+  before the first sync, preserves unrelated Control D resources, and guides
+  users through manual browser DoH setup. The dedicated four-step flow can
+  explicitly recover setups created with the v2 Privacy Thing naming scheme
+  after reinstalling, while release builds preserve but never load its private
+  storage namespace.
 - Added complete Spanish and Portuguese interface translations, selected
   automatically from the browser interface language with English as the fallback.
 - Added complete Russian and Ukrainian interface translations, selected
@@ -27,6 +34,11 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ### Fixed
 
+- Keep Control D synchronization attached to resources by their saved IDs when
+  the API normalizes display names, restore automatic sync after the obsolete
+  name conflict, and keep preview and sync on one prepared regional-route
+  snapshot without rewriting Control D hostname patterns. Hide automatic route
+  matches until a fallback needs confirmation or the user opens overrides.
 - Keep popup rule-editor Selects open through leftover opening-pointer dismisses
   and host window resize/blur that Radix treats as dismiss, without replacing
   the shared Select.

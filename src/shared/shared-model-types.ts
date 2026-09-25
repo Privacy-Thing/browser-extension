@@ -224,6 +224,8 @@ export type Location = {
   label: string;
   latitude: number;
   longitude: number;
+  /** ISO 3166-1 alpha-2 country code used by optional regional integrations. */
+  countryCode?: string;
   accuracy: number;
   noiseRadius: number;
   language: string;
@@ -237,6 +239,7 @@ export type ProfileDraft = {
   label: string;
   latitude: number;
   longitude: number;
+  countryCode?: string;
   accuracy: number;
   noiseRadius: number;
   language: string;
