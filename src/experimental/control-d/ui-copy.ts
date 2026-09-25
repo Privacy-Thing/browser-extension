@@ -120,26 +120,30 @@ export const controlDText = {
   },
   help: {
     account: {
-      title: "API key and privacy",
-      body: "Privacy Thing requests Control D access only after you press Connect. The key stays in this browser installation.",
+      title: "Your key stays here",
+      body: "Press Connect and Privacy Thing asks for Control D access. The key stays in this browser. It is not exported, and it is not synced to your other browsers.",
+      note: "The key needs permission to make changes, so Privacy Thing can create the setup and update your regional rules.",
     },
     setup: {
-      title: "New or existing setup",
-      body: "Choose whether to create an isolated setup or reconnect one carrying a Privacy Thing setup code.",
+      title: "A setup of its own",
+      body: "Start a new Control D setup, or reconnect one Privacy Thing created earlier. Your other profiles, devices, and rules stay as they are.",
+      note: "Nothing is created until you review the plan and apply it.",
     },
     rules: {
-      title: "Review before writing",
-      body: "Nothing changes in Control D until you review the planned changes and apply synchronization.",
+      title: "Review, then apply",
+      body: "You see every planned change first: what will be added, updated, or removed. Control D does not change until you apply.",
+      note: "Only this setup is updated. Privacy Thing does not edit the rest of your Control D account.",
     },
     dns: {
-      title: "DNS stays under your control",
-      body: "Privacy Thing provides the resolver, but you configure Secure DNS and verify it in the browser yourself.",
+      title: "DNS is your step",
+      body: "Copy the resolver and set it as Secure DNS in your browser. Privacy Thing cannot change that setting or check it for you.",
+      note: "Open the Control D status page, confirm this resolver is active, then mark it verified here.",
     },
     overview: {
-      title: "Independent states",
-      body: "API access, synchronized rules, and verified browser DNS are tracked separately.",
+      title: "Three separate checks",
+      body: "Account access, synced rules, and browser DNS are tracked separately. Rules can be in sync while DNS still needs a check.",
+      note: "Disconnect forgets the key and stops sync. It leaves the Control D setup and your browser DNS setting in place.",
     },
-    retention: "Remote resources are never removed automatically.",
   },
   route: {
     ruleCount: (count: number) => `${count} ${count === 1 ? "rule" : "rules"}`,

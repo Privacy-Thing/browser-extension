@@ -33,6 +33,7 @@ import {
 import { Input } from "@/ui/components/ui/input";
 import { Separator } from "@/ui/components/ui/separator";
 import { Switch } from "@/ui/components/ui/switch";
+import { SetupProgress } from "@/ui/options/components/onboarding/setup-progress";
 import { SETTINGS_SUBPAGE_ANCHORS, PAGE_ANCHORS } from "@/ui/options/navigation";
 import { AppSubpageHeader } from "@/ui/shared/AppSubpageHeader";
 
@@ -178,53 +179,21 @@ export const ControlDFeatureToggle = ({
 const StepRail = ({
   current,
   furthest,
-  dnsVerified,
   onSelect,
 }: {
   current: FlowStep;
   furthest: FlowStep;
-  dnsVerified: boolean;
   onSelect: (step: FlowStep) => void;
 }) => (
-  <ol
-    className="grid gap-1 rounded-lg border bg-muted/20 p-1 sm:grid-cols-2 lg:grid-cols-4"
-    aria-label={t.progressLabel}
-    data-control-d-step-rail
-  >
-    {t.steps.map((label, index) => {
-      const step = index as FlowStep;
-      const active = current === step;
-      const complete = step < furthest || (step === 3 && dnsVerified);
-      return (
-        <li key={label}>
-          <button
-            type="button"
-            disabled={step > furthest}
-            aria-current={active ? "step" : undefined}
-            onClick={() => onSelect(step)}
-            className={cn(
-              "flex min-h-9 w-full items-center gap-2 rounded-md border border-transparent px-2.5 py-1.5 text-left text-xs transition-colors",
-              active && "border-primary/50 bg-background text-foreground shadow-sm",
-              !active && complete && "bg-tone-success-bg/35 text-foreground",
-              !active && !complete && "text-muted-foreground",
-              step <= furthest && "hover:bg-background/70",
-            )}
-          >
-            <span
-              className={cn(
-                "flex size-5 shrink-0 items-center justify-center rounded-full border text-[10px] font-semibold",
-                complete && "border-tone-success-border text-tone-success-text",
-                active && "border-primary bg-primary text-primary-foreground",
-              )}
-            >
-              {complete && !active ? "✓" : index + 1}
-            </span>
-            <span className="min-w-0 font-medium">{label}</span>
-          </button>
-        </li>
-      );
-    })}
-  </ol>
+  <div data-control-d-step-rail>
+    <SetupProgress
+      active={current + 1}
+      label={t.progressLabel}
+      stepLabels={t.steps}
+      selectableUntil={furthest}
+      onSelect={(step) => onSelect(step as FlowStep)}
+    />
+  </div>
 );
 
 const ChangeSummary = ({ diff }: { diff: ControlDDiff }) => {
@@ -847,14 +816,12 @@ export const ControlDSubpage = () => {
         backAriaLabel={t.back}
         backIconOnly
         backHref={`#${PAGE_ANCHORS.advanced}`}
-        actions={<StatusBadge label={stateLabel(state)} />}
       />
       <div className="grid grid-cols-12 gap-5">
         <div className="col-span-12 space-y-4 lg:col-span-8">
           <StepRail
             current={currentStep}
             furthest={inferredStep}
-            dnsVerified={state?.dnsStatus === "verified"}
             onSelect={setStepOverride}
           />
           {(notice ?? state?.lastError) ? (
@@ -871,9 +838,9 @@ export const ControlDSubpage = () => {
           {content}
         </div>
         <div className="col-span-12 lg:col-span-4">
-          <SettingsHelpCard title={help.title} collapsible defaultOpen={false}>
+          <SettingsHelpCard title={help.title} collapsible defaultOpen>
             <p>{help.body}</p>
-            <p>{t.help.retention}</p>
+            <p>{help.note}</p>
           </SettingsHelpCard>
         </div>
       </div>

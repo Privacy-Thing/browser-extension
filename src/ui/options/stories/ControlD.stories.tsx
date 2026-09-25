@@ -296,14 +296,10 @@ export const Account: Story = {
   render: () => <Surface state={disconnected} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const progress = canvas.getByRole("list", {
-      name: "Control D setup progress",
-    });
-    const columns = window.getComputedStyle(progress).gridTemplateColumns.split(" ");
-    let expectedColumnCount = 1;
-    if (window.innerWidth >= 1024) expectedColumnCount = 4;
-    else if (window.innerWidth >= 640) expectedColumnCount = 2;
-    await expect(columns).toHaveLength(expectedColumnCount);
+    const progress = canvas.getByLabelText("Control D setup progress");
+    await expect(progress.querySelectorAll("button")).toHaveLength(4);
+    await expect(canvas.getByRole("button", { name: "Control D account" })).toBeEnabled();
+    await expect(canvas.getByRole("button", { name: "Choose setup" })).toBeDisabled();
     await expect(
       canvas.getByRole("button", { name: "API instructions" }),
     ).toBeVisible();
