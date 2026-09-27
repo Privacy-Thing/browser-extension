@@ -20,6 +20,7 @@ import { cn } from "@/ui/components/lib/utils";
 import { SettingsControlCard } from "@/ui/components/SettingsControlCard";
 import { SettingsHelpCard } from "@/ui/components/SettingsHelpCard";
 import { Button } from "@/ui/components/ui/button";
+import { Card } from "@/ui/components/ui/card";
 import { Checkbox } from "@/ui/components/ui/checkbox";
 import {
   Dialog,
@@ -69,6 +70,23 @@ export const isIntegrationAvailable = (): boolean =>
 
 const settingTitle = (text: string) => (
   <h3 className="text-sm font-semibold">{text}</h3>
+);
+
+const StepSection = ({
+  alert,
+  children,
+  ...props
+}: React.ComponentProps<typeof SettingsControlCard> & {
+  alert?: React.ReactNode;
+}) => (
+  <SettingsControlCard
+    {...props}
+    className={cn("rounded-none border-0 bg-transparent shadow-none", props.className)}
+    contentClassName={cn("p-0", props.contentClassName)}
+  >
+    {alert ? <div className="mb-4">{alert}</div> : null}
+    {children}
+  </SettingsControlCard>
 );
 const formatTime = (value: string | null): string =>
   value ? new Date(value).toLocaleString() : t.common.notYet;
@@ -406,8 +424,19 @@ export const ControlDSubpage = () => {
     }
   };
 
+  const stepAlert =
+    notice ?? state?.lastError ? (
+      <div
+        role="alert"
+        className="rounded-lg border border-tone-error-border bg-tone-error-bg px-3 py-2 text-sm text-tone-error-text"
+      >
+        {notice ?? state?.lastError}
+      </div>
+    ) : null;
+
   const renderAccount = () => (
-    <SettingsControlCard
+    <StepSection
+      alert={stepAlert}
       title={settingTitle(
         state?.connected ? t.account.connectedTitle : t.account.title,
       )}
@@ -459,11 +488,12 @@ export const ControlDSubpage = () => {
           </Button>
         </div>
       )}
-    </SettingsControlCard>
+    </StepSection>
   );
 
   const renderSetup = () => (
-    <SettingsControlCard
+    <StepSection
+      alert={stepAlert}
       title={settingTitle(t.setup.title)}
       description={t.setup.description}
     >
@@ -539,7 +569,7 @@ export const ControlDSubpage = () => {
           ) : null}
         </div>
       </div>
-    </SettingsControlCard>
+    </StepSection>
   );
 
   // eslint-disable-next-line sonarjs/cognitive-complexity
@@ -558,7 +588,8 @@ export const ControlDSubpage = () => {
     else if (state?.status === "conflict") applyLabel = t.rules.repair;
     return (
       <div className="space-y-4">
-        <SettingsControlCard
+        <StepSection
+          alert={stepAlert}
           title={settingTitle(t.rules.title)}
           description={t.rules.description}
         >
@@ -621,9 +652,9 @@ export const ControlDSubpage = () => {
               {syncing ? t.common.working : t.rules.preview}
             </Button>
           )}
-        </SettingsControlCard>
+        </StepSection>
         {mappings.length > 0 ? (
-          <SettingsControlCard
+          <StepSection
             title={settingTitle(t.rules.routes)}
             description={t.rules.routeDescription}
           >
@@ -643,14 +674,15 @@ export const ControlDSubpage = () => {
                 />
               ))}
             </div>
-          </SettingsControlCard>
+          </StepSection>
         ) : null}
       </div>
     );
   };
 
   const renderDns = () => (
-    <SettingsControlCard
+    <StepSection
+      alert={stepAlert}
       title={settingTitle(
         state?.dnsStatus === "verified" ? t.dns.verified : t.dns.title,
       )}
@@ -723,12 +755,13 @@ export const ControlDSubpage = () => {
       ) : (
         <p className="text-sm text-muted-foreground">{t.common.applyFirst}</p>
       )}
-    </SettingsControlCard>
+    </StepSection>
   );
 
   const renderOverview = () => (
     <div className="space-y-4">
-      <SettingsControlCard
+      <StepSection
+        alert={stepAlert}
         title={settingTitle(t.overview.title)}
         description={t.overview.setupLabel(state?.resourceCode ?? "")}
       >
@@ -778,7 +811,7 @@ export const ControlDSubpage = () => {
             {syncing ? t.common.working : t.rules.sync}
           </Button>
         </div>
-      </SettingsControlCard>
+      </StepSection>
       <Separator />
       <div className="flex justify-end">
         <Button
@@ -818,24 +851,18 @@ export const ControlDSubpage = () => {
         backHref={`#${PAGE_ANCHORS.advanced}`}
       />
       <div className="grid grid-cols-12 gap-5">
-        <div className="col-span-12 space-y-4 lg:col-span-8">
-          <StepRail
-            current={currentStep}
-            furthest={inferredStep}
-            onSelect={setStepOverride}
-          />
-          {(notice ?? state?.lastError) ? (
-            <div
-              role="alert"
-              className="rounded-lg border border-tone-error-border bg-tone-error-bg px-3 py-2 text-sm text-tone-error-text"
-            >
-              {notice ?? state?.lastError}
+        <div className="col-span-12 lg:col-span-8">
+          <Card className="space-y-5 p-5">
+            <StepRail
+              current={currentStep}
+              furthest={inferredStep}
+              onSelect={setStepOverride}
+            />
+            <div aria-live="polite" className="sr-only">
+              {syncing ? t.common.working : stateLabel(state)}
             </div>
-          ) : null}
-          <div aria-live="polite" className="sr-only">
-            {syncing ? t.common.working : stateLabel(state)}
-          </div>
-          {content}
+            {content}
+          </Card>
         </div>
         <div className="col-span-12 lg:col-span-4">
           <SettingsHelpCard title={help.title} collapsible defaultOpen>

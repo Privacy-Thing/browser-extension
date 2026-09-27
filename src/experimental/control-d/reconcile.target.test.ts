@@ -296,6 +296,25 @@ describe("Control D reconcile", () => {
     });
   });
 
+  it("accepts a saved endpoint when the managed profile is the second enforced profile", async () => {
+    const fake = new FakeClient();
+    const initial = config();
+    const prepared = await prepareControlDSync(asClient(fake), initial);
+    const applied = await applyControlDSync({
+      client: asClient(fake),
+      config: initial,
+      prepared,
+      confirmApproximate: false,
+      repair: false,
+    });
+    fake.devices[0]!.profileId = "main-profile";
+    fake.devices[0]!.enforcedProfileIds = ["main-profile", "profile-1"];
+
+    await expect(prepareControlDSync(asClient(fake), applied)).resolves.toMatchObject({
+      diff: expect.objectContaining({ createEndpoint: false }),
+    });
+  });
+
   it("rejects a saved endpoint reassigned to another profile", async () => {
     const fake = new FakeClient();
     const initial = config();

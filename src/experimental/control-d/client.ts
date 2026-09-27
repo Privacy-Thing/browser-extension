@@ -29,6 +29,10 @@ const asRecord = (value: unknown): UnknownRecord => (isRecord(value) ? value : {
 const asArray = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
 const asString = (value: unknown): string | null =>
   typeof value === "string" && value.length > 0 ? value : null;
+const profileKey = (value: unknown): string | null => {
+  const id = asString(value);
+  return id && id !== "-1" ? id : null;
+};
 const asNumber = (value: unknown): number | null => {
   const parsed = typeof value === "number" ? value : Number(value);
   return Number.isFinite(parsed) ? parsed : null;
@@ -87,7 +91,20 @@ export type ControlDDevice = {
   id: string;
   name: string;
   profileId: string | null;
+  enforcedProfileIds?: readonly string[];
   resolverDoh: string | null;
+};
+
+export const deviceProfileIds = (device: ControlDDevice): readonly string[] =>
+  device.enforcedProfileIds ?? (device.profileId ? [device.profileId] : []);
+
+export const deviceUsesAnotherProfile = (
+  device: ControlDDevice,
+  managedProfileId: string | null | undefined,
+): boolean => {
+  if (!managedProfileId) return false;
+  const ids = deviceProfileIds(device);
+  return ids.length > 0 && !ids.includes(managedProfileId);
 };
 export type ControlDRetryEvent = {
   attempt: number;
@@ -388,6 +405,17 @@ export class ControlDClient {
       const record = asRecord(entry);
       const resolvers = asRecord(record.resolvers);
       const profile = asRecord(record.profile);
+      const profile2 = asRecord(record.profile2);
+      const profile3 = asRecord(record.profile3);
+      const enforcedProfileIds = [
+        ...new Set(
+          [
+            profileKey(record.profile_id ?? profile.PK ?? profile.id),
+            profileKey(record.profile_id2 ?? profile2.PK ?? profile2.id),
+            profileKey(record.profile_id3 ?? profile3.PK ?? profile3.id),
+          ].filter((id): id is string => id !== null),
+        ),
+      ];
       const id = asString(record.PK ?? record.pk ?? record.id);
       const name = asString(record.name);
       return id && name
@@ -395,7 +423,8 @@ export class ControlDClient {
             {
               id,
               name,
-              profileId: asString(record.profile_id ?? profile.PK ?? profile.id),
+              profileId: enforcedProfileIds[0] ?? null,
+              enforcedProfileIds,
               resolverDoh: asString(resolvers.doh ?? record.doh),
             },
           ]
@@ -452,7 +481,7 @@ export class ControlDClient {
       const id = asString(record.PK ?? record.pk ?? record.id);
       const resolvers = asRecord(record.resolvers);
       const resolverDoh = asString(resolvers.doh ?? record.doh);
-      if (id) return { id, name, profileId, resolverDoh };
+      if (id) return { id, name, profileId, enforcedProfileIds: [profileId], resolverDoh };
     }
     return null;
   }

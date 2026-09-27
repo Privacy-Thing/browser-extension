@@ -1,6 +1,6 @@
 /* eslint-disable max-lines-per-function, max-params, sonarjs/cognitive-complexity -- Reconcile keeps remote ownership checks in one module. */
 import type { ControlDClient } from "./client";
-import { ControlDApiError, type ControlDRule } from "./client";
+import { ControlDApiError, deviceUsesAnotherProfile, type ControlDRule } from "./client";
 import { compileControlDState, type ControlDCompilation } from "./compiler";
 import type {
   ControlDDiff,
@@ -223,7 +223,10 @@ export const prepareControlDSync = async (
   if (config.endpointId && !knownEndpoint) {
     throw new ControlDConflictError("The managed Control D endpoint is missing.");
   }
-  if (knownEndpoint?.profileId && knownEndpoint.profileId !== knownProfile?.id) {
+  if (
+    knownEndpoint &&
+    deviceUsesAnotherProfile(knownEndpoint, knownProfile?.id)
+  ) {
     throw new ControlDConflictError(
       "The managed Control D endpoint uses another profile.",
     );
@@ -291,7 +294,7 @@ const ensureEndpoint = async (
       (device) => device.id === config.endpointId,
     );
     if (!existing) throw new ControlDConflictError("The managed endpoint is missing.");
-    if (existing.profileId && existing.profileId !== profileId) {
+    if (deviceUsesAnotherProfile(existing, profileId)) {
       throw new ControlDConflictError("The managed endpoint uses another profile.");
     }
     return { id: existing.id, resolverDoh: existing.resolverDoh };
@@ -307,7 +310,7 @@ const ensureEndpoint = async (
     );
   }
   if (existing[0]) {
-    if (existing[0].profileId && existing[0].profileId !== profileId) {
+    if (deviceUsesAnotherProfile(existing[0], profileId)) {
       throw new ControlDConflictError("The recoverable endpoint uses another profile.");
     }
     return { id: existing[0].id, resolverDoh: existing[0].resolverDoh };

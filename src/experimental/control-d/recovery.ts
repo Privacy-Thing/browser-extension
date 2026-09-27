@@ -1,4 +1,4 @@
-import type { ControlDClient, ControlDRule } from "./client";
+import { deviceProfileIds, type ControlDClient, type ControlDRule } from "./client";
 import type {
   ControlDConfig,
   ControlDManagedFolder,
@@ -47,8 +47,8 @@ export const discoverRecoverySets = async (
       const namedEndpoints = devices.filter((device) =>
         isControlDEndpointName(device.name, code),
       );
-      const endpoints = namedEndpoints.filter(
-        (device) => device.profileId === profile.id,
+      const endpoints = namedEndpoints.filter((device) =>
+        deviceProfileIds(device).includes(profile.id),
       );
       const routes = new Set<string>();
       let duplicateRoute = false;
@@ -122,7 +122,7 @@ export const adoptRecoverySet = async ({
     ? devices.find(
         (device) =>
           device.id === endpointId &&
-          device.profileId === profileId &&
+          deviceProfileIds(device).includes(profileId) &&
           isControlDEndpointName(device.name, code),
       )
     : undefined;

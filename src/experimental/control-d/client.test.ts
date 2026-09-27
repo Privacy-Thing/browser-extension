@@ -252,6 +252,34 @@ describe("ControlDClient", () => {
     ]);
   });
 
+  it("reads a second enforced profile from the endpoint", async () => {
+    const fetchImpl = vi.fn(async () =>
+      jsonResponse({
+        body: {
+          devices: [
+            {
+              PK: "device-1",
+              name: "PT-Browser",
+              profile: { PK: "main-profile", name: "Main" },
+              profile2: { PK: "privacy-profile", name: "Privacy Thing" },
+              resolvers: { doh: "https://dns.controld.com/secret" },
+            },
+          ],
+        },
+      }),
+    );
+
+    await expect(new ControlDClient("token", fetchImpl).listDevices()).resolves.toEqual([
+      {
+        id: "device-1",
+        name: "PT-Browser",
+        profileId: "main-profile",
+        enforcedProfileIds: ["main-profile", "privacy-profile"],
+        resolverDoh: "https://dns.controld.com/secret",
+      },
+    ]);
+  });
+
   it("respects Retry-After for a safe request", async () => {
     vi.useFakeTimers();
     const onRetry = vi.fn();
