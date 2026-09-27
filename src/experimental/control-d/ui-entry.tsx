@@ -81,7 +81,10 @@ const StepSection = ({
 }) => (
   <SettingsControlCard
     {...props}
-    className={cn("rounded-none border-0 bg-transparent shadow-none", props.className)}
+    className={cn(
+      "rounded-none border-0 bg-transparent shadow-none dark:shadow-none",
+      props.className,
+    )}
     contentClassName={cn("p-0", props.contentClassName)}
   >
     {alert ? <div className="mb-4">{alert}</div> : null}

@@ -252,6 +252,79 @@ describe("ControlDClient", () => {
     ]);
   });
 
+  it("reads a second enforced profile when the scalar id is a sentinel", async () => {
+    const fetchImpl = vi.fn(async () =>
+      jsonResponse({
+        body: {
+          devices: [
+            {
+              PK: "device-1",
+              name: "PT-Browser",
+              profile: { PK: "main-profile", name: "Main" },
+              profile_id2: "-1",
+              profile2: { PK: "privacy-profile", name: "Privacy Thing" },
+              profile_id3: 0,
+              resolvers: { doh: "https://dns.controld.com/secret" },
+            },
+          ],
+        },
+      }),
+    );
+
+    await expect(new ControlDClient("token", fetchImpl).listDevices()).resolves.toEqual([
+      {
+        id: "device-1",
+        name: "PT-Browser",
+        profileId: "main-profile",
+        enforcedProfileIds: ["main-profile", "privacy-profile"],
+        resolverDoh: "https://dns.controld.com/secret",
+      },
+    ]);
+  });
+
+  it("reads a scalar second profile and a lowercase profile key", async () => {
+    const fetchImpl = vi.fn(async () =>
+      jsonResponse({
+        body: {
+          devices: [
+            {
+              PK: "scalar",
+              name: "Scalar",
+              profile: { PK: "main-profile" },
+              profile2: "privacy-profile",
+              resolvers: { doh: "https://dns.controld.com/secret" },
+            },
+            {
+              PK: "lowercase",
+              name: "Lowercase",
+              profile: { PK: "main-profile" },
+              profile2: { pk: "privacy-profile" },
+              profiles: [{ PK: "main-profile" }, { id: "listed-profile" }],
+              resolvers: { doh: "https://dns.controld.com/secret" },
+            },
+          ],
+        },
+      }),
+    );
+
+    await expect(new ControlDClient("token", fetchImpl).listDevices()).resolves.toEqual([
+      {
+        id: "scalar",
+        name: "Scalar",
+        profileId: "main-profile",
+        enforcedProfileIds: ["main-profile", "privacy-profile"],
+        resolverDoh: "https://dns.controld.com/secret",
+      },
+      {
+        id: "lowercase",
+        name: "Lowercase",
+        profileId: "main-profile",
+        enforcedProfileIds: ["main-profile", "privacy-profile", "listed-profile"],
+        resolverDoh: "https://dns.controld.com/secret",
+      },
+    ]);
+  });
+
   it("reads a second enforced profile from the endpoint", async () => {
     const fetchImpl = vi.fn(async () =>
       jsonResponse({

@@ -167,6 +167,56 @@ describe("Control D background entry", () => {
     expect(syncResponse).not.toHaveProperty("diff");
   });
 
+  it("clears a stale profile conflict after a successful preview", async () => {
+    storageState[CONTROL_D_STORE_KEYS[0]] = {
+      version: 2,
+      enabled: true,
+      connected: true,
+      autoSyncEnabled: false,
+      status: "conflict",
+      resourceIdentity: { code: "ABCDE-FGHJK" },
+      profileId: "profile-id",
+      endpointId: "endpoint-id",
+      resolverDoh: null,
+      dnsVerification: null,
+      managedFolders: {},
+      locationMappings: {},
+      lastSyncedHash: null,
+      lastAttemptAt: "2026-09-10T10:00:00.000Z",
+      lastSuccessAt: null,
+      lastError: "The managed Control D endpoint uses another profile.",
+    };
+    storageState[CONTROL_D_STORE_KEYS[1]] = "api-key";
+    vi.mocked(prepareControlDSync).mockResolvedValueOnce({
+      compilation: { rules: [], warnings: [], mappings: {} },
+      proxies: [],
+      diff: {
+        createProfile: false,
+        createEndpoint: false,
+        createFolders: 0,
+        addRules: 0,
+        updateRules: 0,
+        deleteRules: 0,
+        unchangedRules: 0,
+        warnings: [],
+        mappings: [],
+        requiresApproximationConfirmation: false,
+      },
+    });
+    registerControlD({ getDebugMode: async () => false });
+
+    const response = await request({ type: CONTROL_D_COMMANDS.preview });
+
+    expect(response).toMatchObject({
+      ok: true,
+      state: { status: "ready", lastError: null },
+    });
+    expect(storageState[CONTROL_D_STORE_KEYS[0]]).toMatchObject({
+      status: "ready",
+      lastError: null,
+    });
+  });
+
   it("creates a new resource identity without running synchronization", async () => {
     storageState[CONTROL_D_STORE_KEYS[1]] = "api-key";
     registerControlD({ getDebugMode: async () => false });

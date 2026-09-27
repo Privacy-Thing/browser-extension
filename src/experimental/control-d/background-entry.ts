@@ -98,6 +98,19 @@ const apiErrorDetails = (error: unknown): Record<string, unknown> => {
   };
 };
 
+const withoutResolvedConflict = async (
+  config: ControlDConfig,
+): Promise<ControlDConfig> => {
+  if (!config.lastError && config.status !== "conflict") return config;
+  const resolved: ControlDConfig = {
+    ...config,
+    lastError: null,
+    status: config.status === "conflict" ? "ready" : config.status,
+  };
+  await saveControlDConfig(resolved);
+  return resolved;
+};
+
 const saveFailure = async (
   config: ControlDConfig,
   error: unknown,
@@ -464,9 +477,10 @@ const createController = (deps: BackgroundEntryDeps) => {
           undefined,
           apiKey,
         );
+        const resolved = await withoutResolvedConflict(config);
         return {
           ok: true,
-          state: await toControlDPublicState(config),
+          state: await toControlDPublicState(resolved),
           snapshot: toPreparedSnapshot(prepared),
         };
       } catch (error) {

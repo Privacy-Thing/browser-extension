@@ -30,9 +30,26 @@ const asArray = (value: unknown): unknown[] => (Array.isArray(value) ? value : [
 const asString = (value: unknown): string | null =>
   typeof value === "string" && value.length > 0 ? value : null;
 const profileKey = (value: unknown): string | null => {
+  if (value === 0 || value === -1) return null;
   const id = asString(value);
   return id && id !== "-1" ? id : null;
 };
+const profileIdFromValue = (value: unknown): string | null => {
+  if (!isRecord(value)) return profileKey(value);
+  return profileKey(value.PK) ?? profileKey(value.pk) ?? profileKey(value.id);
+};
+const slotProfileId = (profile: unknown, profileId: unknown): string | null =>
+  profileIdFromValue(profile) ?? profileIdFromValue(profileId);
+const enforcedProfileIdsFromDevice = (record: UnknownRecord): string[] => [
+  ...new Set(
+    [
+      slotProfileId(record.profile, record.profile_id),
+      slotProfileId(record.profile2, record.profile_id2),
+      slotProfileId(record.profile3, record.profile_id3),
+      ...asArray(record.profiles).map(profileIdFromValue),
+    ].filter((id): id is string => id !== null),
+  ),
+];
 const asNumber = (value: unknown): number | null => {
   const parsed = typeof value === "number" ? value : Number(value);
   return Number.isFinite(parsed) ? parsed : null;
@@ -404,18 +421,7 @@ export class ControlDClient {
     return extractCollection(payload, "devices").flatMap((entry) => {
       const record = asRecord(entry);
       const resolvers = asRecord(record.resolvers);
-      const profile = asRecord(record.profile);
-      const profile2 = asRecord(record.profile2);
-      const profile3 = asRecord(record.profile3);
-      const enforcedProfileIds = [
-        ...new Set(
-          [
-            profileKey(record.profile_id ?? profile.PK ?? profile.id),
-            profileKey(record.profile_id2 ?? profile2.PK ?? profile2.id),
-            profileKey(record.profile_id3 ?? profile3.PK ?? profile3.id),
-          ].filter((id): id is string => id !== null),
-        ),
-      ];
+      const enforcedProfileIds = enforcedProfileIdsFromDevice(record);
       const id = asString(record.PK ?? record.pk ?? record.id);
       const name = asString(record.name);
       return id && name
