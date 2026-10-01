@@ -1,12 +1,16 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 
 import { createImportHandlers } from "@/background/settings-import-commands";
-import { planSettingsImport } from "@/background/settings-import-plan";
+import {
+  diffImportedSettings,
+  planSettingsImport,
+} from "@/background/settings-import-plan";
 import {
   configurationFingerprint,
   importedConfiguration,
   readConfiguration,
   recoverSettingsImport,
+  readImportJournal,
   IMPORT_JOURNAL_KEY,
   IMPORT_RETENTION_MS,
 } from "@/background/settings-import-storage";
@@ -529,6 +533,44 @@ describe("selected import conflicts and dependencies", () => {
     expect(await handlers.undoSettingsImport()).toMatchObject({ ok: true });
     expect(await readConfiguration()).toEqual(original);
   });
+  it("preview diffs ignore object property insertion order", () => {
+    const first = backup();
+    const second = {
+      ...first,
+      locations: first.locations.map(
+        (item) =>
+          Object.fromEntries(Object.entries(item).reverse()) as unknown as Location,
+      ),
+    };
+    expect(diffImportedSettings(first, second)).toEqual([]);
+  });
+  it.each(["future-version", "bad-snapshot", "bad-fingerprint"])(
+    "quarantines %s without blocking configuration reads",
+    async (failure) => {
+      const original = await readConfiguration();
+      const journal = {
+        version: failure === "future-version" ? 2 : 1,
+        phase: "pending",
+        before: failure === "bad-snapshot" ? { unknownKey: 1 } : original,
+        afterFingerprint:
+          failure === "bad-fingerprint" ? 42 : await configurationFingerprint(original),
+        expiresAt: Date.now() + IMPORT_RETENTION_MS,
+      };
+      stored[IMPORT_JOURNAL_KEY] = journal;
+      expect(await recoverSettingsImport()).toBe(true);
+      expect(await readConfiguration()).toEqual(original);
+      expect(stored[IMPORT_JOURNAL_KEY]).toMatchObject({
+        version: 0,
+        phase: "quarantined",
+        record: journal,
+      });
+      expect(await readImportJournal()).toBeNull();
+      expect(await getImportUndoStatus()).toMatchObject({ available: false });
+      vi.advanceTimersByTime(IMPORT_RETENTION_MS);
+      expect(await readImportJournal()).toBeNull();
+      expect(stored).not.toHaveProperty(IMPORT_JOURNAL_KEY);
+    },
+  );
   it("canonical fingerprints ignore object key ordering", async () => {
     expect(await configurationFingerprint({ a: 1, b: { c: 2, d: 3 } })).toBe(
       await configurationFingerprint({ b: { d: 3, c: 2 }, a: 1 }),

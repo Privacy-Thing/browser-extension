@@ -1,5 +1,9 @@
 import { validateImportedSettings } from "@/background/settings";
-import { setImportProgress } from "@/background/settings-import-progress";
+import {
+  isSettingsImportActive,
+  needsImportRecovery,
+  setImportProgress,
+} from "@/background/settings-import-progress";
 import { readLegacyBehavior } from "@/background/storage/legacy-behavior-data";
 import { DEFAULT_LOCATIONS } from "@/background/storage/locations";
 import { DEFAULT_RULES } from "@/background/storage/rules";
@@ -39,7 +43,7 @@ export type ImportJournal = {
 export const readConfiguration = async (): Promise<ConfigurationSnapshot> =>
   chrome.storage.local.get([...IMPORT_CONFIG_KEYS]);
 
-const canonical = (value: unknown): unknown => {
+export const canonical = (value: unknown): unknown => {
   if (Array.isArray(value)) return value.map(canonical);
   if (value !== null && typeof value === "object") {
     return Object.fromEntries(
@@ -141,10 +145,18 @@ export const readImportJournal = async (): Promise<ImportJournal | null> => {
   const stored = await chrome.storage.local.get(IMPORT_JOURNAL_KEY);
   const journal = stored[IMPORT_JOURNAL_KEY] as ImportJournal | undefined;
   if (!journal) return null;
+  const quarantined = journal as { version: number; phase: string; expiresAt: number };
+  if (quarantined.version === 0 && quarantined.phase === "quarantined") {
+    if (!Number.isFinite(quarantined.expiresAt) || quarantined.expiresAt <= Date.now())
+      await chrome.storage.local.remove(IMPORT_JOURNAL_KEY);
+    return null;
+  }
   if (
     journal.version !== 1 ||
     !["pending", "committed"].includes(journal.phase) ||
     !Number.isFinite(journal.expiresAt) ||
+    typeof journal.afterFingerprint !== "string" ||
+    !/^[a-f0-9]{64}$/.test(journal.afterFingerprint) ||
     !journal.before ||
     typeof journal.before !== "object" ||
     Array.isArray(journal.before) ||
@@ -152,7 +164,19 @@ export const readImportJournal = async (): Promise<ImportJournal | null> => {
       (key) => !(IMPORT_CONFIG_KEYS as readonly string[]).includes(key),
     )
   ) {
-    throw new Error("Invalid configuration recovery journal.");
+    // Keep at most one bounded recovery copy, including incompatible versions.
+    // Normal imports replace this quarantine; the expiry alarm removes it too.
+    await chrome.storage.local.set({
+      [IMPORT_JOURNAL_KEY]: {
+        version: 0,
+        phase: "quarantined",
+        record: journal,
+        expiresAt: Date.now() + IMPORT_RETENTION_MS,
+      },
+    });
+    setImportProgress({ active: isSettingsImportActive(), recoveryNeeded: true });
+    console.warn("Quarantined unreadable configuration recovery journal.");
+    return null;
   }
   return journal;
 };
@@ -160,7 +184,11 @@ export const readImportJournal = async (): Promise<ImportJournal | null> => {
 /** Pending records never expire: recovery must precede every runtime bootstrap. */
 export const recoverSettingsImport = async (): Promise<boolean> => {
   const journal = await readImportJournal();
-  if (!journal) return false;
+  if (!journal) {
+    const rebuild = needsImportRecovery();
+    setImportProgress({ active: false, recoveryNeeded: false });
+    return rebuild;
+  }
   if (journal.phase === "pending") {
     await writeConfiguration(journal.before);
     await chrome.storage.local.remove(IMPORT_JOURNAL_KEY);

@@ -68,7 +68,17 @@ type ImportContext = {
   deps: SettingsCommandDeps;
   previews: Map<string, PendingPreview>;
 };
-const rebuildRuntime = async (deps: SettingsCommandDeps): Promise<void> => {
+export const rebuildImportRuntime = async (
+  deps: Pick<
+    SettingsCommandDeps,
+    | "setCachedValues"
+    | "syncPreloadedState"
+    | "resyncActiveHeaderRules"
+    | "refreshFxInjectionMode"
+    | "reloadTabs"
+    | "getActiveTabContexts"
+  >,
+): Promise<void> => {
   const settings = configurationToExport(await readConfiguration());
   deps.setCachedValues({
     ...normalizePreferences(settings),
@@ -216,7 +226,7 @@ const importSettings = async (
     await applySettingsImport({
       before,
       after: pending.after,
-      rebuildRuntime: () => rebuildRuntime(deps),
+      rebuildRuntime: () => rebuildImportRuntime(deps),
     });
     return responseFromSettings(configurationToExport(pending.after));
   } catch (error) {
@@ -229,7 +239,7 @@ const undoImport = async (
 ): Promise<ImportSettingsResponse> => {
   try {
     await deps.ensureStorageMigration();
-    await undoSettingsImport(() => rebuildRuntime(deps));
+    await undoSettingsImport(() => rebuildImportRuntime(deps));
     return responseFromSettings(configurationToExport(await readConfiguration()));
   } catch (error) {
     return importError(error);

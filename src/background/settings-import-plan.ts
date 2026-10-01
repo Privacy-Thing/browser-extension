@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { validateImportedSettings } from "@/background/settings";
+import { canonical } from "@/background/settings-import-storage";
 import type {
   SettingsImportChange,
   SettingsImportSelection,
@@ -8,7 +9,7 @@ import type {
 import type { DomainRule, ExportedSettings, Location } from "@/shared/types";
 
 const same = (left: unknown, right: unknown): boolean =>
-  JSON.stringify(left) === JSON.stringify(right);
+  JSON.stringify(canonical(left)) === JSON.stringify(canonical(right));
 
 const diffCollection = (input: {
   collection: SettingsImportChange["collection"];

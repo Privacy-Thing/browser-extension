@@ -171,7 +171,7 @@ export const advanced = {
     import: {
       title: "Importar",
       description:
-        "Reveja uma cópia JSON e depois substitua a configuração ou combine os perfis e regras selecionados.",
+        "Revise um backup JSON e depois substitua as configurações ou combine os perfis e regras selecionados.",
       button: "Importar configurações",
       copyLinkLabel: "importar configurações",
     },

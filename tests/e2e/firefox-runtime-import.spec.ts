@@ -1,37 +1,42 @@
 import { expect } from "@playwright/test";
 
-import { EXTENSION_COMMAND_TYPES as CMD } from "../../src/shared/extension-contract";
+import {
+  EXTENSION_COMMAND_TYPES as CMD,
+  EXTENSION_STORAGE_KEYS as KEY,
+} from "../../src/shared/extension-contract";
 import type { ExportedSettings } from "../../src/shared/types";
 
 import { IMPORT_FIXTURE } from "./config-import.shared";
 import { openFxOptionsProbe, test } from "./firefox-runtime.shared";
 
+// RDP evaluates JS directly; escape HTML delimiters too so serialized arguments
+// remain safe if a probe is later embedded in a script element.
+const scriptValue = (value: unknown): string =>
+  JSON.stringify(value).replace(
+    /[<>\u2028\u2029]/g,
+    (character) => `\\u${character.charCodeAt(0).toString(16).padStart(4, "0")}`,
+  );
+
 const createImportDriver = (ui: Awaited<ReturnType<typeof openFxOptionsProbe>>) => {
   const command = <T>(type: string, payload: object = {}) =>
-    ui.evaluate<T>(
-      `chrome.runtime.sendMessage(${JSON.stringify({ type, ...payload })})`,
-    );
+    ui.evaluate<T>(`chrome.runtime.sendMessage(${scriptValue({ type, ...payload })})`);
   const chooseFile = (settings: ExportedSettings) =>
     ui.evaluate(`(() => {
     const input = document.getElementById("import-settings-file");
     const transfer = new DataTransfer();
-    transfer.items.add(new File([${JSON.stringify(JSON.stringify(settings))}], "settings.json", { type: "application/json" }));
+    transfer.items.add(new File([${scriptValue(JSON.stringify(settings))}], "settings.json", { type: "application/json" }));
     input.files = transfer.files;
     input.dispatchEvent(new Event("change", { bubbles: true }));
     return true;
   })()`);
   const click = (selector: string) =>
     ui.evaluate(
-      `(() => { const element = document.querySelector(${JSON.stringify(selector)}); element.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 0 })); element.click(); return true; })()`,
+      `(() => { const element = document.querySelector(${scriptValue(selector)}); element.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 0 })); element.click(); return true; })()`,
     );
   const isPresent = (selector: string) =>
-    ui.evaluate<boolean>(
-      `Boolean(document.querySelector(${JSON.stringify(selector)}))`,
-    );
+    ui.evaluate<boolean>(`Boolean(document.querySelector(${scriptValue(selector)}))`);
   const isEnabled = (selector: string) =>
-    ui.evaluate<boolean>(
-      `!document.querySelector(${JSON.stringify(selector)}).disabled`,
-    );
+    ui.evaluate<boolean>(`!document.querySelector(${scriptValue(selector)}).disabled`);
   const exported = async () => {
     const { settings } = await command<{ settings: ExportedSettings }>(
       CMD.exportSettings,
@@ -41,7 +46,7 @@ const createImportDriver = (ui: Awaited<ReturnType<typeof openFxOptionsProbe>>) 
   };
   const selectOption = async (selector: string, index: number) => {
     await ui.evaluate(
-      `(() => { document.querySelector(${JSON.stringify(selector)}).dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })); return true; })()`,
+      `(() => { document.querySelector(${scriptValue(selector)}).dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })); return true; })()`,
     );
     await expect.poll(() => isPresent('[role="option"]')).toBe(true);
     await ui.evaluate(
@@ -220,9 +225,82 @@ test("Firefox container import requires a local mapping and undo survives browse
   } finally {
     await ui
       .evaluate(
-        `browser.contextualIdentities.remove(${JSON.stringify(container.cookieStoreId)})`,
+        `browser.contextualIdentities.remove(${scriptValue(container.cookieStoreId)})`,
       )
       .catch(() => undefined);
+    await ui.close();
+  }
+});
+
+test("Firefox restores an interrupted import before rebuilding runtime after restart", async ({
+  context,
+  extensionOrigin,
+  debuggerPort,
+  persistentContextSession,
+  serverUrl,
+}) => {
+  let ui = await openFxOptionsProbe({ context, extensionOrigin, debuggerPort });
+  let driver = createImportDriver(ui);
+  try {
+    const initial = await driver.exported();
+    const nativeContainers = await ui.evaluate<Array<{ cookieStoreId: string }>>(
+      "browser.contextualIdentities.query({})",
+    );
+    // Storage reset removes assignments; persist every real native identity so
+    // startup reconciliation does not add unrelated state after journal recovery.
+    await driver.command(CMD.saveLocationModel, {
+      locations: initial.locations,
+      rules: initial.rules,
+      containerAssignments: nativeContainers.map(
+        ({ cookieStoreId }) =>
+          initial.containerAssignments?.find(
+            (assignment) => assignment.cookieStoreId === cookieStoreId,
+          ) ?? { cookieStoreId },
+      ),
+    });
+    const before = await driver.exported();
+    await expect.poll(() => driver.isPresent('[data-tab="advanced"]')).toBe(true);
+    await driver.click('[data-tab="advanced"]');
+    await expect.poll(() => driver.isPresent("#import-settings-file")).toBe(true);
+    await driver.chooseFile(IMPORT_FIXTURE);
+    await expect.poll(() => driver.isPresent("#settings-import-confirm")).toBe(true);
+    await driver.click("#settings-import-confirm");
+    await expect.poll(() => driver.isPresent("#settings-import-dialog")).toBe(false);
+    const importedProbe = await context.newPage();
+    await importedProbe.goto(serverUrl);
+    await expect
+      .poll(() =>
+        importedProbe.evaluate(() => Intl.DateTimeFormat().resolvedOptions().timeZone),
+      )
+      .toBe("Europe/Paris");
+    await ui.evaluate(
+      `(async () => { const key = ${scriptValue(KEY.settingsImportJournal)}; const stored = await chrome.storage.local.get(key); await chrome.storage.local.set({ [key]: { ...stored[key], phase: "pending" } }); return true; })()`,
+    );
+    await ui.close();
+    const restarted = await persistentContextSession.restartContext();
+    ui = await openFxOptionsProbe({
+      context: restarted,
+      extensionOrigin,
+      debuggerPort,
+    });
+    driver = createImportDriver(ui);
+    expect(await driver.exported()).toEqual(before);
+    const probe = await restarted.newPage();
+    await probe.goto(serverUrl);
+    const expected = before.locations.find(
+      (location) => location.id === before.rules[0]?.locationId,
+    )?.timeZone;
+    expect(expected).toBeDefined();
+    await expect
+      .poll(() =>
+        probe.evaluate(() => Intl.DateTimeFormat().resolvedOptions().timeZone),
+      )
+      .toBe(expected);
+    expect(await driver.command(CMD.getImportUndoStatus)).toMatchObject({
+      available: false,
+    });
+    await probe.close();
+  } finally {
     await ui.close();
   }
 });
