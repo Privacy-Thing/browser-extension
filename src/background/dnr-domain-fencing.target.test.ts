@@ -124,6 +124,26 @@ describe("syncFenceDnrRule", () => {
     });
   });
 
+  it("scopes S3 tenant headers independently and reuses a tenant for its subdomains", async () => {
+    const alice = snapshotWithVersionList([
+      { brand: "Chromium", version: "125.0.1.1" },
+    ]);
+    const bob = snapshotWithVersionList([{ brand: "Chromium", version: "125.0.2.2" }]);
+    await syncFenceDnrRule("alice.s3.amazonaws.com", alice, true);
+    await syncFenceDnrRule("assets.alice.s3.amazonaws.com", alice, true);
+    await syncFenceDnrRule("bob.s3.amazonaws.com", bob, true);
+    if (BUILD_BROWSER_TARGET !== "chromium") {
+      expect(updateSessionRules).not.toHaveBeenCalled();
+      return;
+    }
+    expect(updateSessionRules).toHaveBeenCalledTimes(2);
+    expect(
+      updateSessionRules.mock.calls.map(
+        ([update]) => update.addRules?.[0]?.condition.requestDomains,
+      ),
+    ).toEqual([["alice.s3.amazonaws.com"], ["bob.s3.amazonaws.com"]]);
+  });
+
   it("does not install a rule for explicit domain-rule identities", async () => {
     const snapshot = snapshotWithVersionList([
       { brand: "Chromium", version: "125.0.6422.112" },

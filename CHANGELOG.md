@@ -27,6 +27,19 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ### Fixed
 
+- Experimental Domain fencing now uses the bundled Public Suffix List, including
+  private hosting suffixes, wildcards and exceptions. Independent S3 tenants and
+  school domains no longer share a fingerprint partition. Corrected site boundaries
+  produce new per-site fingerprints on the next activation after updating; sites
+  whose boundary is unchanged keep their identity. Saved seeds and auth keys remain
+  unchanged. Domain fencing remains disabled by default.
+- Saving and importing location presets now reject time zones unsupported by the
+  browser before any settings write, with the preset name, ID and `timeZone` field
+  in the error. UTC and supported aliases remain valid. For an invalid preset saved
+  by an older version, open Settings → Locations, edit the preset, choose a supported
+  time zone, save and reload affected tabs. The draft remains editable; activation
+  rejects the invalid preset instead of substituting the device time zone.
+
 - Keep popup rule-editor Selects open through leftover opening-pointer dismisses
   and host window resize/blur that Radix treats as dismiss, without replacing
   the shared Select.

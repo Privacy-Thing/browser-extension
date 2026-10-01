@@ -19,7 +19,7 @@ import { t } from "@/ui/i18n";
 import { commonLocales } from "@/ui/options/locales";
 import { toFiniteNumber } from "@/ui/options/utils";
 
-const timezoneOptions = Intl.supportedValuesOf("timeZone").map((tz) => ({
+const timezoneOptions = ["UTC", ...Intl.supportedValuesOf("timeZone")].map((tz) => ({
   value: tz,
   label: tz.replace(/_/g, " "),
 }));
@@ -239,7 +239,11 @@ const TimeZoneField = <TDraft extends LocationFieldsDraft>({
   <div>
     <FieldLabel id="location-timezone-label">{t.common.fields.timeZone}</FieldLabel>
     <Combobox
-      options={timezoneOptions}
+      options={
+        timezoneOptions.some((option) => option.value === draft.timeZone)
+          ? timezoneOptions
+          : [{ value: draft.timeZone, label: draft.timeZone }, ...timezoneOptions]
+      }
       value={draft.timeZone}
       aria-labelledby="location-timezone-label"
       onValueChange={(value) => {

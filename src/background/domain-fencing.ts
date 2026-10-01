@@ -23,6 +23,8 @@
  * graphs must not import it.
  */
 
+import { getDomain } from "tldts";
+
 import { fnv1a32 } from "@/shared/fingerprint-seeds";
 
 export const DOMAIN_FENCING_VERSION = "df1";
@@ -32,52 +34,38 @@ const RULE_SEED_LENGTH = 6;
 const RULE_SEED_SPACE = 36 ** RULE_SEED_LENGTH;
 
 /**
- * Second-level tokens that, under a two-letter TLD, form a multi-label
- * registrable suffix (`co.uk`, `com.au`). Not a full PSL; unknown combos
- * degrade to a two-label site key.
+ * URL hostname normalization also canonicalizes IDN and IP literals. This accepts
+ * hostnames only: URL syntax, credentials and ports must never create a partition.
+ * Invalid input returns an empty key, leaving the shared template unfenced.
  */
-const CC_TLD_SLD = new Set(
-  "ac|ad|asn|biz|co|com|ed|edu|firm|gen|geek|go|gob|gov|govt|gr|gv|id|idv|in|ind|info|lg|ltd|me|med|muni|my|ne|net|nic|nom|or|org|pe|plc|re|res|sch|school|web".split(
-    "|",
-  ),
-);
+const normalizeHostname = (hostname: string): string => {
+  const input = hostname.trim().toLowerCase().replace(/\.$/, "");
+  if (!input || /[\s/@?#\\]/.test(input)) return "";
+  if (input.includes(":") && !(input.startsWith("[") && input.endsWith("]"))) {
+    return "";
+  }
+  try {
+    const normalized = new URL(`http://${input}/`).hostname;
+    return normalized.split(".").some((label) => !label) ? "" : normalized;
+  } catch {
+    return "";
+  }
+};
 
 /**
- * Private / CentralNic suffixes whose tenants are distinct sites. These are
- * not ccTLD+SLD pairs, so the two-letter TLD heuristic cannot recover them.
- */
-const PRIVATE_SUFFIXES = new Set(
-  "uk.com|uk.net|us.com|eu.com|github.io|gitlab.io|blogspot.com|appspot.com|herokuapp.com|netlify.app|vercel.app|web.app|firebaseapp.com|azurewebsites.net|cloudfunctions.net|pages.dev|workers.dev|wordpress.com|neocities.org|readthedocs.io|onrender.com|fly.dev|glitch.me|codesandbox.io".split(
-    "|",
-  ),
-);
-
-const IPV4_PATTERN = /^\d{1,3}(?:\.\d{1,3}){3}$/;
-
-/**
- * Returns the registrable domain (eTLD+1) used as the fencing partition key.
- * IP literals, single-label hosts, and empty hostnames are returned as-is.
+ * Bundled PSL includes ICANN, PRIVATE, wildcard and exception rules. IPs,
+ * localhost names and bare suffixes keep their full normalized hostname.
+ * Keep df1 derivation: only corrected partition boundaries rotate identities.
  */
 export const getSiteKey = (hostname: string): string => {
-  const normalized = hostname.trim().toLowerCase().replace(/\.$/, "");
-  if (normalized === "" || normalized.includes(":") || IPV4_PATTERN.test(normalized)) {
-    return normalized;
-  }
-
-  const labels = normalized.split(".");
-  if (labels.length <= 2) {
-    return normalized;
-  }
-
-  const lastTwo = labels.slice(-2).join(".");
-  const sld = labels[labels.length - 2];
-  const tld = labels[labels.length - 1];
-  const ccTldSld =
-    typeof sld === "string" &&
-    typeof tld === "string" &&
-    tld.length === 2 &&
-    CC_TLD_SLD.has(sld);
-  return labels.slice(PRIVATE_SUFFIXES.has(lastTwo) || ccTldSld ? -3 : -2).join(".");
+  const normalized = normalizeHostname(hostname);
+  if (!normalized || normalized.endsWith(".localhost")) return normalized;
+  return (
+    getDomain(normalized, {
+      allowPrivateDomains: true,
+      extractHostname: false,
+    }) ?? normalized
+  );
 };
 
 /**

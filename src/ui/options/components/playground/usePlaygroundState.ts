@@ -2,13 +2,14 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { GeoReading, SystemGeoStatus } from "./PlaygroundComparisonCards";
 
-import { toRuntimeSnapshot } from "@/background/rules/resolver";
 import { installGeolocationPatch } from "@/injection/main/early-runtime";
 import {
   type BrowserFingerprintSource,
   deriveAppVersion,
 } from "@/shared/browser-fingerprint";
 import { createRuleSeedKey, readRuleSeedKey } from "@/shared/rule-seed";
+import { buildRuntimeSnapshot } from "@/shared/runtime-snapshot-builder";
+import { getProfileTimeZoneError } from "@/shared/time-zone-validation";
 import type { CapturedFingerprint } from "@/shared/types";
 import { type LocalFingerprintState } from "@/ui/options/components/playground/fingerprint-comparison";
 import {
@@ -189,7 +190,7 @@ const usePreviewSeed = () => {
 };
 
 const useSpoofedGeolocation = (
-  snapshot: ReturnType<typeof toRuntimeSnapshot> | null,
+  snapshot: ReturnType<typeof buildRuntimeSnapshot> | null,
   useDemoInterval: boolean,
 ) => {
   const [tracePoints, setTracePoints] = useState<TracePoint[]>([]);
@@ -279,7 +280,7 @@ const usePlaygroundDerived = ({
   useDemoInterval,
 }: {
   selectedLocation: PlaygroundLocation | null;
-  snapshot: ReturnType<typeof toRuntimeSnapshot> | null;
+  snapshot: ReturnType<typeof buildRuntimeSnapshot> | null;
   tracePoints: TracePoint[];
   useDemoInterval: boolean;
 }) => {
@@ -335,9 +336,9 @@ export const usePlaygroundState = () => {
   );
 
   const snapshot = useMemo(() => {
-    if (!selectedLocation) return null;
+    if (!selectedLocation || getProfileTimeZoneError(selectedLocation)) return null;
 
-    return toRuntimeSnapshot({
+    return buildRuntimeSnapshot({
       // The playground has no real rule or container identity, so it carries no
       // authKey and keeps the resolver's historical `native` SharedWorker mode.
       authKey: undefined,

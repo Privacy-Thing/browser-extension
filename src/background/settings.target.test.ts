@@ -839,3 +839,50 @@ describe("legacy rule normalization", () => {
     expect(result.rules[0]?.relaxCspForWorkers).toBe(true);
   });
 });
+
+describe("profile timeZone validation for save and import", () => {
+  const profile = {
+    id: "warsaw",
+    label: "My Warsaw preset",
+    latitude: 52,
+    longitude: 21,
+    accuracy: 25,
+    noiseRadius: 50,
+    language: "pl",
+    languages: ["pl"],
+    timeZone: "UTC",
+  };
+  it.each(["Mars/Olympus", "", "   "])(
+    "rejects %j with profile and field context",
+    (timeZone) => {
+      const locations = [{ ...profile, timeZone }];
+      expect(() => validateSettings(locations, [])).toThrow(
+        /My Warsaw preset.*warsaw.*timeZone/,
+      );
+      expect(() =>
+        validateImportedSettings({
+          version: 3,
+          exportedAt: "2026-01-15T12:00:00Z",
+          locations,
+          rules: [],
+        }),
+      ).toThrow(/My Warsaw preset.*warsaw.*timeZone/);
+      expect(locations[0]?.timeZone).toBe(timeZone);
+    },
+  );
+  it.each(["Europe/Warsaw", "UTC", "US/Eastern", "Asia/Calcutta", " Europe/Warsaw "])(
+    "accepts supported identifier %j without canonicalizing aliases",
+    (timeZone) => {
+      const result = validateSettings([{ ...profile, timeZone }], []);
+      expect(result.locations[0]?.timeZone).toBe(timeZone.trim());
+      expect(
+        validateImportedSettings({
+          version: 3,
+          exportedAt: "2026-01-15T12:00:00Z",
+          locations: [{ ...profile, timeZone }],
+          rules: [],
+        }).locations[0]?.timeZone,
+      ).toBe(timeZone.trim());
+    },
+  );
+});

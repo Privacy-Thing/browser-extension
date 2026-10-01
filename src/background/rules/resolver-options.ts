@@ -14,28 +14,18 @@
  * write the absence instead of omitting it.
  */
 
-import type { BrowserFingerprintSource } from "@/shared/browser-fingerprint";
+import type {
+  SnapshotBuilderOptions,
+  SnapshotBuildOptions,
+} from "@/shared/runtime-snapshot-builder";
+export type { SnapshotBuildOptions } from "@/shared/runtime-snapshot-builder";
 import type {
   ContainerAssignment,
   DomainRule,
-  SurfaceOverrides,
   GlobalFallbackRule,
   Location,
-  SharedSpoofingConfig,
-  SharedWorkerHandlingMode,
   TrustedSite,
 } from "@/shared/types";
-
-/** Inputs shared by every snapshot-building entry point. */
-export type SnapshotBuildOptions = {
-  browserFingerprintSource: BrowserFingerprintSource | undefined;
-  fingerprintEnabled: boolean;
-  debugMode: boolean;
-  sharedSpoofing: SharedSpoofingConfig | undefined;
-  sharedWorkerHandlingMode: SharedWorkerHandlingMode;
-  watchPositionDelay: [number, number];
-  temporalApiEnabled?: boolean;
-};
 
 /**
  * Instruction to build a domain-fenced snapshot for a fallback/container
@@ -51,12 +41,7 @@ export type DomainFencingRequest = {
   hostname?: string | undefined;
 };
 
-export type ToRuntimeSnapshotOptions = SnapshotBuildOptions & {
-  /** Persisted per-rule nonce. Never minted here — see `createAuthKey`. */
-  authKey: string | undefined;
-  profile: Location | null | undefined;
-  ruleOverrides: SurfaceOverrides | undefined;
-  ruleSeedKey: string | undefined;
+export type ToRuntimeSnapshotOptions = SnapshotBuilderOptions & {
   domainFencing?: DomainFencingRequest | undefined;
 };
 

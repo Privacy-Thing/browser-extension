@@ -1,5 +1,6 @@
 import { EXAMPLE_LOCATIONS } from "../../src/background/storage/locations";
 import { findRuleMatches } from "../../src/shared/domain-match";
+import { EXTENSION_COMMAND_TYPES } from "../../src/shared/extension-contract";
 import type { DomainRule, Location } from "../../src/shared/types";
 
 import {
@@ -475,4 +476,132 @@ test("advanced settings allow toggling CSP relaxation manually", async ({
 
   await optionsPage.close();
   await page.close();
+});
+
+test("rejects unsupported preset time zones on save and import without changing storage", async ({
+  context,
+  extensionId,
+}) => {
+  const page = await context.newPage();
+  await page.goto(`chrome-extension://${extensionId}/src/ui/options/index.html`);
+  const outcomes = await page.evaluate(async (commands) => {
+    const before = await chrome.storage.local.get(null);
+    const results = [];
+    for (const timeZone of ["Mars/Olympus", "", "   "]) {
+      const locations = [
+        {
+          id: "pt21",
+          label: "PT-21 preset",
+          latitude: 52,
+          longitude: 21,
+          accuracy: 25,
+          noiseRadius: 50,
+          language: "pl",
+          languages: ["pl"],
+          timeZone,
+        },
+      ];
+      results.push(
+        await chrome.runtime.sendMessage({
+          type: commands.saveLocationModel,
+          locations,
+          rules: [],
+          containerAssignments: [],
+        }),
+      );
+      results.push(
+        await chrome.runtime.sendMessage({
+          type: commands.importSettings,
+          settings: {
+            version: 3,
+            exportedAt: "2026-01-15T12:00:00Z",
+            locations,
+            rules: [],
+          },
+        }),
+      );
+    }
+    const after = await chrome.storage.local.get(null);
+    const accepted = [];
+    for (const timeZone of ["Europe/Warsaw", "UTC", "US/Eastern", "Asia/Calcutta"]) {
+      accepted.push(
+        await chrome.runtime.sendMessage({
+          type: commands.saveLocationModel,
+          locations: [
+            {
+              id: "pt21",
+              label: "PT-21 preset",
+              latitude: 52,
+              longitude: 21,
+              accuracy: 25,
+              noiseRadius: 50,
+              language: "pl",
+              languages: ["pl"],
+              timeZone,
+            },
+          ],
+          rules: [],
+          containerAssignments: [],
+        }),
+      );
+    }
+    return { before, after, results, accepted };
+  }, EXTENSION_COMMAND_TYPES);
+  expect(outcomes.after).toEqual(outcomes.before);
+  expect(outcomes.results).toHaveLength(6);
+  for (const result of outcomes.results) {
+    expect(result).toMatchObject({
+      ok: false,
+      error: expect.stringMatching(/PT-21 preset.*pt21.*timeZone/),
+    });
+  }
+  expect(outcomes.accepted.map((result) => result.ok)).toEqual([
+    true,
+    true,
+    true,
+    true,
+  ]);
+});
+
+test("resolves separate fenced S3 tenant snapshots while keeping a tenant's subdomains together", async ({
+  context,
+  extensionId,
+}) => {
+  const page = await context.newPage();
+  await page.goto(`chrome-extension://${extensionId}/src/ui/options/index.html`);
+  const outcomes = await page.evaluate(async (commands) => {
+    const saved = await chrome.runtime.sendMessage({
+      type: commands.saveSimpleSettings,
+      browserFingerprintSpoofingEnabled: true,
+      featureFlags: { domainFencing: true },
+      globalFallbackRule: { enabled: true, ruleSeedKey: "abc123", authKey: "keep0001" },
+    });
+    const snapshots = [];
+    for (const hostname of [
+      "alice.s3.amazonaws.com",
+      "assets.alice.s3.amazonaws.com",
+      "bob.s3.amazonaws.com",
+    ]) {
+      snapshots.push(
+        await chrome.runtime.sendMessage({
+          type: commands.resolveRuntimeSnapshot,
+          hostname,
+        }),
+      );
+    }
+    return { saved, snapshots };
+  }, EXTENSION_COMMAND_TYPES);
+  expect(outcomes.saved.ok).toBe(true);
+  for (const result of outcomes.snapshots) {
+    expect(result.ok).toBe(true);
+    expect(result.snapshot?.authKey).toBe("keep0001");
+    expect(result.snapshot?.fingerprint?.canvasNoiseSeed).toEqual(expect.any(Number));
+  }
+  const [alice, subdomain, bob] = outcomes.snapshots;
+  expect(alice?.snapshot.fingerprint.canvasNoiseSeed).toBe(
+    subdomain?.snapshot.fingerprint.canvasNoiseSeed,
+  );
+  expect(alice?.snapshot.fingerprint.canvasNoiseSeed).not.toBe(
+    bob?.snapshot.fingerprint.canvasNoiseSeed,
+  );
 });

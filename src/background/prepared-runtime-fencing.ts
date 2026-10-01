@@ -1,5 +1,5 @@
+import { getSiteKey, toFencePattern } from "@/background/domain-fencing";
 import type { DomainFencingRequest } from "@/background/rules/resolver-options";
-import { getSiteKey, toFencePattern } from "@/shared/domain-fencing";
 import type { FeatureFlags } from "@/shared/feature-flags";
 import type { ContainerAssignment, RuntimeSnapshot } from "@/shared/types";
 

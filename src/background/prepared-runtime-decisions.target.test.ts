@@ -416,6 +416,36 @@ describe("createPreparedDecisions", () => {
     );
   });
 
+  it("caches S3 tenants independently in both browser preload catalogs", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-15T12:00:00.000Z"));
+    const prepared = buildPrepared({
+      domainFencing: true,
+      globalFallbackRule: {
+        enabled: true,
+        locationId: "warsaw",
+        ruleSeedKey: "glb123",
+        authKey: "fa11bac0",
+      },
+    });
+    const alice = prepared.resolveDecision("alice.s3.amazonaws.com");
+    const sub = prepared.resolveDecision("assets.alice.s3.amazonaws.com");
+    const bob = prepared.resolveDecision("bob.s3.amazonaws.com");
+    expect(alice.snapshot?.fingerprint?.canvasNoiseSeed).toEqual(expect.any(Number));
+    expect(comparableSnapshot(sub.snapshot)).toEqual(
+      comparableSnapshot(alice.snapshot),
+    );
+    expect(bob.snapshot?.fingerprint?.canvasNoiseSeed).not.toBe(
+      alice.snapshot?.fingerprint?.canvasNoiseSeed,
+    );
+    expect(prepared.getPreloadedEntries().map((row) => row.pattern)).toEqual(
+      expect.arrayContaining(["*alice.s3.amazonaws.com", "*bob.s3.amazonaws.com"]),
+    );
+    expect(prepared.getPreloadedEntries().map((row) => row.pattern)).not.toContain(
+      "*amazonaws.com",
+    );
+  });
+
   it("keeps the unfenced Default Rule fingerprint on the shared star template", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-01-15T12:00:00.000Z"));

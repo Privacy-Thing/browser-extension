@@ -111,6 +111,63 @@ describe("domain fencing in resolveProfileSnapshot", () => {
     );
   });
 
+  it.each([undefined, "firefox-container-1"])(
+    "separates S3 tenants for fallback/container identity %s",
+    (cookieStoreId) => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-01-15T12:00:00.000Z"));
+      const extra = cookieStoreId
+        ? {
+            cookieStoreId,
+            containerAssignments: [
+              {
+                cookieStoreId,
+                locationId: "warsaw",
+                ruleSeedKey: "con123",
+                authKey: "keep0001",
+              },
+            ],
+          }
+        : {};
+      const first = resolve("alice.s3.amazonaws.com", true, extra);
+      const subdomain = resolve("assets.alice.s3.amazonaws.com", true, extra);
+      const other = resolve("bob.s3.amazonaws.com", true, extra);
+      expect(first?.fingerprint?.canvasNoiseSeed).toEqual(expect.any(Number));
+      expect(first?.fingerprint?.canvasNoiseSeed).toBe(
+        subdomain?.fingerprint?.canvasNoiseSeed,
+      );
+      expect(first?.fingerprint?.canvasNoiseSeed).not.toBe(
+        other?.fingerprint?.canvasNoiseSeed,
+      );
+      expect(first?.authKey).toBe(cookieStoreId ? "keep0001" : "fa11bac0");
+      expect(other?.authKey).toBe(first?.authKey);
+      expect(other?.locale).toEqual(first?.locale);
+      expect(resolve("alice.s3.amazonaws.com", false, extra)?.fingerprint).toEqual(
+        resolve("bob.s3.amazonaws.com", false, extra)?.fingerprint,
+      );
+    },
+  );
+
+  it("rejects legacy invalid time zones before building any runtime payload", () => {
+    const build = (timeZone: string) =>
+      toRuntimeSnapshot({
+        authKey: "keep0001",
+        browserFingerprintSource: fingerprintSource,
+        debugMode: false,
+        fingerprintEnabled: true,
+        profile: { ...profile, timeZone },
+        ruleOverrides: undefined,
+        ruleSeedKey: "abc123",
+        sharedSpoofing: undefined,
+        sharedWorkerHandlingMode: "native",
+        watchPositionDelay: [60, 500],
+      });
+    expect(() => build("Mars/Olympus")).toThrow(
+      /Warsaw.*warsaw.*timeZone.*Mars\/Olympus/,
+    );
+    expect(build(" Europe/Warsaw ").locale.timeZone).toBe("Europe/Warsaw");
+  });
+
   it("keeps the unfenced Default Rule fingerprint on shared templates", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-01-15T12:00:00.000Z"));

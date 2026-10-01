@@ -1,6 +1,6 @@
+import { getSiteKey } from "@/background/domain-fencing";
 import { serializeHintBrands } from "@/shared/browser-fingerprint";
 import { BUILD_BROWSER_TARGET } from "@/shared/build-flags";
-import { getSiteKey } from "@/shared/domain-fencing";
 import type { DynamicHeaderRule, RuntimeSnapshot } from "@/shared/types";
 
 /**

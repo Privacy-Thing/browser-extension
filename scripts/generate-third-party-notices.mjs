@@ -357,27 +357,27 @@ const buildDirectPackageMap = () => {
         throw new Error(`pnpm licenses list did not report ${packageName}.`);
       }
 
-      const versions = Array.isArray(entry.versions)
-        ? entry.versions.filter(Boolean)
-        : [];
-      const packagePaths = Array.isArray(entry.paths)
-        ? entry.paths.filter(Boolean)
-        : [];
-
-      if (versions.length !== 1 || packagePaths.length !== 1) {
+      // pnpm groups direct and transitive versions together (e.g. tldts is also
+      // used by jsdom). Attribute the version actually linked at the app root.
+      const packagePath = fs.realpathSync(path.resolve("node_modules", packageName));
+      const reportedPaths = Array.isArray(entry.paths) ? entry.paths : [];
+      if (
+        !reportedPaths.some(
+          (reportedPath) => fs.realpathSync(reportedPath) === packagePath,
+        )
+      ) {
         throw new Error(
-          `${packageName} should resolve to exactly one installed direct dependency, got versions=${versions.length} paths=${packagePaths.length}.`,
+          `pnpm licenses list did not report the direct install of ${packageName}.`,
         );
       }
 
-      const packagePath = packagePaths[0];
       const manifest = readPackageManifest(packagePath);
 
       return [
         packageName,
         {
           name: packageName,
-          version: versions[0],
+          version: manifest.version,
           packagePath,
           manifest,
           homepage: manifest.homepage || entry.homepage || "",

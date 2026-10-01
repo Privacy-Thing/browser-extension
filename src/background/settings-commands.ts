@@ -104,12 +104,12 @@ const saveLocationModel = async (
   command: LocationModelCommand,
 ): Promise<SaveLocationResponse> => {
   try {
-    await deps.ensureStorageMigration();
     const settings = validateSettings(
       command.locations,
       command.rules,
       command.containerAssignments,
     );
+    await deps.ensureStorageMigration();
     await Promise.all([
       saveLocations(settings.locations),
       saveRules(settings.rules),
@@ -295,13 +295,11 @@ const importSettings = async (
   command: ImportCommand,
 ): Promise<ImportSettingsResponse> => {
   try {
+    const settings = validateImportedSettings(command.settings);
     await deps.ensureStorageMigration();
-    const onboardingWasComplete = (await getPreferences()).onboardingCompleted;
-    const settings = validateImportedSettings({
-      ...command.settings,
-      onboardingCompleted:
-        command.settings.onboardingCompleted ?? onboardingWasComplete,
-    });
+    if (command.settings.onboardingCompleted === undefined) {
+      settings.onboardingCompleted = (await getPreferences()).onboardingCompleted;
+    }
     await persistImport(settings);
     cacheImport(deps, settings);
     await applyImportEffects(deps, settings);
