@@ -27,7 +27,7 @@ import { PAGE_ANCHORS } from "@/ui/options/navigation";
 import { useSettings } from "@/ui/options/state/SettingsContext";
 import { sendMessageOrThrow } from "@/ui/shared/runtime-messaging";
 import { getThemeAccentTokens } from "@/ui/shared/theme";
-import { THEME_ACCENT_OPTIONS } from "@/ui/shared/theme-accent-options";
+import { getThemeAccentOptions } from "@/ui/shared/theme-accent-options";
 import { useTheme } from "@/ui/shared/ThemeProvider";
 
 const DEFAULT_PRESET_IDS = [
@@ -371,18 +371,20 @@ const setWizardContrast = async (
   await theme.setHighContrast(checked);
 };
 
-const getAccentView = (theme: Theme) => ({
-  color: `hsl(${getThemeAccentTokens(theme.accentPreset, theme.theme, theme.highContrast).primary})`,
-  label:
-    THEME_ACCENT_OPTIONS.find((option) => option.preset === theme.accentPreset)
-      ?.label ??
-    THEME_ACCENT_OPTIONS[0]?.label ??
-    theme.accentPreset,
-  options: THEME_ACCENT_OPTIONS.map((option) => ({
-    ...option,
-    color: `hsl(${getThemeAccentTokens(option.preset, theme.theme, theme.highContrast).primary})`,
-  })),
-});
+const getAccentView = (theme: Theme) => {
+  const accentOptions = getThemeAccentOptions();
+  return {
+    color: `hsl(${getThemeAccentTokens(theme.accentPreset, theme.theme, theme.highContrast).primary})`,
+    label:
+      accentOptions.find((option) => option.preset === theme.accentPreset)?.label ??
+      accentOptions[0]?.label ??
+      theme.accentPreset,
+    options: accentOptions.map((option) => ({
+      ...option,
+      color: `hsl(${getThemeAccentTokens(option.preset, theme.theme, theme.highContrast).primary})`,
+    })),
+  };
+};
 
 export const WelcomeWizard = ({ onComplete }: { onComplete: () => void }) => {
   const settings = useSettings();

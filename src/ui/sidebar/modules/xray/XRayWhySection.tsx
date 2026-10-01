@@ -60,7 +60,7 @@ function toDisplaySteps(steps: RuleResolutionStep[]): DisplayStep[] {
       continue;
     }
 
-    const label = SHORT_LABELS[step.source as DisplaySource];
+    const label = sourceShortLabel(step.source as DisplaySource);
     result.push({
       source: step.source as DisplaySource,
       status: step.status,
@@ -74,12 +74,19 @@ function toDisplaySteps(steps: RuleResolutionStep[]): DisplayStep[] {
 }
 
 // ── Label maps ────────────────────────────────────────────────────────────────
-const SHORT_LABELS: Record<DisplaySource, string> = {
-  "trusted-site": t.sidebar.why.sourcesShort.trustedSite,
-  "domain-rule": t.sidebar.why.sourcesShort.domainRule,
-  container: t.sidebar.why.sourcesShort.container,
-  fallback: t.sidebar.why.sourcesShort.fallback,
-  none: t.sidebar.why.sourcesShort.none,
+const sourceShortLabel = (source: DisplaySource): string => {
+  switch (source) {
+    case "trusted-site":
+      return t.sidebar.why.sourcesShort.trustedSite;
+    case "domain-rule":
+      return t.sidebar.why.sourcesShort.domainRule;
+    case "container":
+      return t.sidebar.why.sourcesShort.container;
+    case "fallback":
+      return t.sidebar.why.sourcesShort.fallback;
+    case "none":
+      return t.sidebar.why.sourcesShort.none;
+  }
 };
 
 // ── Visual styles ─────────────────────────────────────────────────────────────
@@ -146,7 +153,7 @@ export const XRayWhySection = ({
                     LABEL_STYLE[step.status],
                   )}
                 >
-                  {SHORT_LABELS[step.source]}
+                  {sourceShortLabel(step.source)}
                 </span>
               </div>
 

@@ -21,8 +21,11 @@ import {
 } from "@/ui/components/ui/select";
 import { Switch } from "@/ui/components/ui/switch";
 import { t } from "@/ui/i18n";
+import { en } from "@/ui/i18n/en";
+import { useUiLocale } from "@/ui/i18n/LocaleRefresh";
 import type { OptionsModel } from "@/ui/options/components/tabs/options-model";
 import { renderOsmConsentState } from "@/ui/options/components/tabs/options-surface-data";
+import { languageOptionLabel } from "@/ui/options/interface-language-label";
 import {
   SECTION_ANCHORS,
   SETTINGS_SUBPAGE_ANCHORS,
@@ -30,7 +33,7 @@ import {
 } from "@/ui/options/navigation";
 import { icon } from "@/ui/options/utils";
 import { getThemeAccentTokens } from "@/ui/shared/theme";
-import { THEME_ACCENT_OPTIONS } from "@/ui/shared/theme-accent-options";
+import { getThemeAccentOptions } from "@/ui/shared/theme-accent-options";
 import { useTheme } from "@/ui/shared/ThemeProvider";
 
 export const PrivacySection = ({ model }: { model: OptionsModel }) => (
@@ -112,7 +115,7 @@ const AccentChip = ({
     aria-pressed={selected}
     disabled={disabled}
     className={cn(
-      "h-auto justify-start rounded-xl px-3 py-2 text-left",
+      "h-auto justify-start whitespace-normal rounded-xl px-3 py-2 text-left",
       selected
         ? "border-primary bg-primary/10 text-foreground shadow-sm ring-1 ring-primary/30 hover:bg-primary/15"
         : "bg-card/35 text-foreground hover:bg-accent/70",
@@ -151,6 +154,10 @@ export const commitLanguageSelection = (
 
 const LanguageCard = ({ model }: { model: OptionsModel }) => {
   const { setUiLocale, uiLocale } = useTheme();
+  const activeLocale = useUiLocale();
+  const englishLanguage = en.advanced.display.language;
+  const labelFor = (englishName: string, localizedName: string) =>
+    languageOptionLabel(activeLocale, englishName, localizedName);
   return (
     <SettingsControlCard
       anchorId={SETTING_ANCHORS.options.language}
@@ -172,7 +179,7 @@ const LanguageCard = ({ model }: { model: OptionsModel }) => {
         </span>
       }
       focusControlOnTitleClick
-      actionClassName="w-full sm:w-52"
+      actionClassName="w-full sm:w-72"
       action={
         <Select
           value={uiLocale}
@@ -189,22 +196,40 @@ const LanguageCard = ({ model }: { model: OptionsModel }) => {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="auto">
-              {t.advanced.display.language.optionAutomatic}
+              {labelFor(
+                englishLanguage.optionAutomatic,
+                t.advanced.display.language.optionAutomatic,
+              )}
             </SelectItem>
             <SelectItem value="en">
-              {t.advanced.display.language.optionEnglish}
+              {labelFor(
+                englishLanguage.optionEnglish,
+                t.advanced.display.language.optionEnglish,
+              )}
             </SelectItem>
             <SelectItem value="es">
-              {t.advanced.display.language.optionSpanish}
+              {labelFor(
+                englishLanguage.optionSpanish,
+                t.advanced.display.language.optionSpanish,
+              )}
             </SelectItem>
             <SelectItem value="pt">
-              {t.advanced.display.language.optionPortuguese}
+              {labelFor(
+                englishLanguage.optionPortuguese,
+                t.advanced.display.language.optionPortuguese,
+              )}
             </SelectItem>
             <SelectItem value="ru">
-              {t.advanced.display.language.optionRussian}
+              {labelFor(
+                englishLanguage.optionRussian,
+                t.advanced.display.language.optionRussian,
+              )}
             </SelectItem>
             <SelectItem value="uk">
-              {t.advanced.display.language.optionUkrainian}
+              {labelFor(
+                englishLanguage.optionUkrainian,
+                t.advanced.display.language.optionUkrainian,
+              )}
             </SelectItem>
           </SelectContent>
         </Select>
@@ -270,7 +295,7 @@ const AccentCard = ({ model }: { model: OptionsModel }) => (
       aria-describedby={getSettingDescriptionId(SETTING_ANCHORS.advanced.accentColor)}
       className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3"
     >
-      {THEME_ACCENT_OPTIONS.map(({ preset, label }) => (
+      {getThemeAccentOptions().map(({ preset, label }) => (
         <AccentChip
           key={preset}
           preset={preset}

@@ -19,6 +19,10 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 - The interface language can be chosen in Settings. Automatic still follows the
   browser language. Popup, sidebar, and Settings update without a reload.
+- Language choices show the English name and the name from the active translation.
+  The English interface keeps English names only.
+- Accent colors, protection labels, and X-Ray labels follow the active interface
+  language. Long About link labels stay inside their buttons.
 - Experimental: every subframe in a tab now uses the top-frame runtime snapshot
   (locale, timezone, fingerprint, geolocation) so iframe and worker realms do
   not diverge from the page. Per-tab header rules apply to all requests in that
