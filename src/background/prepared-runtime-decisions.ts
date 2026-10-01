@@ -11,6 +11,7 @@ import {
   toFencingRequest,
   type FencedIdentity,
 } from "@/background/prepared-runtime-fencing";
+import { recoverInvalidProfile } from "@/background/rules/profile-recovery";
 import {
   matchTrustedSite,
   toRuleRuntimeSnapshot,
@@ -171,13 +172,15 @@ const buildRuleSnapshot = (
   inputs: PreparedRuntimeInputs,
   domainFencing?: DomainFencingRequest,
 ): RuntimeSnapshot | null =>
-  materializeSnapshot(
-    toRuleRuntimeSnapshot({
-      ...toSnapshotBuildOptions(inputs),
-      profile: location,
-      rule,
-      domainFencing,
-    }),
+  recoverInvalidProfile(() =>
+    materializeSnapshot(
+      toRuleRuntimeSnapshot({
+        ...toSnapshotBuildOptions(inputs),
+        profile: location,
+        rule,
+        domainFencing,
+      }),
+    ),
   );
 
 const buildContainerSnapshot = (
@@ -186,15 +189,17 @@ const buildContainerSnapshot = (
   inputs: PreparedRuntimeInputs,
   domainFencing?: DomainFencingRequest,
 ): RuntimeSnapshot | null =>
-  materializeSnapshot(
-    toRuntimeSnapshot({
-      ...toSnapshotBuildOptions(inputs),
-      authKey: assignment.authKey,
-      profile: location,
-      ruleOverrides: assignment.fingerprintSurfaceOverrides,
-      ruleSeedKey: assignment.ruleSeedKey,
-      domainFencing,
-    }),
+  recoverInvalidProfile(() =>
+    materializeSnapshot(
+      toRuntimeSnapshot({
+        ...toSnapshotBuildOptions(inputs),
+        authKey: assignment.authKey,
+        profile: location,
+        ruleOverrides: assignment.fingerprintSurfaceOverrides,
+        ruleSeedKey: assignment.ruleSeedKey,
+        domainFencing,
+      }),
+    ),
   );
 
 // Domain rules are explicit per-domain configuration: their identity stays
@@ -211,7 +216,10 @@ const buildPreparedRuleEntries = (
       const ownLocation = rule.locationId
         ? locationsById.get(rule.locationId)
         : undefined;
-      const ownSnapshot = buildRuleSnapshot(rule, ownLocation, inputs);
+      const ownSnapshot =
+        !rule.locationId && fallbackLocation
+          ? null
+          : buildRuleSnapshot(rule, ownLocation, inputs);
       const fallbackSnapshot =
         !rule.locationId && fallbackLocation
           ? buildRuleSnapshot(rule, fallbackLocation, inputs)
@@ -287,32 +295,11 @@ const buildContainerEntries = (
 const getRuleSnapshotTemplate = (
   entry: PreparedRuleEntry,
   cookieStoreId: string | undefined,
-  usableContainer: ContainerAssignment | null,
 ): RuntimeSnapshot | null => {
-  if (usableContainer?.cookieStoreId && !entry.ownSnapshot) {
-    return (
-      entry.containerSnapshots.get(usableContainer.cookieStoreId) ??
-      entry.fallbackSnapshot ??
-      entry.ownSnapshot
-    );
-  }
-
-  if (usableContainer?.cookieStoreId && entry.containerSnapshots.size > 0) {
-    return (
-      entry.containerSnapshots.get(usableContainer.cookieStoreId) ??
-      entry.fallbackSnapshot ??
-      entry.ownSnapshot
-    );
-  }
-
+  // An explicit null blocks inheritance when the assigned preset is invalid.
   if (cookieStoreId && entry.containerSnapshots.has(cookieStoreId)) {
-    return (
-      entry.containerSnapshots.get(cookieStoreId) ??
-      entry.fallbackSnapshot ??
-      entry.ownSnapshot
-    );
+    return entry.containerSnapshots.get(cookieStoreId) ?? null;
   }
-
   return entry.fallbackSnapshot ?? entry.ownSnapshot;
 };
 
@@ -407,13 +394,7 @@ const resolvePreparedDecision = (
     const entry = ruleEntriesByPattern.get(resolvedSources.activeRule.pattern);
     return {
       snapshot: finalizeNavSnapshot(
-        entry
-          ? getRuleSnapshotTemplate(
-              entry,
-              cookieStoreId,
-              resolvedSources.usableContainer,
-            )
-          : null,
+        entry ? getRuleSnapshotTemplate(entry, cookieStoreId) : null,
       ),
       trustedSiteMatched: false,
     };
@@ -529,7 +510,7 @@ const getFxSeed = (
   if (usableContainer) {
     for (const entry of ruleEntries) {
       if (!locationlessPatterns.has(entry.pattern)) continue;
-      const snapshot = getRuleSnapshotTemplate(entry, cookieStoreId, usableContainer);
+      const snapshot = getRuleSnapshotTemplate(entry, cookieStoreId);
       containerEntries.push({
         pattern: entry.pattern,
         state: buildFirefoxShimState(finalizeNavSnapshot(snapshot)),

@@ -27,6 +27,10 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ### Fixed
 
+- Invalid time zones in legacy presets no longer interrupt preload and header
+  refreshes for unrelated rules or containers. The affected preset stays inactive
+  until repaired, and the time zone picker avoids duplicate UTC entries.
+
 - Experimental Domain fencing now uses the bundled Public Suffix List, including
   private hosting suffixes, wildcards and exceptions. Independent S3 tenants and
   school domains no longer share a fingerprint partition. Corrected site boundaries

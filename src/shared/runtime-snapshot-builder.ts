@@ -26,7 +26,10 @@ import {
 import { getRuntimeLocale } from "@/shared/locale-catalog";
 import { readRuleSeedKey } from "@/shared/rule-seed";
 import { getTimeZoneOffsetMinutes } from "@/shared/time-zone-offset";
-import { getProfileTimeZoneError } from "@/shared/time-zone-validation";
+import {
+  getProfileTimeZoneError,
+  InvalidTimeZoneError,
+} from "@/shared/time-zone-validation";
 import type {
   BrowserFingerprint,
   SharedSpoofingConfig,
@@ -274,7 +277,7 @@ export const buildRuntimeSnapshot = ({
 }: SnapshotBuilderOptions): RuntimeSnapshot => {
   if (profile) {
     const error = getProfileTimeZoneError(profile);
-    if (error) throw new Error(error);
+    if (error) throw new InvalidTimeZoneError(error);
   }
   const baseEpochMs = Date.now();
   const {

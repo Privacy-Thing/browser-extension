@@ -49,6 +49,7 @@ const comparableSnapshot = (snapshot: RuntimeSnapshot | null) => {
 };
 
 const buildPrepared = ({
+  locations = profiles,
   rules = [],
   trustedSites = [],
   globalFallbackRule,
@@ -56,6 +57,7 @@ const buildPrepared = ({
   fingerprintEnabled = true,
   domainFencing = false,
 }: {
+  locations?: Location[];
   rules?: DomainRule[];
   trustedSites?: TrustedSite[];
   globalFallbackRule?: GlobalFallbackRule;
@@ -66,7 +68,7 @@ const buildPrepared = ({
   createPreparedDecisions({
     rules,
     trustedSites,
-    locations: profiles,
+    locations,
     controlState,
     debugMode: false,
     watchPositionDelay: [60, 500],
@@ -139,6 +141,100 @@ const baselineOptions = ({
 });
 
 describe("createPreparedDecisions", () => {
+  it.each(["warsaw", "invalid"])(
+    "isolates invalid rules and containers with fallback %s",
+    (fallbackId) => {
+      const rules: DomainRule[] = [
+        {
+          pattern: "bad.test",
+          locationId: "invalid",
+          enabled: true,
+          ruleSeedKey: "bad001",
+        },
+        {
+          pattern: "good.test",
+          locationId: "berlin",
+          enabled: true,
+          ruleSeedKey: "good01",
+        },
+        { pattern: "inherited.test", enabled: true, ruleSeedKey: "inhr01" },
+      ];
+      const prepared = buildPrepared({
+        locations: [...profiles, buildProfile("invalid", "Mars/Olympus", 99)],
+        rules,
+        globalFallbackRule: {
+          enabled: true,
+          locationId: fallbackId,
+          ruleSeedKey: "glob01",
+        },
+        containerAssignments: [
+          {
+            cookieStoreId: "bad-container",
+            locationId: "invalid",
+            ruleSeedKey: "badc01",
+          },
+          {
+            cookieStoreId: "good-container",
+            locationId: "berlin",
+            ruleSeedKey: "goodc1",
+          },
+        ],
+        domainFencing: true,
+      });
+      expect(prepared.resolveDecision("bad.test").snapshot).toBeNull();
+      expect(prepared.resolveDecision("good.test").snapshot?.date.timeZone).toBe(
+        "Europe/Berlin",
+      );
+      expect(
+        prepared.resolveDecision("other.test", "bad-container").snapshot,
+      ).toBeNull();
+      expect(
+        prepared.resolveDecision("inherited.test", "bad-container").snapshot,
+      ).toBeNull();
+      expect(
+        prepared.resolveDecision("inherited.test", "good-container").snapshot?.date
+          .timeZone,
+      ).toBe("Europe/Berlin");
+      expect(
+        prepared.resolveDecision("other.test", "good-container").snapshot?.date
+          .timeZone,
+      ).toBe("Europe/Berlin");
+      const fallbackZone = fallbackId === "warsaw" ? "Europe/Warsaw" : undefined;
+      expect(prepared.resolveDecision("other.test").snapshot?.date.timeZone).toBe(
+        fallbackZone,
+      );
+      expect(prepared.resolveDecision("inherited.test").snapshot?.date.timeZone).toBe(
+        fallbackZone,
+      );
+      expect(
+        prepared.getPreloadedEntries().find((entry) => entry.pattern === "bad.test"),
+      ).toBeUndefined();
+      expect(
+        prepared.getPreloadedEntries().find((entry) => entry.pattern === "good.test")
+          ?.snapshot.date.timeZone,
+      ).toBe("Europe/Berlin");
+      expect(prepared.getNativeRulePatterns()).toContain("bad.test");
+      const seed = prepared.getFxWindowSeed("bad-container");
+      expect(seed?.containerState).toBeNull();
+      const inheritedState = seed?.containerEntries?.find(
+        (entry) => entry.pattern === "inherited.test",
+      )?.state;
+      expect(inheritedState).toMatchObject({
+        geo: null,
+        timeLocale: null,
+        fingerprint: null,
+      });
+      expect(seed?.nativeRulePatterns).toContain("bad.test");
+      expect(seed?.entries.some((entry) => entry.pattern === "good.test")).toBe(true);
+      const goodSeed = prepared.getFxWindowSeed("good-container");
+      expect(
+        resolveFxSeedForHost("inherited.test", goodSeed!)?.timeLocale?.timeZone,
+      ).toBe("Europe/Berlin");
+      expect(resolveFxSeedForHost("bad.test", goodSeed!)).toBeNull();
+      expect(resolveFxSeedForHost("inherited.test", seed!)?.timeLocale).toBeNull();
+    },
+  );
+
   afterEach(() => {
     vi.useRealTimers();
   });

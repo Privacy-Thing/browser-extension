@@ -1,5 +1,8 @@
 import { isFpSurfaceEnabled } from "@privacy-brand/refract-core/fingerprint/surface-guards";
 
+import { recoverInvalidProfile } from "@/background/rules/profile-recovery";
+import { toRuleRuntimeSnapshot } from "@/background/rules/resolver";
+import type { RuleSnapshotOptions } from "@/background/rules/resolver-options";
 import { quoteHeaderString, serializeHintBrands } from "@/shared/browser-fingerprint";
 import type { DynamicHeaderRule, RuntimeSnapshot } from "@/shared/types";
 
@@ -62,3 +65,8 @@ export const buildRequestHeaders = (
   }
   return requestHeaders;
 };
+
+export const buildRuleHeaderSnapshot = (
+  options: RuleSnapshotOptions,
+): RuntimeSnapshot | null =>
+  recoverInvalidProfile(() => toRuleRuntimeSnapshot(options));

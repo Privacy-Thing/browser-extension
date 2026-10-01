@@ -1,3 +1,5 @@
+export class InvalidTimeZoneError extends Error {}
+
 /** Settings/background validation only; never construct Intl in injected paths. */
 const supportCache = new Map<string, boolean>();
 const MAX_SUPPORT_CACHE_SIZE = 256;

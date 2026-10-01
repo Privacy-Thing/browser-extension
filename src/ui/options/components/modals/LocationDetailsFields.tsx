@@ -19,7 +19,9 @@ import { t } from "@/ui/i18n";
 import { commonLocales } from "@/ui/options/locales";
 import { toFiniteNumber } from "@/ui/options/utils";
 
-const timezoneOptions = ["UTC", ...Intl.supportedValuesOf("timeZone")].map((tz) => ({
+const timezoneOptions = [
+  ...new Set(["UTC", ...Intl.supportedValuesOf("timeZone")]),
+].map((tz) => ({
   value: tz,
   label: tz.replace(/_/g, " "),
 }));
