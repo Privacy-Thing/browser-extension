@@ -2449,6 +2449,73 @@ const warmUpFirefoxSpoofing = async (
 export const registerFxCoreTests = () => {
   test.describe.configure({ timeout: 120_000 });
 
+  test("rejects unsupported preset time zones in the Firefox background and accepts native Intl aliases", async ({
+    context,
+    serverUrl,
+  }) => {
+    const page = await prepareFirefoxHostPage(context);
+    await gotoFirefoxHostUrl(page, serverUrl);
+    await waitForFxBridge(page);
+    const readSettings = () =>
+      requestFxSettingsBridge<GetSettingsResponse>(
+        page,
+        FXT_BRIDGE_EVENTS.getSettings,
+        FXT_BRIDGE_EVENTS.getSettingsResult,
+        null,
+      );
+    const before = await readSettings();
+    expect(before.ok).toBe(true);
+    const save = (timeZone: string) =>
+      requestFxSettingsBridge<SaveLocationResponse>(
+        page,
+        FXT_BRIDGE_EVENTS.saveLocationModel,
+        FXT_BRIDGE_EVENTS.saveLocationModelResult,
+        {
+          locations: [
+            ...before.locations,
+            {
+              id: "pt21",
+              label: "PT-21 preset",
+              latitude: 52,
+              longitude: 21,
+              accuracy: 25,
+              noiseRadius: 50,
+              language: "pl",
+              languages: ["pl"],
+              timeZone,
+            },
+          ],
+          rules: before.rules,
+          containerAssignments: before.containerAssignments ?? [],
+        },
+      );
+    try {
+      for (const timeZone of ["Mars/Olympus", "", "   "]) {
+        const response = await save(timeZone);
+        expect(response).toMatchObject({
+          ok: false,
+          error: expect.stringMatching(/PT-21 preset.*pt21.*timeZone/),
+        });
+      }
+      expect(await readSettings()).toEqual(before);
+      for (const timeZone of ["Europe/Warsaw", "UTC", "US/Eastern", "Asia/Calcutta"]) {
+        expect((await save(timeZone)).ok).toBe(true);
+      }
+    } finally {
+      const restored = await requestFxSettingsBridge<SaveLocationResponse>(
+        page,
+        FXT_BRIDGE_EVENTS.saveLocationModel,
+        FXT_BRIDGE_EVENTS.saveLocationModelResult,
+        {
+          locations: before.locations,
+          rules: before.rules,
+          containerAssignments: before.containerAssignments ?? [],
+        },
+      );
+      expect(restored.ok).toBe(true);
+    }
+  });
+
   test("applies opt-in Temporal defaults in Firefox while preserving explicit arguments", async ({
     context,
     serverUrl,

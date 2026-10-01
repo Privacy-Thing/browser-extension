@@ -7,6 +7,7 @@ import { z } from "zod";
 
 import { SHARED_WORKER_MODES } from "@/shared/fingerprint-types";
 import { normalizeRuleSeedKey, withFallbackSeed } from "@/shared/rule-seed";
+import { getProfileTimeZoneError } from "@/shared/time-zone-validation";
 
 const workerModeSchema = z.enum(SHARED_WORKER_MODES);
 
@@ -85,18 +86,24 @@ const normalizeLegacyWorker = (
  * Schema for a saved location profile selected by domain rules or container
  * assignments.
  */
-export const locationProfileSchema = z.object({
-  id: z.string().min(1),
-  label: z.string().min(1),
-  latitude: z.number().min(-90).max(90),
-  longitude: z.number().min(-180).max(180),
-  accuracy: z.number().positive(),
-  noiseRadius: z.number().nonnegative().optional().default(50),
-  language: z.string().min(2),
-  languages: z.array(z.string().min(2)).min(1),
-  preferEnglishContent: z.boolean().optional().default(false),
-  timeZone: z.string().min(1),
-});
+export const locationProfileSchema = z
+  .object({
+    id: z.string().min(1),
+    label: z.string().min(1),
+    latitude: z.number().min(-90).max(90),
+    longitude: z.number().min(-180).max(180),
+    accuracy: z.number().positive(),
+    noiseRadius: z.number().nonnegative().optional().default(50),
+    language: z.string().min(2),
+    languages: z.array(z.string().min(2)).min(1),
+    preferEnglishContent: z.boolean().optional().default(false),
+    timeZone: z.string().trim(),
+  })
+  .superRefine((profile, context) => {
+    const message = getProfileTimeZoneError(profile);
+    if (message)
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ["timeZone"], message });
+  });
 
 /**
  * Schema for persisted domain rules. Legacy `profileId` input is normalized to

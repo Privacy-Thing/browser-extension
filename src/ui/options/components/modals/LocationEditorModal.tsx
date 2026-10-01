@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import { getProfileTimeZoneError } from "@/shared/time-zone-validation";
 import type { Location } from "@/shared/types";
 import { Button } from "@/ui/components/ui/button";
 import { FormDialogShell } from "@/ui/components/ui/form-dialog-shell";
@@ -58,7 +59,7 @@ const EditorFooter = ({
         <>
           <Button
             variant="ghost"
-            disabled={saveInFlight}
+            disabled={saveInFlight || getProfileTimeZoneError(draft) !== null}
             onClick={async () => {
               if (await handleDuplicateProfile(draft)) setProfileDialogOpened(false);
             }}
@@ -86,7 +87,7 @@ const EditorFooter = ({
       ) : null}
     </div>
     <Button
-      disabled={saveInFlight}
+      disabled={saveInFlight || getProfileTimeZoneError(draft) !== null}
       onClick={async () => {
         if (await handlePersistProfile(editingProfileIndex, draft)) {
           setProfileDialogOpened(false);
@@ -128,7 +129,7 @@ const EditorBody = ({
   updateDraft,
 }: EditorViewProps) => {
   const [activeSection, setActiveSection] = useState<LocationEditorSectionId | null>(
-    "geolocation",
+    getProfileTimeZoneError(draft) ? "locale" : "geolocation",
   );
   return (
     <div
@@ -138,6 +139,15 @@ const EditorBody = ({
       }
       className="gw-anchor-target"
     >
+      {getProfileTimeZoneError(draft) ? (
+        <p
+          role="alert"
+          data-field-error="timeZone"
+          className="mb-4 text-sm text-destructive"
+        >
+          {getProfileTimeZoneError(draft)}
+        </p>
+      ) : null}
       {regionalPresetUsage ? <PresetUsageNotice usage={regionalPresetUsage} /> : null}
       <div className="gw-generator-layout">
         <LazyProfileDraftMap

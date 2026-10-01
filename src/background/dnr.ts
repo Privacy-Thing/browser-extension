@@ -1,9 +1,10 @@
 import { rebuildSessionDnr } from "@/background/dnr-domain-fencing";
-import { buildRequestHeaders } from "@/background/dnr-request-headers";
 import {
-  resolveProfileSnapshot,
-  toRuleRuntimeSnapshot,
-} from "@/background/rules/resolver";
+  buildRequestHeaders,
+  buildRuleHeaderSnapshot,
+} from "@/background/dnr-request-headers";
+import { recoverInvalidProfile } from "@/background/rules/profile-recovery";
+import { resolveProfileSnapshot } from "@/background/rules/resolver";
 import { loadContainerAssignments } from "@/background/storage/container-assignments";
 import { loadLocations } from "@/background/storage/locations";
 import {
@@ -256,7 +257,7 @@ const buildSavedFallbackRule = ({
     return null;
   }
 
-  const snapshot = toRuleRuntimeSnapshot({
+  const snapshot = buildRuleHeaderSnapshot({
     browserFingerprintSource,
     fingerprintEnabled,
     debugMode: false,
@@ -266,6 +267,7 @@ const buildSavedFallbackRule = ({
     sharedWorkerHandlingMode: HEADER_WORKER_MODE,
     watchPositionDelay: [60, 500],
   });
+  if (!snapshot) return buildDomainBypassRule(index, rule, regexFilter);
   const requestHeaders = buildRequestHeaders(snapshot);
   if (!hasRequestHeaders(requestHeaders)) {
     // A saved domain rule still wins over the Default Rule when every
@@ -301,7 +303,7 @@ const buildGlobalFallbackRule = ({
     return null;
   }
 
-  const snapshot = toRuleRuntimeSnapshot({
+  const snapshot = buildRuleHeaderSnapshot({
     browserFingerprintSource,
     fingerprintEnabled,
     debugMode: false,
@@ -311,6 +313,7 @@ const buildGlobalFallbackRule = ({
     sharedWorkerHandlingMode: HEADER_WORKER_MODE,
     watchPositionDelay: [60, 500],
   });
+  if (!snapshot) return null;
   const requestHeaders = buildRequestHeaders(snapshot);
   return hasRequestHeaders(requestHeaders)
     ? buildFallbackHeaderRule(requestHeaders)
@@ -425,40 +428,49 @@ export const buildHeaderRules = ({
       continue;
     }
 
-    const snapshot = resolveProfileSnapshot({
-      browserFingerprintSource,
-      fingerprintEnabled,
-      containerAssignments,
-      cookieStoreId: context.cookieStoreId,
-      debugMode: false,
-      domainFencingEnabled,
-      globalFallbackRule,
-      hostname: context.hostname,
-      profiles,
-      rules,
-      sharedSpoofing,
-      sharedWorkerHandlingMode: HEADER_WORKER_MODE,
-      trustedSites,
-      watchPositionDelay: [60, 500],
-    });
+    const tabRule = recoverInvalidProfile<DynamicHeaderRule | null>(
+      () => {
+        const snapshot = resolveProfileSnapshot({
+          browserFingerprintSource,
+          fingerprintEnabled,
+          containerAssignments,
+          cookieStoreId: context.cookieStoreId,
+          debugMode: false,
+          domainFencingEnabled,
+          globalFallbackRule,
+          hostname: context.hostname,
+          profiles,
+          rules,
+          sharedSpoofing,
+          sharedWorkerHandlingMode: HEADER_WORKER_MODE,
+          trustedSites,
+          watchPositionDelay: [60, 500],
+        });
 
-    if (!snapshot) {
-      continue;
-    }
-    const requestHeaders = buildRequestHeaders(snapshot);
-    if (!hasRequestHeaders(requestHeaders)) {
-      continue;
-    }
+        if (!snapshot) {
+          return null;
+        }
+        const requestHeaders = buildRequestHeaders(snapshot);
+        if (!hasRequestHeaders(requestHeaders)) {
+          return null;
+        }
 
-    nextRules.push({
-      id: toTabRuleId(context.tabId),
-      priority: TAB_RULE_PRIORITY,
-      action: {
-        type: MODIFY_HEADERS,
-        requestHeaders,
+        return {
+          id: toTabRuleId(context.tabId),
+          priority: TAB_RULE_PRIORITY,
+          action: { type: MODIFY_HEADERS, requestHeaders },
+          condition: buildTabHeaderCondition(context.tabId),
+        };
       },
-      condition: buildTabHeaderCondition(context.tabId),
-    });
+      // Keep broader fallback headers off a tab whose preset could not activate.
+      () => ({
+        id: toTabRuleId(context.tabId),
+        priority: TAB_RULE_PRIORITY,
+        action: { type: ALLOW },
+        condition: buildTabHeaderCondition(context.tabId),
+      }),
+    );
+    if (tabRule) nextRules.push(tabRule);
   }
 
   return nextRules;
