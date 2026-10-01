@@ -20,6 +20,9 @@ build/
 .playwright-cli/
 playwright-report/
 
+# Local pnpm dependency cache.
+/.pnpm-store/
+
 # Provider-local agent state stays local; Claude shares the canonical .agents skills.
 .claude/*
 !.claude/skills
