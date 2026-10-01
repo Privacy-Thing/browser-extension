@@ -10,6 +10,7 @@ import type {
   SharedSpoofingConfig,
 } from "./fingerprint-types.js";
 import type { ExtensionLogLevel } from "./logging-types.js";
+import type { SettingsImportSelection } from "./settings-import";
 import type {
   ContainerAssignment,
   DomainRule,
@@ -136,8 +137,17 @@ export type ExtensionCommand =
     }
   | {
       type: typeof EXTENSION_COMMAND_TYPES.importSettings;
-      settings: ExportedSettings;
+      settings?: ExportedSettings;
+      previewToken?: string;
     }
+  | {
+      type: typeof EXTENSION_COMMAND_TYPES.previewSettingsImport;
+      settings: ExportedSettings;
+      selection?: SettingsImportSelection;
+      previousToken?: string;
+    }
+  | { type: typeof EXTENSION_COMMAND_TYPES.undoSettingsImport }
+  | { type: typeof EXTENSION_COMMAND_TYPES.getImportUndoStatus }
   | {
       type: typeof EXTENSION_COMMAND_TYPES.loadSampleData;
     }
@@ -508,6 +518,9 @@ export type ImportSettingsResponse =
       themeMode: ThemeMode;
       themeAccentPreset: ThemeAccentPreset;
       reduceMotion: boolean;
+      onboardingCompleted?: boolean;
+      highContrastExplicit?: boolean;
+      attentionMotionEnabled?: boolean;
       debugMode: boolean;
       watchPositionDelay: [number, number];
       osmConsent: OsmConsentState;

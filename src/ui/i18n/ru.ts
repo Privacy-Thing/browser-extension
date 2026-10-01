@@ -8,6 +8,7 @@ import { options, optionsPage } from "./ru-sections/options";
 import { osm } from "./ru-sections/osm";
 import { popup } from "./ru-sections/popup";
 import { rules } from "./ru-sections/rules";
+import { settingsImport } from "./ru-sections/settings-import";
 import { sidebar } from "./ru-sections/sidebar";
 import { trustedSites } from "./ru-sections/trusted-sites";
 import { welcome } from "./ru-sections/welcome";
@@ -27,4 +28,5 @@ export const ru = {
   firefoxContainers,
   sidebar,
   welcome,
+  settingsImport,
 } as const;

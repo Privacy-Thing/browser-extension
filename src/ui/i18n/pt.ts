@@ -8,6 +8,7 @@ import { options, optionsPage } from "./pt-sections/options";
 import { osm } from "./pt-sections/osm";
 import { popup } from "./pt-sections/popup";
 import { rules } from "./pt-sections/rules";
+import { settingsImport } from "./pt-sections/settings-import";
 import { sidebar } from "./pt-sections/sidebar";
 import { trustedSites } from "./pt-sections/trusted-sites";
 import { welcome } from "./pt-sections/welcome";
@@ -27,4 +28,5 @@ export const pt = {
   firefoxContainers,
   sidebar,
   welcome,
+  settingsImport,
 } as const;

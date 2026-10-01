@@ -11,8 +11,16 @@ import {
   getUpdateRuleInput,
   type ImportLocationsCommand,
 } from "@/background/message-router-inputs";
+import {
+  fireAndRespond,
+  respondUnexpectedError,
+} from "@/background/message-router-response";
 import type { RouterDeps } from "@/background/message-router-types";
 import { resolveLogCategory } from "@/background/runtime-log-routing";
+import {
+  coordinatedCommands,
+  coordinateMessage,
+} from "@/background/settings-message-queue";
 import {
   EXAMPLE_LOCATION_IDS,
   EXAMPLE_LOCATIONS,
@@ -37,29 +45,6 @@ import { WORKER_CSP_BLOCKED_EVENT } from "@/shared/worker-compatibility";
 type TabWithCookieStore = chrome.tabs.Tab & { cookieStoreId?: string };
 
 export type { RouterDeps } from "@/background/message-router-types";
-
-const respondUnexpectedError = (
-  sendResponse: (response?: unknown) => void,
-  error: unknown,
-): void => {
-  sendResponse({
-    ok: false,
-    error: error instanceof Error ? error.message : "Unexpected error",
-  });
-};
-
-const fireAndRespond = <T>(
-  sendResponse: (response?: unknown) => void,
-  promise: Promise<T>,
-  onError?: (error: unknown) => void,
-): void => {
-  fireAndForget(
-    promise.then((response) => {
-      sendResponse(response);
-    }),
-    onError,
-  );
-};
 
 const getSenderTabId = (
   deps: Pick<RouterDeps, "isSupportedWebUrl">,
@@ -213,6 +198,15 @@ const handleSettingsCommand = (
       return true;
     case EXTENSION_COMMAND_TYPES.exportSettings:
       fireAndRespond(sendResponse, deps.exportSettings());
+      return true;
+    case EXTENSION_COMMAND_TYPES.previewSettingsImport:
+      fireAndRespond(sendResponse, deps.previewSettingsImport(command));
+      return true;
+    case EXTENSION_COMMAND_TYPES.undoSettingsImport:
+      fireAndRespond(sendResponse, deps.undoSettingsImport());
+      return true;
+    case EXTENSION_COMMAND_TYPES.getImportUndoStatus:
+      fireAndRespond(sendResponse, deps.getImportUndoStatus());
       return true;
     case EXTENSION_COMMAND_TYPES.importSettings:
       fireAndRespond(sendResponse, deps.importSettings(command));
@@ -597,34 +591,52 @@ const handleResolveSnapshot = (
   return true;
 };
 
+const routeMessage = (
+  deps: RouterDeps,
+  message: unknown,
+  sender: chrome.runtime.MessageSender,
+  sendResponse: (response?: unknown) => void,
+): boolean => {
+  const command = message as ExtensionCommand | undefined;
+  if (!command?.type) {
+    return false;
+  }
+
+  if (handleCoreCommand(command, deps, sender, sendResponse)) {
+    return true;
+  }
+
+  if (handleSettingsCommand(command, deps, sendResponse)) {
+    return true;
+  }
+
+  if (handleUtilityCommand(command, deps, sender, sendResponse)) {
+    return true;
+  }
+
+  if (command.type === EXTENSION_COMMAND_TYPES.logEvent) {
+    handleLogEventCommand(command, deps, sender, sendResponse);
+    return true;
+  }
+
+  if (command.type !== EXTENSION_COMMAND_TYPES.resolveRuntimeSnapshot) {
+    return false;
+  }
+
+  return handleResolveSnapshot(command, deps, sender, sendResponse);
+};
+
 export const registerMessageRouter = (deps: RouterDeps): void => {
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    const command = message as ExtensionCommand | undefined;
-    if (!command?.type) {
-      return false;
-    }
+    if (!coordinatedCommands.has(message?.type))
+      return routeMessage(deps, message, sender, sendResponse);
 
-    if (handleCoreCommand(command, deps, sender, sendResponse)) {
-      return true;
-    }
-
-    if (handleSettingsCommand(command, deps, sendResponse)) {
-      return true;
-    }
-
-    if (handleUtilityCommand(command, deps, sender, sendResponse)) {
-      return true;
-    }
-
-    if (command.type === EXTENSION_COMMAND_TYPES.logEvent) {
-      handleLogEventCommand(command, deps, sender, sendResponse);
-      return true;
-    }
-
-    if (command.type !== EXTENSION_COMMAND_TYPES.resolveRuntimeSnapshot) {
-      return false;
-    }
-
-    return handleResolveSnapshot(command, deps, sender, sendResponse);
+    fireAndForget(
+      coordinateMessage(message.type, (respond) =>
+        routeMessage(deps, message, sender, respond),
+      ).then(sendResponse),
+      (error) => respondUnexpectedError(sendResponse, error),
+    );
+    return true;
   });
 };

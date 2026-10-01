@@ -32,6 +32,13 @@ import { registerRuntimeObservers } from "@/background/runtime-observers";
 import { createRuntimeResolverCtl } from "@/background/runtime-resolution-controller";
 import { createRuntimeState } from "@/background/runtime-state";
 import { createSettingsHandlers } from "@/background/settings-commands";
+import { needsImportRecovery } from "@/background/settings-import-progress";
+import { recoverSettingsImport } from "@/background/settings-import-storage";
+import {
+  registerImportExpiry,
+  withConfigMutation,
+  isSettingsImportActive,
+} from "@/background/settings-import-transaction";
 import {
   publishSidebarEvent,
   registerSidebarEventHub,
@@ -84,10 +91,26 @@ const WINDOW_SEED_PREFIX = "\u001f\u001e";
 const MAIN_WORLD = "MAIN" satisfies `${chrome.scripting.ExecutionWorld}`;
 const ensureStorageMigration = async (): Promise<void> => {
   if (!storageMigrationPromise) {
-    storageMigrationPromise = runStorageMigration().then(() => undefined);
+    storageMigrationPromise = recoverSettingsImport()
+      .then(() => runStorageMigration())
+      .then(() => undefined)
+      .catch((error) => {
+        storageMigrationPromise = null;
+        throw error;
+      });
   }
 
   await storageMigrationPromise;
+  if (
+    !isSettingsImportActive() &&
+    needsImportRecovery() &&
+    (await recoverSettingsImport())
+  ) {
+    await refreshCachedConfig();
+    await syncPreloadedState();
+    await resyncActiveHeaderRules();
+    await refreshFxInjectionMode();
+  }
 };
 
 const enableSessionStorage = async (): Promise<void> => {
@@ -319,6 +342,9 @@ const {
   saveLocationModel,
   resetSettings,
   importSettings,
+  previewSettingsImport,
+  undoSettingsImport,
+  getImportUndoStatus,
 } = createSettingsHandlers({
   ensureStorageMigration,
   syncPreloadedState,
@@ -422,6 +448,9 @@ registerMessageRouter({
   resetSettings,
   exportSettings,
   importSettings,
+  previewSettingsImport,
+  undoSettingsImport,
+  getImportUndoStatus,
   ensureStorageMigration,
   setLastKnownProfiles: runtimeState.setLastKnownProfiles,
   syncPreloadedState,
@@ -494,8 +523,8 @@ registerLifecycle({
   applyPrivacyDefaults,
   refreshCachedConfig,
   syncPreloadedState,
-  provisionContainers,
-  reconcileContainers,
+  provisionContainers: () => withConfigMutation(() => provisionContainers()),
+  reconcileContainers: () => withConfigMutation(() => reconcileContainers()),
   refreshActionState,
   refreshFxInjectionMode,
   syncSidebarMenus: () =>
@@ -525,9 +554,11 @@ registerLifecycle({
 
 if (BUILD_BROWSER_TARGET === "firefox") {
   fireAndForget(
-    refreshFxInjectionMode().catch((error) => {
-      console.warn("Failed to register Firefox injection scripts", error);
-    }),
+    ensureStorageMigration()
+      .then(() => refreshFxInjectionMode())
+      .catch((error) => {
+        console.warn("Failed to register Firefox injection scripts", error);
+      }),
   );
 }
 
@@ -590,3 +621,5 @@ chrome.webNavigation.onCompleted.addListener((details) => {
   );
   fireAndForget(refreshBadgeCountForTab(tabId));
 });
+
+registerImportExpiry();

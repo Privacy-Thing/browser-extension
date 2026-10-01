@@ -1,4 +1,8 @@
 import { sameRuleShape } from "@/background/config-watch";
+import {
+  isSettingsImportActive,
+  withConfigurationLock,
+} from "@/background/settings-import-transaction";
 import { LOCATIONS_STORAGE_KEY } from "@/background/storage/locations";
 import { RULES_STORAGE_KEY } from "@/background/storage/rules";
 import { fireAndForget } from "@/shared/async";
@@ -30,7 +34,7 @@ export const registerRuntimeObservers = (deps: RuntimeObserverDeps): void => {
   });
 
   chrome.storage.onChanged.addListener((changes, areaName) => {
-    if (areaName !== "local") {
+    if (areaName !== "local" || isSettingsImportActive()) {
       return;
     }
 
@@ -56,6 +60,6 @@ export const registerRuntimeObservers = (deps: RuntimeObserverDeps): void => {
       return;
     }
 
-    fireAndForget(deps.handleConfigMutation());
+    fireAndForget(withConfigurationLock(deps.handleConfigMutation));
   });
 };

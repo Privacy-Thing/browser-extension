@@ -546,7 +546,7 @@ const routeFxRuntimeReq = (
   return false;
 };
 
-const test = base.extend<FirefoxExtensionFixtures & FxExtWorkerFixtures>({
+export const test = base.extend<FirefoxExtensionFixtures & FxExtWorkerFixtures>({
   serverUrl: [
     async ({ browserName: _browserName }, use) => {
       const server = createServer((request, response) => {
@@ -5080,4 +5080,34 @@ export const registerFxEdgeTests = () => {
     expect(snapshot.requestMethod).toBe("POST");
     expect(snapshot.initialHash).toBe("#posted");
   });
+};
+
+/** Firefox extension pages need RDP; Playwright does not receive their load events. */
+export const openFxOptionsProbe = async (input: {
+  context: BrowserContext;
+  extensionOrigin: string;
+  debuggerPort: number;
+}) => {
+  const page = await input.context.newPage();
+  const url = `${input.extensionOrigin}/src/ui/options/index.html?pt-e2e-import=preview`;
+  await navigateFirefoxPopupPage(page, url);
+  const remote = await connectRemoteFirefox(input.debuggerPort);
+  const tab = await waitForRemoteFirefoxTab(remote, url);
+  const consoleActor = await getRemoteFxConsoleActor(remote, tab.actor);
+  return {
+    evaluate: <T>(expression: string): Promise<T> =>
+      probeRemoteFxTabJson<T>(
+        remote,
+        consoleActor,
+        url,
+        expression,
+        "import-ui",
+        15_000,
+        tab.actor,
+      ),
+    close: async () => {
+      remote.disconnect();
+      await page.close().catch(() => undefined);
+    },
+  };
 };

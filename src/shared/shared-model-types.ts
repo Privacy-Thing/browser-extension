@@ -356,6 +356,7 @@ export type ExportedSettings = {
   onboardingCompleted?: boolean;
   showBadgeQueryCount?: boolean;
   includeDateCallsInBadgeCount?: boolean;
+  attentionMotionEnabled?: boolean;
 };
 
 /**

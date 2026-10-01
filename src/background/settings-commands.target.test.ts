@@ -6,7 +6,10 @@ import type * as LegacyBehaviorModule from "@/background/storage/legacy-behavior
 import { saveLocations } from "@/background/storage/locations";
 import { saveRules } from "@/background/storage/rules";
 import { clearSiteSuggestions } from "@/background/storage/site-suggestions";
-import { EXTENSION_COMMAND_TYPES } from "@/shared/extension-contract";
+import {
+  EXTENSION_COMMAND_TYPES,
+  EXTENSION_STORAGE_KEYS,
+} from "@/shared/extension-contract";
 import { DEFAULT_PREFERENCES } from "@/shared/settings-defaults";
 import type { EffectiveTabContext, TrustedSite } from "@/shared/types";
 
@@ -153,6 +156,7 @@ const createDeps = () => ({
 describe("createSettingsHandlers", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.unstubAllGlobals();
     loadTrustedSites.mockResolvedValue([]);
     saveTrustedSites.mockResolvedValue();
     getThemeMode.mockResolvedValue("system");
@@ -240,6 +244,25 @@ describe("createSettingsHandlers", () => {
   });
 
   it("preserves retired profile data when importing an old backup", async () => {
+    const stored: Record<string, unknown> = {};
+    vi.stubGlobal("chrome", {
+      storage: {
+        local: {
+          get: async (keys: string | string[]) =>
+            Object.fromEntries(
+              (Array.isArray(keys) ? keys : [keys])
+                .filter((key) => Object.hasOwn(stored, key))
+                .map((key) => [key, stored[key]]),
+            ),
+          set: async (patch: Record<string, unknown>) => {
+            Object.assign(stored, patch);
+          },
+          remove: async (keys: string | string[]) => {
+            for (const key of Array.isArray(keys) ? keys : [keys]) delete stored[key];
+          },
+        },
+      },
+    });
     const { importSettings } = createSettingsHandlers(createDeps());
     const profiles = [{ id: "legacy-profile", opaque: true }];
 
@@ -271,11 +294,12 @@ describe("createSettingsHandlers", () => {
     if (!response.ok) {
       throw new Error(response.error);
     }
-    expect(saveLegacyBehavior).toHaveBeenCalledWith({
-      profiles,
-      enabled: true,
-      refs: [{ id: "warsaw", profileId: "legacy-profile" }],
-    });
+    expect(stored.behavioralProfiles).toEqual(profiles);
+    expect(stored[EXTENSION_STORAGE_KEYS.locations]).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "warsaw", behaviorProfileId: "legacy-profile" }),
+      ]),
+    );
   });
 
   it("clears retired profile data on an explicit reset", async () => {

@@ -45,6 +45,7 @@ export const createManifest = ({
     },
     minimum_chrome_version: "120",
     permissions: [
+      "alarms",
       "storage",
       "scripting",
       "webNavigation",

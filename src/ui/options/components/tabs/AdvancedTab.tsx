@@ -222,14 +222,26 @@ const ExportControl = () => {
 };
 
 const ImportControl = () => {
-  const { importSettingsRef, handleImportSettings, highlightedAnchorId } =
-    useSettings();
+  const {
+    importSettingsRef,
+    handleImportSettings,
+    highlightedAnchorId,
+    importBusy,
+    importUndoAvailable,
+    handleUndoImport,
+    saveInFlight,
+  } = useSettings();
   return (
     <SettingsControlCard
       anchorId={SETTING_ANCHORS.advanced.importSettings}
       copyLabel={t.common.copyLinkTo(t.advanced.danger.import.copyLinkLabel)}
       title={settingTitle(t.advanced.danger.import.title)}
-      description={t.advanced.danger.import.description}
+      description={
+        <>
+          {t.advanced.danger.import.description}
+          <p className="mt-2">{t.settingsImport.retention}</p>
+        </>
+      }
       highlighted={highlightedAnchorId === SETTING_ANCHORS.advanced.importSettings}
       action={
         <>
@@ -245,10 +257,19 @@ const ImportControl = () => {
             id="import-settings"
             variant="outline"
             className="shrink-0"
+            disabled={importBusy || saveInFlight}
             onClick={() => importSettingsRef.current?.click()}
           >
             {icon("fa-file-import")}
             {t.advanced.danger.import.button}
+          </Button>
+          <Button
+            id="undo-settings-import"
+            variant="outline"
+            disabled={!importUndoAvailable || importBusy || saveInFlight}
+            onClick={() => void handleUndoImport()}
+          >
+            {t.settingsImport.undo}
           </Button>
         </>
       }

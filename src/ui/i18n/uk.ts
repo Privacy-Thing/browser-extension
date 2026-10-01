@@ -8,6 +8,7 @@ import { options, optionsPage } from "./uk-sections/options";
 import { osm } from "./uk-sections/osm";
 import { popup } from "./uk-sections/popup";
 import { rules } from "./uk-sections/rules";
+import { settingsImport } from "./uk-sections/settings-import";
 import { sidebar } from "./uk-sections/sidebar";
 import { trustedSites } from "./uk-sections/trusted-sites";
 import { welcome } from "./uk-sections/welcome";
@@ -27,4 +28,5 @@ export const uk = {
   firefoxContainers,
   sidebar,
   welcome,
+  settingsImport,
 } as const;

@@ -1,6 +1,5 @@
 import "@/ui/options/components/subpages/privacy-policy-content.css";
 
-import type { ChangeEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { fireAndForget } from "@/shared/async";
@@ -16,11 +15,9 @@ import { defaultSharedSpoofing } from "@/shared/fingerprint-spoofing";
 import { withFallbackSeed } from "@/shared/rule-seed";
 import type {
   ImportLocationsResponse,
-  ImportSettingsResponse,
   SaveSettingsResponse,
   SharedSpoofingConfig,
 } from "@/shared/types";
-import { notify } from "@/ui/components/ui/toast";
 import { t } from "@/ui/i18n";
 import { WelcomeWizardView } from "@/ui/options/components/onboarding/welcome-wizard-view";
 import { PAGE_ANCHORS } from "@/ui/options/navigation";
@@ -266,39 +263,6 @@ const completeOnboarding = (settings: Settings, onComplete: () => void): void =>
   onComplete();
 };
 
-const importSettings = async ({
-  complete,
-  draft,
-  event,
-}: {
-  complete: () => void;
-  draft: Draft;
-  event: ChangeEvent<HTMLInputElement>;
-}): Promise<void> => {
-  const file = event.target.files?.[0];
-  if (!file) return;
-  try {
-    const response = (await sendMessageOrThrow({
-      type: EXTENSION_COMMAND_TYPES.importSettings,
-      settings: JSON.parse(await file.text()),
-    })) as ImportSettingsResponse;
-    if (!response.ok) throw new Error(response.error);
-    const saved = (await sendMessageOrThrow({
-      type: EXTENSION_COMMAND_TYPES.saveSimpleSettings,
-      onboardingCompleted: true,
-    })) as SaveSettingsResponse;
-    if (!saved.ok) throw new Error(saved.error);
-    notify.success(t.welcome.importSuccess);
-    complete();
-  } catch (error) {
-    const message = error instanceof Error ? error.message : t.welcome.importParseError;
-    draft.setError(message);
-    notify.error(t.welcome.importError, { description: message });
-  } finally {
-    event.target.value = "";
-  }
-};
-
 const saveSetup = async ({
   complete,
   draft,
@@ -493,7 +457,8 @@ export const WelcomeWizard = ({ onComplete }: { onComplete: () => void }) => {
       step={draft.step}
       welcome={{
         importFileRef: draft.importFileRef,
-        importSettings: (event) => importSettings({ complete, draft, event }),
+        importSettings: (event) =>
+          settings.handleImportSettings(event, { onApplied: complete }),
         saveAdvanced: () => save(true),
         startGuided: () => draft.setStep("privacy"),
       }}

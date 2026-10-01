@@ -8,6 +8,12 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ### Added
 
+- Configuration imports now show a preview before confirmation, detect newer edits,
+  recover interrupted writes, and offer one local undo copy for 7 days (until the
+  next configuration edit). Undo restores configuration, not website sessions.
+- Import can merge selected presets and rules with explicit ID/pattern conflict
+  choices, remapped preset references, and manual Firefox container mapping.
+
 - Added complete Spanish and Portuguese interface translations, selected
   automatically from the browser interface language with English as the fallback.
 - Added complete Russian and Ukrainian interface translations, selected
