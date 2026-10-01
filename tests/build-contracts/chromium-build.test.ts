@@ -13,11 +13,13 @@ import {
 } from "../../config/build-budgets";
 import { BRAND_DISPLAY_NAME } from "../../scripts/brand-config.mjs";
 
+import { findControlDReleaseLeaks } from "./experimental-integrations";
 import { findRetiredBuildLeaks } from "./retired-name";
 
 type ChromiumManifest = {
   version?: string;
   version_name?: string;
+  optional_host_permissions?: string[];
   content_scripts?: Array<{
     all_frames?: boolean;
     js?: string[];
@@ -79,6 +81,14 @@ const clusteredBuildIdBindings =
 
 test("contains no retired namespace outside approved notification copy", async () => {
   expect(await findRetiredBuildLeaks("chrome")).toEqual([]);
+});
+
+test("keeps the Control D experiment out of release artifacts", async () => {
+  const manifest = await readChromiumManifest();
+  if (manifest.version_name) return;
+
+  expect(manifest.optional_host_permissions).toBeUndefined();
+  expect(await findControlDReleaseLeaks("chrome")).toEqual([]);
 });
 
 test("exposes only the runtime-applied marker to downstream CI jobs", async () => {

@@ -123,6 +123,9 @@ const sanitizeLocations = (locations: readonly Location[]): Location[] =>
       label: location.label,
       latitude: location.latitude,
       longitude: location.longitude,
+      ...(location.countryCode !== undefined
+        ? { countryCode: location.countryCode }
+        : {}),
       accuracy: location.accuracy,
       language: location.language,
       languages: location.languages,

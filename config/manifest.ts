@@ -9,10 +9,12 @@ const displayVersion = process.env.PT_DISPLAY_VERSION ?? "";
 
 export const createManifest = ({
   browserTarget = process.env.PT_BROWSER_TARGET,
+  buildChannel = process.env.PT_BUILD_CHANNEL ?? "local",
   version = manifestVersion,
   versionName = displayVersion,
 }: {
   browserTarget?: string | undefined;
+  buildChannel?: string | undefined;
   version?: string | undefined;
   versionName?: string | undefined;
 } = {}) => {
@@ -69,6 +71,11 @@ export const createManifest = ({
         }
       : {}),
     host_permissions: ["<all_urls>"],
+    ...(buildChannel === "release"
+      ? {}
+      : {
+          optional_host_permissions: ["https://api.controld.com/*"],
+        }),
     background: {
       service_worker: "src/background/index.ts",
       type: "module",

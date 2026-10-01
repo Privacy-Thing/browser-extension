@@ -1,5 +1,10 @@
 import React from "react";
 
+import {
+  ControlDFeatureToggle,
+  ControlDSubpage,
+  isIntegrationAvailable as isExperimentalIntegrationAvailable,
+} from "@/experimental/control-d/ui-entry";
 import { cn } from "@/ui/components/lib/utils";
 import {
   getSettingDescriptionId,
@@ -87,7 +92,11 @@ const RuntimeCard = () => {
   );
 };
 
-const ExperimentalCard = () => {
+const ExperimentalCard = ({
+  onIntegrationToggle,
+}: {
+  onIntegrationToggle: (enabled: boolean) => void;
+}) => {
   const {
     featureFlags,
     highlightedAnchorId,
@@ -169,6 +178,9 @@ const ExperimentalCard = () => {
             />
           }
         />
+        {isExperimentalIntegrationAvailable() ? (
+          <ControlDFeatureToggle onEnabledChange={onIntegrationToggle} />
+        ) : null}
       </CardContent>
     </Card>
   );
@@ -350,7 +362,7 @@ const AdvancedOverview = () => {
     <div className="grid grid-cols-12 gap-5">
       <div className="col-span-12 lg:col-span-8 flex flex-col gap-5">
         <RuntimeCard />
-        <ExperimentalCard />
+        <ExperimentalCard onIntegrationToggle={() => undefined} />
         <DangerCard />
       </div>
       <div className="col-span-12 lg:col-span-4">
@@ -370,15 +382,22 @@ const AdvancedOverview = () => {
 
 export const AdvancedTab = () => {
   const { logsHostFilter, settingsSubpageView } = useSettings();
+  const showExperiment =
+    settingsSubpageView === "experimentalIntegration" &&
+    isExperimentalIntegrationAvailable();
+  let content = <AdvancedOverview />;
+  if (settingsSubpageView === "logs") {
+    content = (
+      <React.Suspense fallback={null}>
+        <LazyLogsSubpage initialHostFilter={logsHostFilter} />
+      </React.Suspense>
+    );
+  } else if (showExperiment) {
+    content = <ControlDSubpage />;
+  }
   return (
     <TabsContent value="advanced" data-panel="advanced" id={PAGE_ANCHORS.advanced}>
-      {settingsSubpageView === "logs" ? (
-        <React.Suspense fallback={null}>
-          <LazyLogsSubpage initialHostFilter={logsHostFilter} />
-        </React.Suspense>
-      ) : (
-        <AdvancedOverview />
-      )}
+      {content}
     </TabsContent>
   );
 };

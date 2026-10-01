@@ -14,11 +14,13 @@ import {
   STABLE_FX_EXT_ID,
 } from "../../scripts/brand-config.mjs";
 
+import { findControlDReleaseLeaks } from "./experimental-integrations";
 import { findRetiredBuildLeaks } from "./retired-name";
 
 type FirefoxManifest = {
   version?: string;
   version_name?: string;
+  optional_host_permissions?: string[];
   background?: {
     scripts?: string[];
     service_worker?: string;
@@ -58,6 +60,14 @@ const clusteredBuildIdBindings =
 
 test("contains no retired namespace outside approved Firefox IDs and notification values", async () => {
   expect(await findRetiredBuildLeaks("firefox")).toEqual([]);
+});
+
+test("keeps the Control D experiment out of release artifacts", async () => {
+  const manifest = await readFirefoxManifest();
+  if (manifest.version_name) return;
+
+  expect(manifest.optional_host_permissions).toBeUndefined();
+  expect(await findControlDReleaseLeaks("firefox")).toEqual([]);
 });
 
 test("builds a firefox artifact with gecko settings and script-injection fallback", async () => {

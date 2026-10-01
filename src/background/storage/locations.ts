@@ -28,6 +28,7 @@ export const EXAMPLE_LOCATIONS: Location[] = [
     label: "Warsaw",
     latitude: 52.2297,
     longitude: 21.0122,
+    countryCode: "PL",
     accuracy: 25,
     noiseRadius: 50,
     language: "pl",
@@ -39,6 +40,7 @@ export const EXAMPLE_LOCATIONS: Location[] = [
     label: "Paris",
     latitude: 48.8566,
     longitude: 2.3522,
+    countryCode: "FR",
     accuracy: 25,
     noiseRadius: 50,
     language: "fr-FR",
@@ -50,6 +52,7 @@ export const EXAMPLE_LOCATIONS: Location[] = [
     label: "London",
     latitude: 51.5074,
     longitude: -0.1278,
+    countryCode: "GB",
     accuracy: 25,
     noiseRadius: 50,
     language: "en-GB",
@@ -61,6 +64,7 @@ export const EXAMPLE_LOCATIONS: Location[] = [
     label: "Ottawa",
     latitude: 45.4215,
     longitude: -75.6972,
+    countryCode: "CA",
     accuracy: 25,
     noiseRadius: 50,
     language: "en-CA",
@@ -72,6 +76,7 @@ export const EXAMPLE_LOCATIONS: Location[] = [
     label: "New York",
     latitude: 40.7128,
     longitude: -74.006,
+    countryCode: "US",
     accuracy: 25,
     noiseRadius: 50,
     language: "en-US",
@@ -83,6 +88,7 @@ export const EXAMPLE_LOCATIONS: Location[] = [
     label: "Las Vegas",
     latitude: 36.1699,
     longitude: -115.1398,
+    countryCode: "US",
     accuracy: 25,
     noiseRadius: 50,
     language: "en-US",
@@ -94,6 +100,7 @@ export const EXAMPLE_LOCATIONS: Location[] = [
     label: "San Francisco",
     latitude: 37.7749,
     longitude: -122.4194,
+    countryCode: "US",
     accuracy: 25,
     noiseRadius: 50,
     language: "en-US",
@@ -105,6 +112,7 @@ export const EXAMPLE_LOCATIONS: Location[] = [
     label: "Sydney",
     latitude: -33.8688,
     longitude: 151.2093,
+    countryCode: "AU",
     accuracy: 25,
     noiseRadius: 50,
     language: "en-AU",
@@ -116,6 +124,7 @@ export const EXAMPLE_LOCATIONS: Location[] = [
     label: "Beijing",
     latitude: 39.9042,
     longitude: 116.4074,
+    countryCode: "CN",
     accuracy: 25,
     noiseRadius: 50,
     language: "zh-CN",
@@ -127,6 +136,7 @@ export const EXAMPLE_LOCATIONS: Location[] = [
     label: "Hong Kong",
     latitude: 22.3193,
     longitude: 114.1694,
+    countryCode: "HK",
     accuracy: 25,
     noiseRadius: 50,
     language: "zh-HK",
@@ -138,6 +148,7 @@ export const EXAMPLE_LOCATIONS: Location[] = [
     label: "New Delhi",
     latitude: 28.6139,
     longitude: 77.209,
+    countryCode: "IN",
     accuracy: 25,
     noiseRadius: 50,
     language: "hi",
@@ -149,6 +160,7 @@ export const EXAMPLE_LOCATIONS: Location[] = [
     label: "Cairo",
     latitude: 30.0444,
     longitude: 31.2357,
+    countryCode: "EG",
     accuracy: 25,
     noiseRadius: 50,
     language: "ar",
@@ -160,6 +172,7 @@ export const EXAMPLE_LOCATIONS: Location[] = [
     label: "Lagos",
     latitude: 6.5244,
     longitude: 3.3792,
+    countryCode: "NG",
     accuracy: 25,
     noiseRadius: 50,
     language: "en",
@@ -171,6 +184,7 @@ export const EXAMPLE_LOCATIONS: Location[] = [
     label: "Kyiv",
     latitude: 50.4501,
     longitude: 30.5234,
+    countryCode: "UA",
     accuracy: 25,
     noiseRadius: 50,
     language: "uk",
@@ -182,6 +196,7 @@ export const EXAMPLE_LOCATIONS: Location[] = [
     label: "Kinshasa",
     latitude: -4.4419,
     longitude: 15.2663,
+    countryCode: "CD",
     accuracy: 25,
     noiseRadius: 50,
     language: "fr",
@@ -193,6 +208,7 @@ export const EXAMPLE_LOCATIONS: Location[] = [
     label: "Sao Paulo",
     latitude: -23.5558,
     longitude: -46.6396,
+    countryCode: "BR",
     accuracy: 25,
     noiseRadius: 50,
     language: "pt-BR",
@@ -204,6 +220,7 @@ export const EXAMPLE_LOCATIONS: Location[] = [
     label: "Buenos Aires",
     latitude: -34.6037,
     longitude: -58.3816,
+    countryCode: "AR",
     accuracy: 25,
     noiseRadius: 50,
     language: "es",
@@ -215,6 +232,7 @@ export const EXAMPLE_LOCATIONS: Location[] = [
     label: "Lima",
     latitude: -12.0464,
     longitude: -77.0428,
+    countryCode: "PE",
     accuracy: 25,
     noiseRadius: 50,
     language: "es",
@@ -226,6 +244,7 @@ export const EXAMPLE_LOCATIONS: Location[] = [
     label: "Rio de Janeiro",
     latitude: -22.9068,
     longitude: -43.1729,
+    countryCode: "BR",
     accuracy: 25,
     noiseRadius: 50,
     language: "pt-BR",
@@ -237,6 +256,7 @@ export const EXAMPLE_LOCATIONS: Location[] = [
     label: "Caracas",
     latitude: 10.4806,
     longitude: -66.9036,
+    countryCode: "VE",
     accuracy: 25,
     noiseRadius: 50,
     language: "es",
@@ -248,6 +268,7 @@ export const EXAMPLE_LOCATIONS: Location[] = [
     label: "Berlin",
     latitude: 52.52,
     longitude: 13.405,
+    countryCode: "DE",
     accuracy: 25,
     noiseRadius: 50,
     language: "de-DE",
@@ -259,6 +280,7 @@ export const EXAMPLE_LOCATIONS: Location[] = [
     label: "Madrid",
     latitude: 40.4168,
     longitude: -3.7038,
+    countryCode: "ES",
     accuracy: 25,
     noiseRadius: 50,
     language: "es",
@@ -309,19 +331,34 @@ export const DEFAULT_LOCATIONS: Location[] = FX_RUNTIME_TEST_HOST
   ? EXAMPLE_LOCATIONS.map((location) => ({ ...location }))
   : [];
 
+const EXAMPLE_COUNTRY_CODES = new Map(
+  EXAMPLE_LOCATIONS.flatMap((location) =>
+    location.countryCode ? [[location.id, location.countryCode] as const] : [],
+  ),
+);
+
+const enrichKnownCountryCodes = (locations: readonly Location[]): Location[] =>
+  locations.map((location) => {
+    if (location.countryCode) return location;
+    const countryCode = EXAMPLE_COUNTRY_CODES.get(location.id);
+    return countryCode ? { ...location, countryCode } : location;
+  });
+
 export const loadLocations = async (): Promise<Location[]> => {
   const stored = await chrome.storage.local.get(LOCATIONS_STORAGE_KEY);
   const locations = stored[LOCATIONS_STORAGE_KEY];
-  return Array.isArray(locations)
-    ? normalizeLocations(stripLegacyRefs(locations) as Location[])
-    : normalizeLocations(DEFAULT_LOCATIONS);
+  return enrichKnownCountryCodes(
+    Array.isArray(locations)
+      ? normalizeLocations(stripLegacyRefs(locations) as Location[])
+      : normalizeLocations(DEFAULT_LOCATIONS),
+  );
 };
 
 export const saveLocations = async (locations: readonly Location[]): Promise<void> => {
   const stored = await chrome.storage.local.get(LOCATIONS_STORAGE_KEY);
   await chrome.storage.local.set({
     [LOCATIONS_STORAGE_KEY]: mergeLegacyRefs(
-      normalizeLocations(locations),
+      enrichKnownCountryCodes(normalizeLocations(locations)),
       stored[LOCATIONS_STORAGE_KEY],
     ),
   });
