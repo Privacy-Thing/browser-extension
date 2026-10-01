@@ -34,6 +34,10 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ### Fixed
 
+- Preserve optional profile country codes through saving, export and import,
+  including later edits, so Control D keeps selecting exits in the confirmed
+  country. Lowercase codes still normalize to uppercase; older profiles without
+  a country code remain valid.
 - Keep Control D synchronization attached to resources by their saved IDs when
   the API normalizes display names, restore automatic sync after the obsolete
   name conflict, and keep preview and sync on one prepared regional-route
