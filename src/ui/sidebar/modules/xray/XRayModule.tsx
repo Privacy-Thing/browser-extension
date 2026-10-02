@@ -1,13 +1,14 @@
 import type { SidebarModuleContext } from "../types";
 
 import { XRayAccessAccordion } from "./XRayAccessAccordion";
+import { XRayDiagnosticReport } from "./XRayDiagnosticReport";
 import { XRaySurfacesSection } from "./XRaySurfacesSection";
 import { XRayWhySection } from "./XRayWhySection";
 
 import { t } from "@/ui/i18n";
 import { SidebarStatusBox } from "@/ui/sidebar/SidebarStatusBox";
 
-export const XRayModule = ({
+const XRayStateDetails = ({
   xRayState: state,
   xRayLoading: loading,
   xRaySurfaceSyncPending: surfaceSyncPending,
@@ -113,3 +114,13 @@ export const XRayModule = ({
     </div>
   );
 };
+
+export const XRayModule = (context: SidebarModuleContext) => (
+  <div className="flex flex-col gap-4">
+    <XRayDiagnosticReport
+      state={context.xRayState}
+      collectionPending={context.xRayLoading || context.xRaySurfaceSyncPending}
+    />
+    <XRayStateDetails {...context} />
+  </div>
+);
