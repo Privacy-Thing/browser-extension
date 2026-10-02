@@ -171,7 +171,7 @@ export const advanced = {
     import: {
       title: "Importar",
       description:
-        "Sustituye la configuración local actual por una copia de seguridad JSON exportada anteriormente.",
+        "Revisa una copia JSON y después reemplaza la configuración o combina los perfiles y reglas seleccionados.",
       button: "Importar configuración",
       copyLinkLabel: "importar configuración",
     },

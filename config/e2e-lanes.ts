@@ -1,6 +1,7 @@
 export const E2E_OWNERSHIP_LANES = {
   core: ["extension-fingerprint.spec.ts", "extension-runtime.spec.ts"],
   product: [
+    "extension-import.spec.ts",
     "extension-options-locations.spec.ts",
     "extension-options-navigation.spec.ts",
     "extension-options-rules.spec.ts",
@@ -17,6 +18,7 @@ export const E2E_OWNERSHIP_LANES = {
     "service-worker-blocking-live.spec.ts",
   ],
   "firefox-runtime": [
+    "firefox-runtime-import.spec.ts",
     "firefox-runtime-bootstrap-followup.spec.ts",
     "firefox-runtime-bootstrap.spec.ts",
     "firefox-runtime-core.spec.ts",

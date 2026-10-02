@@ -32,6 +32,13 @@ import { registerRuntimeObservers } from "@/background/runtime-observers";
 import { createRuntimeResolverCtl } from "@/background/runtime-resolution-controller";
 import { createRuntimeState } from "@/background/runtime-state";
 import { createSettingsHandlers } from "@/background/settings-commands";
+import { rebuildImportRuntime } from "@/background/settings-import-commands";
+import { recoverSettingsImport } from "@/background/settings-import-storage";
+import {
+  registerImportExpiry,
+  withConfigMutation,
+} from "@/background/settings-import-transaction";
+import { createMigrationGuard } from "@/background/settings-migration-guard";
 import {
   publishSidebarEvent,
   registerSidebarEventHub,
@@ -74,7 +81,6 @@ import { getAllReleaseNotices } from "@/shared/release-notification";
 
 const runtimeState = createRuntimeState<PreparedRuntimeDecisions>();
 const { activeTabContexts, effectiveSnapshotCache, rewriteTracker } = runtimeState;
-let storageMigrationPromise: Promise<void> | null = null;
 
 const { logFirefoxBootstrapEvent, logResolverEvent } = createBackgroundLogs(
   runtimeState.getLastKnownDebugMode,
@@ -82,13 +88,26 @@ const { logFirefoxBootstrapEvent, logResolverEvent } = createBackgroundLogs(
 
 const WINDOW_SEED_PREFIX = "\u001f\u001e";
 const MAIN_WORLD = "MAIN" satisfies `${chrome.scripting.ExecutionWorld}`;
-const ensureStorageMigration = async (): Promise<void> => {
-  if (!storageMigrationPromise) {
-    storageMigrationPromise = runStorageMigration().then(() => undefined);
-  }
-
-  await storageMigrationPromise;
-};
+const ensureStorageMigration = createMigrationGuard({
+  recover: recoverSettingsImport,
+  migrate: async () => {
+    await runStorageMigration();
+  },
+  rebuildRuntime: () =>
+    rebuildImportRuntime({
+      setCachedValues: runtimeState.setCachedValues,
+      syncPreloadedState,
+      resyncActiveHeaderRules,
+      refreshFxInjectionMode,
+      getActiveTabContexts: runtimeState.getActiveTabContexts,
+      reloadTabs: async () => {
+        const tabs = await chrome.tabs.query({});
+        await reloadSupportedWebTabs(
+          tabs.flatMap((tab) => (tab.id === undefined ? [] : [tab.id])),
+        );
+      },
+    }),
+});
 
 const enableSessionStorage = async (): Promise<void> => {
   await chrome.storage.session
@@ -319,6 +338,9 @@ const {
   saveLocationModel,
   resetSettings,
   importSettings,
+  previewSettingsImport,
+  undoSettingsImport,
+  getImportUndoStatus,
 } = createSettingsHandlers({
   ensureStorageMigration,
   syncPreloadedState,
@@ -422,6 +444,9 @@ registerMessageRouter({
   resetSettings,
   exportSettings,
   importSettings,
+  previewSettingsImport,
+  undoSettingsImport,
+  getImportUndoStatus,
   ensureStorageMigration,
   setLastKnownProfiles: runtimeState.setLastKnownProfiles,
   syncPreloadedState,
@@ -494,8 +519,8 @@ registerLifecycle({
   applyPrivacyDefaults,
   refreshCachedConfig,
   syncPreloadedState,
-  provisionContainers,
-  reconcileContainers,
+  provisionContainers: () => withConfigMutation(() => provisionContainers()),
+  reconcileContainers: () => withConfigMutation(() => reconcileContainers()),
   refreshActionState,
   refreshFxInjectionMode,
   syncSidebarMenus: () =>
@@ -525,9 +550,11 @@ registerLifecycle({
 
 if (BUILD_BROWSER_TARGET === "firefox") {
   fireAndForget(
-    refreshFxInjectionMode().catch((error) => {
-      console.warn("Failed to register Firefox injection scripts", error);
-    }),
+    ensureStorageMigration()
+      .then(() => refreshFxInjectionMode())
+      .catch((error) => {
+        console.warn("Failed to register Firefox injection scripts", error);
+      }),
   );
 }
 
@@ -590,3 +617,5 @@ chrome.webNavigation.onCompleted.addListener((details) => {
   );
   fireAndForget(refreshBadgeCountForTab(tabId));
 });
+
+registerImportExpiry();

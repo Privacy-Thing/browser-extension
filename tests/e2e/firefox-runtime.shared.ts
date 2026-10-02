@@ -113,6 +113,7 @@ const HOST_PAGE = readFileSync(
 
 type FirefoxExtensionFixtures = {
   context: BrowserContext;
+  runtimeIsolation: void;
   debuggerPort: number;
   extensionOrigin: string;
   firefoxExecutablePath: string;
@@ -546,7 +547,7 @@ const routeFxRuntimeReq = (
   return false;
 };
 
-const test = base.extend<FirefoxExtensionFixtures & FxExtWorkerFixtures>({
+export const test = base.extend<FirefoxExtensionFixtures & FxExtWorkerFixtures>({
   serverUrl: [
     async ({ browserName: _browserName }, use) => {
       const server = createServer((request, response) => {
@@ -735,6 +736,22 @@ const test = base.extend<FirefoxExtensionFixtures & FxExtWorkerFixtures>({
     },
     { scope: "worker" },
   ],
+  // Automatic fixtures apply to every importing spec; module-level hooks only
+  // register in the first spec that loads this cached shared module.
+  runtimeIsolation: [
+    async (
+      { context, extensionOrigin, debuggerPort, persistentContextSession },
+      use,
+    ) => {
+      await resetFirefoxRuntimeState({ context, extensionOrigin, debuggerPort });
+      try {
+        await use();
+      } finally {
+        await cleanupFxRuntimePages(persistentContextSession);
+      }
+    },
+    { auto: true },
+  ],
   context: async ({ persistentContextSession }, use) => {
     await use(await persistentContextSession.getContext());
   },
@@ -778,7 +795,9 @@ const newFirefoxPage = async (context: BrowserContext): Promise<Page> => {
   throw new Error("Firefox newPage retry exhausted without returning a page.");
 };
 
-test.afterEach(async ({ persistentContextSession }) => {
+const cleanupFxRuntimePages = async (
+  persistentContextSession: FxContextSession,
+): Promise<void> => {
   // Always fetch the current active context — a test may have called restartContext(),
   // closing the context captured by the `context` fixture before afterEach runs.
   const context = await persistentContextSession.getContext();
@@ -806,9 +825,16 @@ test.afterEach(async ({ persistentContextSession }) => {
       .goto("about:blank", { waitUntil: "domcontentloaded" })
       .catch(() => undefined);
   }
-});
+};
 
-test.beforeEach(async ({ context, extensionOrigin, debuggerPort }) => {
+const resetFirefoxRuntimeState = async ({
+  context,
+  extensionOrigin,
+  debuggerPort,
+}: Pick<
+  FirefoxExtensionFixtures,
+  "context" | "extensionOrigin" | "debuggerPort"
+>): Promise<void> => {
   const bridgeMarker = Math.random().toString(36).slice(2, 10);
   const bridgeUrl = `${extensionOrigin}/test-bridge.html?pt-e2e-reset=${bridgeMarker}`;
   const page = await newFirefoxPage(context);
@@ -851,7 +877,7 @@ test.beforeEach(async ({ context, extensionOrigin, debuggerPort }) => {
   } finally {
     await page.close().catch(() => undefined);
   }
-});
+};
 
 const runFirefoxRuntimePhase = async <T>(
   title: string,
@@ -5080,4 +5106,34 @@ export const registerFxEdgeTests = () => {
     expect(snapshot.requestMethod).toBe("POST");
     expect(snapshot.initialHash).toBe("#posted");
   });
+};
+
+/** Firefox extension pages need RDP; Playwright does not receive their load events. */
+export const openFxOptionsProbe = async (input: {
+  context: BrowserContext;
+  extensionOrigin: string;
+  debuggerPort: number;
+}) => {
+  const page = await input.context.newPage();
+  const url = `${input.extensionOrigin}/src/ui/options/index.html?pt-e2e-import=preview`;
+  await navigateFirefoxPopupPage(page, url);
+  const remote = await connectRemoteFirefox(input.debuggerPort);
+  const tab = await waitForRemoteFirefoxTab(remote, url);
+  const consoleActor = await getRemoteFxConsoleActor(remote, tab.actor);
+  return {
+    evaluate: <T>(expression: string): Promise<T> =>
+      probeRemoteFxTabJson<T>(
+        remote,
+        consoleActor,
+        url,
+        expression,
+        "import-ui",
+        15_000,
+        tab.actor,
+      ),
+    close: async () => {
+      remote.disconnect();
+      await page.close().catch(() => undefined);
+    },
+  };
 };

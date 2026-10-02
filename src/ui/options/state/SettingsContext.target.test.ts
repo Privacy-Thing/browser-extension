@@ -585,6 +585,7 @@ describe("SettingsProvider hydration", () => {
           })),
         },
         storage: {
+          onChanged: { addListener: vi.fn(), removeListener: vi.fn() },
           local: {
             get: storageGet,
           },
@@ -652,7 +653,10 @@ describe("SettingsProvider hydration", () => {
             name: STABLE_DISPLAY_NAME,
           })),
         },
-        storage: { local: { get: vi.fn(async () => ({})) } },
+        storage: {
+          onChanged: { addListener: vi.fn(), removeListener: vi.fn() },
+          local: { get: vi.fn(async () => ({})) },
+        },
       },
     });
 
@@ -715,7 +719,10 @@ describe("SettingsProvider hydration", () => {
             name: STABLE_DISPLAY_NAME,
           })),
         },
-        storage: { local: { get: vi.fn(async () => ({})) } },
+        storage: {
+          onChanged: { addListener: vi.fn(), removeListener: vi.fn() },
+          local: { get: vi.fn(async () => ({})) },
+        },
       },
     });
 
@@ -775,6 +782,7 @@ describe("SettingsProvider hydration", () => {
           })),
         },
         storage: {
+          onChanged: { addListener: vi.fn(), removeListener: vi.fn() },
           local: {
             get: vi.fn(async () => ({
               themeMode: "light",
@@ -857,6 +865,7 @@ describe("SettingsProvider hydration", () => {
           })),
         },
         storage: {
+          onChanged: { addListener: vi.fn(), removeListener: vi.fn() },
           local: {
             get: vi.fn(async () => ({})),
           },
@@ -932,6 +941,7 @@ describe("SettingsProvider hydration", () => {
           })),
         },
         storage: {
+          onChanged: { addListener: vi.fn(), removeListener: vi.fn() },
           local: {
             get: vi.fn(async () => ({})),
           },
@@ -999,6 +1009,7 @@ describe("SettingsProvider hydration", () => {
           })),
         },
         storage: {
+          onChanged: { addListener: vi.fn(), removeListener: vi.fn() },
           local: {
             get: vi.fn(async () => ({})),
           },
@@ -1089,6 +1100,7 @@ describe("SettingsProvider hydration", () => {
           })),
         },
         storage: {
+          onChanged: { addListener: vi.fn(), removeListener: vi.fn() },
           local: {
             get: vi.fn(async () => ({})),
           },
@@ -1154,6 +1166,7 @@ describe("SettingsProvider hydration", () => {
           })),
         },
         storage: {
+          onChanged: { addListener: vi.fn(), removeListener: vi.fn() },
           local: {
             get: vi.fn(async () => ({})),
           },
@@ -1289,6 +1302,7 @@ describe("SettingsProvider hydration", () => {
           })),
         },
         storage: {
+          onChanged: { addListener: vi.fn(), removeListener: vi.fn() },
           local: {
             get: vi.fn(async () => ({})),
           },
@@ -1409,6 +1423,7 @@ describe("SettingsProvider hydration", () => {
           })),
         },
         storage: {
+          onChanged: { addListener: vi.fn(), removeListener: vi.fn() },
           local: {
             get: vi.fn(async () => ({})),
           },
@@ -1547,6 +1562,7 @@ describe("SettingsProvider hydration", () => {
           })),
         },
         storage: {
+          onChanged: { addListener: vi.fn(), removeListener: vi.fn() },
           local: {
             get: vi.fn(async () => ({})),
           },
@@ -1644,6 +1660,7 @@ describe("SettingsProvider hydration", () => {
           })),
         },
         storage: {
+          onChanged: { addListener: vi.fn(), removeListener: vi.fn() },
           local: {
             get: vi.fn(async () => ({})),
           },
@@ -1714,6 +1731,7 @@ describe("SettingsProvider hydration", () => {
           })),
         },
         storage: {
+          onChanged: { addListener: vi.fn(), removeListener: vi.fn() },
           local: {
             get: vi.fn(async () => ({})),
           },

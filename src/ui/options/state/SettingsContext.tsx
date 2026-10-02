@@ -17,6 +17,7 @@ import {
   useSettingsRuntimeState,
 } from "@/ui/options/state/use-settings-core-state";
 import { createIdentityHandlers } from "@/ui/options/state/use-settings-identity";
+import { useSettingsImport } from "@/ui/options/state/use-settings-import";
 import { useSettingsLoadEffects } from "@/ui/options/state/use-settings-load-effects";
 import {
   createGeneratorHandlers,
@@ -276,7 +277,6 @@ const buildCoreContext = (
     debugMode: state.preferences.debugMode,
     featureFlags: state.preferences.featureFlags,
     handleExportSettings: managementHandlers.handleExportSettings,
-    handleImportSettings: managementHandlers.handleImportSettings,
     handleReloadSettings: managementHandlers.handleReloadSettings,
     handleSetPanicMode: (enabled: boolean) =>
       handleSetPanicMode({
@@ -486,11 +486,17 @@ export const useSettingsBase = () => {
     setOnboardingCompleted: state.preferences.setOnboardingCompleted,
     setResetRunOnboarding: state.management.setResetRunOnboarding,
   });
+  const settingsImport = useSettingsImport({
+    apply: persistence.applyLoadedSettingsState,
+    autosaveTimerRef: persistence.autosaveTimerRef,
+    saveInFlight: persistence.saveInFlight,
+  });
   useRuntimeEffects(state, persistence, ruleRuntime);
 
   return {
     ...buildAnchorContext(state),
     ...buildCoreContext(state, persistence, managementHandlers),
+    ...settingsImport,
     ...buildLocationContext(state, locationRuntime),
     ...buildRuleContext(state, ruleRuntime),
     ...buildGeneratorContext(state, locationRuntime),

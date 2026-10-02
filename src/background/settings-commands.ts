@@ -1,15 +1,13 @@
-import { clearExtensionLogs, logExtensionEvent } from "@/background/logger";
-import { validateImportedSettings, validateSettings } from "@/background/settings";
+import { clearExtensionLogs } from "@/background/logger";
+import { validateSettings } from "@/background/settings";
 import type { SettingsCommandDeps } from "@/background/settings-command-types";
+import { createImportHandlers } from "@/background/settings-import-commands";
 import { saveSimpleSettings } from "@/background/settings-save-command";
 import {
   loadContainerAssignments,
   saveContainerAssignments,
 } from "@/background/storage/container-assignments";
-import {
-  clearLegacyBehavior,
-  saveLegacyBehavior,
-} from "@/background/storage/legacy-behavior-data";
+import { clearLegacyBehavior } from "@/background/storage/legacy-behavior-data";
 import {
   DEFAULT_LOCATIONS,
   loadLocations,
@@ -32,26 +30,19 @@ import {
 } from "@/background/storage/trusted-sites";
 import type { EXTENSION_COMMAND_TYPES } from "@/shared/extension-contract";
 import { DEFAULT_PREFERENCES } from "@/shared/settings-defaults";
-import { LogCategory } from "@/shared/types";
 import type {
   ExtensionCommand,
   ExportSettingsResponse,
-  ImportSettingsResponse,
   ResetSettingsResponse,
   SaveLocationResponse,
 } from "@/shared/types";
 
 export { getTrustedTabIds } from "@/background/settings-save-command";
 
-type ImportCommand = Extract<
-  ExtensionCommand,
-  { type: typeof EXTENSION_COMMAND_TYPES.importSettings }
->;
 type LocationModelCommand = Extract<
   ExtensionCommand,
   { type: typeof EXTENSION_COMMAND_TYPES.saveLocationModel }
 >;
-type ImportedSettings = ReturnType<typeof validateImportedSettings>;
 
 const exportSettings = async (
   deps: SettingsCommandDeps,
@@ -175,147 +166,10 @@ const resetSettings = async (
   };
 };
 
-const persistImport = async (settings: ImportedSettings): Promise<void> => {
-  const containerAssignments = settings.containerAssignments ?? [];
-  await Promise.all([
-    saveLocations(settings.locations),
-    saveRules(settings.rules),
-    saveTrustedSites(settings.trustedSites),
-    saveContainerAssignments(containerAssignments),
-    clearSiteSuggestions(),
-    savePreferences({
-      uiLocale: settings.uiLocale,
-      themeMode: settings.themeMode,
-      themeAccentPreset: settings.themeAccentPreset,
-      reduceMotion: settings.reduceMotion,
-      debugMode: settings.debugMode,
-      watchPositionDelay: settings.watchPositionDelay,
-      osmConsent: settings.osmConsent,
-      browserFingerprintSpoofingEnabled: settings.browserFingerprintSpoofingEnabled,
-      featureFlags: settings.featureFlags,
-      sharedWorkerHandlingMode: settings.sharedWorkerHandlingMode,
-      sharedWorkerCompatibilityMode: settings.sharedWorkerCompatibilityMode,
-      highContrastMode: settings.highContrastMode,
-      highContrastExplicit: settings.highContrastExplicit,
-      defaultNoiseRadius: settings.defaultNoiseRadius,
-      randomizeGeneratedLocationByDefault: settings.randomizeGeneratedLocationByDefault,
-      generatedLocationRandomizationRadiusKm:
-        settings.generatedLocationRandomizationRadiusKm,
-      onboardingCompleted: settings.onboardingCompleted,
-      showBadgeQueryCount: settings.showBadgeQueryCount,
-      includeDateCallsInBadgeCount: settings.includeDateCallsInBadgeCount,
-    }),
-    saveSharedSpoofing(settings.sharedSpoofing),
-    saveGlobalFallbackRule(settings.globalFallbackRule),
-  ]);
-  await saveLegacyBehavior(settings.legacyBehavior);
-};
-
-const cacheImport = (deps: SettingsCommandDeps, settings: ImportedSettings): void => {
-  deps.setCachedValues({
-    profiles: settings.locations,
-    rules: settings.rules,
-    trustedSites: settings.trustedSites,
-    themeMode: settings.themeMode,
-    themeAccentPreset: settings.themeAccentPreset,
-    reduceMotion: settings.reduceMotion,
-    debugMode: settings.debugMode,
-    watchPositionDelay: settings.watchPositionDelay,
-    osmConsent: settings.osmConsent,
-    browserFingerprintSpoofingEnabled: settings.browserFingerprintSpoofingEnabled,
-    featureFlags: settings.featureFlags,
-    sharedWorkerHandlingMode: settings.sharedWorkerHandlingMode,
-    sharedWorkerCompatibilityMode: settings.sharedWorkerCompatibilityMode,
-    sharedSpoofing: settings.sharedSpoofing,
-    globalFallbackRule: settings.globalFallbackRule,
-    highContrastMode: settings.highContrastMode,
-    defaultNoiseRadius: settings.defaultNoiseRadius,
-    randomizeGeneratedLocationByDefault: settings.randomizeGeneratedLocationByDefault,
-    generatedLocationRandomizationRadiusKm:
-      settings.generatedLocationRandomizationRadiusKm,
-    showBadgeQueryCount: settings.showBadgeQueryCount,
-    includeDateCallsInBadgeCount: settings.includeDateCallsInBadgeCount,
-    containerAssignments: settings.containerAssignments ?? [],
-  });
-};
-
-const buildImportResponse = (settings: ImportedSettings): ImportSettingsResponse => ({
-  ok: true,
-  locations: settings.locations,
-  rules: settings.rules,
-  trustedSites: settings.trustedSites,
-  uiLocale: settings.uiLocale,
-  themeMode: settings.themeMode,
-  themeAccentPreset: settings.themeAccentPreset,
-  reduceMotion: settings.reduceMotion,
-  debugMode: settings.debugMode,
-  watchPositionDelay: settings.watchPositionDelay,
-  osmConsent: settings.osmConsent,
-  browserFingerprintSpoofingEnabled: settings.browserFingerprintSpoofingEnabled,
-  featureFlags: settings.featureFlags,
-  sharedWorkerHandlingMode: settings.sharedWorkerHandlingMode,
-  sharedWorkerCompatibilityMode: settings.sharedWorkerCompatibilityMode,
-  ...(settings.sharedSpoofing ? { sharedSpoofing: settings.sharedSpoofing } : {}),
-  ...(settings.globalFallbackRule
-    ? { globalFallbackRule: settings.globalFallbackRule }
-    : {}),
-  highContrastMode: settings.highContrastMode,
-  defaultNoiseRadius: settings.defaultNoiseRadius,
-  randomizeGeneratedLocationByDefault: settings.randomizeGeneratedLocationByDefault,
-  generatedLocationRandomizationRadiusKm:
-    settings.generatedLocationRandomizationRadiusKm,
-  showBadgeQueryCount: settings.showBadgeQueryCount,
-  includeDateCallsInBadgeCount: settings.includeDateCallsInBadgeCount,
-  containerAssignments: settings.containerAssignments ?? [],
-});
-
-const applyImportEffects = async (
-  deps: SettingsCommandDeps,
-  settings: ImportedSettings,
-): Promise<void> => {
-  clearExtensionLogs();
-  await deps.syncPreloadedState();
-  await deps.resyncActiveHeaderRules();
-  await deps.refreshFxInjectionMode();
-  logExtensionEvent({
-    enabled: settings.debugMode,
-    category: LogCategory.System,
-    event: "system.settings-imported",
-    payload: {
-      details: {
-        locations: settings.locations.length,
-        rules: settings.rules.length,
-      },
-    },
-  });
-};
-
-const importSettings = async (
-  deps: SettingsCommandDeps,
-  command: ImportCommand,
-): Promise<ImportSettingsResponse> => {
-  try {
-    const settings = validateImportedSettings(command.settings);
-    await deps.ensureStorageMigration();
-    if (command.settings.onboardingCompleted === undefined) {
-      settings.onboardingCompleted = (await getPreferences()).onboardingCompleted;
-    }
-    await persistImport(settings);
-    cacheImport(deps, settings);
-    await applyImportEffects(deps, settings);
-    return buildImportResponse(settings);
-  } catch (error) {
-    return {
-      ok: false,
-      error: error instanceof Error ? error.message : "Importing settings failed.",
-    };
-  }
-};
-
 export const createSettingsHandlers = (deps: SettingsCommandDeps) => ({
   exportSettings: exportSettings.bind(null, deps),
   saveSimpleSettings: saveSimpleSettings.bind(null, deps),
   saveLocationModel: saveLocationModel.bind(null, deps),
   resetSettings: resetSettings.bind(null, deps),
-  importSettings: importSettings.bind(null, deps),
+  ...createImportHandlers(deps),
 });

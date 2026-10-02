@@ -45,6 +45,9 @@ export const EXTENSION_COMMAND_TYPES = {
   resetSettings: createCommandType("reset-settings"),
   exportSettings: createCommandType("export-settings"),
   importSettings: createCommandType("import-settings"),
+  previewSettingsImport: createCommandType("preview-settings-import"),
+  undoSettingsImport: createCommandType("undo-settings-import"),
+  getImportUndoStatus: createCommandType("get-import-undo-status"),
   loadSampleData: createCommandType("load-sample-data"),
   importPresetLocations: createCommandType("import-preset-locations"),
   getPopupState: createCommandType("get-popup-state"),
@@ -147,6 +150,8 @@ export const EXTENSION_STORAGE_KEYS = {
   theme: createStorageKey("theme"),
   surfaceProtectionsDefaultReset: createStorageKey("surfaceProtectionsDefaultReset"),
   preferences: createStorageKey("preferences"),
+  settingsImportJournal: createStorageKey("settingsImportJournal"),
+  configurationRevision: createStorageKey("configurationRevision"),
 } as const;
 
 export const STORAGE_PRELOADED_STATE = EXTENSION_STORAGE_KEYS.preloadedRuntimeState;
