@@ -41,6 +41,23 @@ export const locations = {
     networkBodySuffix: ".",
   },
 
+  regionalReview: {
+    title: "Regional preview",
+    mismatch: (saved: string, suggested: string) =>
+      `Time zone ${saved} differs from ${suggested}, the approximate zone at these coordinates. You can keep this intentional choice and save or import the preset.`,
+    approximation:
+      "Zone lookup is approximate near borders and at sea. This suggestion does not check your IP address or country and never changes your languages.",
+    applyTimeZone: (zone: string) => `Change only time zone to ${zone}`,
+    scope:
+      "Preview when time and language protection is active. Website-specific overrides can disable it. English preference changes browser languages and headers; your regional locale still controls formatting. Samples use 15 January and 15 July 2026 at 12:34:56 UTC and the number 1234567.89.",
+    formattingLocale: "Resolved formatting locale",
+    january: "January date sample",
+    july: "July date sample",
+    number: "Number sample",
+    unavailable:
+      "Preview unavailable. Choose a supported time zone and valid locale tags; the draft is unchanged.",
+  },
+
   editor: {
     title: "Edit preset",
     description:

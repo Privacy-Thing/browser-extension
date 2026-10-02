@@ -32,6 +32,16 @@ export const IMPORT_FIXTURE: ExportedSettings = {
   highContrastExplicit: true,
   onboardingCompleted: true,
 };
+export const REGIONAL_IMPORT_FIXTURE: ExportedSettings = {
+  ...IMPORT_FIXTURE,
+  locations: [
+    {
+      ...IMPORT_FIXTURE.locations[0]!,
+      timeZone: "Asia/Tokyo",
+      preferEnglishContent: true,
+    },
+  ],
+};
 const comparable = ({ exportedAt: _exportedAt, ...settings }: ExportedSettings) =>
   settings;
 export const chooseImportFile = (

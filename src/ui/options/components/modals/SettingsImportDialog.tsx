@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/ui/components/ui/select";
 import { t } from "@/ui/i18n";
+import { ImportRegionalReview } from "@/ui/options/components/modals/ImportRegionalReview";
 import { useSettings } from "@/ui/options/state/SettingsContext";
 
 export type ImportDialogProps = {
@@ -31,6 +32,7 @@ export type ImportDialogProps = {
   cancel: () => void;
   confirm: () => void;
   update: (selection: SettingsImportSelection) => void;
+  applyTimeZone?: ((id: string, timeZone: string) => void) | undefined;
 };
 
 const collectionLabels = () => ({
@@ -319,6 +321,11 @@ export const SettingsImportDialogView = (props: ImportDialogProps) => {
                   ))}
                 </div>
               ) : null}
+              <ImportRegionalReview
+                preview={preview}
+                disabled={busy || saveInFlight}
+                applyTimeZone={props.applyTimeZone}
+              />
               <ImportChanges changes={preview.changes} />
             </>
           ) : null}
@@ -378,6 +385,7 @@ export const SettingsImportDialog = () => {
       cancel={settings.cancelImport}
       confirm={() => void settings.applyImport()}
       update={(selection) => void settings.updateImportSelection(selection)}
+      applyTimeZone={(id, timeZone) => void settings.updateImportTimeZone(id, timeZone)}
     />
   );
 };
