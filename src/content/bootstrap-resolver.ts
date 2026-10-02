@@ -53,7 +53,13 @@ export const queryUserScriptsStatus = async (): Promise<FxUserScriptsReady> => {
 };
 
 export const resolveFirefoxBgSnapshot = resolveBgSnapshot;
-export const resolveFirefoxPreload = resolvePreloadedSnapshot;
+export const resolveFirefoxPreload: typeof resolvePreloadedSnapshot = (
+  hostname,
+  state,
+) =>
+  typeof window === "undefined" || window === window.top
+    ? resolvePreloadedSnapshot(hostname, state)
+    : null;
 
 export const reportBootstrapChannel = (
   channel: BootstrapSnapshotChannel,
@@ -93,7 +99,10 @@ export const resolveChromiumFallback = async (
   } = {},
 ): Promise<ChromiumFallbackResult> => {
   const preloadedState = await readState();
-  const preloadedSnapshot = resolvePreloadedSnapshot(hostname, preloadedState);
+  const preloadedSnapshot =
+    typeof window === "undefined" || window === window.top
+      ? resolvePreloadedSnapshot(hostname, preloadedState)
+      : null;
   if (preloadedSnapshot) {
     return { snapshot: preloadedSnapshot, channel: "preloaded-state" };
   }

@@ -5,6 +5,10 @@
 
 import { matchRule } from "@/shared/domain-match";
 import { STORAGE_PRELOADED_STATE } from "@/shared/extension-contract";
+import {
+  findHostPause,
+  type HostProtectionPause,
+} from "@/shared/host-protection-pause";
 import { isRuntimeSnapshot } from "@/shared/runtime-snapshot";
 import type { DomainRule, RuntimeSnapshot, TrustedSite } from "@/shared/types";
 
@@ -21,6 +25,7 @@ export type PreloadedRuntimeEntry = {
 /** Serializable snapshot cache hydrated by the background worker. */
 export type PreloadedRuntimeState = {
   entries: PreloadedRuntimeEntry[];
+  hostPauses?: HostProtectionPause[];
   nativeRulePatterns?: string[];
   trustedSites?: TrustedSite[];
 };
@@ -56,7 +61,7 @@ export const resolvePreloadedSnapshot = (
   hostname: string,
   state: PreloadedRuntimeState | null,
 ): RuntimeSnapshot | null => {
-  if (!state) {
+  if (!state || findHostPause(hostname, state.hostPauses ?? [])) {
     return null;
   }
 

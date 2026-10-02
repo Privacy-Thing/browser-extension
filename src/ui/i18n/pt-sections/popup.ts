@@ -6,6 +6,38 @@ const formatCount = (count: number, singular: string, plural: string): string =>
   `${count} ${count === 1 ? singular : plural}`;
 
 export const popup = {
+  pauseTimedHint: "Volta automaticamente",
+  pauseManage: "Gerenciar pausa",
+  pauseTriggerHint: "Exceção temporária para este site",
+  pauseAutoResume: "A proteção volta automaticamente",
+  pauseSessionOptionHint: "Até fechar o navegador",
+  pauseResumeHint: "Aplicar suas configurações atuais",
+  pauseReloadNotice: "Pausar ou retomar recarrega todas as abas deste site.",
+  pauseDetails: "Como esta pausa funciona",
+  pauseExpiredSummary:
+    "A pausa terminou. Recarregue para aplicar suas configurações atuais.",
+  pauseTimedSummary: "Ao expirar, recarregue as abas abertas para aplicar a proteção.",
+  pauseSessionSummary: "A proteção volta quando você reabre o navegador.",
+  pauseProtection: "Pausar a simulação",
+  pauseActive: "Simulação pausada",
+  pauseSessionActive: "Pausada até fechar o navegador",
+  pauseCountdown: (time: string) => `Em pausa · ${time}`,
+  pauseReloadRequired: "É necessário recarregar",
+  pauseTenMinutes: "10 minutos",
+  pauseUntilSessionEnd: "Esta sessão do navegador",
+  pauseResumeReload: "Retomar e recarregar",
+  pauseScope: (hostname: string) =>
+    `Todas as abas cujo documento principal é exatamente ${hostname}, incluindo seus frames e workers compatíveis. As regras e os sites confiáveis não mudam.`,
+  pauseLimits:
+    "A política global de privacidade do WebRTC continua ativa. Solicitações sem contexto de aba estão fora da garantia de pausa dos cabeçalhos.",
+  pauseReloadHint:
+    "Iniciar ou retomar recarrega todas as abas correspondentes. Após o término, recarregue os documentos abertos para aplicar a configuração atual.",
+  pauseSessionHint:
+    "A sessão termina quando o navegador fecha ou falha; suspender o worker não a encerra.",
+  pauseExpiredHint:
+    "A exceção terminou. Este documento pode continuar sem alterações. Recarregue para aplicar a configuração atual.",
+  pauseStartReloadRequired:
+    "A exceção está ativa, mas este documento ainda precisa ser recarregado para aplicá-la.",
   loading: "Carregando…",
   protectionProtected: "Protegido",
   protectionOff: "Desativado",

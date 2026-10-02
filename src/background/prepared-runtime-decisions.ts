@@ -23,6 +23,10 @@ import type {
 } from "@/background/rules/resolver-options";
 import type { BrowserFingerprintSource } from "@/shared/browser-fingerprint";
 import type { FeatureFlags } from "@/shared/feature-flags";
+import {
+  findHostPause,
+  type HostProtectionPause,
+} from "@/shared/host-protection-pause";
 import { resolveRuleSources } from "@/shared/rule-resolution";
 import { normalizeRuleSeedKey } from "@/shared/rule-seed";
 import { hasRuntimePayload } from "@/shared/runtime-snapshot";
@@ -40,6 +44,7 @@ import type {
 } from "@/shared/types";
 
 export type ResolutionDecision = {
+  hostPause?: HostProtectionPause;
   snapshot: RuntimeSnapshot | null;
   trustedSiteMatched: boolean;
   /** True when fallback/container identity is fenced for this hostname. */
@@ -47,6 +52,7 @@ export type ResolutionDecision = {
 };
 
 export type PreparedRuntimeInputs = {
+  hostPauses?: readonly HostProtectionPause[];
   rules: readonly DomainRule[];
   trustedSites: readonly TrustedSite[];
   locations: readonly Location[];
@@ -69,7 +75,12 @@ export type PreloadedDecisionEntry = {
 };
 
 export type PreparedRuntimeDecisions = {
-  resolveDecision: (hostname: string, cookieStoreId?: string) => ResolutionDecision;
+  resolveDecision: (
+    hostname: string,
+    cookieStoreId?: string,
+    respectHostPause?: boolean,
+  ) => ResolutionDecision;
+  getHostPauses: () => readonly HostProtectionPause[];
   getPreloadedEntries: () => PreloadedDecisionEntry[];
   getNativeRulePatterns: () => string[];
   getFxWindowSeed: (
@@ -373,6 +384,7 @@ const resolvePreparedDecision = (
   state: PreparedDecisionState,
   hostname: string,
   cookieStoreId?: string,
+  respectHostPause = true,
 ): ResolutionDecision => {
   const { inputs, ruleEntriesByPattern, entriesByCookieStore, fallbackSnapshot } =
     state;
@@ -390,6 +402,10 @@ const resolvePreparedDecision = (
   if (resolvedSources.trustedSite) {
     return { snapshot: null, trustedSiteMatched: true };
   }
+  const hostPause = respectHostPause
+    ? findHostPause(hostname, inputs.hostPauses ?? [])
+    : undefined;
+  if (hostPause) return { snapshot: null, trustedSiteMatched: false, hostPause };
   if (resolvedSources.activeRule) {
     const entry = ruleEntriesByPattern.get(resolvedSources.activeRule.pattern);
     return {
@@ -521,6 +537,7 @@ const getFxSeed = (
   return {
     entries,
     containerState,
+    hostPauses: [...(inputs.hostPauses ?? [])],
     containerEntries,
     ...(nativeRulePatterns.length > 0 ? { nativeRulePatterns } : {}),
     trustedPatterns: inputs.trustedSites.map((site) => site.pattern),
@@ -574,8 +591,9 @@ export const createPreparedDecisions = (
   };
 
   return {
-    resolveDecision: (hostname, cookieStoreId) =>
-      resolvePreparedDecision(state, hostname, cookieStoreId),
+    resolveDecision: (hostname, cookieStoreId, respectHostPause) =>
+      resolvePreparedDecision(state, hostname, cookieStoreId, respectHostPause),
+    getHostPauses: () => inputs.hostPauses ?? [],
     getPreloadedEntries: () => getPreparedEntries(state),
     getNativeRulePatterns: () => getNativePatterns(state),
     getFxWindowSeed: (cookieStoreId, hostname) =>

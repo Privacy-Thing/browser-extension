@@ -1,6 +1,7 @@
 /** Firefox early-state transport, seed selection, and replay handoff. */
 
 import {
+  buildFirefoxShimState,
   isFxRecord,
   normalizeFxState,
   type FirefoxMainHandoff,
@@ -24,8 +25,15 @@ import {
   getDomainRuleSpecificity,
   type DomainRuleSpecificity,
 } from "@/shared/domain-match";
+import {
+  findHostPause,
+  isHostPauseActive,
+  parseHostPauses,
+  type HostProtectionPause,
+} from "@/shared/host-protection-pause";
 
 export * from "./firefox-shim-model";
+const nativeNow = Date.now.bind(Date);
 
 export const getFxStateEvent = (): string => __PT_FX_STATE_CHANGE_EVENT__;
 export const getFxHandoffReadyEvent = (): string => __PT_FX_HANDOFF_READY_EVENT__;
@@ -37,6 +45,7 @@ export type FirefoxWindowSeedEntry = {
 };
 
 export type FirefoxWindowSeedState = {
+  hostPauses?: HostProtectionPause[];
   entries: FirefoxWindowSeedEntry[];
   containerState: FirefoxShimState | null;
   containerEntries?: FirefoxWindowSeedEntry[] | undefined;
@@ -45,6 +54,7 @@ export type FirefoxWindowSeedState = {
 };
 
 export type FxStaticStateCandidate = {
+  hostPauses?: HostProtectionPause[];
   buildKey: string;
   pattern: string;
   specificity: DomainRuleSpecificity;
@@ -117,6 +127,7 @@ export const normalizeFxWindowSeed = (
     ? normalizeFxSeedEntries(value.containerEntries, { legacyRevision })
     : null;
   if (Array.isArray(value.containerEntries) && !containerEntries) return null;
+  const hostPauses = parseHostPauses(value.hostPauses);
   const trustedPatterns = Array.isArray(value.trustedPatterns)
     ? value.trustedPatterns.filter(
         (pattern): pattern is string => typeof pattern === "string",
@@ -129,6 +140,7 @@ export const normalizeFxWindowSeed = (
     : [];
   return {
     entries,
+    ...(hostPauses.length > 0 ? { hostPauses } : {}),
     containerState,
     ...(containerEntries ? { containerEntries } : {}),
     ...(nativeRulePatterns.length > 0 ? { nativeRulePatterns } : {}),
@@ -178,6 +190,8 @@ export const resolveFxSeedForHost = (
   ) {
     return null;
   }
+  const hostPause = findHostPause(hostname, seedState.hostPauses ?? [], nativeNow());
+  if (hostPause) return { ...buildFirefoxShimState(null), hostPause };
   const matched = resolveFxSeedCandidate(hostname, [
     ...(seedState.containerEntries ?? []),
     ...seedState.entries,
@@ -216,6 +230,7 @@ const normalizeFxCandidates = (
   for (const candidate of value) {
     if (!isFxStaticCandidate(candidate, { legacyRevision })) continue;
     candidates.push({
+      hostPauses: parseHostPauses(candidate.hostPauses),
       buildKey: candidate.buildKey,
       pattern: candidate.pattern,
       specificity: candidate.specificity,
@@ -245,10 +260,26 @@ const resolveFxCandidates = (
 export const takeFxStaticState = (
   globalRef: typeof globalThis,
   hostname: string,
-  { legacyRevision = 0 }: { legacyRevision?: number } = {},
+  {
+    legacyRevision = 0,
+    topHostname = hostname,
+  }: { legacyRevision?: number; topHostname?: string | null } = {},
 ): FirefoxShimState | null => {
   const raw = takeStaticPayload(globalRef, __PT_FX_STATIC_CANDIDATES_KEY__);
-  return resolveFxCandidates(hostname, normalizeFxCandidates(raw, { legacyRevision }));
+  const candidates = normalizeFxCandidates(raw, { legacyRevision });
+  const pauses = candidates.flatMap((candidate) => candidate.hostPauses ?? []);
+  // Cross-origin frames cannot read their top host. Defer to the tab-aware
+  // background handoff while an exception exists instead of using the iframe host.
+  if (
+    topHostname === null &&
+    pauses.some((pause) => isHostPauseActive(pause, nativeNow()))
+  )
+    return null;
+  const hostPause = topHostname
+    ? findHostPause(topHostname, pauses, nativeNow())
+    : undefined;
+  if (hostPause) return { ...buildFirefoxShimState(null), hostPause };
+  return resolveFxCandidates(hostname, candidates);
 };
 
 export const clearFirefoxStaticState = (globalRef: typeof globalThis): void => {
@@ -323,4 +354,13 @@ export const takeFxMainHandoff = (documentRef: Document): FirefoxMainHandoff | n
   const state = normalizeFxState(raw.state);
   if (!state || state.bootstrap.revision !== raw.revision) return null;
   return { protocol: 1, revision: raw.revision, state };
+};
+
+/** Returns null for an inaccessible cross-origin ancestor. */
+export const readTopHostname = (): string | null => {
+  try {
+    return window.top?.location.hostname ?? window.location.hostname;
+  } catch {
+    return null;
+  }
 };

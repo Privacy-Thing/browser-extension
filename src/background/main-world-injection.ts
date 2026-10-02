@@ -203,6 +203,7 @@ export const seedWindowSnapshot = (
   snapshot: RuntimeSnapshot | null,
   windowSeedPrefix: string,
   runtimeDisabled = false,
+  expiresAt?: number,
 ): void => {
   if (!snapshot && !runtimeDisabled) {
     return;
@@ -239,6 +240,7 @@ export const seedWindowSnapshot = (
       ? {
           kind: "disabled",
           previousName,
+          ...(expiresAt === undefined ? {} : { expiresAt }),
         }
       : {
           kind: "snapshot",

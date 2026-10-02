@@ -25,6 +25,7 @@ import {
   type PopupViewModelCore,
 } from "./popup-view-model-types";
 
+import type { HostPauseStatus } from "@/shared/host-protection-pause";
 import { getLocaleDisplayName } from "@/shared/locale-catalog";
 import type { PopupState } from "@/shared/types";
 import { t } from "@/ui/i18n";
@@ -274,6 +275,42 @@ const createPanicModel = ({
     popupState,
   );
 
+const withHostPause = (
+  base: PopupViewModelCore,
+  status: HostPauseStatus,
+): PopupViewModelCore => {
+  const active = Boolean(
+    status.pause &&
+    (status.pause.expiresAt === null || Date.now() < status.pause.expiresAt),
+  );
+  const session = status.pause?.expiresAt === null;
+  const label = active ? t.popup.pauseActive : t.popup.pauseReloadRequired;
+  let powerTarget: string = t.popup.pauseResumeHint;
+  if (active)
+    powerTarget = session ? t.popup.pauseSessionOptionHint : t.popup.pauseAutoResume;
+  let protectionCounts: string = session
+    ? t.popup.pauseSessionSummary
+    : t.popup.pauseTimedSummary;
+  if (!active || status.reloadRequired)
+    protectionCounts = active
+      ? t.popup.pauseStartReloadRequired
+      : t.popup.pauseExpiredSummary;
+  return {
+    ...base,
+    powerTone: "warning",
+    ruleTone: "warning",
+    powerLabel: label,
+    powerTitle: label,
+    powerAriaLabel: label,
+    powerTarget,
+    protectionTitle: label,
+    protectionStatus: "off",
+    protectedSurfaceCount: 0,
+    protectionCounts,
+    showFirefoxWarning: false,
+  };
+};
+
 export const derivePopupViewModel = (popupState: PopupState | null): PopupViewModel => {
   const presentationKind = resolvePresentationKind(popupState);
   const globalProtectionsOff = hasGlobalProtectionsOff(popupState);
@@ -339,6 +376,10 @@ export const derivePopupViewModel = (popupState: PopupState | null): PopupViewMo
     globalProtectionsOff,
     ...getProtectionSummary(popupState, globalProtectionsOff),
   };
+  const hostPause = popupState?.hostPause;
+  if (hostPause?.pause || hostPause?.reloadRequired) {
+    return withActionDescriptors(withHostPause(base, hostPause), popupState);
+  }
   if (presentationKind !== "trusted-site") {
     return withActionDescriptors(base, popupState);
   }

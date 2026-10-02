@@ -1,7 +1,14 @@
 import { getTimeZoneOffsetMinutes } from "@privacy-brand/refract-core/time/timezone-offset";
 
 import { serializeAcceptLanguage } from "@/shared/accept-language";
+import {
+  isHostPauseActive,
+  parseHostPauses,
+  type HostProtectionPause,
+} from "@/shared/host-protection-pause";
 import type { RuntimeSnapshot } from "@/shared/types";
+
+const nativeNow = Date.now.bind(Date);
 
 export type FirefoxMainHandoff = {
   protocol: 1;
@@ -42,6 +49,7 @@ export type FirefoxGeoState = {
 };
 
 export type FirefoxShimState = {
+  hostPause?: HostProtectionPause;
   bootstrap: FirefoxBootstrapRevision;
   geolocationEnabled?: boolean | undefined;
   geoStatus: "ready" | "absent" | null;
@@ -331,6 +339,7 @@ export const normalizeFxState = (
   const bootstrap = normalizeFxRevision(value.bootstrap, legacyRevision);
   const sections = normalizeFxSections(value);
   if (!bootstrap || !sections) return null;
+  const hostPause = parseHostPauses([value.hostPause])[0];
   const normalizedDebug = normalizeFxDebug(debug);
   if (debug !== null && normalizedDebug === null) return null;
   if (
@@ -358,6 +367,7 @@ export const normalizeFxState = (
   });
   return {
     bootstrap,
+    ...(hostPause ? { hostPause } : {}),
     ...sections,
     debug: normalizedDebug,
     ...(normalizedWorkerMode ? { sharedWorkerHandlingMode: normalizedWorkerMode } : {}),
@@ -367,12 +377,19 @@ export const normalizeFxState = (
   };
 };
 
+const hasInvalidFxState = (state: FirefoxShimState): boolean =>
+  Boolean(
+    (state.hostPause && !isHostPauseActive(state.hostPause, nativeNow())) ||
+    (state.geoStatus === "ready" && !state.geo) ||
+    (state.timeLocaleStatus === "ready" && !state.timeLocale),
+  );
+
 export const toSnapshotFromFxState = (
   state: FirefoxShimState,
   { baseEpochMs = Date.now() }: { baseEpochMs?: number } = {},
 ): RuntimeSnapshot | null => {
-  if (state.geoStatus === "ready" && !state.geo) return null;
-  if (state.timeLocaleStatus === "ready" && !state.timeLocale) return null;
+  if (hasInvalidFxState(state)) return null;
+
   const geolocationEnabled = state.geoStatus === "ready" && Boolean(state.geo);
   const timeLocaleEnabled =
     state.timeLocaleStatus === "ready" && Boolean(state.timeLocale);

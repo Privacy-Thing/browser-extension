@@ -1,3 +1,4 @@
+import type { HostProtectionPause } from "@/shared/host-protection-pause";
 import type { RuntimeSnapshot } from "@/shared/types";
 
 /**
@@ -8,6 +9,7 @@ export type TopFrameDecision = {
   snapshot: RuntimeSnapshot | null;
   trustedSiteMatched: boolean;
   fencesIdentity?: boolean;
+  hostPause?: HostProtectionPause;
 };
 
 export const pickTopFrameDecision = (

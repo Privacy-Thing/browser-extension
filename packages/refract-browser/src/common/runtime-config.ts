@@ -8,6 +8,7 @@ import { safeJsonStringify } from "@privacy-brand/refract-core/runtime/safe-json
 import { isRuntimeSnapshot } from "@/shared/runtime-snapshot";
 import type { RuntimeSnapshot } from "@/shared/types";
 
+const nativeNow = Date.now.bind(Date);
 const WINDOW_NAME_PREFIX = "\u001f\u001e";
 const CONFIG_OBSERVER_TIMEOUT = 1_500;
 const RUNTIME_CONFIG_SELECTOR = `script[type="application/json"][data-${__PT_RUNTIME_CONFIG_ATTR__}]`;
@@ -67,6 +68,7 @@ export type RuntimeWindowSeedPayload = {
     }
   | {
       kind: "disabled";
+      expiresAt?: number;
     }
 );
 
@@ -309,6 +311,7 @@ export const parseRuntimeWindowSeed = (
     const decoded = new TextDecoder().decode(bytes);
     const parsed = JSON.parse(decoded) as {
       kind?: unknown;
+      expiresAt?: unknown;
       previousName?: unknown;
       sourceHostname?: unknown;
       snapshot?: unknown;
@@ -327,8 +330,18 @@ export const parseRuntimeWindowSeed = (
         ? { sourceHostname: parsed.sourceHostname }
         : {};
     if (parsed.kind === "disabled") {
+      if (
+        parsed.expiresAt !== undefined &&
+        (typeof parsed.expiresAt !== "number" ||
+          !Number.isFinite(parsed.expiresAt) ||
+          nativeNow() >= parsed.expiresAt)
+      )
+        return null;
       return {
         kind: "disabled",
+        ...(typeof parsed.expiresAt === "number"
+          ? { expiresAt: parsed.expiresAt }
+          : {}),
         previousName: parsed.previousName,
         ...sourceHostname,
       };
