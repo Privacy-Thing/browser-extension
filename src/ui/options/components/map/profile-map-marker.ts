@@ -1,4 +1,4 @@
-import type maplibreglType from "maplibre-gl";
+import type * as maplibreglType from "maplibre-gl";
 import type { MapMouseEvent } from "maplibre-gl";
 import type { MutableRefObject } from "react";
 

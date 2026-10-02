@@ -23,6 +23,9 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ### Changed
 
+- Upgrade the location map to MapLibre GL JS 6 while keeping its worker bundled
+  locally for Chromium and Firefox extension pages. Maps now require WebGL2.
+
 - The interface language can be chosen in Settings. Automatic still follows the
   browser language. Popup, sidebar, and Settings update without a reload.
 - Language choices show the English name and the name from the active translation.
