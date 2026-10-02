@@ -4,14 +4,12 @@ const { setWorkerUrl } = vi.hoisted(() => ({
   setWorkerUrl: vi.fn(),
 }));
 
-vi.mock("maplibre-gl/dist/maplibre-gl-csp.js", () => ({
-  default: {
-    setWorkerUrl,
-  },
+vi.mock("maplibre-gl", () => ({
+  setWorkerUrl,
 }));
 
-vi.mock("maplibre-gl/dist/maplibre-gl-csp-worker.js?url", () => ({
-  default: "/assets/maplibre-gl-csp-worker.js",
+vi.mock("maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url", () => ({
+  default: "/assets/maplibre-gl-worker.js",
 }));
 
 describe("maplibre-csp", () => {
@@ -21,17 +19,17 @@ describe("maplibre-csp", () => {
     vi.unstubAllGlobals();
   });
 
-  it("configures the CSP worker against the current extension page origin", async () => {
-    vi.stubGlobal(
-      "location",
-      new URL("chrome-extension://test/src/ui/options/index.html"),
-    );
+  it.each(["chrome-extension://test", "moz-extension://test"])(
+    "configures the bundled worker against the %s page origin",
+    async (origin) => {
+      vi.stubGlobal("location", new URL(`${origin}/src/ui/options/index.html`));
 
-    const module = await import("@/ui/options/components/map/maplibre-csp");
+      const module = await import("@/ui/options/components/map/maplibre-csp");
 
-    expect(setWorkerUrl).toHaveBeenCalledWith(
-      "chrome-extension://test/assets/maplibre-gl-csp-worker.js",
-    );
-    expect(module.default).toHaveProperty("setWorkerUrl", setWorkerUrl);
-  });
+      expect(setWorkerUrl).toHaveBeenCalledWith(
+        `${origin}/assets/maplibre-gl-worker.js`,
+      );
+      expect(module.default).toHaveProperty("setWorkerUrl", setWorkerUrl);
+    },
+  );
 });

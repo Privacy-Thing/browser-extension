@@ -1,8 +1,6 @@
-import type maplibreglType from "maplibre-gl";
-import maplibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-csp-worker.js?url";
-import maplibreglRuntime from "maplibre-gl/dist/maplibre-gl-csp.js";
-
-const maplibregl = maplibreglRuntime as typeof maplibreglType;
+import * as maplibregl from "maplibre-gl";
+// Bundle the worker's shared ESM imports too; a plain ?url would leave them missing.
+import maplibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 
 const resolvedWorkerUrl =
   typeof globalThis.location?.href === "string"

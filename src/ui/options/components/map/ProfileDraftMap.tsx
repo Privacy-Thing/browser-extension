@@ -1,6 +1,6 @@
 import "maplibre-gl/dist/maplibre-gl.css";
 
-import type maplibreglType from "maplibre-gl";
+import type * as maplibreglType from "maplibre-gl";
 import type { AddLayerObject, GeoJSONSource } from "maplibre-gl";
 import type { MutableRefObject, ReactNode } from "react";
 import { useEffect, useRef } from "react";
