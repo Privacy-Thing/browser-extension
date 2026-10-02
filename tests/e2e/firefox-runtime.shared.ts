@@ -5109,13 +5109,16 @@ export const registerFxEdgeTests = () => {
 };
 
 /** Firefox extension pages need RDP; Playwright does not receive their load events. */
-export const openFxOptionsProbe = async (input: {
-  context: BrowserContext;
-  extensionOrigin: string;
-  debuggerPort: number;
-}) => {
+const openFxUiProbe = async (
+  input: {
+    context: BrowserContext;
+    extensionOrigin: string;
+    debuggerPort: number;
+  },
+  pagePath: string,
+) => {
   const page = await input.context.newPage();
-  const url = `${input.extensionOrigin}/src/ui/options/index.html?pt-e2e-import=preview`;
+  const url = `${input.extensionOrigin}${pagePath}`;
   await navigateFirefoxPopupPage(page, url);
   const remote = await connectRemoteFirefox(input.debuggerPort);
   const tab = await waitForRemoteFirefoxTab(remote, url);
@@ -5127,7 +5130,7 @@ export const openFxOptionsProbe = async (input: {
         consoleActor,
         url,
         expression,
-        "import-ui",
+        "extension-ui",
         15_000,
         tab.actor,
       ),
@@ -5137,3 +5140,8 @@ export const openFxOptionsProbe = async (input: {
     },
   };
 };
+
+export const openFxOptionsProbe = (input: Parameters<typeof openFxUiProbe>[0]) =>
+  openFxUiProbe(input, "/src/ui/options/index.html?pt-e2e-import=preview");
+export const openFxSidebarProbe = (input: Parameters<typeof openFxUiProbe>[0]) =>
+  openFxUiProbe(input, "/src/ui/sidebar/index.html?pt-e2e-report=preview");

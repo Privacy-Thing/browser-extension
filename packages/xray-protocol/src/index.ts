@@ -247,6 +247,8 @@ export const ProtectionEvidenceSchema = z.object({
   enforcement: EnforcementKindSchema,
   reasons: z.array(ProtectionReasonSchema),
   confirmedAt: z.number().optional(),
+  /** Oldest actual realm observation in this aggregate; never resolution time. */
+  observedAt: z.number().optional(),
   revision: z.number().optional(),
 });
 export type ProtectionEvidence = z.infer<typeof ProtectionEvidenceSchema>;

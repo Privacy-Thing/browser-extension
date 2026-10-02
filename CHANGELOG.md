@@ -8,6 +8,12 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ### Added
 
+- X-Ray can preview and download a versioned local diagnostic report as JSON or
+  text. Site data is excluded by default; opt-in adds only the hostname and
+  matching rule or Trusted Site pattern. Reports exclude secrets, preset IDs,
+  coordinates, fingerprints and raw logs, and distinguish missing or stale
+  observations from configured protection.
+
 - Configuration imports now show a preview before confirmation, detect newer edits,
   recover interrupted writes, and offer one local undo copy for 7 days (until the
   next configuration edit). Undo restores configuration, not website sessions.
