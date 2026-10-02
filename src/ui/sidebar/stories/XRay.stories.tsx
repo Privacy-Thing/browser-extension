@@ -70,3 +70,28 @@ export const Syncing: Story = { args: { scenario: "syncing" } };
 export const PartiallyDisabled: Story = { args: { scenario: "partially-disabled" } };
 export const Error: Story = { args: { scenario: "error" } };
 export const TrustedSite: Story = { args: { scenario: "trusted-site" } };
+
+export const DiagnosticReport: Story = {
+  args: { scenario: "evidence-states" },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(
+      canvas.getByRole("button", { name: t.sidebar.report.prepare }),
+    );
+    const dialog = within(canvasElement.ownerDocument.body);
+    await expect(dialog.getByRole("dialog")).toHaveAttribute(
+      "data-report-site",
+      "excluded",
+    );
+    const preview = dialog.getByRole("textbox", {
+      name: t.sidebar.report.preview,
+    }) as HTMLTextAreaElement;
+    await expect(preview.value).not.toContain("maps.example.test");
+    await userEvent.click(dialog.getByRole("checkbox"));
+    await expect(dialog.getByRole("dialog")).toHaveAttribute(
+      "data-report-site",
+      "included",
+    );
+    await expect(preview.value).toContain("maps.example.test");
+  },
+};
