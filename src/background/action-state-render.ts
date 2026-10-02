@@ -1,6 +1,7 @@
 import type { ActionContext } from "@/background/action-state-context";
 import type { logExtensionEvent } from "@/background/logger";
 import { showInactiveRule } from "@/background/popup-state";
+import { getHostPauseStatus } from "@/background/storage/host-protection-pauses";
 import { markNoticePulseShown as markNoticePulseShownStore } from "@/background/storage/popup-notifications";
 import { getBadgeQueryCount } from "@/background/surface-access-tracker";
 import { runToolbarAttentionPulse } from "@/background/toolbar-attention-pulse";
@@ -383,6 +384,23 @@ export const renderActionState = async (
   const ops = createActionOps(deps, context);
   if (await renderPanic(deps, context, ops)) return;
   if (await renderUnsupported(deps, context, ops)) return;
+  const hostPause = context.hostname
+    ? getHostPauseStatus(context.hostname, context.tabId)
+    : undefined;
+  if (hostPause?.pause || hostPause?.reloadRequired) {
+    await ops.setIcon("off", "host-pause");
+    await chrome.action.setBadgeText({
+      tabId: context.tabId,
+      text: hostPause.reloadRequired ? "↻" : "Ⅱ",
+    });
+    await chrome.action.setTitle({
+      tabId: context.tabId,
+      title: hostPause.reloadRequired
+        ? `${BRAND_DISPLAY_NAME}: reload to apply current protection`
+        : `${BRAND_DISPLAY_NAME}: spoofing paused`,
+    });
+    return;
+  }
   await ops.setIcon("neutral", "pre-neutral");
   if (await renderInactive(deps, context, ops)) return;
   if (await renderTrusted(deps, context, ops)) return;

@@ -3,6 +3,7 @@
  * document or `window.name` before the main-world runtime starts patching.
  */
 
+import { privateDateNow } from "@privacy-brand/refract-core/runtime/primordials";
 import { safeJsonStringify } from "@privacy-brand/refract-core/runtime/safe-json";
 
 import { isRuntimeSnapshot } from "@/shared/runtime-snapshot";
@@ -67,6 +68,7 @@ export type RuntimeWindowSeedPayload = {
     }
   | {
       kind: "disabled";
+      expiresAt?: number;
     }
 );
 
@@ -309,6 +311,7 @@ export const parseRuntimeWindowSeed = (
     const decoded = new TextDecoder().decode(bytes);
     const parsed = JSON.parse(decoded) as {
       kind?: unknown;
+      expiresAt?: unknown;
       previousName?: unknown;
       sourceHostname?: unknown;
       snapshot?: unknown;
@@ -327,8 +330,18 @@ export const parseRuntimeWindowSeed = (
         ? { sourceHostname: parsed.sourceHostname }
         : {};
     if (parsed.kind === "disabled") {
+      if (
+        parsed.expiresAt !== undefined &&
+        (typeof parsed.expiresAt !== "number" ||
+          !Number.isFinite(parsed.expiresAt) ||
+          privateDateNow() >= parsed.expiresAt)
+      )
+        return null;
       return {
         kind: "disabled",
+        ...(typeof parsed.expiresAt === "number"
+          ? { expiresAt: parsed.expiresAt }
+          : {}),
         previousName: parsed.previousName,
         ...sourceHostname,
       };

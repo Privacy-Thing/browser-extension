@@ -100,6 +100,7 @@ type PopupShellProps = {
   protectionException?: string;
   protectionDetailsLabel?: string;
   onProtectionDetails?: () => void;
+  pauseControl?: React.ReactNode;
   alertTitle?: string;
   alertDescription?: string;
   alertActionLabel?: string;
@@ -242,7 +243,10 @@ const PopupPowerSection = ({ props }: { props: PopupShellProps }) => (
 );
 
 const PopupRuleSection = ({ props }: { props: PopupShellProps }) => (
-  <div className="gw-popup-rule-slot">
+  <div
+    className="gw-popup-rule-slot"
+    data-has-control={props.pauseControl ? "true" : undefined}
+  >
     <div className="gw-popup-rule-motion">
       <PopupRuleCard
         {...(props.presentationKind
@@ -280,6 +284,7 @@ const PopupRuleSection = ({ props }: { props: PopupShellProps }) => (
           ? { detailsLabel: props.protectionDetailsLabel }
           : {})}
         {...(props.onProtectionDetails ? { onDetails: props.onProtectionDetails } : {})}
+        pauseControl={props.pauseControl}
       />
     </div>
   </div>
@@ -369,6 +374,8 @@ export const PopupShell = (props: PopupShellProps) => {
       <main
         className="gw-popup-shell"
         data-phase={phase}
+        data-rule-tone={props.ruleTone}
+        data-has-pause-control={props.pauseControl ? "true" : undefined}
         aria-busy={phase === "loading" ? "true" : undefined}
       >
         {phase === "loading" && props.loadingLabel ? (

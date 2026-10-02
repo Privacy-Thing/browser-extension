@@ -36,11 +36,12 @@ export const FX_GEO_SHIM_MAX_BYTES = 131 * 1024;
 
 /**
  * Firefox main-world runtime (`main-world-runtime.js`), including the
- * inlined worker source. Preserve a hard ceiling while allowing
+ * inlined worker source and exact-host pause/deadline transport. Preserve
+ * a hard ceiling while allowing
  * per-build obfuscated identifier variance via
  * {@link BUNDLE_SIZE_TOLERANCE}.
  */
-export const FX_MAIN_WORLD_MAX_BYTES = 165 * 1024;
+export const FX_MAIN_WORLD_MAX_BYTES = 166 * 1024;
 
 /**
  * Chromium first-inline script. It blocks the first page-JS read, so keep

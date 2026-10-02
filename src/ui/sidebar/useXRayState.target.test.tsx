@@ -43,8 +43,8 @@ const initialXRayState: GetXRayStateResponse = {
   explanation: null,
 };
 
-const Harness = () => {
-  const { state } = useXRayState(7);
+const Harness = ({ tabId = 7 }: { tabId?: number }) => {
+  const { state } = useXRayState(tabId);
   return createElement("pre", null, JSON.stringify(state));
 };
 
@@ -135,5 +135,56 @@ describe("useXRayState", () => {
     expect(document.body.textContent).toContain(
       '"methodCounts":{"canvas.toDataURL":2}',
     );
+  });
+});
+
+describe("sidebar tab snapshot ownership", () => {
+  it("hides the previous tab and ignores its late response after switching tabs", async () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    Object.defineProperty(globalThis, "IS_REACT_ACT_ENVIRONMENT", {
+      configurable: true,
+      value: true,
+    });
+    let resolveA: ((response: GetXRayStateResponse) => void) | undefined;
+    let resolveB: ((response: GetXRayStateResponse) => void) | undefined;
+    const sendMessage = vi.fn(
+      (message: { tabId: number }) =>
+        new Promise<GetXRayStateResponse>((resolve) => {
+          if (message.tabId === 7) resolveA = resolve;
+          else resolveB = resolve;
+        }),
+    );
+    vi.stubGlobal("chrome", {
+      runtime: {
+        id: "abc",
+        sendMessage,
+        connect: () => ({
+          onMessage: { addListener: vi.fn() },
+          onDisconnect: { addListener: vi.fn() },
+          disconnect: vi.fn(),
+        }),
+      },
+      tabs: { onUpdated: { addListener: vi.fn(), removeListener: vi.fn() } },
+    });
+    const root = createRoot(container);
+    try {
+      await act(async () => root.render(createElement(Harness, { tabId: 7 })));
+      await act(async () => resolveA?.(initialXRayState));
+      expect(container.textContent).toContain('"hostname":"example.com"');
+      await act(async () => root.render(createElement(Harness, { tabId: 8 })));
+      expect(container.textContent).toBe("null");
+      await act(async () => root.render(createElement(Harness, { tabId: 7 })));
+      // The response for B must not overwrite A after a rapid A → B → A switch.
+      await act(async () => resolveB?.({ ...initialXRayState, hostname: "b.example" }));
+      expect(container.textContent).not.toContain("b.example");
+      await act(async () => resolveA?.({ ...initialXRayState, hostname: "a.example" }));
+      expect(container.textContent).toContain("a.example");
+    } finally {
+      await act(async () => root.unmount());
+      container.remove();
+      vi.unstubAllGlobals();
+      Reflect.deleteProperty(globalThis, "IS_REACT_ACT_ENVIRONMENT");
+    }
   });
 });

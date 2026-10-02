@@ -13,8 +13,41 @@ import { sendRuntimeMessage } from "@/ui/shared/runtime-messaging";
 /** How long to stay in "connecting" state if no surface-usage dump arrives. */
 const SURFACE_SYNC_TIMEOUT_MS = 1500;
 
+const mergeSurfaceUsage = (
+  prev: Extract<GetXRayStateResponse, { ok: true }>,
+  event: Extract<SidebarPushEvent, { type: "surface-usage-updated" }>,
+): GetXRayStateResponse => {
+  const accessedSet = new Set(event.categories);
+  const assessments = prev.assessments.map((assessment) => {
+    const nextMethodCounts = { ...assessment.activity.methodCounts };
+    for (const method of getSurfaceDefinition(assessment.key).methods) {
+      const count = event.methodCounts?.[method.id];
+      if (count !== undefined) nextMethodCounts[method.id] = count;
+    }
+    return {
+      ...assessment,
+      activity: {
+        ...assessment.activity,
+        accessed: assessment.activity.accessed || accessedSet.has(assessment.key),
+        queryCount:
+          event.queryCounts?.[assessment.key] ?? assessment.activity.queryCount,
+        methodCounts: nextMethodCounts,
+      },
+    };
+  });
+  const legacyActivity = deriveLegacyXRayActivity(assessments);
+  return {
+    ...prev,
+    assessments,
+    ...legacyActivity,
+  };
+};
+
 export const useXRayState = (tabId: number | undefined) => {
   const [state, setState] = useState<GetXRayStateResponse | null>(null);
+  const [stateTabId, setStateTabId] = useState<number | undefined>();
+  const requestIdRef = useRef(0);
+  const stateTabIdRef = useRef<number | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   /** True from mount until the first surface-usage-updated push event arrives (or
    *  the fallback timeout fires). Starts true so the accordion never briefly shows
@@ -42,13 +75,19 @@ export const useXRayState = (tabId: number | undefined) => {
   );
 
   const refresh = useCallback(() => {
+    const requestedTabId = tabIdRef.current;
+    const requestId = ++requestIdRef.current;
     setLoading(true);
     startSurfaceSync();
     fireAndForget(
       sendRuntimeMessage<GetXRayStateResponse>({
         type: EXTENSION_COMMAND_TYPES.getXRayState,
-        tabId: tabIdRef.current,
+        tabId: requestedTabId,
       }).then((response) => {
+        if (tabIdRef.current !== requestedTabId || requestId !== requestIdRef.current)
+          return;
+        stateTabIdRef.current = requestedTabId;
+        setStateTabId(requestedTabId);
         if (!response) {
           setState({ ok: false, error: "Extension context unavailable." });
           setSurfaceSyncPending(false);
@@ -122,32 +161,8 @@ export const useXRayState = (tabId: number | undefined) => {
         }
         // Patch accessedCategories and counts in place — no loading spinner, no round-trip.
         setState((prev) => {
-          if (!prev?.ok) return prev;
-          const accessedSet = new Set(event.categories);
-          const assessments = prev.assessments.map((assessment) => {
-            const nextMethodCounts = { ...assessment.activity.methodCounts };
-            for (const method of getSurfaceDefinition(assessment.key).methods) {
-              const count = event.methodCounts?.[method.id];
-              if (count !== undefined) nextMethodCounts[method.id] = count;
-            }
-            return {
-              ...assessment,
-              activity: {
-                ...assessment.activity,
-                accessed:
-                  assessment.activity.accessed || accessedSet.has(assessment.key),
-                queryCount:
-                  event.queryCounts?.[assessment.key] ?? assessment.activity.queryCount,
-                methodCounts: nextMethodCounts,
-              },
-            };
-          });
-          const legacyActivity = deriveLegacyXRayActivity(assessments);
-          return {
-            ...prev,
-            assessments,
-            ...legacyActivity,
-          };
+          if (!prev?.ok || stateTabIdRef.current !== currentTabId) return prev;
+          return mergeSurfaceUsage(prev, event);
         });
         return;
       }
@@ -161,5 +176,11 @@ export const useXRayState = (tabId: number | undefined) => {
 
   useSidebarEvents(handlePushEvent);
 
-  return { state, loading, refresh, surfaceSyncPending };
+  const matchesTab = stateTabId === tabId;
+  return {
+    state: matchesTab ? state : null,
+    loading: loading || !matchesTab,
+    refresh,
+    surfaceSyncPending,
+  };
 };

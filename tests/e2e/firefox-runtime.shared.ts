@@ -2550,19 +2550,23 @@ export const registerFxCoreTests = () => {
     await gotoFirefoxHostUrl(page, serverUrl);
     await waitForFxBridge(page);
 
-    const saveSettingsResult = await requestFxSettingsBridge<SaveSettingsResponse>(
-      page,
-      FXT_BRIDGE_EVENTS.saveSimpleSettings,
-      FXT_BRIDGE_EVENTS.saveSimpleSettingsResult,
-      { featureFlags: { temporalApi: true } },
-    );
+    // Saving a runtime feature flag reloads this tab. Observe that navigation
+    // before dispatching the command instead of racing it with a second one.
+    const reloaded = page.waitForEvent("domcontentloaded");
+    const [saveSettingsResult] = await Promise.all([
+      requestFxSettingsBridge<SaveSettingsResponse>(
+        page,
+        FXT_BRIDGE_EVENTS.saveSimpleSettings,
+        FXT_BRIDGE_EVENTS.saveSimpleSettingsResult,
+        { featureFlags: { temporalApi: true } },
+      ),
+      reloaded,
+    ]);
     expect(saveSettingsResult.ok).toBe(true);
     if (!saveSettingsResult.ok) {
       throw new Error(saveSettingsResult.error);
     }
 
-    await page.goto("about:blank", { waitUntil: "domcontentloaded" });
-    await gotoFirefoxHostUrl(page, serverUrl);
     await waitForHostProbeReady(page);
     await waitForSpoofedSnapshot(page, { allowReload: true });
     const snapshot = await readTemporalE2ESnapshot(page);

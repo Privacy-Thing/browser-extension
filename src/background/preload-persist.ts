@@ -19,6 +19,7 @@ export const writePreloadState = async (
   await chrome.storage.session.set({
     [PRELOAD_STATE_KEY]: {
       entries: prepared.getPreloadedEntries(),
+      hostPauses: prepared.getHostPauses(),
       nativeRulePatterns: prepared.getNativeRulePatterns(),
       trustedSites,
     },

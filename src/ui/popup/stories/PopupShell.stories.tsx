@@ -6,6 +6,7 @@ import "@fortawesome/fontawesome-free/css/fontawesome.css";
 import "@fortawesome/fontawesome-free/css/solid.css";
 import "../popup.css";
 
+import { PopupHostPause } from "../components/PopupHostPause";
 import { PopupShell } from "../components/PopupShell";
 
 import { BRAND_DISPLAY_NAME } from "@/shared/brand";
@@ -276,5 +277,117 @@ export const TrustedSite: Story = {
     protectionSource: "Trusted Site",
     protectionCounts: "11 not modified",
     footerActions: footerActions.map((action) => ({ ...action })),
+  },
+};
+
+export const PausedWithReloadHint: Story = {
+  args: {
+    ...Active.args,
+    powerState: "warning",
+    powerDisabled: true,
+    powerLabel: "Spoofing paused",
+    powerTarget: "Until you close the browser",
+    ruleTitle: "Spoofing paused",
+    ruleTone: "warning",
+    protectionCounts: "Protection returns when you reopen the browser.",
+    pauseControl: (
+      <PopupHostPause
+        hostname="example.com"
+        status={{
+          pause: { hostname: "example.com", id: "session", expiresAt: null },
+          reloadRequired: false,
+        }}
+        disabled={false}
+        pending={false}
+        onPause={() => undefined}
+        onExpired={() => undefined}
+      />
+    ),
+  },
+  play: async ({ canvasElement }) => {
+    const card = canvasElement.querySelector(".gw-popup-rule-card");
+    const content = canvasElement.querySelector(".gw-popup-rule-card-content");
+    const control = canvasElement.querySelector("#host-protection-pause");
+    if (
+      !(card instanceof HTMLElement) ||
+      !(content instanceof HTMLElement) ||
+      !(control instanceof HTMLElement)
+    ) {
+      throw new Error("Expected the paused rule card and pause control");
+    }
+    await expect(control.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+      content.getBoundingClientRect().bottom,
+    );
+    await expect(control.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+      card.getBoundingClientRect().bottom,
+    );
+  },
+};
+
+export const ProtectedWithPause: Story = {
+  args: {
+    ...Active.args,
+    pauseControl: (
+      <PopupHostPause
+        hostname="browserleaks.com"
+        status={{ pause: null, reloadRequired: false }}
+        disabled={false}
+        pending={false}
+        onPause={() => undefined}
+        onExpired={() => undefined}
+      />
+    ),
+  },
+  play: async ({ canvasElement }) => {
+    const trigger = canvasElement.querySelector("#host-protection-pause");
+    if (!(trigger instanceof HTMLElement)) throw new Error("Missing pause trigger");
+    await expect(trigger.getBoundingClientRect().height).toBeLessThanOrEqual(36);
+  },
+};
+
+export const TimedPauseSiteActions: Story = {
+  args: {
+    ...PausedWithReloadHint.args,
+    powerTarget: "Protection returns automatically",
+    protectionCounts: "After expiry, reload open tabs to apply protection.",
+    ruleFooterActionLabel: "Add Site Rule",
+    secondaryActionLabel: "Add to Trusted Sites",
+    ruleActionLabel: "Edit Default Rule",
+    pauseControl: (
+      <PopupHostPause
+        hostname="example.com"
+        status={{
+          pause: {
+            hostname: "example.com",
+            id: "timed",
+            expiresAt: Date.now() + 600_000,
+          },
+          reloadRequired: false,
+        }}
+        disabled={false}
+        pending={false}
+        onPause={() => undefined}
+        onExpired={() => undefined}
+      />
+    ),
+  },
+  play: async ({ canvasElement }) => {
+    const actions = canvasElement.querySelector(".gw-popup-action-strip");
+    const section = canvasElement.querySelector(".gw-popup-main-section");
+    if (!(actions instanceof HTMLElement) || !(section instanceof HTMLElement)) {
+      throw new Error("Expected the site actions and popup section");
+    }
+    await expect(actions.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+      section.getBoundingClientRect().bottom,
+    );
+    const trigger = canvasElement.querySelector("#host-protection-pause");
+    const symbol = trigger?.querySelector(".gw-popup-pause-symbol");
+    if (!(trigger instanceof HTMLElement) || !(symbol instanceof HTMLElement))
+      throw new Error("Missing pause control");
+    trigger.focus();
+    await expect(trigger.matches(":focus-visible")).toBe(true);
+    await expect(getComputedStyle(trigger).outlineColor).toBe(
+      getComputedStyle(symbol).color,
+    );
   },
 };

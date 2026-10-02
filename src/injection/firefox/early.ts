@@ -13,6 +13,7 @@ import {
   parseFxStateEvent,
   publishFxMainHandoff,
   takeFxStaticState,
+  readTopHostname,
   takeFxEphemeralState,
   resolveFxSeedForHost,
   type FirefoxShimDebugState,
@@ -57,10 +58,12 @@ import {
   isPageBufferReady,
   queuePagePayload,
 } from "@/shared/firefox-page-world-buffer";
+import { isHostPauseActive } from "@/shared/host-protection-pause";
 import { ExtensionLogLevel } from "@/shared/logging-types";
 import type { XRaySurfaceCategory } from "@/shared/types";
 
 (function () {
+  const nativeNow = Date.now.bind(Date);
   const WINDOW_NAME_PREFIX = "\u001f\u001e";
 
   let activeDebugState: FirefoxShimDebugState | null = null;
@@ -441,12 +444,16 @@ import type { XRaySurfaceCategory } from "@/shared/types";
     return true;
   });
   const applyState = (state: FirefoxShimState): boolean =>
+    (!state.hostPause || isHostPauseActive(state.hostPause, nativeNow())) &&
     stateRevisionGate.apply(state);
 
   // --- Hybrid bootstrap: static state seed + ephemeral DOM + CustomEvent ---
 
   const consumeStaticState = (): boolean => {
-    const state = takeFxStaticState(globalThis, globalThis.location.hostname);
+    const topHostname = readTopHostname();
+    const state = takeFxStaticState(globalThis, globalThis.location.hostname, {
+      topHostname,
+    });
     if (!state) {
       return false;
     }

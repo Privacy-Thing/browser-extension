@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 import { PopupButton } from "./PopupButton";
 
@@ -32,6 +32,7 @@ type PopupRuleCardProps = {
   summaryException?: string;
   detailsLabel?: string;
   onDetails?: () => void;
+  pauseControl?: ReactNode;
 };
 
 type PopupRuleCardStyle = CSSProperties &
@@ -127,6 +128,28 @@ const buildCountAttributes = (
     ? {}
     : { "data-protected-count": String(summaryProtectedCount) };
 
+const PopupRuleFooter = ({
+  summaryException,
+  summaryCounts,
+  countAttributes,
+}: {
+  summaryException: string | undefined;
+  summaryCounts: string | undefined;
+  countAttributes: Record<string, string>;
+}) =>
+  summaryException || summaryCounts ? (
+    <div className="gw-popup-rule-footer">
+      {summaryException ? (
+        <p className="gw-popup-rule-exception">{summaryException}</p>
+      ) : null}
+      {summaryCounts ? (
+        <p className="gw-popup-protection-counts" {...countAttributes}>
+          {summaryCounts}
+        </p>
+      ) : null}
+    </div>
+  ) : null;
+
 export const PopupRuleCard = ({
   presentationKind,
   protectionStatus,
@@ -145,6 +168,7 @@ export const PopupRuleCard = ({
   summaryException,
   detailsLabel,
   onDetails,
+  pauseControl,
 }: PopupRuleCardProps) => {
   const animatedBorderAccent =
     animatedBorderColor ?? accentColor ?? getPopupRuleToneAccent(tone);
@@ -167,7 +191,10 @@ export const PopupRuleCard = ({
       data-animation-timing={resolvedAnimationTiming}
       style={getCardStyle({ accentColor, animatedBorderAccent })}
     >
-      <div className="gw-popup-rule-card-content">
+      <div
+        className="gw-popup-rule-card-content"
+        data-has-control={pauseControl ? "true" : undefined}
+      >
         <div className="gw-popup-rule-heading">
           <h2 className="gw-popup-rule-title">{title}</h2>
           {detailsLabel && onDetails ? (
@@ -228,19 +255,15 @@ export const PopupRuleCard = ({
             ) : null}
           </p>
         </div>
-        {summaryException || summaryCounts ? (
-          <div className="gw-popup-rule-footer">
-            {summaryException ? (
-              <p className="gw-popup-rule-exception">{summaryException}</p>
-            ) : null}
-            {summaryCounts ? (
-              <p className="gw-popup-protection-counts" {...countAttributes}>
-                {summaryCounts}
-              </p>
-            ) : null}
-          </div>
-        ) : null}
+        <PopupRuleFooter
+          summaryException={summaryException}
+          summaryCounts={summaryCounts}
+          countAttributes={countAttributes}
+        />
       </div>
+      {pauseControl ? (
+        <div className="gw-popup-rule-control">{pauseControl}</div>
+      ) : null}
     </section>
   );
 };

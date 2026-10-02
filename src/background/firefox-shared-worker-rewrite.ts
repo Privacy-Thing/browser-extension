@@ -61,7 +61,11 @@ type FirefoxWebRequestApi = {
 };
 
 type DecisionReader = {
-  resolveDecision: (hostname: string, cookieStoreId?: string) => ResolutionDecision;
+  resolveDecision: (
+    hostname: string,
+    cookieStoreId?: string,
+    respectHostPause?: boolean,
+  ) => ResolutionDecision;
 };
 
 type RewriteTracker = ReturnType<typeof createRewriteTracker>;
@@ -306,7 +310,7 @@ const handleUnknownRequest = (
   }
   const decision = deps
     .getPreparedDecisions()
-    ?.resolveDecision(getExactHostname(details.url), cookieStoreId);
+    ?.resolveDecision(getExactHostname(details.url), cookieStoreId, false);
   return decision?.snapshot ? { cancel: true } : undefined;
 };
 

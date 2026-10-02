@@ -24,6 +24,10 @@ import {
 import type { createRuntimeState } from "@/background/runtime-state";
 import { loadContainerAssignments } from "@/background/storage/container-assignments";
 import { loadControlState } from "@/background/storage/control-state";
+import {
+  getHostPauses,
+  initializeHostPauses,
+} from "@/background/storage/host-protection-pauses";
 import { loadLocations } from "@/background/storage/locations";
 import {
   getDebugMode,
@@ -114,6 +118,7 @@ const createUserScriptSync =
       await unregisterUserScripts();
       const registrations = createUserScriptRegs({
         ruleEntries,
+        hostPauses: getHostPauses(),
         trustedPatterns: (runtimeState.getLastKnownTrustedSites() ?? []).map(
           (site) => site.pattern,
         ),
@@ -169,6 +174,7 @@ const grantUserScripts = async (): Promise<boolean> => {
 const createPreloadSync =
   (deps: FirefoxBootstrapDeps, syncUserScripts: () => Promise<string[]>) =>
   async (): Promise<void> => {
+    await initializeHostPauses();
     const [
       rules,
       trustedSites,
@@ -206,6 +212,7 @@ const createPreloadSync =
       debugMode,
       watchPositionDelay,
       fingerprintEnabled,
+      hostPauses: getHostPauses(),
       featureFlags: preferences.featureFlags,
       sharedWorkerHandlingMode: workerMode,
       sharedSpoofing,
