@@ -241,6 +241,17 @@ const resolvePolicy = ({
   return resolveSnapshotPolicy(key, snapshot);
 };
 
+const realmObservationTime = (
+  realms: readonly SurfaceRealmEvidence[],
+): { observedAt?: number } => {
+  const times = realms
+    .map((realm) => realm.observedAt)
+    .filter((time) => Number.isFinite(time) && time >= 0);
+  return times.length > 0
+    ? { observedAt: times.reduce((oldest, time) => Math.min(oldest, time)) }
+    : {};
+};
+
 export const buildSurfaceAssessments = ({
   source,
   snapshot,
@@ -369,6 +380,7 @@ export const buildSurfaceAssessments = ({
       installation,
       integrity,
       enforcement,
+      ...realmObservationTime(realmEvidence),
       reasons: applicable
         ? buildReasons(realmEvidence, {
             failed,

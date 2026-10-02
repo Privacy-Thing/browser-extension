@@ -6,6 +6,25 @@ export const sidebar = {
   openRule: "Editar regla de dominio",
   openLocation: "Editar perfil",
   openLogs: "Ver registros",
+  report: {
+    prepare: "Preparar informe",
+    title: "Informe de diagnóstico",
+    localOnly:
+      "Se prepara localmente. No se envía ni se recopila nada automáticamente.",
+    partial: "Informe parcial.",
+    complete: "Hay evidencias disponibles.",
+    evidenceHint:
+      "La configuración y las evaluaciones de X-Ray están separadas de las observaciones. Las evidencias ausentes, antiguas o pendientes no confirman la protección.",
+    includeSite: "Incluir datos del sitio",
+    siteHint:
+      "Añade solo el nombre de host y el patrón de la regla o del sitio de confianza. Se excluyen nombres de perfiles, URL, registros y secretos.",
+    preview: "Vista previa del informe",
+    text: "Texto",
+    cancel: "Cancelar",
+    downloadText: "Descargar texto",
+    downloadJson: "Descargar JSON",
+    error: "No se pudo preparar o descargar el informe.",
+  },
   region: "Región",
 
   errorPrefix: `${BRAND_DISPLAY_NAME} ha detectado un problema:`,

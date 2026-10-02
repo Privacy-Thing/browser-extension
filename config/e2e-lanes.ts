@@ -10,6 +10,7 @@ export const E2E_OWNERSHIP_LANES = {
     "extension-options-navigation.spec.ts",
     "extension-options-rules.spec.ts",
     "extension-popup.spec.ts",
+    "extension-xray-report.spec.ts",
     "extension-state.spec.ts",
     "extension-storage-migration.spec.ts",
   ],
@@ -23,6 +24,7 @@ export const E2E_OWNERSHIP_LANES = {
   ],
   "firefox-runtime": [
     "firefox-runtime-import.spec.ts",
+    "firefox-runtime-xray-report.spec.ts",
     "firefox-runtime-bootstrap-followup.spec.ts",
     "firefox-runtime-bootstrap.spec.ts",
     "firefox-runtime-core.spec.ts",

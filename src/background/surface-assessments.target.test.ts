@@ -39,6 +39,26 @@ const emptyCounts = (): PopupSurfaceCounts => ({
 });
 
 describe("surface assessments", () => {
+  it("retains the oldest actual realm observation without stamping inferred coverage", () => {
+    const assessments = buildSurfaceAssessments({
+      source: "site-rule",
+      snapshot,
+      runtimeExpected: true,
+      evidenceByRealm: {
+        canvas: [
+          { realmId: "document", integrity: "intact", observedAt: 1200 },
+          { realmId: "worker", integrity: "degraded", observedAt: 1100 },
+        ],
+      },
+    });
+    expect(assessments.find((row) => row.key === "canvas")?.evidence.observedAt).toBe(
+      1100,
+    );
+    expect(
+      assessments.find((row) => row.key === "audio")?.evidence.observedAt,
+    ).toBeUndefined();
+  });
+
   it.each(["chromium", "firefox"] as const)(
     "represents missing runtime state on %s as pending, never a false protected",
     (browserTarget) => {
