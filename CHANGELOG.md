@@ -8,6 +8,11 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ### Added
 
+- Regional preset editing, generation, and import now show advisory coordinate/time-zone
+  checks and previews of browser languages, Accept-Language, and seasonal date/number
+  formatting. Applying a suggestion changes only the time zone; intentional differences
+  can still be saved or imported.
+
 - Configuration imports now show a preview before confirmation, detect newer edits,
   recover interrupted writes, and offer one local undo copy for 7 days (until the
   next configuration edit). Undo restores configuration, not website sessions.

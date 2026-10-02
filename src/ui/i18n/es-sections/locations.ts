@@ -42,6 +42,23 @@ export const locations = {
     networkBodySuffix: ".",
   },
 
+  regionalReview: {
+    title: "Vista previa regional",
+    mismatch: (saved: string, suggested: string) =>
+      `La zona ${saved} difiere de ${suggested}, la zona aproximada de estas coordenadas. Puedes conservar esta elección e importar o guardar el perfil.`,
+    approximation:
+      "La zona es aproximada cerca de fronteras y en el mar. La sugerencia no comprueba tu IP ni el país y nunca cambia los idiomas.",
+    applyTimeZone: (zone: string) => `Cambiar solo la zona horaria a ${zone}`,
+    scope:
+      "Vista previa con la protección de hora e idioma activa. Las reglas por sitio pueden desactivarla. Preferir inglés cambia los idiomas del navegador y las cabeceras; el formato sigue usando la configuración regional. Ejemplos: 15 de enero y 15 de julio de 2026 a las 12:34:56 UTC y el número 1234567.89.",
+    formattingLocale: "Configuración regional de formato efectiva",
+    january: "Ejemplo de fecha en enero",
+    july: "Ejemplo de fecha en julio",
+    number: "Ejemplo de número",
+    unavailable:
+      "Vista previa no disponible. Elige una zona compatible y etiquetas de idioma válidas; el borrador no ha cambiado.",
+  },
+
   editor: {
     title: "Editar perfil",
     description:

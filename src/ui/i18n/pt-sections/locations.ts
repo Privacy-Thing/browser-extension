@@ -41,6 +41,23 @@ export const locations = {
     networkBodySuffix: ".",
   },
 
+  regionalReview: {
+    title: "Prévia regional",
+    mismatch: (saved: string, suggested: string) =>
+      `O fuso ${saved} difere de ${suggested}, o fuso aproximado destas coordenadas. Você pode manter esta escolha e salvar ou importar o perfil.`,
+    approximation:
+      "O fuso é aproximado perto de fronteiras e no mar. A sugestão não verifica seu IP nem o país e nunca altera os idiomas.",
+    applyTimeZone: (zone: string) => `Alterar apenas o fuso horário para ${zone}`,
+    scope:
+      "Prévia com a proteção de hora e idioma ativa. Regras por site podem desativá-la. Preferir inglês altera os idiomas do navegador e os cabeçalhos; a configuração regional continua controlando a formatação. Exemplos: 15 de janeiro e 15 de julho de 2026 às 12:34:56 UTC e o número 1234567.89.",
+    formattingLocale: "Locale de formatação efetivo",
+    january: "Exemplo de data em janeiro",
+    july: "Exemplo de data em julho",
+    number: "Exemplo de número",
+    unavailable:
+      "Prévia indisponível. Escolha um fuso compatível e tags de idioma válidas; o rascunho não foi alterado.",
+  },
+
   editor: {
     title: "Editar perfil regional",
     description:
