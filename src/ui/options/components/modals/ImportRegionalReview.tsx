@@ -13,7 +13,9 @@ export const ImportRegionalReview = ({
 }) => {
   const profiles = preview.source.locations.filter((profile) => {
     if (preview.selection.mode === "replace") return true;
-    const choice = preview.selection.locations[profile.id];
+    const choice = Object.hasOwn(preview.selection.locations, profile.id)
+      ? preview.selection.locations[profile.id]
+      : undefined;
     return (
       choice === "import" ||
       choice === "copy" ||
