@@ -3,7 +3,7 @@ import type { FxUserScriptsReady } from "@privacy-brand/refract-browser/firefox"
 import {
   readPreloadedState,
   type PreloadedRuntimeState,
-  resolvePreloadedSnapshot,
+  resolveDocumentPreload,
 } from "@/content/preloaded-runtime";
 import { safeSendMessage, safeSendForResponse } from "@/content/safe-messaging";
 import { BUILD_BROWSER_TARGET } from "@/shared/build-flags";
@@ -53,13 +53,7 @@ export const queryUserScriptsStatus = async (): Promise<FxUserScriptsReady> => {
 };
 
 export const resolveFirefoxBgSnapshot = resolveBgSnapshot;
-export const resolveFirefoxPreload: typeof resolvePreloadedSnapshot = (
-  hostname,
-  state,
-) =>
-  typeof window === "undefined" || window === window.top
-    ? resolvePreloadedSnapshot(hostname, state)
-    : null;
+export const resolveFirefoxPreload = resolveDocumentPreload;
 
 export const reportBootstrapChannel = (
   channel: BootstrapSnapshotChannel,
@@ -99,10 +93,7 @@ export const resolveChromiumFallback = async (
   } = {},
 ): Promise<ChromiumFallbackResult> => {
   const preloadedState = await readState();
-  const preloadedSnapshot =
-    typeof window === "undefined" || window === window.top
-      ? resolvePreloadedSnapshot(hostname, preloadedState)
-      : null;
+  const preloadedSnapshot = resolveDocumentPreload(hostname, preloadedState);
   if (preloadedSnapshot) {
     return { snapshot: preloadedSnapshot, channel: "preloaded-state" };
   }

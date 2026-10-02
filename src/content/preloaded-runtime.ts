@@ -7,6 +7,7 @@ import { matchRule } from "@/shared/domain-match";
 import { STORAGE_PRELOADED_STATE } from "@/shared/extension-contract";
 import {
   findHostPause,
+  isHostPauseActive,
   type HostProtectionPause,
 } from "@/shared/host-protection-pause";
 import { isRuntimeSnapshot } from "@/shared/runtime-snapshot";
@@ -106,6 +107,17 @@ export const resolvePreloadedSnapshot = (
   // session must not fail validation here or re-finalize fencing in page.
   return isRuntimeSnapshot(snapshot) ? snapshot : null;
 };
+
+/** Subframes need the tab-aware resolver only while a host exception is active. */
+export const resolveDocumentPreload = (
+  hostname: string,
+  state: PreloadedRuntimeState | null,
+): RuntimeSnapshot | null =>
+  typeof window !== "undefined" &&
+  window !== window.top &&
+  state?.hostPauses?.some((pause) => isHostPauseActive(pause))
+    ? null
+    : resolvePreloadedSnapshot(hostname, state);
 
 /**
  * Reads and validates the session-backed preload cache prepared by the

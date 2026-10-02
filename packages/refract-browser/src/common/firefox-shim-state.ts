@@ -1,7 +1,9 @@
 /** Firefox early-state transport, seed selection, and replay handoff. */
 
+import { privateDateNow } from "@privacy-brand/refract-core/runtime/primordials";
+
 import {
-  buildFirefoxShimState,
+  buildNativeFxState,
   isFxRecord,
   normalizeFxState,
   type FirefoxMainHandoff,
@@ -26,14 +28,12 @@ import {
   type DomainRuleSpecificity,
 } from "@/shared/domain-match";
 import {
-  findHostPause,
   isHostPauseActive,
   parseHostPauses,
   type HostProtectionPause,
 } from "@/shared/host-protection-pause";
 
 export * from "./firefox-shim-model";
-const nativeNow = Date.now.bind(Date);
 
 export const getFxStateEvent = (): string => __PT_FX_STATE_CHANGE_EVENT__;
 export const getFxHandoffReadyEvent = (): string => __PT_FX_HANDOFF_READY_EVENT__;
@@ -111,6 +111,29 @@ const normalizeFxSeedEntries = (
   return entries;
 };
 
+type ResolvedStaticCandidate = Omit<FxStaticStateCandidate, "buildKey">;
+
+const isSpecificityBonus = (value: unknown): value is 0 | 1 =>
+  value === 0 || value === 1;
+
+const parseStringList = (value: unknown): string[] =>
+  Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
+
+const resolvePausedFxState = (
+  hostname: string | null,
+  pauses: readonly HostProtectionPause[],
+): FirefoxShimState | null | undefined => {
+  const pause = pauses.find(
+    (pause) =>
+      (hostname === null || pause.hostname === hostname) &&
+      isHostPauseActive(pause, privateDateNow()),
+  );
+  if (!pause) return undefined;
+  return hostname === null ? null : { ...buildNativeFxState(), hostPause: pause };
+};
+
 export const normalizeFxWindowSeed = (
   value: unknown,
   { legacyRevision = 0 }: { legacyRevision?: number } = {},
@@ -128,16 +151,8 @@ export const normalizeFxWindowSeed = (
     : null;
   if (Array.isArray(value.containerEntries) && !containerEntries) return null;
   const hostPauses = parseHostPauses(value.hostPauses);
-  const trustedPatterns = Array.isArray(value.trustedPatterns)
-    ? value.trustedPatterns.filter(
-        (pattern): pattern is string => typeof pattern === "string",
-      )
-    : [];
-  const nativeRulePatterns = Array.isArray(value.nativeRulePatterns)
-    ? value.nativeRulePatterns.filter(
-        (pattern): pattern is string => typeof pattern === "string",
-      )
-    : [];
+  const trustedPatterns = parseStringList(value.trustedPatterns);
+  const nativeRulePatterns = parseStringList(value.nativeRulePatterns);
   return {
     entries,
     ...(hostPauses.length > 0 ? { hostPauses } : {}),
@@ -190,8 +205,8 @@ export const resolveFxSeedForHost = (
   ) {
     return null;
   }
-  const hostPause = findHostPause(hostname, seedState.hostPauses ?? [], nativeNow());
-  if (hostPause) return { ...buildFirefoxShimState(null), hostPause };
+  const paused = resolvePausedFxState(hostname, seedState.hostPauses ?? []);
+  if (paused !== undefined) return paused;
   const matched = resolveFxSeedCandidate(hostname, [
     ...(seedState.containerEntries ?? []),
     ...seedState.entries,
@@ -203,38 +218,30 @@ export const resolveFxSeedForHost = (
   return matched ? matched.state : seedState.containerState;
 };
 
-const isFxStaticCandidate = (
-  value: unknown,
-  { legacyRevision = 0 }: { legacyRevision?: number } = {},
-): value is FxStaticStateCandidate => {
-  if (!isFxRecord(value) || !isFxRecord(value.specificity)) return false;
-  const state = normalizeFxState(value.state, { legacyRevision });
-  if (!state) return false;
-  const specificity = value.specificity;
-  return (
-    value.buildKey === getFxBootstrapKey() &&
-    typeof value.pattern === "string" &&
-    typeof specificity.nonWildcardLength === "number" &&
-    (specificity.exactMatchBonus === 0 || specificity.exactMatchBonus === 1) &&
-    (specificity.subdomainOnlyBonus === 0 || specificity.subdomainOnlyBonus === 1) &&
-    typeof specificity.wildcardCount === "number"
-  );
-};
-
 const normalizeFxCandidates = (
   value: unknown,
   { legacyRevision = 0 }: { legacyRevision?: number } = {},
-): FxStaticStateCandidate[] => {
+): ResolvedStaticCandidate[] => {
   if (!Array.isArray(value)) return [];
-  const candidates: FxStaticStateCandidate[] = [];
+  const candidates: ResolvedStaticCandidate[] = [];
   for (const candidate of value) {
-    if (!isFxStaticCandidate(candidate, { legacyRevision })) continue;
+    if (!isFxRecord(candidate) || !isFxRecord(candidate.specificity)) continue;
+    const specificity = candidate.specificity;
+    if (
+      candidate.buildKey !== getFxBootstrapKey() ||
+      typeof candidate.pattern !== "string" ||
+      typeof specificity.nonWildcardLength !== "number" ||
+      !isSpecificityBonus(specificity.exactMatchBonus) ||
+      !isSpecificityBonus(specificity.subdomainOnlyBonus) ||
+      typeof specificity.wildcardCount !== "number"
+    )
+      continue;
+    if (!normalizeFxState(candidate.state, { legacyRevision })) continue;
     candidates.push({
       hostPauses: parseHostPauses(candidate.hostPauses),
-      buildKey: candidate.buildKey,
       pattern: candidate.pattern,
-      specificity: candidate.specificity,
-      state: candidate.state,
+      specificity: specificity as DomainRuleSpecificity,
+      state: candidate.state as FirefoxShimState,
     });
   }
   return candidates;
@@ -242,9 +249,9 @@ const normalizeFxCandidates = (
 
 const resolveFxCandidates = (
   hostname: string,
-  candidates: readonly FxStaticStateCandidate[],
+  candidates: readonly ResolvedStaticCandidate[],
 ): FirefoxShimState | null => {
-  let matchedCandidate: FxStaticStateCandidate | null = null;
+  let matchedCandidate: ResolvedStaticCandidate | null = null;
   for (const candidate of candidates) {
     if (!compileDomainPattern(candidate.pattern).test(hostname)) continue;
     if (
@@ -268,17 +275,9 @@ export const takeFxStaticState = (
   const raw = takeStaticPayload(globalRef, __PT_FX_STATIC_CANDIDATES_KEY__);
   const candidates = normalizeFxCandidates(raw, { legacyRevision });
   const pauses = candidates.flatMap((candidate) => candidate.hostPauses ?? []);
-  // Cross-origin frames cannot read their top host. Defer to the tab-aware
-  // background handoff while an exception exists instead of using the iframe host.
-  if (
-    topHostname === null &&
-    pauses.some((pause) => isHostPauseActive(pause, nativeNow()))
-  )
-    return null;
-  const hostPause = topHostname
-    ? findHostPause(topHostname, pauses, nativeNow())
-    : undefined;
-  if (hostPause) return { ...buildFirefoxShimState(null), hostPause };
+  // An inaccessible top host defers to the tab-aware background while any pause is active.
+  const paused = resolvePausedFxState(topHostname, pauses);
+  if (paused !== undefined) return paused;
   return resolveFxCandidates(hostname, candidates);
 };
 

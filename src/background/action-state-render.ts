@@ -391,13 +391,13 @@ export const renderActionState = async (
     await ops.setIcon("off", "host-pause");
     await chrome.action.setBadgeText({
       tabId: context.tabId,
-      text: hostPause.pause ? "Ⅱ" : "↻",
+      text: hostPause.reloadRequired ? "↻" : "Ⅱ",
     });
     await chrome.action.setTitle({
       tabId: context.tabId,
-      title: hostPause.pause
-        ? `${BRAND_DISPLAY_NAME}: spoofing paused`
-        : `${BRAND_DISPLAY_NAME}: reload to apply current protection`,
+      title: hostPause.reloadRequired
+        ? `${BRAND_DISPLAY_NAME}: reload to apply current protection`
+        : `${BRAND_DISPLAY_NAME}: spoofing paused`,
     });
     return;
   }

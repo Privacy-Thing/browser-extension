@@ -49,7 +49,9 @@ export const bindSnapshotCache = (
         ? value
         : { snapshot: value, trustedSiteMatched: false };
     const topHostname =
-      input.frameId === 0 ? input.hostname : cache.readTopEntry(input.tabId)?.hostname;
+      input.frameId === 0
+        ? input.hostname
+        : (cache.readTopEntry(input.tabId)?.hostname ?? decision.hostPause?.hostname);
     const current = topHostname ? applyPause(decision, topHostname) : decision;
     if (current) cache.set({ ...cacheKey, decision: current });
   };
@@ -66,7 +68,10 @@ export const bindSnapshotCache = (
       ...(cookieStoreId ? { cookieStoreId } : {}),
     });
     if (!decision) return undefined;
-    const topHostname = frameId === 0 ? hostname : cache.readTopEntry(tabId)?.hostname;
+    const topHostname =
+      frameId === 0
+        ? hostname
+        : (cache.readTopEntry(tabId)?.hostname ?? decision.hostPause?.hostname);
     const current = topHostname ? applyPause(decision, topHostname) : decision;
     if (!current) cache.removeTab(tabId);
     return current;

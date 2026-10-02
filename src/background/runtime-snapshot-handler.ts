@@ -114,13 +114,6 @@ export const createSnapshotHandler =
     let topHostname = message.hostname;
     if (tab?.url && /^https?:/.test(tab.url)) topHostname = new URL(tab.url).hostname;
     const decision = await deps.resolveRuntimeDecision(topHostname, cookieStoreId);
-    deps.updateSnapshotCache({
-      tabId,
-      frameId,
-      hostname: message.hostname,
-      value: decision,
-      ...(cookieStoreId ? { cookieStoreId } : {}),
-    });
     if (frameId !== 0)
       deps.updateSnapshotCache({
         tabId,
@@ -129,5 +122,12 @@ export const createSnapshotHandler =
         value: decision,
         ...(cookieStoreId ? { cookieStoreId } : {}),
       });
+    deps.updateSnapshotCache({
+      tabId,
+      frameId,
+      hostname: message.hostname,
+      value: decision,
+      ...(cookieStoreId ? { cookieStoreId } : {}),
+    });
     return { ok: true, snapshot: decision.snapshot };
   };

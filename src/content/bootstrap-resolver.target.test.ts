@@ -145,3 +145,47 @@ describe("resolveChromiumFallback", () => {
     ).resolves.toEqual({ snapshot: null, channel: "background-fallback-miss" });
   });
 });
+
+it.each([null, 0, 2_000])(
+  "uses subframe preload only without an active host pause (deadline %s)",
+  async (expiresAt) => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000);
+    vi.stubGlobal("window", { top: {} });
+    const resolveBackground = vi.fn(async () => snapshot);
+    try {
+      const result = await resolveChromiumFallback("k.example", {
+        readPreloadedState: async () => ({
+          entries: [
+            { pattern: "k.example", blockServiceWorkerRegistration: false, snapshot },
+          ],
+          hostPauses: [{ hostname: "h.example", id: "pause", expiresAt }],
+        }),
+        resolveBackground,
+      });
+      expect(result.channel).toBe(
+        expiresAt === 0 ? "preloaded-state" : "background-message",
+      );
+      expect(resolveBackground).toHaveBeenCalledTimes(expiresAt === 0 ? 0 : 1);
+    } finally {
+      vi.useRealTimers();
+    }
+  },
+);
+it("keeps subframe preload available when no pause exists", async () => {
+  vi.stubGlobal("window", { top: {} });
+  const resolveBackground = vi.fn();
+  expect(
+    (
+      await resolveChromiumFallback("k.example", {
+        readPreloadedState: async () => ({
+          entries: [
+            { pattern: "k.example", blockServiceWorkerRegistration: false, snapshot },
+          ],
+        }),
+        resolveBackground,
+      })
+    ).channel,
+  ).toBe("preloaded-state");
+  expect(resolveBackground).not.toHaveBeenCalled();
+});

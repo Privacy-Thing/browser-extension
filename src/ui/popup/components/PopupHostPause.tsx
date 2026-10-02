@@ -36,7 +36,7 @@ const getPauseView = (status: HostPauseStatus | undefined, now: number) => {
     label = t.popup.pauseReloadRequired;
     phase = "reload-required";
   }
-  if (active) {
+  if (active && !reloadRequired) {
     phase = "active";
     label = t.popup.pauseSessionActive;
     if (expiresAt !== null && expiresAt !== undefined) {

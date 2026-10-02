@@ -1,5 +1,7 @@
 import { afterEach, expect, it, vi } from "vitest";
 
+import { createSnapshotCache } from "./effective-snapshot-cache";
+import { bindSnapshotCache } from "./pause-aware-cache";
 import { createSnapshotHandler } from "./runtime-snapshot-handler";
 
 import { EXTENSION_COMMAND_TYPES } from "@/shared/extension-contract";
@@ -36,15 +38,15 @@ it("restores a cold subframe decision from the tab's top host and retains pause 
   expect(write.mock.calls.map(([input]) => input)).toEqual([
     {
       tabId: 12,
-      frameId: 4,
-      hostname: "k.example",
+      frameId: 0,
+      hostname: "h.example",
       cookieStoreId: "firefox-container-1",
       value: decision,
     },
     {
       tabId: 12,
-      frameId: 0,
-      hostname: "h.example",
+      frameId: 4,
+      hostname: "k.example",
       cookieStoreId: "firefox-container-1",
       value: decision,
     },
@@ -72,4 +74,32 @@ it("never interprets an unowned worker/request hostname as a top-document pause"
     respectHostPause: false,
   });
   expect(write).not.toHaveBeenCalled();
+});
+
+it("does not retain a resumed pause when a cold subframe resolution finishes late", async () => {
+  vi.stubGlobal("chrome", {
+    tabs: { get: vi.fn(async () => ({ url: "https://h.example/path" })) },
+  });
+  const raw = createSnapshotCache();
+  const cache = bindSnapshotCache(raw, () => undefined);
+  const handler = createSnapshotHandler({
+    ensureStorageMigration: async () => undefined,
+    runtimeState: { getLastKnownDebugMode: () => null },
+    logResolverEvent: vi.fn(),
+    resolveCachedSnapshot: async () => null,
+    resolveRuntimeDecision: async () => ({
+      snapshot: null,
+      trustedSiteMatched: false,
+      hostPause: pause,
+    }),
+    ...cache,
+  });
+  await handler(
+    { type: EXTENSION_COMMAND_TYPES.resolveRuntimeSnapshot, hostname: "k.example" },
+    undefined,
+    12,
+    4,
+  );
+  expect(raw.readTopEntry(12)).toBeUndefined();
+  expect(cache.readDecisionCache(12, 4, "k.example")).toBeUndefined();
 });

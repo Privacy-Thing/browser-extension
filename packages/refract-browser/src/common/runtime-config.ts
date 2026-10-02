@@ -3,12 +3,12 @@
  * document or `window.name` before the main-world runtime starts patching.
  */
 
+import { privateDateNow } from "@privacy-brand/refract-core/runtime/primordials";
 import { safeJsonStringify } from "@privacy-brand/refract-core/runtime/safe-json";
 
 import { isRuntimeSnapshot } from "@/shared/runtime-snapshot";
 import type { RuntimeSnapshot } from "@/shared/types";
 
-const nativeNow = Date.now.bind(Date);
 const WINDOW_NAME_PREFIX = "\u001f\u001e";
 const CONFIG_OBSERVER_TIMEOUT = 1_500;
 const RUNTIME_CONFIG_SELECTOR = `script[type="application/json"][data-${__PT_RUNTIME_CONFIG_ATTR__}]`;
@@ -334,7 +334,7 @@ export const parseRuntimeWindowSeed = (
         parsed.expiresAt !== undefined &&
         (typeof parsed.expiresAt !== "number" ||
           !Number.isFinite(parsed.expiresAt) ||
-          nativeNow() >= parsed.expiresAt)
+          privateDateNow() >= parsed.expiresAt)
       )
         return null;
       return {

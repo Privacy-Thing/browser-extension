@@ -70,6 +70,12 @@ export const ReloadRequired: Story = {
   args: { status: { pause: null, reloadRequired: true } },
 };
 export const ReloadFailed: Story = {
+  play: async ({ canvasElement }) => {
+    await expect(canvasElement.querySelector("#host-protection-pause")).toHaveAttribute(
+      "data-pause-state",
+      "reload-required",
+    );
+  },
   args: {
     status: {
       pause: { hostname: "example.com", id: "session", expiresAt: null },

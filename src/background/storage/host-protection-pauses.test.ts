@@ -103,3 +103,19 @@ describe("host pause storage", () => {
     expect(await store.expireHostPauses()).toEqual(["h.example"]);
   });
 });
+
+it.each(["local", "session", "alarm"] as const)(
+  "retries initialization after a transient %s failure",
+  async (source) => {
+    const failure = new Error("Temporary failure");
+    const fail = source === "alarm" ? chrome.alarms.clear : chrome.storage[source].get;
+    vi.mocked(fail).mockRejectedValueOnce(failure);
+    const store = await import("./host-protection-pauses");
+    const first = store.initializeHostPauses();
+    const concurrent = store.initializeHostPauses();
+    expect(concurrent).toBe(first);
+    await expect(first).rejects.toBe(failure);
+    await store.setHostPause("h.example", "session");
+    expect(store.getHostPause("h.example")?.hostname).toBe("h.example");
+  },
+);

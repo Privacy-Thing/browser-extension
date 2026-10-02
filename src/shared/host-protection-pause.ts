@@ -25,18 +25,20 @@ export const findHostPause = (
 ): HostProtectionPause | undefined =>
   pauses.find((pause) => pause.hostname === hostname && isHostPauseActive(pause, now));
 
+export const isHostProtectionPause = (value: unknown): value is HostProtectionPause => {
+  const item = value as Partial<HostProtectionPause> | null;
+  return (
+    item !== null &&
+    typeof item === "object" &&
+    typeof item.hostname === "string" &&
+    typeof item.id === "string" &&
+    (item.expiresAt === null ||
+      (typeof item.expiresAt === "number" && Number.isFinite(item.expiresAt)))
+  );
+};
+
 export const parseHostPauses = (value: unknown): HostProtectionPause[] =>
-  Array.isArray(value)
-    ? value.filter(
-        (item): item is HostProtectionPause =>
-          item !== null &&
-          typeof item === "object" &&
-          typeof item.hostname === "string" &&
-          typeof item.id === "string" &&
-          (item.expiresAt === null ||
-            (typeof item.expiresAt === "number" && Number.isFinite(item.expiresAt))),
-      )
-    : [];
+  Array.isArray(value) ? value.filter(isHostProtectionPause) : [];
 
 export type SetHostPauseCommand = {
   type: typeof EXTENSION_COMMAND_TYPES.setHostProtectionPause;

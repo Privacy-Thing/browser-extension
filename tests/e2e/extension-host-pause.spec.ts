@@ -158,7 +158,6 @@ test("expired host pauses restore new documents and mark existing native documen
   await page.goto(getProbeHostUrl(serverUrl));
   await expect.poll(() => page.evaluate(() => navigator.language)).toBe("pl");
   const popup = await openPopup(page);
-  await popup.setViewportSize({ width: 360, height: 600 });
   await popup.locator("#host-protection-pause").click();
   const pausedNavigation = page.waitForEvent("domcontentloaded");
   await popup.locator("#pause-host-ten-minutes").click();

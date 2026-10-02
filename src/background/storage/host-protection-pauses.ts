@@ -50,7 +50,10 @@ export const initializeHostPauses = (): Promise<void> => {
       );
     }
     await scheduleHostPauseAlarm();
-  })();
+  })().catch((error: unknown) => {
+    initialization = undefined;
+    throw error;
+  });
   return initialization;
 };
 

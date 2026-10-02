@@ -8,7 +8,6 @@ const formatCount = (count: number, singular: string, plural: string): string =>
 export const popup = {
   pauseTimedHint: "Vuelve automáticamente",
   pauseManage: "Gestionar pausa",
-  pauseTriggerHint: "Excepción temporal para este sitio",
   pauseAutoResume: "La protección vuelve automáticamente",
   pauseSessionOptionHint: "Hasta que cierres el navegador",
   pauseResumeHint: "Aplicar tu configuración actual",

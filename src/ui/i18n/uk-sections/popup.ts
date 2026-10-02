@@ -8,7 +8,6 @@ import { slavicCount } from "@/ui/shared/slavic-plural";
 export const popup = {
   pauseTimedHint: "Повернеться автоматично",
   pauseManage: "Керування паузою",
-  pauseTriggerHint: "Тимчасовий виняток для цього сайту",
   pauseAutoResume: "Захист повернеться автоматично",
   pauseSessionOptionHint: "До закриття браузера",
   pauseResumeHint: "Застосувати поточні налаштування",

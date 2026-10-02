@@ -5,7 +5,6 @@ import { BRAND_DIAGNOSTICS_NAME, BRAND_DISPLAY_NAME } from "@/shared/brand";
 export const popup = {
   pauseTimedHint: "Returns automatically",
   pauseManage: "Manage pause",
-  pauseTriggerHint: "Temporary exception for this site",
   pauseAutoResume: "Protection returns automatically",
   pauseSessionOptionHint: "Until you close the browser",
   pauseResumeHint: "Apply your current settings",

@@ -284,9 +284,12 @@ const withHostPause = (
     (status.pause.expiresAt === null || Date.now() < status.pause.expiresAt),
   );
   const session = status.pause?.expiresAt === null;
-  const label = active ? t.popup.pauseActive : t.popup.pauseReloadRequired;
+  const label =
+    active && !status.reloadRequired
+      ? t.popup.pauseActive
+      : t.popup.pauseReloadRequired;
   let powerTarget: string = t.popup.pauseResumeHint;
-  if (active)
+  if (active && !status.reloadRequired)
     powerTarget = session ? t.popup.pauseSessionOptionHint : t.popup.pauseAutoResume;
   let protectionCounts: string = session
     ? t.popup.pauseSessionSummary
