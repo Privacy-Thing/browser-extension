@@ -1,6 +1,12 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
+import { createHostPauseCtl } from "./host-protection-pause-controller";
+
+import type { HostProtectionPause } from "@/shared/host-protection-pause";
+
 const storage = vi.hoisted(() => ({
+  getHostPauses: vi.fn((): HostProtectionPause[] => []),
+  getHostPause: vi.fn(() => undefined),
   setHostPause: vi.fn(async () => undefined),
   expireHostPauses: vi.fn(async (): Promise<string[]> => []),
   initializeHostPauses: vi.fn(async () => undefined),
@@ -11,7 +17,6 @@ vi.mock("@/background/storage/host-protection-pauses", () => storage);
 vi.mock("@/background/settings-import-transaction", () => ({
   withConfigurationLock: (operation: () => Promise<unknown>) => operation(),
 }));
-import { createHostPauseCtl } from "./host-protection-pause-controller";
 
 const tabs = [
   { id: 1, url: "https://h.example/a", cookieStoreId: "firefox-container-1" },
@@ -23,6 +28,7 @@ const reload = vi.fn(async () => undefined);
 beforeEach(() => {
   vi.clearAllMocks();
   storage.expireHostPauses.mockResolvedValue([]);
+  storage.getHostPauses.mockReturnValue([]);
   vi.stubGlobal("chrome", {
     tabs: {
       query: vi.fn(async () => tabs),
@@ -110,4 +116,23 @@ it("revalidates state on worker startup and handles expiry alarms without reload
   await expired;
   expect(refresh).toHaveBeenCalledTimes(2);
   expect(reload).not.toHaveBeenCalled();
+});
+
+it("reloads only hosts whose narrow tests expired, across their container tabs", async () => {
+  storage.getHostPauses.mockReturnValue([
+    {
+      hostname: "h.example",
+      id: "test",
+      expiresAt: 1000,
+      workerTest: "service-worker",
+    },
+  ]);
+  storage.expireHostPauses.mockResolvedValue(["h.example"]);
+  const controller = createHostPauseCtl({
+    refresh: vi.fn(async () => undefined),
+    prepareReload: vi.fn(async () => undefined),
+    getPopupState: vi.fn(),
+  });
+  await controller.reconcile();
+  expect(reload.mock.calls).toEqual([[1], [2]]);
 });

@@ -284,6 +284,8 @@ export type OsmConsentState = "unknown" | "granted" | "denied";
  * background state.
  */
 export type RuntimeSnapshot = {
+  /** Deadline of a narrow temporary activation, including inherited frame seeds. */
+  hostOverrideExpiresAt?: number | undefined;
   geo: {
     latitude: number;
     longitude: number;

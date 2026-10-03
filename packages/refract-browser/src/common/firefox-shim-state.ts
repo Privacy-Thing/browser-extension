@@ -124,6 +124,7 @@ const parseStringList = (value: unknown): string[] =>
 const resolvePausedFxState = (
   hostname: string | null,
   pauses: readonly HostProtectionPause[],
+  baseline: FirefoxShimState | null,
 ): FirefoxShimState | null | undefined => {
   const pause = pauses.find(
     (pause) =>
@@ -131,7 +132,19 @@ const resolvePausedFxState = (
       isHostPauseActive(pause, privateDateNow()),
   );
   if (!pause) return undefined;
-  return hostname === null ? null : { ...buildNativeFxState(), hostPause: pause };
+  if (hostname === null) return null;
+  if (!pause.workerTest) return { ...buildNativeFxState(), hostPause: pause };
+  if (!baseline) return null;
+  return {
+    ...baseline,
+    hostPause: pause,
+    ...(pause.workerTest === "service-worker"
+      ? { blockServiceWorkerRegistration: false }
+      : {
+          sharedWorkerHandlingMode: "native" as const,
+          sharedWorkerCompatibilityMode: true,
+        }),
+  };
 };
 
 export const normalizeFxWindowSeed = (
@@ -205,8 +218,6 @@ export const resolveFxSeedForHost = (
   ) {
     return null;
   }
-  const paused = resolvePausedFxState(hostname, seedState.hostPauses ?? []);
-  if (paused !== undefined) return paused;
   const matched = resolveFxSeedCandidate(hostname, [
     ...(seedState.containerEntries ?? []),
     ...seedState.entries,
@@ -215,7 +226,9 @@ export const resolveFxSeedForHost = (
       state: null,
     })),
   ]);
-  return matched ? matched.state : seedState.containerState;
+  const baseline = matched ? matched.state : seedState.containerState;
+  const paused = resolvePausedFxState(hostname, seedState.hostPauses ?? [], baseline);
+  return paused === undefined ? baseline : paused;
 };
 
 const normalizeFxCandidates = (
@@ -276,9 +289,10 @@ export const takeFxStaticState = (
   const candidates = normalizeFxCandidates(raw, { legacyRevision });
   const pauses = candidates.flatMap((candidate) => candidate.hostPauses ?? []);
   // An inaccessible top host defers to the tab-aware background while any pause is active.
-  const paused = resolvePausedFxState(topHostname, pauses);
+  const baseline = resolveFxCandidates(hostname, candidates);
+  const paused = resolvePausedFxState(topHostname, pauses, baseline);
   if (paused !== undefined) return paused;
-  return resolveFxCandidates(hostname, candidates);
+  return baseline;
 };
 
 export const clearFirefoxStaticState = (globalRef: typeof globalThis): void => {

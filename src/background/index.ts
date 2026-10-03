@@ -81,7 +81,7 @@ import {
   recordSurfaceEvidence,
 } from "@/background/surface-evidence-tracker";
 import { createTabReloader, enableSessionStorage } from "@/background/tab-reload";
-import { createXRayHandlers } from "@/background/xray-commands";
+import { createXRayHandlers, createWorkerTestCtl } from "@/background/xray-commands";
 import { fireAndForget } from "@/shared/async";
 import { BRAND_DISPLAY_NAME } from "@/shared/brand";
 import { BUILD_BROWSER_TARGET, BUILD_CHANNEL } from "@/shared/build-flags";
@@ -365,6 +365,7 @@ registerRewriteListeners();
 
 registerMessageRouter({
   isSupportedWebUrl,
+  workerTest: createWorkerTestCtl(getXRayState, hostPauseController.activate),
   setHostProtectionPause: hostPauseController.setPause,
   getControlState,
   getSettings,

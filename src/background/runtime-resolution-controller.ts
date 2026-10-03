@@ -41,7 +41,10 @@ import { clearSurfaceAccess } from "@/background/surface-access-tracker";
 import { fireAndForget } from "@/shared/async";
 import { readFingerprintSource } from "@/shared/browser-fingerprint";
 import { BUILD_BROWSER_TARGET } from "@/shared/build-flags";
-import type { HostProtectionPause } from "@/shared/host-protection-pause";
+import {
+  applyHostOverride,
+  type HostProtectionPause,
+} from "@/shared/host-protection-pause";
 import type { GlobalFallbackRule } from "@/shared/types";
 
 type RuntimeState = ReturnType<typeof createRuntimeState<PreparedRuntimeDecisions>>;
@@ -256,7 +259,11 @@ const createRuntimeResolver =
     }
     const hostPause =
       options.respectHostPause === false ? undefined : getHostPause(hostname);
-    if (hostPause && !matchTrustedSite(hostname, state.trustedSites)) {
+    if (
+      hostPause &&
+      !hostPause.workerTest &&
+      !matchTrustedSite(hostname, state.trustedSites)
+    ) {
       return { snapshot: null, trustedSiteMatched: false, hostPause };
     }
     const activeIdentity = resolveActiveIdentity(
@@ -304,7 +311,11 @@ const createRuntimeResolver =
     const latestPause =
       options.respectHostPause === false ? undefined : getHostPause(hostname);
     return latestPause && !decision.trustedSiteMatched
-      ? { snapshot: null, trustedSiteMatched: false, hostPause: latestPause }
+      ? {
+          ...decision,
+          snapshot: applyHostOverride(decision.snapshot, latestPause),
+          hostPause: latestPause,
+        }
       : decision;
   };
 

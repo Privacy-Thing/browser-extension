@@ -25,6 +25,7 @@ import type { BrowserFingerprintSource } from "@/shared/browser-fingerprint";
 import type { FeatureFlags } from "@/shared/feature-flags";
 import {
   findHostPause,
+  applyHostOverride,
   type HostProtectionPause,
 } from "@/shared/host-protection-pause";
 import { resolveRuleSources } from "@/shared/rule-resolution";
@@ -405,7 +406,16 @@ const resolvePreparedDecision = (
   const hostPause = respectHostPause
     ? findHostPause(hostname, inputs.hostPauses ?? [])
     : undefined;
-  if (hostPause) return { snapshot: null, trustedSiteMatched: false, hostPause };
+  if (hostPause) {
+    if (!hostPause.workerTest)
+      return { snapshot: null, trustedSiteMatched: false, hostPause };
+    const baseline = resolvePreparedDecision(state, hostname, cookieStoreId, false);
+    return {
+      ...baseline,
+      snapshot: applyHostOverride(baseline.snapshot, hostPause),
+      hostPause,
+    };
+  }
   if (resolvedSources.activeRule) {
     const entry = ruleEntriesByPattern.get(resolvedSources.activeRule.pattern);
     return {

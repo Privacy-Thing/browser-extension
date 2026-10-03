@@ -3,6 +3,8 @@ import type { ResolutionDecision } from "@/background/prepared-runtime-decisions
 import { withConfigurationLock } from "@/background/settings-import-transaction";
 import {
   expireHostPauses,
+  getHostPauses,
+  getHostPause,
   HOST_PAUSE_ALARM,
   initializeHostPauses,
   recordPausedDocument,
@@ -38,9 +40,43 @@ const getWebContexts = async (): Promise<EffectiveTabContext[]> => {
 };
 
 export const createHostPauseCtl = (deps: PauseControllerDeps) => {
+  const reloadHosts = async (contexts: EffectiveTabContext[], hosts: string[]) => {
+    await Promise.all(
+      contexts
+        .filter((context) => hosts.includes(context.hostname))
+        .map(async (context) => {
+          const live = await chrome.tabs.get(context.tabId).catch(() => undefined);
+          if (!live?.url || new URL(live.url).hostname !== context.hostname) return;
+          await deps.prepareReload(context);
+          await chrome.tabs.reload(context.tabId).catch(() => undefined);
+        }),
+    );
+  };
+  const activate = async (hostname: string) => {
+    const contexts = await getWebContexts();
+    const pause = getHostPause(hostname);
+    if (pause)
+      await Promise.all(
+        contexts
+          .filter((context) => context.hostname === hostname)
+          .map((context) => recordPausedDocument(context.tabId, hostname, "pending")),
+      );
+    await deps.refresh(contexts);
+    await reloadHosts(contexts, [hostname]);
+  };
   const reconcile = async (): Promise<void> => {
+    const tests = getHostPauses().filter((pause) => pause.workerTest);
     const expired = await expireHostPauses();
-    if (expired.length > 0) await deps.refresh(await getWebContexts());
+    if (expired.length > 0) {
+      const contexts = await getWebContexts();
+      await deps.refresh(contexts);
+      await reloadHosts(
+        contexts,
+        tests
+          .filter((pause) => expired.includes(pause.hostname))
+          .map((pause) => pause.hostname),
+      );
+    }
   };
   const setPause = async (
     duration: "ten-minutes" | "session" | "resume",
@@ -94,12 +130,12 @@ export const createHostPauseCtl = (deps: PauseControllerDeps) => {
     fireAndForget(
       withConfigurationLock(async () => {
         await initializeHostPauses();
-        await expireHostPauses();
+        await reconcile();
         await deps.refresh(await getWebContexts());
       }),
     );
   };
-  return { setPause, reconcile, register, prepareReload: deps.prepareReload };
+  return { setPause, reconcile, register, activate, prepareReload: deps.prepareReload };
 };
 
 type RefreshDeps = PauseSeedDeps & {

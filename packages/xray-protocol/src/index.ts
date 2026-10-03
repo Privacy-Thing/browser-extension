@@ -366,6 +366,7 @@ export type SharedWorkerStatus = z.infer<typeof SharedWorkerStatusSchema>;
 
 // 2. Runtime Snapshot
 export const RuntimeSnapshotSchema = z.object({
+  hostOverrideExpiresAt: z.number().finite().optional(),
   geo: z.object({
     latitude: z.number(),
     longitude: z.number(),
@@ -400,6 +401,8 @@ export const RuntimeSnapshotSchema = z.object({
 });
 
 export type RuntimeSnapshot = {
+  /** Deadline of a narrow temporary activation, including inherited frame seeds. */
+  hostOverrideExpiresAt?: number | undefined;
   geo: {
     latitude: number;
     longitude: number;
@@ -477,6 +480,14 @@ export type ResolutionExplanation = {
 
 // 4. Responses
 export const HostPauseStatusSchema = z.object({
+  workerTest: z
+    .object({
+      hostname: z.string(),
+      id: z.string(),
+      expiresAt: z.number().finite().nullable(),
+      workerTest: z.enum(["service-worker", "shared-worker"]).optional(),
+    })
+    .optional(),
   pause: z
     .object({
       hostname: z.string(),

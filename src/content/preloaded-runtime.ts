@@ -7,6 +7,7 @@ import { matchRule } from "@/shared/domain-match";
 import { STORAGE_PRELOADED_STATE } from "@/shared/extension-contract";
 import {
   findHostPause,
+  applyHostOverride,
   isHostPauseActive,
   type HostProtectionPause,
 } from "@/shared/host-protection-pause";
@@ -62,7 +63,8 @@ export const resolvePreloadedSnapshot = (
   hostname: string,
   state: PreloadedRuntimeState | null,
 ): RuntimeSnapshot | null => {
-  if (!state || findHostPause(hostname, state.hostPauses ?? [])) {
+  const pause = findHostPause(hostname, state?.hostPauses ?? []);
+  if (!state || (pause && !pause.workerTest)) {
     return null;
   }
 
@@ -105,7 +107,8 @@ export const resolvePreloadedSnapshot = (
   // Shared `"*"` carriers keep the unfenced Default Rule fingerprint when
   // Domain fencing is on. Leftover unknown fingerprint fields from an older
   // session must not fail validation here or re-finalize fencing in page.
-  return isRuntimeSnapshot(snapshot) ? snapshot : null;
+  if (!isRuntimeSnapshot(snapshot)) return null;
+  return pause ? applyHostOverride(snapshot, pause) : snapshot;
 };
 
 /** Subframes need the tab-aware resolver only while a host exception is active. */

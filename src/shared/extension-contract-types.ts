@@ -34,6 +34,7 @@ import type {
 } from "./spoofing-surfaces.js";
 import type { ThemeAccentPreset, ThemeMode } from "./theme-types.js";
 import type { UiLocalePreference } from "./ui-locale.js";
+import type { WorkerTestCommand } from "./worker-test";
 
 export type ResolveSnapshotRequest = {
   type: typeof EXTENSION_COMMAND_TYPES.resolveRuntimeSnapshot;
@@ -54,6 +55,7 @@ export type ResolveSnapshotResponse = {
  * canonical source for extension message types across UI, content, and tests.
  */
 export type ExtensionCommand =
+  | WorkerTestCommand
   | SetHostPauseCommand
   | {
       type: typeof EXTENSION_COMMAND_TYPES.resolveRuntimeSnapshot;

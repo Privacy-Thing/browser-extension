@@ -1,6 +1,79 @@
 import { BRAND_DIAGNOSTICS_NAME, BRAND_DISPLAY_NAME } from "@/shared/brand";
 
 export const sidebar = {
+  troubleshooter: {
+    title: "Site not working?",
+    intro:
+      "Try one reversible worker policy change at a time. You choose every test and whether to keep its result.",
+    rule: "Current rule / source",
+    exceptions: "Exceptions",
+    unknown: "Unavailable",
+    none: "None",
+    active: "Temporary worker test",
+    scope:
+      "Exact top-document hostname only: all matching tabs, including Firefox containers, and supported contexts inheriting their decision. Other independent top documents keep their policies. Requests without a tab context are outside this scope.",
+    webrtc:
+      "The global browser WebRTC policy stays active. This assistant cannot change it for one website.",
+    returnHint:
+      "Ten minutes maximum. Starting, restoring and saving reload matching tabs. No help, cancellation or expiry removes only this override and returns to current settings. Closing this dialog also cancels the test.",
+    start: "Start test and reload",
+    helped: "Helped",
+    failed: "Did not help",
+    restore: "Restore and reload",
+    save: "Save exception for this host",
+    helpedHint:
+      "Your answer does not prove the technical cause. Save only if you want this worker policy permanently for the displayed hostname. All tabs for this host use the exception; other settings are kept.",
+    siteEffects:
+      "Restoring settings does not undo website changes: service/shared workers and their caches may survive or be shared by origin. Only new calls in supported contexts use the selected policy.",
+    noCandidates:
+      "No enabled worker policy is available to test. This MVP does not test Canvas, WebGL or Audio.",
+    error:
+      "The operation could not complete. The website, test or configuration may have changed. Reopen to check the current state; temporary tests expire automatically.",
+    report: "Local before / after report",
+    reportHint:
+      "Redacted JSON only; nothing is sent. Configuration and observations are separate. Missing or stale evidence is not proof. “After” becomes available when you answer or restore the test.",
+    before: "Before",
+    after: "After",
+    kinds: {
+      serviceWorker: "Allow Service Worker registration",
+      sharedWorker: "Use native SharedWorker",
+    },
+    effects: {
+      serviceWorker:
+        "Changes only Service Worker registration blocking. New registrations may succeed; Service Workers do not receive spoofed values. Other protections remain configured.",
+      sharedWorker:
+        "Changes only SharedWorker handling to Native. New shared workers can see real browser values. Other protections remain configured.",
+    },
+    evidence: {
+      observed:
+        "X-Ray has recent worker activity or failure evidence. It is a clue, not proof of the cause.",
+      missing:
+        "No observed evidence. This proposal comes from the configured worker policy; it may not help.",
+      stale:
+        "Worker evidence is stale. The configured policy remains a candidate, but the old observation does not establish the current cause.",
+    },
+    blocked: {
+      unsupported: "A supported website and background state are required.",
+      trusted:
+        "A Trusted Site exception disables protection. Change it explicitly in Settings before testing.",
+      inactive: "No active spoofing configuration is available to test.",
+      pause:
+        "A host pause is already active. Restore it before starting a worker test.",
+      reload:
+        "This document still needs a reload to apply the current decision. Answers are disabled until navigation commits.",
+    },
+    results: {
+      failed:
+        "Test did not help. The temporary override was removed; matching tabs are reloading with current settings.",
+      cancelled:
+        "Test cancelled. The temporary override was removed; matching tabs are reloading with current settings.",
+      expired:
+        "Test ended. The temporary override is no longer used for new decisions. Reload if an existing document still uses the tested policy.",
+      saved:
+        "An exact-host worker exception was saved after your confirmation. Matching tabs are reloading.",
+    },
+    remaining: (minutes: number): string => `Return in at most ${minutes} min.`,
+  },
   xRayTitle: BRAND_DIAGNOSTICS_NAME,
   openSettings: "Open settings",
   openRule: "Edit domain rule",
