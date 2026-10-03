@@ -11,6 +11,7 @@ import {
   getRegistrableHostname,
 } from "@/background/state-hygiene";
 import { saveContainerAssignments } from "@/background/storage/container-assignments";
+import { getHostPause } from "@/background/storage/host-protection-pauses";
 import { saveGlobalFallbackRule } from "@/background/storage/preferences";
 import { saveRules } from "@/background/storage/rules";
 import { fireAndForget } from "@/shared/async";
@@ -71,6 +72,15 @@ const seedMutationTab = async ({
     value: snapshot,
     ...(activeTab.cookieStoreId ? { cookieStoreId: activeTab.cookieStoreId } : {}),
   });
+  if (getHostPause(hostname) && deps.seedPausedTab) {
+    await deps.seedPausedTab({
+      tabId: activeTab.id,
+      hostname,
+      ...(activeTab.cookieStoreId ? { cookieStoreId: activeTab.cookieStoreId } : {}),
+    });
+    await chrome.tabs.reload(activeTab.id).catch(() => undefined);
+    return;
+  }
   if (BUILD_BROWSER_TARGET === "firefox") {
     await deps.injectFxWindowSeed({
       tabId: activeTab.id,

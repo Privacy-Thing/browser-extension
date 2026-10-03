@@ -26,6 +26,12 @@ import type {
   SharedSpoofingConfig,
 } from "@/shared/types";
 
+vi.mock("@/background/storage/host-protection-pauses", () => ({
+  initializeHostPauses: async () => undefined,
+  getHostPause: () => undefined,
+  getHostPauses: () => [],
+}));
+
 const withRuleSeeds = (rules: readonly DomainRule[]): DomainRule[] =>
   rules.map((rule, index) => ({
     ...rule,
@@ -1654,4 +1660,38 @@ describe("legacy invalid time zone header isolation", () => {
       }
     },
   );
+});
+
+it("bypasses headers by top-document tab only while the exact host pause is active", () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(1000);
+  const contexts = [
+    { tabId: 1, hostname: "h.example" },
+    { tabId: 2, hostname: "k.example" },
+    { tabId: 3, hostname: "sub.h.example" },
+  ];
+  const result = buildHeaderRulesBase({
+    contexts,
+    profiles: [],
+    rules: [],
+    fingerprintEnabled: true,
+    hostPauses: [{ hostname: "h.example", id: "pause", expiresAt: 1100 }],
+  });
+  expect(result).toHaveLength(1);
+  expect(result[0]?.action.type).toBe("allow");
+  expect(result[0]?.condition.tabIds).toEqual([1]);
+  expect(result[0]?.condition.regexFilter).toBeUndefined();
+  expect(result[0]?.condition.resourceTypes).toContain("sub_frame");
+  expect(result[0]?.condition.resourceTypes).toContain("script");
+  vi.setSystemTime(1100);
+  expect(
+    buildHeaderRulesBase({
+      contexts,
+      profiles: [],
+      rules: [],
+      fingerprintEnabled: true,
+      hostPauses: [{ hostname: "h.example", id: "pause", expiresAt: 1100 }],
+    }),
+  ).toEqual([]);
+  vi.useRealTimers();
 });

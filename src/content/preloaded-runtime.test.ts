@@ -228,3 +228,21 @@ describe("resolvePreloadedSnapshot", () => {
     expect(nativeSpecific).toBeNull();
   });
 });
+
+it("rejects an exact top-host pause until its deadline without dropping the permanent preload", () => {
+  vi.useFakeTimers();
+  try {
+    vi.setSystemTime(999);
+    const snapshot = createSnapshot();
+    const state = {
+      entries: [{ pattern: "*", blockServiceWorkerRegistration: false, snapshot }],
+      hostPauses: [{ hostname: "h.example", id: "pause", expiresAt: 1000 }],
+    };
+    expect(resolvePreloadedSnapshot("h.example", state)).toBeNull();
+    expect(resolvePreloadedSnapshot("sub.h.example", state)).not.toBeNull();
+    vi.setSystemTime(1000);
+    expect(resolvePreloadedSnapshot("h.example", state)).not.toBeNull();
+  } finally {
+    vi.useRealTimers();
+  }
+});

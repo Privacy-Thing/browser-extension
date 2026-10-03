@@ -8,6 +8,11 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ### Added
 
+- Pause spoofing for an exact top-document host for 10 minutes or until browser
+  exit. Matching tabs and their supported frames/workers share the exception;
+  permanent configuration and global WebRTC policy remain unchanged. Deadline
+  expiry restores decisions for new documents; open documents show a reload
+  requirement. Requests without a tab context keep the configured global header policy.
 - X-Ray can preview and download a versioned local diagnostic report as JSON or
   text. Site data is excluded by default; opt-in adds only the hostname and
   matching rule or Trusted Site pattern. Reports exclude secrets, preset IDs,

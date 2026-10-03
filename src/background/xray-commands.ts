@@ -8,6 +8,7 @@ import {
   type SurfaceQueryCounts,
 } from "@privacy-brand/xray-protocol";
 
+import { getHostPauseStatus } from "@/background/storage/host-protection-pauses";
 import { buildSurfaceAssessments } from "@/background/surface-assessments";
 import type { SurfaceEvidenceByRealm } from "@/background/surface-evidence-tracker";
 import { resolveRuleSources } from "@/shared/rule-resolution";
@@ -110,11 +111,14 @@ export const createXRayHandlers = (deps: XRayCommandDeps) => {
         hostname,
         cookieStoreId,
       );
-      const snapshot =
+      const resolvedSnapshot =
         cachedSnapshot !== undefined
           ? cachedSnapshot
           : await deps.resolveSnapshot(hostname, cookieStoreId);
 
+      const hostPause = getHostPauseStatus(hostname, activeTabId);
+      const snapshot =
+        hostPause.pause || hostPause.reloadRequired ? null : resolvedSnapshot;
       const profiles = deps.getLastKnownProfiles() ?? [];
       const rules = deps.getLastKnownRules() ?? [];
       const containerAssignments = deps.getKnownContainers() ?? [];
@@ -156,6 +160,8 @@ export const createXRayHandlers = (deps: XRayCommandDeps) => {
         source: resolveAssessmentSource(explanation.winningSource),
         snapshot,
         runtimeExpected:
+          !hostPause.pause &&
+          !hostPause.reloadRequired &&
           explanation.winningSource !== "trusted-site" &&
           explanation.winningSource !== "none",
         accessedCategories: deps.getSurfaceAccess(activeTabId),
@@ -173,6 +179,7 @@ export const createXRayHandlers = (deps: XRayCommandDeps) => {
       return {
         ok: true,
         hostname,
+        hostPause,
         snapshot,
         evidenceProtocolVersion: EVIDENCE_VERSION,
         displayedProfileLabel,

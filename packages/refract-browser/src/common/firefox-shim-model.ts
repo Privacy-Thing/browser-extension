@@ -1,6 +1,12 @@
+import { privateDateNow } from "@privacy-brand/refract-core/runtime/primordials";
 import { getTimeZoneOffsetMinutes } from "@privacy-brand/refract-core/time/timezone-offset";
 
 import { serializeAcceptLanguage } from "@/shared/accept-language";
+import {
+  isHostPauseActive,
+  isHostProtectionPause,
+  type HostProtectionPause,
+} from "@/shared/host-protection-pause";
 import type { RuntimeSnapshot } from "@/shared/types";
 
 export type FirefoxMainHandoff = {
@@ -42,6 +48,7 @@ export type FirefoxGeoState = {
 };
 
 export type FirefoxShimState = {
+  hostPause?: HostProtectionPause;
   bootstrap: FirefoxBootstrapRevision;
   geolocationEnabled?: boolean | undefined;
   geoStatus: "ready" | "absent" | null;
@@ -132,23 +139,25 @@ const buildTimeLocaleState = (
   };
 };
 
+export const buildNativeFxState = (revision = Date.now()): FirefoxShimState => {
+  return {
+    bootstrap: { revision },
+    geoStatus: "absent",
+    geo: null,
+    timeLocaleStatus: "absent",
+    timeLocale: null,
+    fingerprintStatus: "absent",
+    fingerprint: null,
+    debug: null,
+    blockServiceWorkerRegistration: false,
+  };
+};
+
 export const buildFirefoxShimState = (
   snapshot: RuntimeSnapshot | null,
   { revision = Date.now() }: { revision?: number } = {},
 ): FirefoxShimState => {
-  if (!snapshot) {
-    return {
-      bootstrap: { revision },
-      geoStatus: "absent",
-      geo: null,
-      timeLocaleStatus: "absent",
-      timeLocale: null,
-      fingerprintStatus: "absent",
-      fingerprint: null,
-      debug: null,
-      blockServiceWorkerRegistration: false,
-    };
-  }
+  if (!snapshot) return buildNativeFxState(revision);
   const geoReady = snapshot.geolocationEnabled !== false && Boolean(snapshot.geo);
   const timeLocaleReady =
     snapshot.timeLocaleEnabled !== false &&
@@ -303,6 +312,9 @@ const normalizeFxSections = (
   };
 };
 
+const isSharedWorkerMode = (value: unknown): value is FxSharedWorkerMode | undefined =>
+  value === undefined || value === "native" || value === "spoof" || value === "strict";
+
 const isOptionalBoolean = (value: unknown): value is boolean | undefined =>
   value === undefined || typeof value === "boolean";
 
@@ -331,33 +343,19 @@ export const normalizeFxState = (
   const bootstrap = normalizeFxRevision(value.bootstrap, legacyRevision);
   const sections = normalizeFxSections(value);
   if (!bootstrap || !sections) return null;
+  const hostPause = value.hostPause;
   const normalizedDebug = normalizeFxDebug(debug);
   if (debug !== null && normalizedDebug === null) return null;
-  if (
-    sharedWorkerHandlingMode !== undefined &&
-    sharedWorkerHandlingMode !== "native" &&
-    sharedWorkerHandlingMode !== "spoof" &&
-    sharedWorkerHandlingMode !== "strict"
-  ) {
+  if (!isSharedWorkerMode(sharedWorkerHandlingMode)) {
     return null;
   }
   if (!isOptionalBoolean(workerCompat) || !isOptionalBoolean(blockServiceWorkers)) {
     return null;
   }
-  let parsedWorkerMode: FxSharedWorkerMode | undefined;
-  if (
-    sharedWorkerHandlingMode === "native" ||
-    sharedWorkerHandlingMode === "spoof" ||
-    sharedWorkerHandlingMode === "strict"
-  ) {
-    parsedWorkerMode = sharedWorkerHandlingMode;
-  }
-  const normalizedWorkerMode = getTransportWorkerMode({
-    sharedWorkerHandlingMode: parsedWorkerMode,
-    ...(workerCompat === false ? { sharedWorkerCompatibilityMode: false } : {}),
-  });
+  const normalizedWorkerMode = getTransportWorkerMode(value as SharedWorkerModeCarrier);
   return {
     bootstrap,
+    ...(isHostProtectionPause(hostPause) ? { hostPause } : {}),
     ...sections,
     debug: normalizedDebug,
     ...(normalizedWorkerMode ? { sharedWorkerHandlingMode: normalizedWorkerMode } : {}),
@@ -371,8 +369,13 @@ export const toSnapshotFromFxState = (
   state: FirefoxShimState,
   { baseEpochMs = Date.now() }: { baseEpochMs?: number } = {},
 ): RuntimeSnapshot | null => {
-  if (state.geoStatus === "ready" && !state.geo) return null;
-  if (state.timeLocaleStatus === "ready" && !state.timeLocale) return null;
+  if (
+    (state.hostPause && !isHostPauseActive(state.hostPause, privateDateNow())) ||
+    (state.geoStatus === "ready" && !state.geo) ||
+    (state.timeLocaleStatus === "ready" && !state.timeLocale)
+  )
+    return null;
+
   const geolocationEnabled = state.geoStatus === "ready" && Boolean(state.geo);
   const timeLocaleEnabled =
     state.timeLocaleStatus === "ready" && Boolean(state.timeLocale);

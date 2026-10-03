@@ -6,6 +6,7 @@ import {
 } from "@/background/firefox-static-payload";
 import { getDomainPatternKind } from "@/shared/domain-match";
 import { buildFxSeedScriptId } from "@/shared/extension-contract";
+import type { HostProtectionPause } from "@/shared/host-protection-pause";
 
 export type UserScriptRuleEntry = {
   pattern: string;
@@ -69,9 +70,11 @@ export const buildUserScriptExcludes = (
 export const createUserScriptRegs = ({
   ruleEntries,
   trustedPatterns = [],
+  hostPauses = [],
 }: {
   ruleEntries: readonly UserScriptRuleEntry[];
   trustedPatterns?: readonly string[];
+  hostPauses?: readonly HostProtectionPause[];
 }): UserScriptRegistration[] => {
   const excludeMatches = Array.from(
     new Set(trustedPatterns.flatMap((pattern) => buildUserScriptMatches(pattern))),
@@ -87,7 +90,10 @@ export const createUserScriptRegs = ({
         id: buildFxSeedScriptId(index),
         js: [
           {
-            code: buildFxSeedSource(buildFxStateCandidate(entry)),
+            code: buildFxSeedSource({
+              ...buildFxStateCandidate(entry),
+              hostPauses: [...hostPauses],
+            }),
           },
         ],
         matches,

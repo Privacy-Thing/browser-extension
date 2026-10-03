@@ -132,6 +132,7 @@
   display: flex;
   min-height: 0;
   flex: 1 1 auto;
+  overflow-y: auto;
   padding: var(--gw-popup-section-pt) 1.5rem var(--gw-popup-section-pb);
 }
 
@@ -142,6 +143,10 @@
   align-items: center;
   justify-content: flex-start;
   gap: var(--gw-popup-stack-gap);
+}
+
+.gw-popup-content-stack > * {
+  flex-shrink: 0;
 }
 
 .gw-popup-power-stack {

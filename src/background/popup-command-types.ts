@@ -87,6 +87,7 @@ export type PopupCommandDeps = {
     trigger?: WindowSeedTrigger;
     navigationUrl?: string;
   }) => Promise<void>;
+  seedPausedTab?: (context: EffectiveTabContext) => Promise<void>;
   seedWindowSnapshot: (
     snapshot: RuntimeSnapshot | null,
     windowSeedPrefix: string,

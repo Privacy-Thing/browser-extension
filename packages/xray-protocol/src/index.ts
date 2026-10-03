@@ -476,10 +476,22 @@ export type ResolutionExplanation = {
 };
 
 // 4. Responses
+export const HostPauseStatusSchema = z.object({
+  pause: z
+    .object({
+      hostname: z.string(),
+      id: z.string(),
+      expiresAt: z.number().finite().nullable(),
+    })
+    .nullable(),
+  reloadRequired: z.boolean(),
+});
+
 export const XRayStateResponseSchema = z.union([
   z.object({
     ok: z.literal(true),
     hostname: z.string().nullable(),
+    hostPause: HostPauseStatusSchema.optional(),
     snapshot: RuntimeSnapshotSchema.nullable(),
     evidenceProtocolVersion: z.number().optional(),
     displayedProfileLabel: z.string().nullable(),
@@ -503,6 +515,7 @@ export type GetXRayStateResponse =
   | {
       ok: true;
       hostname: string | null;
+      hostPause?: z.infer<typeof HostPauseStatusSchema>;
       snapshot: RuntimeSnapshot | null;
       evidenceProtocolVersion?: number;
       displayedProfileLabel: string | null;

@@ -29,6 +29,7 @@ import {
 } from "./popup-sizing-controller";
 
 import { fireAndForget } from "@/shared/async";
+import { EXTENSION_STORAGE_KEYS } from "@/shared/extension-contract";
 import { EXTENSION_COMMAND_TYPES } from "@/shared/extension-contract";
 import type {
   CleanupPlan,
@@ -242,6 +243,16 @@ const useRefreshListeners = (state: PopupAppState): void => {
       }
       if (changeInfo.status === "complete" || changeInfo.url) refresh();
     };
+    const handleStorageChanged: Parameters<
+      typeof chrome.storage.onChanged.addListener
+    >[0] = (changes) => {
+      if (
+        EXTENSION_STORAGE_KEYS.hostProtectionPauses in changes ||
+        EXTENSION_STORAGE_KEYS.pausedDocuments in changes
+      )
+        fireAndForget(loadPopupStateRef.current());
+    };
+    chrome.storage.onChanged.addListener(handleStorageChanged);
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", handleVisibility);
     chrome.tabs.onActivated.addListener(refresh);
@@ -253,6 +264,7 @@ const useRefreshListeners = (state: PopupAppState): void => {
         window.clearTimeout(popupRefreshDebounceRef.current);
         popupRefreshDebounceRef.current = null;
       }
+      chrome.storage.onChanged.removeListener(handleStorageChanged);
       window.removeEventListener("focus", refresh);
       document.removeEventListener("visibilitychange", handleVisibility);
       chrome.tabs.onActivated.removeListener(refresh);

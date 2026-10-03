@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createPreparedDecisions } from "@/background/prepared-runtime-decisions";
 import { resolveProfileSnapshot } from "@/background/rules/resolver";
 import type { ProfileSnapshotOptions } from "@/background/rules/resolver-options";
+import type { HostProtectionPause } from "@/shared/host-protection-pause";
 import type {
   ContainerAssignment,
   ControlState,
@@ -49,6 +50,7 @@ const comparableSnapshot = (snapshot: RuntimeSnapshot | null) => {
 };
 
 const buildPrepared = ({
+  hostPauses = [],
   locations = profiles,
   rules = [],
   trustedSites = [],
@@ -57,6 +59,7 @@ const buildPrepared = ({
   fingerprintEnabled = true,
   domainFencing = false,
 }: {
+  hostPauses?: HostProtectionPause[];
   locations?: Location[];
   rules?: DomainRule[];
   trustedSites?: TrustedSite[];
@@ -66,6 +69,7 @@ const buildPrepared = ({
   domainFencing?: boolean;
 }) =>
   createPreparedDecisions({
+    hostPauses,
     rules,
     trustedSites,
     locations,
@@ -741,5 +745,87 @@ describe("createPreparedDecisions", () => {
 
     expect(decision.fencesIdentity).toBeFalsy();
     expect(comparableSnapshot(decision.snapshot)).toEqual(comparableSnapshot(baseline));
+  });
+});
+
+describe("host protection pause", () => {
+  it("expires without rebuilding the prepared catalog and preserves independent hosts and containers", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1000);
+    const pause = { hostname: "h.example", id: "pause-1", expiresAt: 1100 };
+    const fallback = {
+      enabled: true,
+      locationId: "warsaw",
+      ruleSeedKey: "fallback",
+      authKey: "nonce",
+    };
+    const prepared = buildPrepared({
+      hostPauses: [pause],
+      globalFallbackRule: fallback,
+      containerAssignments: [
+        {
+          cookieStoreId: "firefox-container-1",
+          locationId: "berlin",
+          ruleSeedKey: "container",
+          authKey: "container-nonce",
+        },
+      ],
+    });
+    expect(prepared.resolveDecision("h.example")).toEqual({
+      snapshot: null,
+      trustedSiteMatched: false,
+      hostPause: pause,
+    });
+    expect(
+      prepared.resolveDecision("h.example", "firefox-container-1").snapshot,
+    ).toBeNull();
+    expect(
+      prepared.resolveDecision("k.example", "firefox-container-1").snapshot?.geo
+        .latitude,
+    ).toBe(53);
+    expect(prepared.resolveDecision("sub.h.example").snapshot?.geo.latitude).toBe(52);
+    expect(
+      prepared.resolveDecision("h.example", undefined, false).snapshot?.geo.latitude,
+    ).toBe(52);
+    vi.setSystemTime(1100);
+    expect(prepared.resolveDecision("h.example").snapshot?.geo.latitude).toBe(52);
+    expect(
+      prepared.resolveDecision("h.example", "firefox-container-1").snapshot?.geo
+        .latitude,
+    ).toBe(53);
+    expect(prepared.getPreloadedEntries().length).toBeGreaterThan(0);
+    expect(fallback.enabled).toBe(true);
+  });
+
+  it("keeps Trusted Sites and global off above the pause", () => {
+    const hostPauses = [{ hostname: "h.example", id: "session", expiresAt: null }];
+    const trusted = buildPrepared({
+      hostPauses,
+      trustedSites: [{ pattern: "h.example", enabled: true }],
+    });
+    expect(trusted.resolveDecision("h.example")).toEqual({
+      snapshot: null,
+      trustedSiteMatched: true,
+    });
+    const prepared = createPreparedDecisions({
+      hostPauses,
+      rules: [],
+      trustedSites: [],
+      locations: profiles,
+      controlState: { panicMode: true },
+      debugMode: false,
+      watchPositionDelay: [60, 500],
+      fingerprintEnabled: true,
+      featureFlags: { temporalApi: false, domainFencing: false },
+      sharedWorkerHandlingMode: "native",
+      sharedSpoofing: undefined,
+      browserFingerprintSource: undefined,
+      globalFallbackRule: undefined,
+      containerAssignments: [],
+    });
+    expect(prepared.resolveDecision("h.example")).toEqual({
+      snapshot: null,
+      trustedSiteMatched: false,
+    });
   });
 });

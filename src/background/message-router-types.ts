@@ -67,6 +67,10 @@ export type RouterDeps = {
   getControlState: () => Promise<GetControlStateResponse>;
   getSettings: () => Promise<GetSettingsResponse>;
   getPopupState: (tabId?: number) => Promise<GetPopupStateResponse>;
+  setHostProtectionPause: (
+    duration: "ten-minutes" | "session" | "resume",
+    tabId?: number,
+  ) => Promise<ToggleRuleResponse>;
   markNoticeRead: (id: string) => Promise<unknown>;
   markNoticesAutoPresented: (ids: string[]) => Promise<unknown>;
   resolvePopupNotification: (id: string) => Promise<unknown>;

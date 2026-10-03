@@ -84,6 +84,27 @@ async function setChromiumPreload(sw: PwWorker, storageKey: string): Promise<voi
   );
 }
 
+/** A fresh profile's welcome tab is opened after the install-time preload sync. */
+async function waitForInstallCompletion(
+  context: BrowserContext,
+  extensionPageUrl: string,
+): Promise<void> {
+  const page = await context.newPage();
+  try {
+    await page.goto(extensionPageUrl, { timeout: READY_TIMEOUT_MS });
+    await page.waitForFunction(
+      async () => {
+        const tabs = await chrome.tabs.query({});
+        return tabs.some((tab) => tab.url?.includes("/welcome/"));
+      },
+      undefined,
+      { timeout: READY_TIMEOUT_MS },
+    );
+  } finally {
+    await page.close();
+  }
+}
+
 /**
  * Poll until `chrome.storage.session` contains the expected preload key.
  * Replaces a static 200ms delay after `chrome.storage.session.set()`.
@@ -337,6 +358,10 @@ export async function captureChromiumSpoofed(
 
       // Warm up: ensure the background worker is fully initialised.
       await warmUpExtension(context, optionsPageUrl);
+
+      // Initial session preload can precede the separate onInstalled sync.
+      // The welcome tab proves that sync finished before the test replaces it.
+      await waitForInstallCompletion(context, optionsPageUrl);
 
       // Suppress the onboarding welcome page that opens on fresh installs.
       // Without this, the welcome tab races with bootstrap transport and can

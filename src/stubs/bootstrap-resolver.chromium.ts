@@ -1,7 +1,7 @@
 import {
   readPreloadedState,
   type PreloadedRuntimeState,
-  resolvePreloadedSnapshot,
+  resolveDocumentPreload,
 } from "@/content/preloaded-runtime";
 import { safeSendMessage, safeSendForResponse } from "@/content/safe-messaging";
 import { BUILD_BROWSER_TARGET } from "@/shared/build-flags";
@@ -58,7 +58,7 @@ export const resolveChromiumFallback = async (
   } = {},
 ): Promise<ChromiumFallbackResult> => {
   const preloadedState = await readState();
-  const preloadedSnapshot = resolvePreloadedSnapshot(hostname, preloadedState);
+  const preloadedSnapshot = resolveDocumentPreload(hostname, preloadedState);
   if (preloadedSnapshot) {
     return { snapshot: preloadedSnapshot, channel: "preloaded-state" };
   }
@@ -77,4 +77,4 @@ export const queryUserScriptsStatus = async () => ({
 });
 
 export const resolveFirefoxBgSnapshot = resolveBgSnapshot;
-export const resolveFirefoxPreload = resolvePreloadedSnapshot;
+export const resolveFirefoxPreload = resolveDocumentPreload;

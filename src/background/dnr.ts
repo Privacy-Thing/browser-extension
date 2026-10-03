@@ -3,9 +3,41 @@ import {
   buildRequestHeaders,
   buildRuleHeaderSnapshot,
 } from "@/background/dnr-request-headers";
+import {
+  TAB_RULE_ID_BASE,
+  DOMAIN_RULE_ID_BASE,
+  CSP_RULE_ID_BASE,
+  TRUSTED_RULE_ID_BASE,
+  GLOBAL_FALLBACK_RULE_ID,
+  MODIFY_HEADERS,
+  ALLOW,
+  REMOVE_HEADER,
+  RESOURCE_TYPES,
+  CSP_RESOURCE_TYPES,
+  toTabRuleId,
+  buildTabHeaderCondition,
+  RULE_PRIORITY_BASE,
+  MAX_HOST_PATTERN_LENGTH,
+  RULE_SUBDOMAIN_SCALE,
+  DOMAIN_RULE_EXACT_SCALE,
+  RULE_EXACT_SCALE,
+  MAX_DOMAIN_RULE_PRIORITY,
+  TRUSTED_ALLOW_PRIORITY,
+  TAB_RULE_PRIORITY,
+  URL_REGEX_PREFIX,
+  HEADER_URL_RE_PREFIX,
+  URL_REGEX_SUFFIX,
+  ANY_HEADER_HOST_RE,
+  SURFACE_BY_HEADER,
+} from "@/background/dnr-rule-constants";
 import { recoverInvalidProfile } from "@/background/rules/profile-recovery";
 import { resolveProfileSnapshot } from "@/background/rules/resolver";
 import { loadContainerAssignments } from "@/background/storage/container-assignments";
+import {
+  getHostPause,
+  getHostPauses,
+  initializeHostPauses,
+} from "@/background/storage/host-protection-pauses";
 import { loadLocations } from "@/background/storage/locations";
 import {
   getFingerprintEnabled,
@@ -20,11 +52,14 @@ import {
   type BrowserFingerprintSource,
   readFingerprintSource,
 } from "@/shared/browser-fingerprint";
-import { BUILD_BROWSER_TARGET } from "@/shared/build-flags";
 import {
   buildDomainPatternSource,
   getDomainRuleSpecificity,
 } from "@/shared/domain-match";
+import {
+  findHostPause,
+  type HostProtectionPause,
+} from "@/shared/host-protection-pause";
 import type {
   DomainRule,
   DynamicHeaderRule,
@@ -50,72 +85,6 @@ import type {
  * (`"strict"`) — that is a real behaviour change and belongs in its own review.
  */
 const HEADER_WORKER_MODE: SharedWorkerHandlingMode = "native";
-
-const TAB_RULE_ID_BASE = 1_000_000;
-const DOMAIN_RULE_ID_BASE = 2_000_000;
-const CSP_RULE_ID_BASE = 3_000_000;
-const TRUSTED_RULE_ID_BASE = 4_000_000;
-const GLOBAL_FALLBACK_RULE_ID = 2_900_000;
-const MODIFY_HEADERS = "modifyHeaders" as chrome.declarativeNetRequest.RuleActionType;
-const ALLOW = "allow" as chrome.declarativeNetRequest.RuleActionType;
-const REMOVE_HEADER = "remove" as chrome.declarativeNetRequest.HeaderOperation;
-const RESOURCE_TYPES = [
-  "main_frame",
-  "sub_frame",
-  "xmlhttprequest",
-  "script",
-  "image",
-  "font",
-  "stylesheet",
-  "media",
-  "websocket",
-  "ping",
-  ...(BUILD_BROWSER_TARGET === "firefox" ? ["beacon"] : []),
-] as chrome.declarativeNetRequest.ResourceType[];
-const CSP_RESOURCE_TYPES = [
-  "main_frame",
-  "sub_frame",
-] as chrome.declarativeNetRequest.ResourceType[];
-const toTabRuleId = (tabId: number): number => TAB_RULE_ID_BASE + tabId;
-const buildTabHeaderCondition = (tabId: number): DynamicHeaderRule["condition"] => ({
-  tabIds: [tabId],
-  resourceTypes: RESOURCE_TYPES,
-});
-const RULE_PRIORITY_BASE = 100;
-const MAX_HOST_PATTERN_LENGTH = 253;
-const RULE_WILDCARD_RANGE = MAX_HOST_PATTERN_LENGTH + 1;
-const RULE_SUBDOMAIN_SCALE = RULE_WILDCARD_RANGE;
-const DOMAIN_RULE_EXACT_SCALE = RULE_WILDCARD_RANGE * 2;
-const RULE_EXACT_SCALE = RULE_WILDCARD_RANGE * 4;
-const MAX_DOMAIN_RULE_PRIORITY =
-  RULE_PRIORITY_BASE +
-  MAX_HOST_PATTERN_LENGTH * RULE_EXACT_SCALE +
-  DOMAIN_RULE_EXACT_SCALE +
-  RULE_SUBDOMAIN_SCALE +
-  MAX_HOST_PATTERN_LENGTH;
-// Domain fallback < trusted-site allow < tab-wide modifyHeaders. Chrome only
-// applies modifyHeaders when its priority is strictly above a matching allow,
-// so tab rules must outrank Trusted Site bypasses or iframe hosts on the
-// allowlist would keep the real Accept-Language / Client Hints.
-const TRUSTED_ALLOW_PRIORITY = MAX_DOMAIN_RULE_PRIORITY + 1;
-const TAB_RULE_PRIORITY = TRUSTED_ALLOW_PRIORITY + 1;
-const URL_REGEX_PREFIX = "^[a-z][a-z0-9+.-]*://(?:[^/?#]*@)?";
-const HEADER_URL_RE_PREFIX = "^(?:https?|wss?)://(?:[^/?#]*@)?";
-const URL_REGEX_SUFFIX = "(?::\\d+)?(?:[/?#]|$)";
-const ANY_HEADER_HOST_RE = "[^/?#:@]+";
-const CLIENT_HINTS_HEADERS = [
-  "Sec-CH-UA",
-  "Sec-CH-UA-Platform",
-  "Sec-CH-UA-Mobile",
-  "Sec-CH-UA-Full-Version-List",
-] as const;
-const SURFACE_BY_HEADER: Record<string, XRaySurfaceCategory> = {
-  "Accept-Language": "timeLocale",
-  "User-Agent": "navigator",
-  ...Object.fromEntries(
-    CLIENT_HINTS_HEADERS.map((header) => [header, "clientHints" as const]),
-  ),
-};
 
 const resolveHeaderSurfaces = (
   requestHeaders: DynamicHeaderRule["action"]["requestHeaders"] | undefined,
@@ -390,6 +359,7 @@ const getDomainRulePriority = (pattern: string): number => {
  * frame's Accept-Language and client hints.
  */
 export type HeaderRuleInput = {
+  hostPauses?: readonly HostProtectionPause[];
   contexts: readonly EffectiveTabContext[];
   profiles: Awaited<ReturnType<typeof loadLocations>>;
   rules: Awaited<ReturnType<typeof loadRules>>;
@@ -410,6 +380,7 @@ export type HeaderRuleInput = {
 };
 
 export const buildHeaderRules = ({
+  hostPauses = [],
   contexts,
   profiles,
   rules,
@@ -430,6 +401,8 @@ export const buildHeaderRules = ({
 
     const tabRule = recoverInvalidProfile<DynamicHeaderRule | null>(
       () => {
+        if (findHostPause(context.hostname, hostPauses))
+          return buildPauseHeaderRule(context);
         const snapshot = resolveProfileSnapshot({
           browserFingerprintSource,
           fingerprintEnabled,
@@ -476,6 +449,15 @@ export const buildHeaderRules = ({
   return nextRules;
 };
 
+export const buildPauseHeaderRule = (
+  context: EffectiveTabContext,
+): DynamicHeaderRule => ({
+  id: toTabRuleId(context.tabId),
+  priority: TAB_RULE_PRIORITY + 1,
+  action: { type: ALLOW },
+  condition: buildTabHeaderCondition(context.tabId),
+});
+
 export const buildSnapshotHeaderRule = (
   context: EffectiveTabContext,
   snapshot: RuntimeSnapshot | null,
@@ -507,7 +489,10 @@ export const syncContextHeaderRule = (
   syncHeaderRulesInFlight = syncHeaderRulesInFlight
     .catch(() => undefined)
     .then(async () => {
-      const rule = buildSnapshotHeaderRule(context, snapshot);
+      await initializeHostPauses();
+      const rule = getHostPause(context.hostname)
+        ? buildPauseHeaderRule(context)
+        : buildSnapshotHeaderRule(context, snapshot);
 
       await chrome.declarativeNetRequest.updateSessionRules({
         removeRuleIds: [toTabRuleId(context.tabId)],
@@ -675,6 +660,7 @@ export const syncDynamicHeaderRules = (
   syncHeaderRulesInFlight = syncHeaderRulesInFlight
     .catch(() => undefined)
     .then(async () => {
+      await initializeHostPauses();
       const [
         profiles,
         rules,
@@ -697,6 +683,7 @@ export const syncDynamicHeaderRules = (
         loadContainerAssignments(),
       ]);
       const tabRules = buildHeaderRules({
+        hostPauses: getHostPauses(),
         contexts,
         profiles,
         rules,

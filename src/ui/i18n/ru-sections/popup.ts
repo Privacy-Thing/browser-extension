@@ -6,6 +6,37 @@ import { BRAND_DIAGNOSTICS_NAME, BRAND_DISPLAY_NAME } from "@/shared/brand";
 import { slavicCount } from "@/ui/shared/slavic-plural";
 
 export const popup = {
+  pauseTimedHint: "Вернётся автоматически",
+  pauseManage: "Управление паузой",
+  pauseAutoResume: "Защита вернётся автоматически",
+  pauseSessionOptionHint: "До закрытия браузера",
+  pauseResumeHint: "Применить текущие настройки",
+  pauseReloadNotice: "Пауза и возобновление перезагружают все вкладки этого сайта.",
+  pauseDetails: "Как работает пауза",
+  pauseExpiredSummary:
+    "Пауза завершена. Перезагрузите, чтобы применить текущие настройки.",
+  pauseTimedSummary: "После паузы перезагрузите открытые вкладки для включения защиты.",
+  pauseSessionSummary: "Защита вернётся при следующем открытии браузера.",
+  pauseProtection: "Приостановить подмену",
+  pauseActive: "Подмена приостановлена",
+  pauseSessionActive: "Приостановлено до закрытия браузера",
+  pauseCountdown: (time: string) => `Пауза · ${time}`,
+  pauseReloadRequired: "Требуется перезагрузка",
+  pauseTenMinutes: "10 минут",
+  pauseUntilSessionEnd: "Эта сессия браузера",
+  pauseResumeReload: "Возобновить и перезагрузить",
+  pauseScope: (hostname: string) =>
+    `Все вкладки, основной документ которых находится точно на ${hostname}, включая поддерживаемые фреймы и воркеры. Правила и доверенные сайты не изменяются.`,
+  pauseLimits:
+    "Глобальная политика конфиденциальности WebRTC остаётся активной. Запросы без контекста вкладки не входят в гарантию паузы заголовков.",
+  pauseReloadHint:
+    "Начало и возобновление перезагружают все подходящие вкладки. После истечения срока перезагрузите открытые документы, чтобы применить текущую конфигурацию.",
+  pauseSessionHint:
+    "Сессия завершается при закрытии или сбое браузера; приостановка воркера её не завершает.",
+  pauseExpiredHint:
+    "Исключение завершилось. Этот документ может оставаться без подмены. Перезагрузите его для применения текущей конфигурации.",
+  pauseStartReloadRequired:
+    "Исключение активно, но этому документу ещё нужна перезагрузка для его применения.",
   loading: "Загрузка…",
   protectionProtected: "Защищено",
   protectionOff: "Защита выключена",
