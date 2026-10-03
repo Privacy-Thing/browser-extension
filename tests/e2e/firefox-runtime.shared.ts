@@ -2567,8 +2567,16 @@ export const registerFxCoreTests = () => {
       throw new Error(saveSettingsResult.error);
     }
 
-    await waitForHostProbeReady(page);
-    await waitForSpoofedSnapshot(page, { allowReload: true });
+    // This test owns Temporal readiness. The asynchronous geolocation probe
+    // can outlive the settings reload and does not establish this contract.
+    await page.waitForFunction(() => {
+      const temporal = (
+        globalThis as typeof globalThis & {
+          Temporal?: { Now: { timeZoneId: () => string } };
+        }
+      ).Temporal;
+      return !temporal || temporal.Now.timeZoneId() === "Europe/Warsaw";
+    });
     const snapshot = await readTemporalE2ESnapshot(page);
 
     expect(snapshot.supported, "Firefox E2E requires native Temporal").toBe(true);
