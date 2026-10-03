@@ -6,6 +6,7 @@ import {
   parseHostPauses,
   type HostProtectionPause,
   type HostPauseStatus,
+  type WorkerTestKind,
 } from "@/shared/host-protection-pause";
 
 export const HOST_PAUSE_ALARM = "host-protection-pause-expiry";
@@ -23,10 +24,20 @@ export const initializeHostPauses = (): Promise<void> => {
   initialization ??= (async () => {
     const [local, session] = await Promise.all([
       chrome.storage.local.get(PAUSES_KEY),
-      chrome.storage.session.get([PAUSES_KEY, DOCUMENTS_KEY]),
+      chrome.storage.session.get([
+        PAUSES_KEY,
+        DOCUMENTS_KEY,
+        EXTENSION_STORAGE_KEYS.workerTestSessions,
+      ]),
     ]);
+    const sessions = session[EXTENSION_STORAGE_KEYS.workerTestSessions] as
+      Record<string, { id?: string }> | undefined;
     pauses = [
-      ...parseHostPauses(local[PAUSES_KEY]).filter((pause) => pause.expiresAt !== null),
+      ...parseHostPauses(local[PAUSES_KEY]).filter(
+        (pause) =>
+          pause.expiresAt !== null &&
+          (!pause.workerTest || sessions?.[pause.hostname]?.id === pause.id),
+      ),
       ...parseHostPauses(session[PAUSES_KEY]).filter(
         (pause) => pause.expiresAt === null,
       ),
@@ -95,6 +106,8 @@ const persistPauses = async (): Promise<void> => {
 export const setHostPause = (
   hostname: string,
   duration: "ten-minutes" | "session" | "resume",
+  workerTest?: WorkerTestKind,
+  testId?: string,
 ): Promise<void> =>
   serialize(async () => {
     await initializeHostPauses();
@@ -102,7 +115,8 @@ export const setHostPause = (
     if (duration !== "resume") {
       pauses.push({
         hostname,
-        id: crypto.randomUUID(),
+        id: testId ?? crypto.randomUUID(),
+        ...(workerTest ? { workerTest } : {}),
         expiresAt: duration === "session" ? null : Date.now() + HOST_PAUSE_DURATION_MS,
       });
     }
@@ -128,7 +142,8 @@ export const getHostPauseStatus = (
   const documentPauseId =
     document?.hostname === hostname ? document.pauseId : undefined;
   return {
-    pause,
+    pause: pause?.workerTest ? null : pause,
+    ...(pause?.workerTest ? { workerTest: pause } : {}),
     reloadRequired: pause
       ? documentPauseId !== pause.id
       : documentPauseId !== undefined,

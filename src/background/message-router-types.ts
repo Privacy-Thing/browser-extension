@@ -44,6 +44,7 @@ import type {
   UpdateRuleResponse,
   WorkerInjectionMode,
 } from "@/shared/types";
+import type { WorkerTestCommand, WorkerTestResponse } from "@/shared/worker-test";
 
 type SaveSettingsCommand = Extract<
   ExtensionCommand,
@@ -63,6 +64,7 @@ type FxTestCookieCommand = Extract<
 >;
 
 export type RouterDeps = {
+  workerTest: (command: WorkerTestCommand) => Promise<WorkerTestResponse>;
   isSupportedWebUrl: (url: string | undefined) => url is string;
   getControlState: () => Promise<GetControlStateResponse>;
   getSettings: () => Promise<GetSettingsResponse>;

@@ -401,8 +401,8 @@ export const buildHeaderRules = ({
 
     const tabRule = recoverInvalidProfile<DynamicHeaderRule | null>(
       () => {
-        if (findHostPause(context.hostname, hostPauses))
-          return buildPauseHeaderRule(context);
+        const pause = findHostPause(context.hostname, hostPauses);
+        if (pause && !pause.workerTest) return buildPauseHeaderRule(context);
         const snapshot = resolveProfileSnapshot({
           browserFingerprintSource,
           fingerprintEnabled,
@@ -490,9 +490,11 @@ export const syncContextHeaderRule = (
     .catch(() => undefined)
     .then(async () => {
       await initializeHostPauses();
-      const rule = getHostPause(context.hostname)
-        ? buildPauseHeaderRule(context)
-        : buildSnapshotHeaderRule(context, snapshot);
+      const pause = getHostPause(context.hostname);
+      const rule =
+        pause && !pause.workerTest
+          ? buildPauseHeaderRule(context)
+          : buildSnapshotHeaderRule(context, snapshot);
 
       await chrome.declarativeNetRequest.updateSessionRules({
         removeRuleIds: [toTabRuleId(context.tabId)],

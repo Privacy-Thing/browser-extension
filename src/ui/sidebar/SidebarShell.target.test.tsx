@@ -45,8 +45,13 @@ vi.mock("@/ui/i18n", () => ({
       openLogs: "Open logs",
       openSettings: "Open settings",
       openRule: "Open rule",
+      troubleshooter: { title: "Site not working?" },
     },
   },
+}));
+
+vi.mock("@/ui/shared/WorkerTroubleshooter", () => ({
+  WorkerTroubleshooter: () => <button data-worker-test-open />,
 }));
 
 vi.mock("@/ui/shared/MadeWithLoveBadge", () => ({

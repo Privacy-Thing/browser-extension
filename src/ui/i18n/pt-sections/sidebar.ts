@@ -1,6 +1,78 @@
 import { BRAND_DIAGNOSTICS_NAME, BRAND_DISPLAY_NAME } from "@/shared/brand";
 
 export const sidebar = {
+  troubleshooter: {
+    title: "O site não funciona?",
+    intro:
+      "Teste uma alteração reversível de workers por vez. Você escolhe cada teste e se deseja guardar o resultado.",
+    rule: "Regra / origem atual",
+    exceptions: "Exceções",
+    unknown: "Indisponível",
+    none: "Nenhuma",
+    active: "Teste temporário de workers",
+    scope:
+      "Somente o host exato do documento principal: todas as abas correspondentes, incluindo contêineres do Firefox, e contextos compatíveis que herdam a decisão. Outros documentos principais mantêm suas políticas. Requisições sem contexto de aba ficam fora deste escopo.",
+    webrtc:
+      "A política global WebRTC do navegador continua ativa. Este assistente não pode alterá-la para apenas um site.",
+    returnHint:
+      "No máximo dez minutos. Iniciar, restaurar e guardar recarregam as abas afetadas. Não ajudou, cancelamento ou expiração remove apenas esta exceção e retorna às opções atuais. Fechar este diálogo cancela o teste.",
+    start: "Iniciar teste e recarregar",
+    helped: "Ajudou",
+    failed: "Não ajudou",
+    restore: "Restaurar e recarregar",
+    save: "Guardar exceção para este host",
+    helpedHint:
+      "Sua resposta não prova a causa técnica. Guarde apenas se desejar esta política permanentemente para o host exibido. Todas as suas abas usam a exceção; as outras opções são preservadas.",
+    siteEffects:
+      "Restaurar opções não desfaz alterações do site: workers e caches podem sobreviver ou ser compartilhados pela origem. Apenas novas chamadas em contextos compatíveis usam a política escolhida.",
+    noCandidates:
+      "Nenhuma política de workers ativa está disponível para testar. Este MVP não testa Canvas, WebGL ou Audio.",
+    error:
+      "Não foi possível concluir a operação. O site, o teste ou a configuração podem ter mudado. Reabra para verificar; testes temporários expiram automaticamente.",
+    report: "Relatório local antes / depois",
+    reportHint:
+      "Somente JSON com dados sensíveis removidos; nada é enviado. Configuração e observações ficam separadas. Dados ausentes ou antigos não são provas. “Depois” aparece ao responder ou restaurar.",
+    before: "Antes",
+    after: "Depois",
+    kinds: {
+      serviceWorker: "Permitir registro de Service Worker",
+      sharedWorker: "Usar SharedWorker nativo",
+    },
+    effects: {
+      serviceWorker:
+        "Altera apenas o bloqueio do registro de Service Worker. Novos registros podem funcionar; esses workers não recebem valores simulados. Outras proteções continuam configuradas.",
+      sharedWorker:
+        "Altera apenas SharedWorker para Nativo. Novos workers compartilhados podem ver valores reais. Outras proteções continuam configuradas.",
+    },
+    evidence: {
+      observed:
+        "O X-Ray tem atividade ou falhas recentes de workers. É uma pista, não uma prova da causa.",
+      missing:
+        "Sem evidências observadas. A proposta vem da política configurada e pode não ajudar.",
+      stale:
+        "As evidências de workers estão antigas. A política ainda pode ser testada, mas a observação antiga não identifica a causa atual.",
+    },
+    blocked: {
+      unsupported: "É necessário um site compatível e o estado do processo de fundo.",
+      trusted:
+        "Uma exceção de site confiável desativa a proteção. Altere-a em Configurações antes de testar.",
+      inactive: "Nenhuma configuração ativa de simulação está disponível.",
+      pause: "Uma pausa do host já está ativa. Restaure-a antes de testar workers.",
+      reload:
+        "Este documento precisa ser recarregado para aplicar a decisão atual. Respostas ficam desativadas até a navegação ser confirmada.",
+    },
+    results: {
+      failed:
+        "O teste não ajudou. A exceção temporária foi removida; as abas recarregam com as opções atuais.",
+      cancelled:
+        "Teste cancelado. A exceção temporária foi removida; as abas recarregam com as opções atuais.",
+      expired:
+        "O teste terminou. Novas decisões já não usam a exceção. Recarregue se um documento ainda usa a política testada.",
+      saved:
+        "Uma exceção de workers para o host exato foi guardada após sua confirmação. As abas estão recarregando.",
+    },
+    remaining: (minutes: number): string => `Retorno em no máximo ${minutes} min.`,
+  },
   xRayTitle: BRAND_DIAGNOSTICS_NAME,
   openSettings: "Abrir configurações",
   openRule: "Editar regra de domínio",

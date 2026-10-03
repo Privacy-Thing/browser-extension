@@ -90,3 +90,60 @@ it("Chromium rejects a disabled seed at the deadline even if Date.now is subsequ
   expect(runtime.consumeRuntimeWindowSeed({ name })).toBeNull();
   clock.mockRestore();
 });
+
+it.each(["service-worker", "shared-worker"] as const)(
+  "narrow %s tests preserve other surfaces and cannot replay an expired iframe or unload seed",
+  async (workerTest) => {
+    const { applyHostOverride } = await import("@/shared/host-protection-pause");
+    const { isRuntimeSnapshot } = await import("@/shared/runtime-snapshot");
+    const runtime =
+      await import("@privacy-brand/refract-browser/common/runtime-config");
+    const fx = await import("@privacy-brand/refract-browser/common/firefox-shim-state");
+    const baseline = {
+      ...snapshot,
+      blockServiceWorkerRegistration: true,
+      sharedWorkerHandlingMode: "strict" as const,
+    };
+    const pause = { hostname: "h.example", id: "test", expiresAt: 1000, workerTest };
+    const narrow = applyHostOverride(baseline, pause)!;
+    expect(narrow.locale).toEqual(baseline.locale);
+    expect(narrow.geo).toEqual(baseline.geo);
+    expect(narrow.blockServiceWorkerRegistration).toBe(workerTest !== "service-worker");
+    expect(narrow.sharedWorkerHandlingMode).toBe(
+      workerTest === "shared-worker" ? "native" : "strict",
+    );
+    const seed = {
+      entries: [{ pattern: "*", state: fx.buildFirefoxShimState(baseline) }],
+      containerState: null,
+      hostPauses: [pause],
+    };
+    const state = fx.resolveFxSeedForHost("h.example", seed)!;
+    expect(state.timeLocale?.language).toBe("pl");
+    expect(state.blockServiceWorkerRegistration).toBe(
+      narrow.blockServiceWorkerRegistration,
+    );
+    expect(fx.toSnapshotFromFxState(state)?.hostOverrideExpiresAt).toBe(1000);
+    const name =
+      runtime.getWindowSeedPrefix() +
+      btoa(
+        JSON.stringify({
+          kind: "snapshot",
+          previousName: "original",
+          snapshot: narrow,
+        }),
+      );
+    const carrier = { name };
+    expect(runtime.consumeRuntimeWindowSeed(carrier)?.kind).toBe("snapshot");
+    carrier.name = name; // A later iframe/unload writer replays the same activation.
+    vi.setSystemTime(1000);
+    expect(isRuntimeSnapshot(narrow)).toBe(false);
+    expect(runtime.consumeRuntimeWindowSeed(carrier)).toBeNull();
+    expect(fx.toSnapshotFromFxState(state)).toBeNull();
+    expect(
+      fx.resolveFxSeedForHost("h.example", seed)?.blockServiceWorkerRegistration,
+    ).toBe(true);
+    expect(fx.resolveFxSeedForHost("k.example", seed)?.sharedWorkerHandlingMode).toBe(
+      "strict",
+    );
+  },
+);

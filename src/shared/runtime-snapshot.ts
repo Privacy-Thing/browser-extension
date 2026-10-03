@@ -1,4 +1,7 @@
-import { privateArrayIsArray } from "@privacy-brand/refract-core/runtime/primordials";
+import {
+  privateArrayIsArray,
+  privateDateNow,
+} from "@privacy-brand/refract-core/runtime/primordials";
 
 import { isSharedWorkerMode } from "@/shared/fingerprint-types";
 import type { RuntimeSnapshot } from "@/shared/types";
@@ -82,6 +85,9 @@ export const isRuntimeSnapshot = (value: unknown): value is RuntimeSnapshot => {
 
   const { geo, locale, date, watchPositionDelay } = value;
   return (
+    (value.hostOverrideExpiresAt === undefined ||
+      (isFiniteNumber(value.hostOverrideExpiresAt) &&
+        privateDateNow() < value.hostOverrideExpiresAt)) &&
     isRuntimeGeo(geo) &&
     isRuntimeLocale(locale) &&
     isRuntimeDate(date) &&

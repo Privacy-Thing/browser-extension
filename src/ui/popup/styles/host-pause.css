@@ -297,3 +297,26 @@
 :root[data-reduce-motion] .gw-popup-pause-option {
   transition: none;
 }
+
+.gw-popup-troubleshooter-entry {
+  width: 100%;
+  margin-top: 6px;
+  padding: 8px 12px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  color: hsl(var(--muted-foreground));
+  background: transparent;
+  font-size: 11px;
+  cursor: pointer;
+}
+.gw-popup-troubleshooter-entry:hover {
+  color: hsl(var(--foreground));
+}
+.gw-popup-troubleshooter-entry:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+.gw-popup-troubleshooter-entry:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

@@ -4,7 +4,10 @@ import type {
 } from "@/background/effective-snapshot-cache";
 import type { ResolutionDecision } from "@/background/prepared-runtime-decisions";
 import { getHostPause } from "@/background/storage/host-protection-pauses";
-import type { HostProtectionPause } from "@/shared/host-protection-pause";
+import {
+  applyHostOverride,
+  type HostProtectionPause,
+} from "@/shared/host-protection-pause";
 import type { RuntimeSnapshot } from "@/shared/types";
 
 // In-flight navigation work can finish after a pause clears the cache. Apply
@@ -31,9 +34,13 @@ export const bindSnapshotCache = (
     hostname: string,
   ): ResolutionDecision | undefined => {
     const pause = resolvePause(hostname);
-    if (pause && !decision.trustedSiteMatched)
-      return { snapshot: null, trustedSiteMatched: false, hostPause: pause };
     if (decision.hostPause && decision.hostPause.id !== pause?.id) return undefined;
+    if (pause && !decision.trustedSiteMatched)
+      return {
+        ...decision,
+        snapshot: applyHostOverride(decision.snapshot, pause),
+        hostPause: pause,
+      };
     return decision;
   };
   const updateSnapshotCache = (input: {
