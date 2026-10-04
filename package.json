@@ -92,7 +92,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
-    "maplibre-gl": "^6.4.1",
+    "maplibre-gl": "^6.11.2",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "sonner": "^2.0.8",
@@ -103,7 +103,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@go-task/cli": "^3.53.1",
-    "@mdn/browser-compat-data": "^8.1.2",
+    "@mdn/browser-compat-data": "^8.1.4",
     "@playwright/test": "1.58.2",
     "@privacy-brand/refract-browser": "workspace:*",
     "@privacy-brand/refract-core": "workspace:*",
