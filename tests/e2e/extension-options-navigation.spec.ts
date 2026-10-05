@@ -73,6 +73,82 @@ test("loads the options page from the extension", async ({ context, extensionId 
   ).toHaveCount(0);
 });
 
+test("keeps Control D credentials in the extension origin and rejects page commands", async ({
+  context,
+  extensionId,
+  serverUrl,
+}) => {
+  const options = await context.newPage();
+  await options.goto(`chrome-extension://${extensionId}/src/ui/options/index.html`);
+  const supported = await options.evaluate(() =>
+    (chrome.runtime.getManifest().optional_host_permissions ?? []).includes(
+      "https://api.controld.com/*",
+    ),
+  );
+  if (!supported) return;
+  const migrated = await options.evaluate(async () => {
+    const legacyKey = "pt.experimental.control-d.v2.api-key";
+    await chrome.storage.local.set({ [legacyKey]: "test-only-credential" });
+    const response = await chrome.runtime.sendMessage({
+      type: "pt.control-d.get-state",
+    });
+    return { response, legacy: (await chrome.storage.local.get(legacyKey))[legacyKey] };
+  });
+  expect(migrated.response).toMatchObject({ ok: true, state: { hasApiKey: true } });
+  expect(migrated.legacy).toBeUndefined();
+  const site = await context.newPage();
+  await site.goto(serverUrl);
+  const tabId = await options.evaluate(
+    async (url) => (await chrome.tabs.query({})).find((tab) => tab.url === url)?.id,
+    site.url(),
+  );
+  expect(tabId).toBeDefined();
+  const [result] = await options.evaluate(
+    async (id) =>
+      chrome.scripting.executeScript({
+        target: { tabId: id! },
+        world: "ISOLATED",
+        func: async () => {
+          let localDenied = false;
+          try {
+            await chrome.storage.local.get("pt.experimental.control-d.v2.api-key");
+          } catch {
+            localDenied = true;
+          }
+          let commandRejected: boolean;
+          try {
+            const response = await chrome.runtime.sendMessage({
+              type: "pt.control-d.disconnect",
+            });
+            commandRejected = response?.ok !== true;
+          } catch {
+            commandRejected = true;
+          }
+          const hasPrivateStore = await new Promise<boolean>((resolve, reject) => {
+            const request = indexedDB.open("pt.experimental.control-d.credentials", 1);
+            request.onsuccess = () => {
+              const hasStore = request.result.objectStoreNames.contains("keys");
+              request.result.close();
+              resolve(hasStore);
+            };
+            request.onerror = () => reject(request.error);
+          });
+          return { localDenied, commandRejected, hasPrivateStore };
+        },
+      }),
+    tabId,
+  );
+  expect(result?.result).toEqual({
+    localDenied: true,
+    commandRejected: true,
+    hasPrivateStore: false,
+  });
+  const disconnected = await options.evaluate(() =>
+    chrome.runtime.sendMessage({ type: "pt.control-d.disconnect" }),
+  );
+  expect(disconnected).toMatchObject({ ok: true, state: { hasApiKey: false } });
+});
+
 test("shows Control D actions in View Logs when debug mode is enabled", async ({
   context,
   extensionId,

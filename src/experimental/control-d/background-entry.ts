@@ -612,7 +612,12 @@ export const registerControlD = (deps: BackgroundEntryDeps): void => {
   );
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (!isControlDCommand(message) || sender.id !== chrome.runtime.id) return false;
+    if (
+      !isControlDCommand(message) ||
+      sender.id !== chrome.runtime.id ||
+      !sender.url?.startsWith(chrome.runtime.getURL("/"))
+    )
+      return false;
     fireAndForget(controller.respond(message).then(sendResponse), (error) =>
       sendResponse({ ok: false, error: errorMessage(error) }),
     );

@@ -76,7 +76,7 @@ test("keeps the Control D experiment out of release artifacts", async () => {
 
 test("builds a firefox artifact with gecko settings and script-injection fallback", async () => {
   const manifest = await readFirefoxManifest();
-  const isNonReleaseBuild = Boolean(manifest.version_name);
+  const isNonReleaseBuild = /-(local|beta)$/.test(manifest.version_name ?? "");
 
   expect(manifest.minimum_chrome_version).toBeUndefined();
   expect(manifest.browser_specific_settings?.gecko?.id).toBe(
@@ -160,13 +160,15 @@ test("does not emit or bundle Chromium Battery support", async () => {
 test("stamps firefox manifests for release, local, and beta builds", async () => {
   const manifest = await readFirefoxManifest();
 
-  if (manifest.version_name) {
+  if (/-(local|beta)$/.test(manifest.version_name ?? "")) {
     expect(manifest.version_name).toMatch(/^0\.\d{4}\.\d{3,4}\.\d{1,4}-(local|beta)$/);
     expect(manifest.version).toMatch(/^0\.\d{4}\.\d{3,4}\.\d{1,4}$/);
     return;
   }
 
   expect(manifest.version).toMatch(/^\d+\.\d+\.\d+(?:\.\d+)?$/);
+  if (manifest.version_name)
+    expect(manifest.version_name).toMatch(/^\d+\.\d+\.\d+(?:\.\d+)?$/);
 });
 
 test("compiled firefox page-world scripts do not contain product-identifying channel strings", async () => {

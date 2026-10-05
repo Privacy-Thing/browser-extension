@@ -39,7 +39,7 @@ vi.mock("./reconcile", async (importOriginal) => {
 
 type MessageListener = (
   message: unknown,
-  sender: { id?: string },
+  sender: { id?: string; url?: string },
   sendResponse: (response: unknown) => void,
 ) => boolean;
 
@@ -66,6 +66,7 @@ beforeEach(() => {
   vi.stubGlobal("chrome", {
     runtime: {
       id: "extension-id",
+      getURL: (path: string) => `chrome-extension://extension-id${path}`,
       onMessage: {
         addListener: vi.fn((listener: MessageListener) => {
           messageListener = listener;
@@ -124,10 +125,29 @@ const fixtureConfig = (): ControlDConfig => ({
 describe("Control D background entry", () => {
   const request = (message: unknown) =>
     new Promise<Record<string, unknown>>((resolve) => {
-      messageListener(message, { id: "extension-id" }, (response) =>
-        resolve(response as Record<string, unknown>),
+      messageListener(
+        message,
+        {
+          id: "extension-id",
+          url: "chrome-extension://extension-id/src/ui/options/index.html",
+        },
+        (response) => resolve(response as Record<string, unknown>),
       );
     });
+
+  it("rejects Control D commands from content scripts before reading credentials", () => {
+    registerControlD({ getDebugMode: () => false });
+    const respond = vi.fn();
+    expect(
+      messageListener(
+        { type: CONTROL_D_COMMANDS.disconnect },
+        { id: "extension-id", url: "https://example.com/" },
+        respond,
+      ),
+    ).toBe(false);
+    expect(respond).not.toHaveBeenCalled();
+    expect(chrome.storage.local.remove).not.toHaveBeenCalled();
+  });
 
   it("returns the same prepared snapshot after preview and synchronization", async () => {
     const config: ControlDConfig = {
@@ -350,7 +370,10 @@ describe("Control D background entry", () => {
       expect(
         messageListener(
           { type: CONTROL_D_COMMANDS.setEnabled, enabled: true },
-          { id: "extension-id" },
+          {
+            id: "extension-id",
+            url: "chrome-extension://extension-id/src/ui/options/index.html",
+          },
           resolve,
         ),
       ).toBe(true);
@@ -381,7 +404,10 @@ describe("Control D background entry", () => {
             confirmed: false,
           },
         },
-        { id: "extension-id" },
+        {
+          id: "extension-id",
+          url: "chrome-extension://extension-id/src/ui/options/index.html",
+        },
         resolve,
       );
     });
