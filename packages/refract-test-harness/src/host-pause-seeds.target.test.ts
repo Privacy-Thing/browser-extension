@@ -166,7 +166,7 @@ it("saved worker policies survive early transports without changing regional val
   expect(
     fx.resolveFxSeedForHost("k.example", restored)?.blockServiceWorkerRegistration,
   ).toBe(true);
-  const readStatic = (topHostname: string | null) => {
+  const readStatic = (topHostname: string | null, hostname = "k.example") => {
     (globalThis as Record<symbol, unknown>)[Symbol.for(FX_STATIC_CANDIDATES_KEY)] = [
       {
         buildKey: SHIM_GUARD_KEY,
@@ -181,11 +181,13 @@ it("saved worker policies survive early transports without changing regional val
         workers: workerPolicyExceptions,
       },
     ];
-    return fx.takeFxStaticState(globalThis, "k.example", { topHostname });
+    return fx.takeFxStaticState(globalThis, hostname, { topHostname });
   };
   expect(readStatic("h.example")?.blockServiceWorkerRegistration).toBe(false);
   expect(readStatic("k.example")?.blockServiceWorkerRegistration).toBe(true);
-  expect(readStatic(null)).toBeNull();
+  expect(readStatic(null)).toEqual(state);
+  // An iframe host cannot opt into its own exception when its top host is unknown.
+  expect(readStatic(null, "h.example")).toEqual(state);
   const preloaded = {
     entries: [
       { pattern: "*", snapshot: baseline, blockServiceWorkerRegistration: true },

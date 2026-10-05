@@ -506,6 +506,28 @@ const routeFxRuntimeReq = (
     return true;
   }
 
+  if (requestPath === "/worker-policy-first-call") {
+    response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+    response.end(`<!doctype html><html><body>
+      <pre id="worker-policy-first-call"></pre>
+      <script>
+        const output = document.getElementById("worker-policy-first-call");
+        const first = { language: navigator.language, serviceWorker: "pending" };
+        const write = () => { output.textContent = JSON.stringify(first); };
+        write();
+        try {
+          navigator.serviceWorker.register("/worker-scope-race-service.js", { scope: "/first-call/" })
+            .then(async registration => {
+              await registration.unregister();
+              first.serviceWorker = "allowed";
+              write();
+            }, error => { first.serviceWorker = error.name; write(); });
+        } catch (error) { first.serviceWorker = error.name; write(); }
+      </script>
+    </body></html>`);
+    return true;
+  }
+
   if (requestPath === "/worker-scope-race") {
     response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     response.end(renderWorkerRacePage());
@@ -5146,6 +5168,17 @@ const openFxUiProbe = async (
         15_000,
         tab.actor,
       ),
+    grantUserScripts: async () => {
+      const button = await installFxPermButton(remote, consoleActor, url);
+      await page.bringToFront();
+      await page.mouse.click(
+        button.left + button.width / 2,
+        button.top + button.height / 2,
+      );
+      await expect
+        .poll(() => readFxPermRequestResult(remote, consoleActor, url))
+        .toBe("granted");
+    },
     close: async () => {
       remote.disconnect();
       await page.close().catch(() => undefined);
