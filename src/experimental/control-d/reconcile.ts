@@ -447,7 +447,7 @@ export const applyControlDSync = async ({
   );
   const nextConfig: ControlDConfig = {
     ...config,
-    locationMappings: confirmedMappings,
+    locationMappings: { ...config.locationMappings, ...confirmedMappings },
   };
   const profileId = await ensureProfile(client, nextConfig);
   const desired = desiredByProxy(prepared.compilation);

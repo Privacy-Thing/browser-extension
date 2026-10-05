@@ -564,3 +564,48 @@ it("does not approve a newly approximate mapping during unattended sync", async 
   ).rejects.toThrow("Confirm every approximate");
   expect(fake.profiles).toEqual([]);
 });
+
+it.each(["skipped", "approximate"] as const)(
+  "retains a saved %s mapping while its rules are disabled and reuses it on re-enable",
+  async (status) => {
+    const fake = new FakeClient();
+    fake.proxies = [proxy, berlinProxy];
+    const stored = {
+      locationId: "warsaw",
+      proxyPk: status === "skipped" ? null : "BER",
+      status,
+      confirmed: true,
+    };
+    const initial = { ...config(), locationMappings: { warsaw: stored } };
+    const rules = await loadRules();
+    vi.mocked(loadRules).mockResolvedValue(
+      rules.map((rule) => ({ ...rule, enabled: false })),
+    );
+    const disabled = await prepareControlDSync(asClient(fake), initial);
+    expect(disabled.compilation.mappings).toEqual({});
+    const applied = await applyControlDSync({
+      client: asClient(fake),
+      config: initial,
+      prepared: disabled,
+      confirmApproximate: false,
+      repair: false,
+    });
+    expect(applied.locationMappings.warsaw).toEqual(stored);
+    vi.mocked(loadRules).mockResolvedValue(rules);
+    const reenabled = await prepareControlDSync(asClient(fake), applied);
+    expect(reenabled.compilation.mappings.warsaw).toMatchObject(stored);
+    expect(reenabled.compilation.rules).toHaveLength(status === "skipped" ? 0 : 1);
+    expect(reenabled.diff.requiresApproximationConfirmation).toBe(false);
+    const resynced = await applyControlDSync({
+      client: asClient(fake),
+      config: applied,
+      prepared: reenabled,
+      confirmApproximate: false,
+      repair: false,
+    });
+    expect(resynced.locationMappings.warsaw).toMatchObject(stored);
+    expect([...fake.rules.values()].flat()).toMatchObject(
+      status === "skipped" ? [] : [{ via: "BER", hostname: "*example.com" }],
+    );
+  },
+);

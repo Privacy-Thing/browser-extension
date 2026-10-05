@@ -8,11 +8,15 @@ import {
   type ControlDPublicState,
   type ControlDRecoveryCandidate,
 } from "../../../experimental/control-d/contracts";
-import { ControlDSubpage } from "../../../experimental/control-d/ui-entry";
+import {
+  ControlDFeatureToggle,
+  ControlDSubpage,
+} from "../../../experimental/control-d/ui-entry";
 
 import { EXTENSION_STORAGE_KEYS } from "@/shared/extension-contract";
 import { DEFAULT_PREFERENCES } from "@/shared/settings-defaults";
 import type { ThemeMode } from "@/shared/types";
+import { applyUiLocalePreference, type UiLocale } from "@/ui/i18n";
 import { AppPageFrame } from "@/ui/shared/AppPageFrame";
 import { ThemeProvider } from "@/ui/shared/ThemeProvider";
 
@@ -355,4 +359,52 @@ export const SelectInteraction: Story = {
     ).toBeVisible();
     await userEvent.keyboard("{Escape}");
   },
+};
+
+const StatusSurface = ({
+  state,
+  locale,
+}: {
+  state: ControlDPublicState;
+  locale: UiLocale;
+}) => {
+  applyUiLocalePreference(locale);
+  installBoundary(state, snapshot, [], "light");
+  return <ControlDFeatureToggle onEnabledChange={() => undefined} />;
+};
+
+const checkStatusTone =
+  (tone: string, locale: "es" | "pt" | "ru" | "uk") =>
+  async ({ canvasElement }: { canvasElement: HTMLElement }) => {
+    try {
+      await expect(document.documentElement.lang).toBe(locale);
+      const canvas = within(canvasElement);
+      const badge = await canvas.findByText(
+        (_, element) => element?.getAttribute("data-control-d-tone") === tone,
+      );
+      await expect(badge).toHaveClass(`text-tone-${tone}-text`);
+    } finally {
+      applyUiLocalePreference("en");
+    }
+  };
+
+export const AuthErrorStatus: Story = {
+  render: () => (
+    <StatusSurface state={{ ...baseState, status: "auth-error" }} locale="ru" />
+  ),
+  play: checkStatusTone("error", "ru"),
+};
+export const SyncErrorStatus: Story = {
+  render: () => <StatusSurface state={{ ...baseState, status: "error" }} locale="uk" />,
+  play: checkStatusTone("error", "uk"),
+};
+export const ConflictStatus: Story = {
+  render: () => (
+    <StatusSurface state={{ ...baseState, status: "conflict" }} locale="pt" />
+  ),
+  play: checkStatusTone("warning", "pt"),
+};
+export const DnsPendingStatus: Story = {
+  render: () => <StatusSurface state={dnsPending} locale="es" />,
+  play: checkStatusTone("warning", "es"),
 };

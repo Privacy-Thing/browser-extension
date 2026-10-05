@@ -118,21 +118,29 @@ const stateLabel = (state: ControlDPublicState | null): string => {
   return t.status.active;
 };
 
-const statusTone = (label: string): string => {
-  if (label === t.status.active)
-    return "border-tone-success-border bg-tone-success-bg text-tone-success-text";
-  if (label.includes("failed") || label.includes("error"))
-    return "border-tone-error-border bg-tone-error-bg text-tone-error-text";
-  if (label.includes("attention") || label.includes("not verified"))
-    return "border-tone-warning-border bg-tone-warning-bg text-tone-warning-text";
-  return "border-border bg-muted/60 text-foreground";
+type StatusTone = "neutral" | "success" | "error" | "warning";
+
+const stateTone = (state: ControlDPublicState | null): StatusTone => {
+  if (!state?.connected || state.status === "syncing") return "neutral";
+  if (state.status === "auth-error" || state.status === "error") return "error";
+  if (state.status === "conflict") return "warning";
+  if (state.setupStatus === "unselected" || !state.lastSuccessAt) return "neutral";
+  return state.dnsStatus === "verified" ? "success" : "warning";
 };
 
-const StatusBadge = ({ label }: { label: string }) => (
+const toneClasses: Record<StatusTone, string> = {
+  success: "border-tone-success-border bg-tone-success-bg text-tone-success-text",
+  error: "border-tone-error-border bg-tone-error-bg text-tone-error-text",
+  warning: "border-tone-warning-border bg-tone-warning-bg text-tone-warning-text",
+  neutral: "border-border bg-muted/60 text-foreground",
+};
+
+const StatusBadge = ({ label, tone }: { label: string; tone: StatusTone }) => (
   <span
+    data-control-d-tone={tone}
     className={cn(
       "inline-flex rounded-full border px-2.5 py-1 text-xs font-medium",
-      statusTone(label),
+      toneClasses[tone],
     )}
   >
     {label}
@@ -187,7 +195,7 @@ export const ControlDFeatureToggle = ({
     >
       {state?.enabled ? (
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <StatusBadge label={stateLabel(state)} />
+          <StatusBadge label={stateLabel(state)} tone={stateTone(state)} />
           <Button
             type="button"
             size="sm"
@@ -472,7 +480,7 @@ export const ControlDSubpage = () => {
     >
       {state?.connected ? (
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <StatusBadge label={t.account.connectedTitle} />
+          <StatusBadge label={t.account.connectedTitle} tone="success" />
           <Button type="button" size="sm" onClick={() => setStepOverride(null)}>
             {t.common.continue}
           </Button>

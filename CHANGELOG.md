@@ -68,6 +68,9 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ### Fixed
 
+- Control D keeps saved route overrides when all rules for a region are disabled,
+  and status colors follow integration state in every interface language.
+
 - Control D previews now expire when local or remote inputs change, and background
   actions serialize with disconnect. Automatic sync never approves approximate
   routes; moving a hostname between exit folders preserves the rule. API keys
