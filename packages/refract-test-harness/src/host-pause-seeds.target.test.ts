@@ -157,7 +157,7 @@ it("saved worker policies survive early transports without changing regional val
   const seed = {
     entries: [{ pattern: "*", state }],
     containerState: null,
-    workerPolicyExceptions,
+    workers: workerPolicyExceptions,
   };
   const restored = fx.normalizeFxWindowSeed(seed)!;
   expect(
@@ -178,7 +178,7 @@ it("saved worker policies survive early transports without changing regional val
           wildcardCount: 1,
         },
         state,
-        workerPolicyExceptions,
+        workers: workerPolicyExceptions,
       },
     ];
     return fx.takeFxStaticState(globalThis, "k.example", { topHostname });

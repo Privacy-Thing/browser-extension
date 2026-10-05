@@ -95,7 +95,9 @@ export const createUserScriptRegs = ({
           {
             code: buildFxSeedSource({
               ...buildFxStateCandidate(entry),
-              workerPolicyExceptions,
+              ...(Object.keys(workerPolicyExceptions).length > 0
+                ? { workers: workerPolicyExceptions }
+                : {}),
               hostPauses: [...hostPauses],
             }),
           },

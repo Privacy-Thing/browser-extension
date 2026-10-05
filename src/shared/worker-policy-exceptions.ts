@@ -38,16 +38,10 @@ export const isWorkerPolicyExceptions = (
 export const normalizeWorkerPolicies = (value: unknown): WorkerPolicyExceptions =>
   isWorkerPolicyExceptions(value) ? value : {};
 
-/** Applied once after identity resolution; never activates an unprotected site. */
-export const applyWorkerException = <T extends object>(
-  baseline: T | null,
-  hostname: string,
-  exceptions: WorkerPolicyExceptions | undefined,
-): T | null => {
-  const policy =
-    exceptions && Object.hasOwn(exceptions, hostname)
-      ? exceptions[hostname]
-      : undefined;
+export const applyWorkerPolicy = <T extends object | null>(
+  baseline: T,
+  policy: WorkerPolicyException | undefined,
+): T => {
   if (!baseline || !policy) return baseline;
   return {
     ...baseline,
@@ -62,3 +56,16 @@ export const applyWorkerException = <T extends object>(
       : {}),
   };
 };
+
+/** Applied once after identity resolution; never activates an unprotected site. */
+export const applyWorkerException = <T extends object>(
+  baseline: T | null,
+  hostname: string,
+  exceptions: WorkerPolicyExceptions | undefined,
+): T | null =>
+  applyWorkerPolicy(
+    baseline,
+    exceptions && Object.hasOwn(exceptions, hostname)
+      ? exceptions[hostname]
+      : undefined,
+  );

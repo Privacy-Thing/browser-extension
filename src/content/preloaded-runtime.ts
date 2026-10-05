@@ -14,7 +14,6 @@ import {
 import { isRuntimeSnapshot } from "@/shared/runtime-snapshot";
 import type { DomainRule, RuntimeSnapshot, TrustedSite } from "@/shared/types";
 import {
-  isWorkerPolicyExceptions,
   applyWorkerException,
   type WorkerPolicyExceptions,
 } from "@/shared/worker-policy-exceptions";
@@ -47,8 +46,6 @@ const isPreloadedRuntimeState = (value: unknown): value is PreloadedRuntimeState
   }
 
   return (
-    (value.workerPolicyExceptions === undefined ||
-      isWorkerPolicyExceptions(value.workerPolicyExceptions)) &&
     Array.isArray(value.entries) &&
     value.entries.every(
       (entry) =>

@@ -28,18 +28,18 @@ assertions. Fixtures contain synthetic hostnames and diagnostic data.
 
 ## Runtime coverage
 
-| Surface                           | Handling                                                                            |
-| --------------------------------- | ----------------------------------------------------------------------------------- |
-| Chromium MAIN                     | Existing installers receive a narrowed resolved snapshot                            |
-| Chromium early inline             | Preload/window seed carries the same fields and rejects expired activation          |
-| Firefox pre-bootstrap             | Hash/static/window seed narrows worker fields while preserving other surfaces       |
-| Dedicated workers                 | Existing worker payload is unchanged; unrelated spoofed values remain active        |
-| Service Workers                   | Native registration only; no claim that Service Worker globals are spoofed          |
-| SharedWorkers                     | Native policy for the tested top host; other top hosts keep their configured policy |
-| Background/content/injection      | Existing temporary-override storage, alarm, cache, headers and seed lifecycle       |
-| Popup/sidebar                     | Shared dialog, explicit decisions, cancellation on closure                          |
-| Options                           | Existing exact-host rule editor owns the saved exception; no new options workflow   |
-| Add/update/disable/remove/restore | Existing rule lifecycle; save checks configuration fingerprint and test ID          |
+| Surface                           | Handling                                                                                                                           |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Chromium MAIN                     | Existing installers receive a narrowed resolved snapshot                                                                           |
+| Chromium early inline             | Preload/window seed carries the same fields and rejects expired activation                                                         |
+| Firefox pre-bootstrap             | Hash/static/window seed narrows worker fields while preserving other surfaces                                                      |
+| Dedicated workers                 | Existing worker payload is unchanged; unrelated spoofed values remain active                                                       |
+| Service Workers                   | Native registration only; no claim that Service Worker globals are spoofed                                                         |
+| SharedWorkers                     | Native policy for the tested top host; other top hosts keep their configured policy                                                |
+| Background/content/injection      | Existing temporary-override storage, alarm, cache, headers and seed lifecycle                                                      |
+| Popup/sidebar                     | Shared dialog in a persistent popup window or sidebar; cancellation on closure                                                     |
+| Options                           | Saved worker exceptions can be removed in the Spoofing settings section                                                            |
+| Add/update/disable/remove/restore | Policy-only host map preserves regional profiles and Firefox container identity; save checks configuration fingerprint and test ID |
 
 Firefox worker requests with no tab ID are bound only through browser-owned frame
 records. If any possible owner keeps a protected worker policy, the request stays

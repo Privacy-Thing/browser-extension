@@ -553,7 +553,9 @@ const getFxSeed = (
   return {
     entries,
     containerState,
-    workerPolicyExceptions: inputs.workerPolicyExceptions ?? {},
+    ...(Object.keys(inputs.workerPolicyExceptions ?? {}).length > 0
+      ? { workers: inputs.workerPolicyExceptions }
+      : {}),
     hostPauses: [...(inputs.hostPauses ?? [])],
     containerEntries,
     ...(nativeRulePatterns.length > 0 ? { nativeRulePatterns } : {}),
