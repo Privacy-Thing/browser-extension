@@ -67,6 +67,12 @@ const handleCoreCommand = (
     case EXTENSION_COMMAND_TYPES.getSettings:
       fireAndRespond(sendResponse, deps.getSettings());
       return true;
+    case EXTENSION_COMMAND_TYPES.setHostProtectionPause:
+      fireAndRespond(
+        sendResponse,
+        deps.setHostProtectionPause(command.duration, command.tabId),
+      );
+      return true;
     case EXTENSION_COMMAND_TYPES.getPopupState:
       fireAndRespond(sendResponse, deps.getPopupState(command.tabId), (error) =>
         respondUnexpectedError(sendResponse, error),
@@ -566,26 +572,12 @@ const handleResolveSnapshot = (
 
   fireAndRespond(
     sendResponse,
-    deps
-      .handleResolveSnapshot(
-        command,
-        senderCookieStoreId,
-        sender.tab?.id,
-        sender.frameId,
-      )
-      .then((response) => {
-        if (tabId !== undefined) {
-          deps.updateSnapshotCache({
-            tabId,
-            frameId,
-            hostname: command.hostname,
-            value: response.snapshot,
-            ...(senderCookieStoreId ? { cookieStoreId: senderCookieStoreId } : {}),
-          });
-        }
-
-        return response;
-      }),
+    deps.handleResolveSnapshot(
+      command,
+      senderCookieStoreId,
+      sender.tab?.id,
+      sender.frameId,
+    ),
   );
 
   return true;

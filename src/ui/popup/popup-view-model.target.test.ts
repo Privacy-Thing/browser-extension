@@ -5,6 +5,7 @@ import { BRAND_DISPLAY_NAME } from "@/shared/brand";
 import { BUILD_BROWSER_TARGET } from "@/shared/build-flags";
 import { DEFAULT_CONTAINER_ICON } from "@/shared/firefox-containers";
 import type { ContainerPresentation, PopupState } from "@/shared/types";
+import { t } from "@/ui/i18n";
 import {
   POPUP_PRESENTATION_KINDS,
   derivePopupViewModel,
@@ -704,4 +705,19 @@ describe("Domain Rule sheet targeting", () => {
     expect(getInitialRuleMode(state)).toBe("suffix");
     expect(getTargetPattern(state)).toBe("*.example.com");
   });
+});
+
+it("reports a reload requirement until the active pause reaches the document", () => {
+  const model = derivePopupViewModel(
+    createPopupState({
+      hostPause: {
+        pause: { hostname: "example.com", id: "pause", expiresAt: null },
+        reloadRequired: true,
+      },
+    }),
+  );
+  expect(model.powerLabel).toBe(t.popup.pauseReloadRequired);
+  expect(model.protectionTitle).toBe(t.popup.pauseReloadRequired);
+  expect(model.protectionCounts).toBe(t.popup.pauseStartReloadRequired);
+  expect(model.protectedSurfaceCount).toBe(0);
 });

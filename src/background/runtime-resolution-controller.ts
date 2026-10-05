@@ -4,10 +4,6 @@ import {
 } from "@privacy-brand/refract-browser/common/firefox-shim-state";
 
 import { syncDynamicHeaderRules } from "@/background/dnr";
-import type {
-  SnapshotCacheEntry,
-  SnapshotCacheInput,
-} from "@/background/effective-snapshot-cache";
 import { createFxRewriteHandlers } from "@/background/firefox-shared-worker-rewrite";
 import {
   restoreFxHashUrl,
@@ -15,6 +11,7 @@ import {
   seedWindowSnapshot,
   setMainWorldSnapshot,
 } from "@/background/main-world-injection";
+import { bindSnapshotCache } from "@/background/pause-aware-cache";
 import { persistPreloadSafe } from "@/background/preload-persist";
 import type {
   PreparedRuntimeDecisions,
@@ -26,27 +23,26 @@ import {
   resolveActiveIdentity,
   resolveProfileSnapshot,
 } from "@/background/rules/resolver";
+import { createSnapshotHandler } from "@/background/runtime-snapshot-handler";
 import type {
   CachedSettingsState,
   createRuntimeState,
 } from "@/background/runtime-state";
+import {
+  getHostPause,
+  initializeHostPauses,
+} from "@/background/storage/host-protection-pauses";
 import {
   loadSeenHosts,
   rememberSeenHost,
   saveSeenHosts,
 } from "@/background/storage/seen-hosts";
 import { clearSurfaceAccess } from "@/background/surface-access-tracker";
-import { inheritTabSnapshot } from "@/background/top-frame-snapshot";
 import { fireAndForget } from "@/shared/async";
 import { readFingerprintSource } from "@/shared/browser-fingerprint";
 import { BUILD_BROWSER_TARGET } from "@/shared/build-flags";
-import type { EXTENSION_COMMAND_TYPES } from "@/shared/extension-contract";
-import type {
-  ExtensionCommand,
-  GlobalFallbackRule,
-  ResolveSnapshotResponse,
-  RuntimeSnapshot,
-} from "@/shared/types";
+import type { HostProtectionPause } from "@/shared/host-protection-pause";
+import type { GlobalFallbackRule } from "@/shared/types";
 
 type RuntimeState = ReturnType<typeof createRuntimeState<PreparedRuntimeDecisions>>;
 type LoadedLocations = CachedSettingsState["profiles"];
@@ -243,8 +239,9 @@ const createRuntimeResolver =
     hostname: string,
     cookieStoreId?: string,
     exactOrigin?: string,
-    options: { trackSeenHost?: boolean } = {},
+    options: { trackSeenHost?: boolean; respectHostPause?: boolean } = {},
   ): Promise<ResolutionDecision> => {
+    await initializeHostPauses();
     const state = await deps.getCachedState();
     if (state.controlState.panicMode) {
       deps.logResolverEvent(state.debugMode, "resolver.snapshot-skipped", {
@@ -256,6 +253,11 @@ const createRuntimeResolver =
         },
       });
       return { snapshot: null, trustedSiteMatched: false };
+    }
+    const hostPause =
+      options.respectHostPause === false ? undefined : getHostPause(hostname);
+    if (hostPause && !matchTrustedSite(hostname, state.trustedSites)) {
+      return { snapshot: null, trustedSiteMatched: false, hostPause };
     }
     const activeIdentity = resolveActiveIdentity(
       hostname,
@@ -269,7 +271,7 @@ const createRuntimeResolver =
     const decision =
       deps.runtimeState
         .getPreparedDecisions()
-        ?.resolveDecision(hostname, cookieStoreId) ??
+        ?.resolveDecision(hostname, cookieStoreId, false) ??
       (await buildFallbackDecision(state, hostname, cookieStoreId));
     logResolution(deps, state, {
       hostname,
@@ -299,7 +301,11 @@ const createRuntimeResolver =
     if (decision.fencesIdentity && decision.snapshot) {
       await persistPreloadSafe(deps.runtimeState);
     }
-    return decision;
+    const latestPause =
+      options.respectHostPause === false ? undefined : getHostPause(hostname);
+    return latestPause && !decision.trustedSiteMatched
+      ? { snapshot: null, trustedSiteMatched: false, hostPause: latestPause }
+      : decision;
   };
 
 const createInjectionHandlers = () => {
@@ -348,9 +354,17 @@ const createInjectionHandlers = () => {
         world: MAIN_WORLD,
         injectImmediately: true,
         func: seedWindowSnapshot,
-        args: [decision.snapshot, WINDOW_SEED_PREFIX, decision.snapshot === null],
+        args: [
+          decision.snapshot,
+          WINDOW_SEED_PREFIX,
+          decision.snapshot === null,
+          ...(decision.hostPause?.expiresAt === null ||
+          decision.hostPause?.expiresAt === undefined
+            ? []
+            : [decision.hostPause.expiresAt]),
+        ],
       } as chrome.scripting.ScriptInjection<
-        [ReturnType<typeof resolveProfileSnapshot>, string, boolean],
+        [ReturnType<typeof resolveProfileSnapshot>, string, boolean, number?],
         void
       > & { injectImmediately: boolean });
     } catch {
@@ -361,6 +375,7 @@ const createInjectionHandlers = () => {
     tabId: number,
     frameId: number,
     snapshot: ReturnType<typeof resolveProfileSnapshot>,
+    hostPause?: HostProtectionPause,
   ): Promise<void> => {
     if (BUILD_BROWSER_TARGET !== "firefox") return;
     try {
@@ -369,7 +384,10 @@ const createInjectionHandlers = () => {
         world: MAIN_WORLD,
         injectImmediately: true,
         func: seedFxEarlyState,
-        args: [buildFirefoxShimState(snapshot), __PT_FIREFOX_STATE_PORT_ID__],
+        args: [
+          { ...buildFirefoxShimState(snapshot), ...(hostPause ? { hostPause } : {}) },
+          __PT_FIREFOX_STATE_PORT_ID__,
+        ],
       } as chrome.scripting.ScriptInjection<
         [ReturnType<typeof buildFirefoxShimState>, string],
         void
@@ -414,88 +432,13 @@ const createInjectionHandlers = () => {
   };
 };
 
-const bindSnapshotCache = (cache: {
-  set: (input: {
-    tabId: number;
-    frameId: number;
-    hostname: string;
-    decision: ResolutionDecision;
-    cookieStoreId?: string;
-  }) => void;
-  read: (input: SnapshotCacheInput) => RuntimeSnapshot | null | undefined;
-  readDecision: (input: SnapshotCacheInput) => ResolutionDecision | undefined;
-  readTopDecision: (tabId: number) => ResolutionDecision | undefined;
-  readTopEntry: (tabId: number) => SnapshotCacheEntry | undefined;
-}) => {
-  const updateSnapshotCache = (input: {
-    tabId: number;
-    frameId: number;
-    hostname: string;
-    value: ResolutionDecision | ReturnType<typeof resolveProfileSnapshot>;
-    cookieStoreId?: string;
-  }): void => {
-    const { value, ...cacheKey } = input;
-    const decision =
-      value && typeof value === "object" && "trustedSiteMatched" in value
-        ? value
-        : { snapshot: value, trustedSiteMatched: false };
-    cache.set({
-      ...cacheKey,
-      decision,
-    });
-  };
-  const readSnapshotCache = (
-    tabId: number,
-    frameId: number,
-    hostname: string,
-    cookieStoreId?: string,
-  ) =>
-    cache.read({
-      tabId,
-      frameId,
-      hostname,
-      ...(cookieStoreId ? { cookieStoreId } : {}),
-    });
-  const readDecisionCache = (
-    tabId: number,
-    frameId: number,
-    hostname: string,
-    cookieStoreId?: string,
-  ) =>
-    cache.readDecision({
-      tabId,
-      frameId,
-      hostname,
-      ...(cookieStoreId ? { cookieStoreId } : {}),
-    });
-  const readTopDecision = (tabId: number) => cache.readTopDecision(tabId);
-  const readTopEntry = (tabId: number) => {
-    const entry = cache.readTopEntry(tabId);
-    if (!entry) {
-      return undefined;
-    }
-    return {
-      hostname: entry.hostname,
-      decision: entry.decision,
-      ...(entry.cookieStoreId ? { cookieStoreId: entry.cookieStoreId } : {}),
-    };
-  };
-  return {
-    updateSnapshotCache,
-    readSnapshotCache,
-    readDecisionCache,
-    readTopDecision,
-    readTopEntry,
-  };
-};
-
 export const createRuntimeResolverCtl = (deps: ResolutionControllerDeps) => {
   const resolveRuntimeDecision = createRuntimeResolver(deps);
   const resolveCachedSnapshot = async (
     hostname: string,
     cookieStoreId?: string,
     exactOrigin?: string,
-    options?: { trackSeenHost?: boolean },
+    options?: { trackSeenHost?: boolean; respectHostPause?: boolean },
   ) =>
     (await resolveRuntimeDecision(hostname, cookieStoreId, exactOrigin, options))
       .snapshot;
@@ -513,70 +456,14 @@ export const createRuntimeResolverCtl = (deps: ResolutionControllerDeps) => {
     getRewriteTracker: () => deps.runtimeState.rewriteTracker,
     readDecisionCache,
   });
-  const handleResolveSnapshot = async (
-    message: Extract<
-      ExtensionCommand,
-      { type: typeof EXTENSION_COMMAND_TYPES.resolveRuntimeSnapshot }
-    >,
-    cookieStoreId?: string,
-    tabId?: number,
-    frameId?: number,
-  ): Promise<ResolveSnapshotResponse> => {
-    await deps.ensureStorageMigration();
-    if (tabId === undefined || frameId === undefined) {
-      return {
-        ok: true,
-        snapshot: await resolveCachedSnapshot(message.hostname, cookieStoreId),
-      };
-    }
-    const cached = readDecisionCache(tabId, frameId, message.hostname, cookieStoreId);
-    if (cached !== undefined) {
-      deps.logResolverEvent(
-        deps.runtimeState.getLastKnownDebugMode() ?? false,
-        "resolver.snapshot-cache-hit",
-        {
-          hostname: message.hostname,
-          tabId,
-          details: {
-            frameId,
-            cookieStoreId: cookieStoreId ?? null,
-            resolved: cached.snapshot !== null,
-            blockServiceWorkerRegistration:
-              cached.snapshot?.blockServiceWorkerRegistration ?? false,
-          },
-        },
-      );
-      return { ok: true, snapshot: cached.snapshot };
-    }
-    const inherited = inheritTabSnapshot({
-      tabId,
-      frameId,
-      hostname: message.hostname,
-      readTop: readTopDecision,
-      writeCache: updateSnapshotCache,
-      ...(cookieStoreId ? { cookieStoreId } : {}),
-    });
-    if (inherited) {
-      deps.logResolverEvent(
-        deps.runtimeState.getLastKnownDebugMode() ?? false,
-        "resolver.top-frame-inherit",
-        {
-          hostname: message.hostname,
-          tabId,
-          details: {
-            frameId,
-            cookieStoreId: cookieStoreId ?? null,
-            resolved: inherited.snapshot !== null,
-          },
-        },
-      );
-      return { ok: true, snapshot: inherited.snapshot };
-    }
-    return {
-      ok: true,
-      snapshot: await resolveCachedSnapshot(message.hostname, cookieStoreId),
-    };
-  };
+  const handleResolveSnapshot = createSnapshotHandler({
+    ...deps,
+    resolveCachedSnapshot,
+    resolveRuntimeDecision,
+    readDecisionCache,
+    readTopDecision,
+    updateSnapshotCache,
+  });
   return {
     resolveRuntimeDecision,
     resolveCachedSnapshot,

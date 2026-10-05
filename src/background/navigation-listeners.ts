@@ -1,5 +1,6 @@
 import { isHttpUrl, resolveTopFrameDecision } from "@/background/top-frame-snapshot";
 import { BUILD_BROWSER_TARGET } from "@/shared/build-flags";
+import type { HostProtectionPause } from "@/shared/host-protection-pause";
 import type { ResolveSnapshotResponse } from "@/shared/types";
 
 type TabWithCookieStore = chrome.tabs.Tab & { cookieStoreId?: string };
@@ -11,9 +12,15 @@ type RuntimeDecision = {
   snapshot: ResolveSnapshotResponse["snapshot"];
   trustedSiteMatched: boolean;
   fencesIdentity?: boolean;
+  hostPause?: HostProtectionPause;
 };
 
 export type NavigationDeps = {
+  onTopDocumentCommitted?: (
+    tabId: number,
+    hostname: string,
+    decision: RuntimeDecision,
+  ) => Promise<void>;
   listenFirefoxRequest: (
     listener: (
       details: FirefoxRequestDetails,
@@ -55,6 +62,7 @@ export type NavigationDeps = {
     tabId: number,
     frameId: number,
     snapshot: ResolveSnapshotResponse["snapshot"],
+    hostPause?: HostProtectionPause,
   ) => Promise<void>;
   seedChromiumSnapshot: (
     tabId: number,
@@ -77,6 +85,7 @@ export type NavigationDeps = {
     tabId: number,
     context: NavigationTabContext,
     snapshot: ResolveSnapshotResponse["snapshot"],
+    hostPause?: HostProtectionPause,
   ) => Promise<void>;
   refreshActionState: (tabId?: number) => Promise<void>;
   buildFirefoxSeedRedirect: (
@@ -299,6 +308,7 @@ const registerBeforeNavigate = (deps: NavigationDeps): void => {
           details.tabId,
           details.frameId,
           decision.snapshot,
+          ...(decision.hostPause ? [decision.hostPause] : []),
         );
         return;
       }
@@ -355,10 +365,16 @@ const registerCommitted = (deps: NavigationDeps): void => {
           decision,
           details.documentId,
         ),
-        deps.injectFirefoxState(details.tabId, details.frameId, decision.snapshot),
+        deps.injectFirefoxState(
+          details.tabId,
+          details.frameId,
+          decision.snapshot,
+          ...(decision.hostPause ? [decision.hostPause] : []),
+        ),
       ]);
 
       if (details.frameId === 0) {
+        await deps.onTopDocumentCommitted?.(details.tabId, hostname, decision);
         await deps.upsertTabContext(
           details.tabId,
           {
@@ -367,6 +383,7 @@ const registerCommitted = (deps: NavigationDeps): void => {
             ...(cookieStoreId ? { cookieStoreId } : {}),
           },
           decision.snapshot,
+          ...(decision.hostPause ? [decision.hostPause] : []),
         );
         await deps.refreshActionState(details.tabId);
       }

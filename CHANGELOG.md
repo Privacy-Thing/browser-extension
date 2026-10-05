@@ -12,6 +12,16 @@ The format is based on Keep a Changelog and the project follows Semantic Version
   checks and previews of browser languages, Accept-Language, and seasonal date/number
   formatting. Applying a suggestion changes only the time zone; intentional differences
   can still be saved or imported.
+- Pause spoofing for an exact top-document host for 10 minutes or until browser
+  exit. Matching tabs and their supported frames/workers share the exception;
+  permanent configuration and global WebRTC policy remain unchanged. Deadline
+  expiry restores decisions for new documents; open documents show a reload
+  requirement. Requests without a tab context keep the configured global header policy.
+- X-Ray can preview and download a versioned local diagnostic report as JSON or
+  text. Site data is excluded by default; opt-in adds only the hostname and
+  matching rule or Trusted Site pattern. Reports exclude secrets, preset IDs,
+  coordinates, fingerprints and raw logs, and distinguish missing or stale
+  observations from configured protection.
 
 - Configuration imports now show a preview before confirmation, detect newer edits,
   recover interrupted writes, and offer one local undo copy for 7 days (until the
@@ -67,6 +77,10 @@ The format is based on Keep a Changelog and the project follows Semantic Version
   the shared Select.
 - Confirm installed Battery protection before a page first queries the API, and clear
   stale integrity evidence after the protection recovers.
+
+## [0.9.3.11] - 2026-10-04
+
+- Refreshed extension metadata (hardware profiles, Chrome versions, locale data) from upstream sources to keep spoofed fingerprints current.
 
 ## [0.9.3.10] - 2026-10-01
 

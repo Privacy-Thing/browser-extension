@@ -192,3 +192,22 @@ describe("createSnapshotCache", () => {
     ).toEqual(snapshot);
   });
 });
+
+it("rejects expired pauses on both frame and top-entry reads, including inherited frame decisions", () => {
+  const cache = createSnapshotCache();
+  const paused = {
+    snapshot: null,
+    trustedSiteMatched: false,
+    hostPause: { hostname: "h.example", id: "pause", expiresAt: 1000 },
+  };
+  cache.set({ tabId: 1, frameId: 0, hostname: "h.example", decision: paused, now: 0 });
+  cache.set({ tabId: 1, frameId: 2, hostname: "k.example", decision: paused, now: 0 });
+  expect(cache.readTopEntry(1, 999)?.decision).toEqual(paused);
+  expect(
+    cache.read({ tabId: 1, frameId: 2, hostname: "k.example", now: 999 }),
+  ).toBeNull();
+  expect(cache.readTopEntry(1, 1000)).toBeUndefined();
+  expect(
+    cache.readDecision({ tabId: 1, frameId: 2, hostname: "k.example", now: 1000 }),
+  ).toBeUndefined();
+});

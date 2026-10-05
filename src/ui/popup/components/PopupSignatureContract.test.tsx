@@ -264,9 +264,9 @@ describe("popup signature UI contract", () => {
     expect(headerRule).not.toContain("background");
     expect(notificationAnchorRule).toContain("margin-right: -6px");
     expect(notificationBadgeRule).toContain("right: 0");
-    expect(
-      shellCss.match(/\.gw-popup-main-section \{[^}]+\}/)?.[0] ?? "",
-    ).not.toContain("overflow");
+    expect(shellCss.match(/\.gw-popup-main-section \{[^}]+\}/)?.[0] ?? "").toContain(
+      "overflow-y: auto",
+    );
     expect(layoutCss).toContain(
       '.gw-popup-layout[data-workspace-open="true"] .gw-popup-shell',
     );

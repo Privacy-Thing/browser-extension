@@ -31,9 +31,9 @@ const PreviewValues = ({
   preview: NonNullable<ReturnType<typeof buildRegionalPreview>>;
 }) => {
   const values = [
-    ["navigator.language", preview.language],
-    ["navigator.languages", preview.languages.join(", ")],
-    ["Accept-Language", preview.acceptLanguage],
+    [t.locations.regionalReview.browserLanguage, preview.language],
+    [t.locations.regionalReview.preferredLanguages, preview.languages.join(", ")],
+    [t.locations.regionalReview.languageHeader, preview.acceptLanguage],
     [t.locations.regionalReview.formattingLocale, preview.resolvedFormattingLocale],
     [t.common.fields.timeZone, preview.timeZone],
     [t.locations.regionalReview.january, preview.dates[0]],
@@ -93,7 +93,7 @@ export const RegionalProfileReview = ({
               type="button"
               size="sm"
               variant="outline"
-              className="mt-2"
+              className="mt-2 h-auto min-h-8 max-w-full whitespace-normal break-words py-2"
               disabled={disabled}
               data-regional-apply-timezone
               onClick={() => applyTimeZone(suggestedTimeZone)}
@@ -109,6 +109,9 @@ export const RegionalProfileReview = ({
         </summary>
         <p className="mt-2 text-xs text-muted-foreground">
           {t.locations.regionalReview.scope}
+        </p>
+        <p className="mt-2 text-xs text-muted-foreground">
+          {t.locations.regionalReview.samples}
         </p>
         {preview ? (
           <PreviewValues preview={preview} />

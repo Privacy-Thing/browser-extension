@@ -9,6 +9,7 @@ import type {
   SharedWorkerHandlingMode,
   SharedSpoofingConfig,
 } from "./fingerprint-types.js";
+import type { SetHostPauseCommand } from "./host-protection-pause";
 import type { ExtensionLogLevel } from "./logging-types.js";
 import type { SettingsImportSelection } from "./settings-import";
 import type {
@@ -53,6 +54,7 @@ export type ResolveSnapshotResponse = {
  * canonical source for extension message types across UI, content, and tests.
  */
 export type ExtensionCommand =
+  | SetHostPauseCommand
   | {
       type: typeof EXTENSION_COMMAND_TYPES.resolveRuntimeSnapshot;
       hostname: string;

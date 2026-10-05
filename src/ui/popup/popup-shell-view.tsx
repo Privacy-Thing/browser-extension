@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 
+import { PopupHostPause } from "./components/PopupHostPause";
 import { BellIcon } from "./components/PopupIcons";
 import { PopupShell } from "./components/PopupShell";
 import { resolvePopupBorderTiming } from "./popup-border-timing";
@@ -234,6 +235,49 @@ const getShellFooterActions = (controller: PopupController) => {
       );
 };
 
+const HostPauseControl = ({ controller }: { controller: PopupController }) => {
+  const { state, viewModel } = controller;
+  const hostname = state.popupState?.currentTab.hostname;
+  if (!viewModel.supported || !hostname) return null;
+  return (
+    <PopupHostPause
+      hostname={hostname}
+      status={state.popupState?.hostPause}
+      pending={state.mutationState.status === "pending"}
+      disabled={
+        viewModel.globalProtectionsOff ||
+        state.popupState?.panicMode === true ||
+        state.popupState?.currentTab.winningSource === "trusted-site" ||
+        state.popupState?.currentRule.enabled === false
+      }
+      onPause={(duration) => fireAndForget(controller.hostPause.setPause(duration))}
+      onExpired={controller.hostPause.refreshExpired}
+    />
+  );
+};
+
+const getPopupDomain = ({ viewModel, state }: PopupController) =>
+  viewModel.supported
+    ? (state.popupState?.currentTab.hostname ?? undefined)
+    : undefined;
+
+const isPowerDisabled = ({ state, viewModel }: PopupController) =>
+  !state.popupState ||
+  Boolean(
+    state.popupState.hostPause?.pause || state.popupState.hostPause?.reloadRequired,
+  ) ||
+  viewModel.globalProtectionsOff ||
+  state.popupState.panicMode ||
+  (state.popupState.currentTab.winningSource !== "trusted-site" &&
+    !state.popupState.currentRule.canToggle);
+
+const getShellPhase = ({
+  state,
+}: PopupController): NonNullable<PopupShellProps["phase"]> => {
+  if (state.popupState) return "ready";
+  return state.loadError ? "error" : "loading";
+};
+
 // Optional popup surfaces intentionally compose one stable shell contract.
 // eslint-disable-next-line sonarjs/cognitive-complexity
 export const PopupShellPane = ({ controller }: { controller: PopupController }) => {
@@ -245,12 +289,8 @@ export const PopupShellPane = ({ controller }: { controller: PopupController }) 
   const notificationTone = state.popupState
     ? getPopupNotificationTone(state.popupState.notifications)
     : null;
-  const popupDomain = viewModel.supported
-    ? (state.popupState?.currentTab.hostname ?? undefined)
-    : undefined;
-  let shellPhase: PopupShellProps["phase"] = "loading";
-  if (state.loadError) shellPhase = "error";
-  if (state.popupState) shellPhase = "ready";
+  const popupDomain = getPopupDomain(controller);
+  const shellPhase = getShellPhase(controller);
   return (
     <div className="gw-popup-core-pane">
       <PopupShell
@@ -289,13 +329,7 @@ export const PopupShellPane = ({ controller }: { controller: PopupController }) 
           ? { languagePrioritiesTitle: viewModel.languagePrioritiesTitle }
           : {})}
         powerState={visual.resolvedPowerState}
-        powerDisabled={
-          !state.popupState ||
-          viewModel.globalProtectionsOff ||
-          state.popupState.panicMode ||
-          (state.popupState.currentTab.winningSource !== "trusted-site" &&
-            !state.popupState.currentRule.canToggle)
-        }
+        powerDisabled={isPowerDisabled(controller)}
         powerTitle={viewModel.powerTitle}
         powerTarget={viewModel.powerTarget}
         powerLabel={viewModel.powerLabel}
@@ -322,6 +356,11 @@ export const PopupShellPane = ({ controller }: { controller: PopupController }) 
             }
           : {})}
         {...getAlertProps(controller)}
+        pauseControl={
+          viewModel.supported && state.popupState?.currentTab.hostname ? (
+            <HostPauseControl controller={controller} />
+          ) : undefined
+        }
         {...(visual.resolvedRuleAccentColor
           ? { ruleAccentColor: visual.resolvedRuleAccentColor }
           : {})}

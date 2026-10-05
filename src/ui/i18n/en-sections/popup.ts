@@ -3,6 +3,36 @@ import type { SurfacePresentationState } from "@privacy-brand/xray-protocol";
 import { BRAND_DIAGNOSTICS_NAME, BRAND_DISPLAY_NAME } from "@/shared/brand";
 
 export const popup = {
+  pauseTimedHint: "Returns automatically",
+  pauseManage: "Manage pause",
+  pauseAutoResume: "Protection returns automatically",
+  pauseSessionOptionHint: "Until you close the browser",
+  pauseResumeHint: "Apply your current settings",
+  pauseReloadNotice: "Pausing or resuming reloads all tabs on this site.",
+  pauseDetails: "How this pause works",
+  pauseExpiredSummary: "Pause ended. Reload to apply your current settings.",
+  pauseTimedSummary: "After expiry, reload open tabs to apply protection.",
+  pauseSessionSummary: "Protection returns when you reopen the browser.",
+  pauseProtection: "Pause spoofing",
+  pauseActive: "Spoofing paused",
+  pauseSessionActive: "Paused until browser exit",
+  pauseCountdown: (time: string) => `Paused · ${time}`,
+  pauseReloadRequired: "Reload required",
+  pauseTenMinutes: "10 minutes",
+  pauseUntilSessionEnd: "This browser session",
+  pauseResumeReload: "Resume & reload",
+  pauseScope: (hostname: string) =>
+    `All tabs whose top-level document is exactly ${hostname}, including their supported frames and workers. Rules and Trusted Sites stay unchanged.`,
+  pauseLimits:
+    "The global WebRTC privacy policy stays active. Requests without a tab context are outside the header-pause guarantee.",
+  pauseReloadHint:
+    "Starting or resuming reloads every matching tab. After expiry, reload existing documents to apply the current configuration.",
+  pauseSessionHint:
+    "The session ends when the browser closes or crashes; worker suspension does not end it.",
+  pauseExpiredHint:
+    "The exception has ended. This document may still be unmodified. Reload to apply the current configuration.",
+  pauseStartReloadRequired:
+    "The exception is active, but this document still needs a reload to apply it.",
   loading: "Loading…",
   protectionProtected: "Protected",
   protectionOff: "Protections off",

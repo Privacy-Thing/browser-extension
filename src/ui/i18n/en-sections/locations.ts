@@ -44,18 +44,23 @@ export const locations = {
   regionalReview: {
     title: "Regional preview",
     mismatch: (saved: string, suggested: string) =>
-      `Time zone ${saved} differs from ${suggested}, the approximate zone at these coordinates. You can keep this intentional choice and save or import the preset.`,
+      `Time zone ${saved} differs from the suggested ${suggested}.`,
     approximation:
-      "Zone lookup is approximate near borders and at sea. This suggestion does not check your IP address or country and never changes your languages.",
-    applyTimeZone: (zone: string) => `Change only time zone to ${zone}`,
+      "You can keep your choice. Changing the time zone leaves languages unchanged. The suggestion is approximate near borders and at sea.",
+    applyTimeZone: (zone: string) => `Use ${zone}`,
     scope:
-      "Preview when time and language protection is active. Website-specific overrides can disable it. English preference changes browser languages and headers; your regional locale still controls formatting. Samples use 15 January and 15 July 2026 at 12:34:56 UTC and the number 1234567.89.",
-    formattingLocale: "Resolved formatting locale",
-    january: "January date sample",
-    july: "July date sample",
-    number: "Number sample",
+      "Values shown when time and language protection is on. Site rules may disable it. English preference changes website languages; dates and numbers keep the regional format.",
+    browserLanguage: "Browser language",
+    preferredLanguages: "Preferred languages",
+    languageHeader: "Website language header",
+    formattingLocale: "Date and number locale",
+    january: "January example",
+    july: "July example",
+    number: "Number example",
+    samples:
+      "Examples use 15 January and 15 July 2026 at 12:34:56 UTC and the number 1234567.89.",
     unavailable:
-      "Preview unavailable. Choose a supported time zone and valid locale tags; the draft is unchanged.",
+      "Preview unavailable. Check the time zone and languages; your draft is unchanged.",
   },
 
   editor: {

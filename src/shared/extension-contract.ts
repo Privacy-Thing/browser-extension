@@ -51,6 +51,7 @@ export const EXTENSION_COMMAND_TYPES = {
   loadSampleData: createCommandType("load-sample-data"),
   importPresetLocations: createCommandType("import-preset-locations"),
   getPopupState: createCommandType("get-popup-state"),
+  setHostProtectionPause: createCommandType("set-host-protection-pause"),
   markNoticeRead: createCommandType("mark-popup-notification-read"),
   markNoticesAutoPresented: createCommandType(
     "mark-popup-notifications-auto-presented",
@@ -137,6 +138,8 @@ export const EXTENSION_STORAGE_KEYS = {
   locations: createStorageKey("locations"),
   rules: createStorageKey("rules"),
   trustedSites: createStorageKey("trustedSites"),
+  hostProtectionPauses: createStorageKey("host-protection-pauses"),
+  pausedDocuments: createSessionKey("paused-documents"),
   controlState: createStorageKey("control-state"),
   migrationNotice: createStorageKey("migrationNotice"),
   siteSuggestions: createStorageKey("siteSuggestions"),
