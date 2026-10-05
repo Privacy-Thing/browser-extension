@@ -41,6 +41,12 @@ assertions. Fixtures contain synthetic hostnames and diagnostic data.
 | Options                           | Saved worker exceptions can be removed in the Spoofing settings section                                                            |
 | Add/update/disable/remove/restore | Policy-only host map preserves regional profiles and Firefox container identity; save checks configuration fingerprint and test ID |
 
+For a saved worker exception, Firefox static bootstrap keeps the protected baseline
+when a cross-origin frame cannot read its top hostname. Only a known matching top
+host receives the native worker policy early; tab-aware state supplies it later for
+other matching frames. Unrelated exceptions never delay regional protection.
+Temporary full pauses still use their existing tab-aware deferral.
+
 Firefox worker requests with no tab ID are bound only through browser-owned frame
 records. If any possible owner keeps a protected worker policy, the request stays
 protected. Service Worker script requests are excluded from the SharedWorker filter.
@@ -55,7 +61,7 @@ inheritance directions, restoration, popup closure, permanent save and local dow
 - `pnpm task lint`, `pnpm task check`, `pnpm task test:unit`
 - `pnpm task build:chrome`, `pnpm task build:firefox`, `pnpm task test:build-contracts:ci`
 - Chromium: `pnpm exec playwright test --config config/playwright.config.ts tests/e2e/extension-worker-test.spec.ts` (3 passed)
-- Firefox: runtime-test build, then `pnpm task test:e2e:runtime:firefox:ci -- --grep 'Firefox worker assistant'` (1 passed)
+- Firefox: runtime-test build, then `pnpm task test:e2e:runtime:firefox:ci -- --grep 'Firefox worker assistant|Firefox saved worker exceptions|Firefox host pause preserves'` (3 passed); the first-call static bootstrap regression explicitly grants optional `userScripts` permission
 - Storybook: worker assistant and shared Dialog interaction stories, including dark skin
 - Formatting, test lanes/targets/layers/determinism and generated worker-source consistency
 

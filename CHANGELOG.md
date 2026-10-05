@@ -86,6 +86,11 @@ The format is based on Keep a Changelog and the project follows Semantic Version
   name conflict, and keep preview and sync on one prepared regional-route
   snapshot without rewriting Control D hostname patterns. Hide automatic route
   matches until a fallback needs confirmation or the user opens overrides.
+
+- Saved worker exceptions no longer defer Firefox early protection in cross-origin
+  frames of unrelated sites. Frames with an unknown top host start with the
+  protected baseline until tab-aware state arrives.
+
 - Worker policy tests now run in a persistent window and restore protection if
   activation fails or the window closes. Saved host exceptions change only the
   selected worker policy, preserve Firefox container profiles, and can be removed
