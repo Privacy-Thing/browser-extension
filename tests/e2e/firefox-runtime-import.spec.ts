@@ -6,7 +6,7 @@ import {
 } from "../../src/shared/extension-contract";
 import type { ExportedSettings } from "../../src/shared/types";
 
-import { IMPORT_FIXTURE } from "./config-import.shared";
+import { IMPORT_FIXTURE, REGIONAL_IMPORT_FIXTURE } from "./config-import.shared";
 import { openFxOptionsProbe, test } from "./firefox-runtime.shared";
 
 // RDP evaluates JS directly; escape HTML delimiters too so serialized arguments
@@ -300,6 +300,60 @@ test("Firefox restores an interrupted import before rebuilding runtime after res
       available: false,
     });
     await probe.close();
+  } finally {
+    await ui.close();
+  }
+});
+
+test("Firefox regional import advice keeps intentional choices and changes only the suggested zone", async ({
+  context,
+  extensionOrigin,
+  debuggerPort,
+}) => {
+  const ui = await openFxOptionsProbe({ context, extensionOrigin, debuggerPort });
+  const driver = createImportDriver(ui);
+  try {
+    await expect.poll(() => driver.isPresent('[data-tab="advanced"]')).toBe(true);
+    await driver.click('[data-tab="advanced"]');
+    await expect.poll(() => driver.isPresent("#import-settings-file")).toBe(true);
+    const before = await driver.exported();
+    await driver.chooseFile(REGIONAL_IMPORT_FIXTURE);
+    await expect
+      .poll(() => driver.isPresent('[data-regional-warning="timeZone"]'))
+      .toBe(true);
+    await expect.poll(() => driver.isEnabled("#settings-import-confirm")).toBe(true);
+    await driver.click("[data-regional-apply-timezone]");
+    await expect
+      .poll(() => driver.isPresent('[data-regional-warning="timeZone"]'))
+      .toBe(false);
+    await expect.poll(() => driver.isEnabled("#settings-import-confirm")).toBe(true);
+    expect(await driver.exported()).toEqual(before);
+    await driver.click("#settings-import-cancel");
+    expect(await driver.exported()).toEqual(before);
+    await driver.chooseFile(REGIONAL_IMPORT_FIXTURE);
+    await expect
+      .poll(() => driver.isPresent("[data-regional-apply-timezone]"))
+      .toBe(true);
+    await driver.click("[data-regional-apply-timezone]");
+    await expect
+      .poll(() => driver.isPresent('[data-regional-warning="timeZone"]'))
+      .toBe(false);
+    await expect.poll(() => driver.isEnabled("#settings-import-confirm")).toBe(true);
+    await driver.click("#settings-import-confirm");
+    await expect.poll(() => driver.isPresent("#settings-import-dialog")).toBe(false);
+    expect((await driver.exported()).locations).toEqual([
+      { ...REGIONAL_IMPORT_FIXTURE.locations[0], timeZone: "Europe/Paris" },
+    ]);
+    await driver.chooseFile(REGIONAL_IMPORT_FIXTURE);
+    await expect
+      .poll(() => driver.isPresent('[data-regional-warning="timeZone"]'))
+      .toBe(true);
+    await expect.poll(() => driver.isEnabled("#settings-import-confirm")).toBe(true);
+    await driver.click("#settings-import-confirm");
+    await expect.poll(() => driver.isPresent("#settings-import-dialog")).toBe(false);
+    expect((await driver.exported()).locations).toEqual(
+      REGIONAL_IMPORT_FIXTURE.locations,
+    );
   } finally {
     await ui.close();
   }

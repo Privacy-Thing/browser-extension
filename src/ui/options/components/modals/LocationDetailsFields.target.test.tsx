@@ -65,14 +65,17 @@ const TestHarness = ({ initialDraft }: { initialDraft: DraftState }) => {
   const [draft, setDraft] = useState(initialDraft);
 
   return (
-    <LocationDetailsFields
-      draft={draft}
-      onDraftChange={(mutate) => {
-        setDraft((current) => mutate(current));
-      }}
-      disabled={false}
-      sectionsCollapsible={false}
-    />
+    <>
+      <output data-draft-state>{JSON.stringify(draft)}</output>
+      <LocationDetailsFields
+        draft={draft}
+        onDraftChange={(mutate) => {
+          setDraft((current) => mutate(current));
+        }}
+        disabled={false}
+        sectionsCollapsible={false}
+      />
+    </>
   );
 };
 
@@ -98,6 +101,27 @@ describe("LocationDetailsFields", () => {
     document.body.innerHTML = "";
     Reflect.deleteProperty(globalThis, "IS_REACT_ACT_ENVIRONMENT");
     vi.restoreAllMocks();
+  });
+
+  it("leaves an intentional mismatch untouched until a suggestion changes only timeZone", async () => {
+    const draft = createDraft({
+      timeZone: "Asia/Tokyo",
+      languages: ["pl", "de-DE"],
+      preferEnglishContent: true,
+    });
+    document.body.innerHTML = '<div id="root"></div>';
+    root = createRoot(document.getElementById("root")!);
+    await act(async () => root!.render(<TestHarness initialDraft={draft} />));
+    const readDraft = () =>
+      JSON.parse(document.querySelector("[data-draft-state]")!.textContent!);
+    expect(document.querySelector('[data-regional-warning="timeZone"]')).not.toBeNull();
+    expect(readDraft()).toEqual(draft);
+    const apply = document.querySelector(
+      "[data-regional-apply-timezone]",
+    ) as HTMLButtonElement;
+    await act(async () => apply.click());
+    expect(readDraft()).toEqual({ ...draft, timeZone: "Europe/Warsaw" });
+    expect(document.querySelector('[data-regional-warning="timeZone"]')).toBeNull();
   });
 
   it("disables and fades the English-first checkbox when the preset is already English-first", async () => {
