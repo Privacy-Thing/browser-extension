@@ -25,6 +25,7 @@ import type { BrowserFingerprintSource } from "@/shared/browser-fingerprint";
 import type { FeatureFlags } from "@/shared/feature-flags";
 import {
   findHostPause,
+  applyHostOverride,
   type HostProtectionPause,
 } from "@/shared/host-protection-pause";
 import { resolveRuleSources } from "@/shared/rule-resolution";
@@ -42,6 +43,10 @@ import type {
   SharedSpoofingConfig,
   TrustedSite,
 } from "@/shared/types";
+import {
+  applyWorkerException,
+  type WorkerPolicyExceptions,
+} from "@/shared/worker-policy-exceptions";
 
 export type ResolutionDecision = {
   hostPause?: HostProtectionPause;
@@ -52,6 +57,7 @@ export type ResolutionDecision = {
 };
 
 export type PreparedRuntimeInputs = {
+  workerPolicyExceptions?: WorkerPolicyExceptions;
   hostPauses?: readonly HostProtectionPause[];
   rules: readonly DomainRule[];
   trustedSites: readonly TrustedSite[];
@@ -80,6 +86,7 @@ export type PreparedRuntimeDecisions = {
     cookieStoreId?: string,
     respectHostPause?: boolean,
   ) => ResolutionDecision;
+  getWorkerPolicyExceptions?: () => WorkerPolicyExceptions;
   getHostPauses: () => readonly HostProtectionPause[];
   getPreloadedEntries: () => PreloadedDecisionEntry[];
   getNativeRulePatterns: () => string[];
@@ -405,7 +412,16 @@ const resolvePreparedDecision = (
   const hostPause = respectHostPause
     ? findHostPause(hostname, inputs.hostPauses ?? [])
     : undefined;
-  if (hostPause) return { snapshot: null, trustedSiteMatched: false, hostPause };
+  if (hostPause) {
+    if (!hostPause.workerTest)
+      return { snapshot: null, trustedSiteMatched: false, hostPause };
+    const baseline = resolvePreparedDecision(state, hostname, cookieStoreId, false);
+    return {
+      ...baseline,
+      snapshot: applyHostOverride(baseline.snapshot, hostPause),
+      hostPause,
+    };
+  }
   if (resolvedSources.activeRule) {
     const entry = ruleEntriesByPattern.get(resolvedSources.activeRule.pattern);
     return {
@@ -537,6 +553,9 @@ const getFxSeed = (
   return {
     entries,
     containerState,
+    ...(Object.keys(inputs.workerPolicyExceptions ?? {}).length > 0
+      ? { workers: inputs.workerPolicyExceptions }
+      : {}),
     hostPauses: [...(inputs.hostPauses ?? [])],
     containerEntries,
     ...(nativeRulePatterns.length > 0 ? { nativeRulePatterns } : {}),
@@ -591,8 +610,23 @@ export const createPreparedDecisions = (
   };
 
   return {
-    resolveDecision: (hostname, cookieStoreId, respectHostPause) =>
-      resolvePreparedDecision(state, hostname, cookieStoreId, respectHostPause),
+    resolveDecision: (hostname, cookieStoreId, respectHostPause) => {
+      const decision = resolvePreparedDecision(
+        state,
+        hostname,
+        cookieStoreId,
+        respectHostPause,
+      );
+      return {
+        ...decision,
+        snapshot: applyWorkerException(
+          decision.snapshot,
+          hostname,
+          inputs.workerPolicyExceptions,
+        ),
+      };
+    },
+    getWorkerPolicyExceptions: () => inputs.workerPolicyExceptions ?? {},
     getHostPauses: () => inputs.hostPauses ?? [],
     getPreloadedEntries: () => getPreparedEntries(state),
     getNativeRulePatterns: () => getNativePatterns(state),

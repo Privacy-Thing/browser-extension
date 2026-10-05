@@ -8,6 +8,12 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ### Added
 
+- A “Site not working?” assistant offers one temporary Service Worker or
+  SharedWorker policy test for the exact top-document host. Failed, cancelled
+  and expired tests restore current settings; saving a host exception requires
+  a separate confirmation. Redacted before/after reports stay local. Global
+  WebRTC policy is unchanged.
+
 - Regional preset editing, generation, and import now show advisory coordinate/time-zone
   checks and previews of browser languages, Accept-Language, and seasonal date/number
   formatting. Applying a suggestion changes only the time zone; intentional differences
@@ -54,6 +60,11 @@ The format is based on Keep a Changelog and the project follows Semantic Version
   rules. Domain fencing session rules still apply only to the top-frame host.
 
 ### Fixed
+
+- Worker policy tests now run in a persistent window and restore protection if
+  activation fails or the window closes. Saved host exceptions change only the
+  selected worker policy, preserve Firefox container profiles, and can be removed
+  in Settings. Test scope and privacy tradeoffs use shorter translated labels.
 
 - Invalid time zones in legacy presets no longer interrupt preload and header
   refreshes for unrelated rules or containers. The affected preset stays inactive

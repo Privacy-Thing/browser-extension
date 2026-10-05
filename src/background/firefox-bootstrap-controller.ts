@@ -118,6 +118,8 @@ const createUserScriptSync =
       await unregisterUserScripts();
       const registrations = createUserScriptRegs({
         ruleEntries,
+        workerPolicyExceptions:
+          runtimeState.getPreparedDecisions()?.getWorkerPolicyExceptions?.() ?? {},
         hostPauses: getHostPauses(),
         trustedPatterns: (runtimeState.getLastKnownTrustedSites() ?? []).map(
           (site) => site.pattern,
@@ -213,6 +215,7 @@ const createPreloadSync =
       watchPositionDelay,
       fingerprintEnabled,
       hostPauses: getHostPauses(),
+      workerPolicyExceptions: preferences.workerPolicyExceptions,
       featureFlags: preferences.featureFlags,
       sharedWorkerHandlingMode: workerMode,
       sharedSpoofing,

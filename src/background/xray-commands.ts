@@ -204,3 +204,5 @@ export const createXRayHandlers = (deps: XRayCommandDeps) => {
 
   return { getXRayState };
 };
+
+export { createWorkerTestCtl } from "@/background/worker-test-controller";

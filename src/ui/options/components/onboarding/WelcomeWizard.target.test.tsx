@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { EXTENSION_COMMAND_TYPES } from "@/shared/extension-contract";
+import { WelcomeWizard } from "@/ui/options/components/onboarding/WelcomeWizard";
 import { PAGE_ANCHORS } from "@/ui/options/navigation";
 
 const settingsMock = vi.hoisted(() => ({
@@ -55,8 +56,6 @@ vi.mock("@/ui/shared/ThemeProvider", () => ({
 }));
 
 const renderWizard = async () => {
-  const { WelcomeWizard } =
-    await import("@/ui/options/components/onboarding/WelcomeWizard");
   const host = document.createElement("div");
   document.body.append(host);
   const root = createRoot(host);

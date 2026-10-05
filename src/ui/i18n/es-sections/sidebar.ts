@@ -1,6 +1,88 @@
 import { BRAND_DIAGNOSTICS_NAME, BRAND_DISPLAY_NAME } from "@/shared/brand";
 
 export const sidebar = {
+  troubleshooter: {
+    savedExceptions: "Excepciones de workers guardadas",
+    savedHint:
+      "Eliminar una excepción restaura los ajustes actuales de workers y recarga las pestañas.",
+    details: "Detalles",
+    sources: {
+      rule: "Regla del sitio",
+      container: "Contenedor",
+      fallback: "Regla predeterminada",
+      trustedSite: "Sitio de confianza",
+      none: "Ninguno",
+    },
+    title: "¿La página no funciona?",
+    intro: "Prueba un ajuste de workers y decide si quieres conservarlo.",
+    rule: "Ajuste actual",
+    exceptions: "Excepciones",
+    unknown: "No disponible",
+    none: "Ninguna",
+    active: "Prueba temporal de workers",
+    scope:
+      "Se aplica a este host en todas sus pestañas y contenedores. Los demás sitios conservan sus ajustes.",
+    webrtc:
+      "La política global WebRTC del navegador sigue activa. Este asistente no puede cambiarla para una sola web.",
+    returnHint:
+      "Hasta 10 minutos. Las pestañas de este host se recargan. Prueba el sitio y vuelve aquí. Cerrar esta ventana restaura los ajustes.",
+    start: "Probar y recargar",
+    helped: "Ayudó",
+    failed: "No ayudó",
+    restore: "Restaurar ajustes",
+    save: "Conservar excepción",
+    helpedHint:
+      "Conserva este ajuste para el host sin cambiar otros ajustes ni la identidad de los contenedores. Puedes eliminarlo en Ajustes.",
+    siteEffects:
+      "Restaurar opciones no deshace cambios de la web: los workers y sus cachés pueden sobrevivir o compartirse por origen. Solo las llamadas nuevas en contextos compatibles usan la política elegida.",
+    noCandidates: "No hay ajustes de workers disponibles para probar.",
+    error:
+      "No se pudo completar la operación. La web, la prueba o la configuración pueden haber cambiado. Vuelve a abrir para comprobar el estado; las pruebas temporales caducan automáticamente.",
+    report: "Informe local antes / después",
+    reportHint:
+      "Solo JSON depurado; no se envía nada. Configuración y observaciones están separadas. Datos ausentes o antiguos no son pruebas. «Después» aparece al responder o restaurar.",
+    before: "Antes",
+    after: "Después",
+    kinds: {
+      serviceWorker: "Permitir registro de Service Worker",
+      sharedWorker: "Usar SharedWorker nativo",
+    },
+    effects: {
+      serviceWorker:
+        "Permite nuevos Service Workers. Pueden ver los valores reales del navegador.",
+      sharedWorker:
+        "Usa SharedWorkers nativos. Los nuevos workers pueden ver los valores reales del navegador.",
+    },
+    evidence: {
+      observed:
+        "X-Ray tiene actividad o fallos recientes de workers. Es una pista, no una prueba de la causa.",
+      missing:
+        "Sin datos observados. La propuesta procede de la política configurada y puede no ayudar.",
+      stale:
+        "Los datos de workers son antiguos. La política es una candidata, pero la observación anterior no demuestra la causa actual.",
+    },
+    blocked: {
+      unsupported: "Se necesita una web compatible y el estado del proceso de fondo.",
+      trusted:
+        "Una excepción de sitio de confianza desactiva la protección. Cámbiala en Ajustes antes de probar.",
+      inactive: "No hay configuración de simulación activa que probar.",
+      pause: "Ya hay una pausa para el host. Restáurala antes de probar workers.",
+      reload:
+        "Este documento necesita recargarse para aplicar la decisión actual. No puedes responder hasta confirmar la navegación.",
+    },
+    results: {
+      failed:
+        "La prueba no ayudó. Se eliminó la excepción temporal; las pestañas se recargan con las opciones actuales.",
+      cancelled:
+        "Prueba cancelada. Se eliminó la excepción temporal; las pestañas se recargan con las opciones actuales.",
+      expired:
+        "La prueba terminó. Las nuevas decisiones ya no usan la excepción. Recarga si un documento todavía usa la política probada.",
+      saved:
+        "Se guardó una excepción de workers para el host exacto tras tu confirmación. Las pestañas se recargan.",
+    },
+    remaining: (minutes: number): string =>
+      `Restauración en un máximo de ${minutes} min.`,
+  },
   xRayTitle: BRAND_DIAGNOSTICS_NAME,
   openSettings: "Abrir Configuración",
   openRule: "Editar regla de dominio",

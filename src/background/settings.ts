@@ -37,6 +37,8 @@ import type {
   ThemeMode,
 } from "@/shared/types";
 import { UI_LOCALE_PREFERENCES, type UiLocalePreference } from "@/shared/ui-locale";
+import type { WorkerPolicyExceptions } from "@/shared/worker-policy-exceptions";
+import { isWorkerPolicyExceptions } from "@/shared/worker-policy-exceptions";
 
 const THEME_MODE_VALUES = ["light", "dark", "system"] as const;
 const OSM_CONSENT_VALUES = ["unknown", "granted", "denied"] as const;
@@ -79,6 +81,10 @@ const settingsCommandSchema = z
         temporalApi: z.boolean().optional(),
         domainFencing: z.boolean().optional(),
       })
+      .optional(),
+    removeWorkerPolicyException: z.string().optional(),
+    workerPolicyExceptions: z
+      .custom<WorkerPolicyExceptions>(isWorkerPolicyExceptions)
       .optional(),
     sharedWorkerHandlingMode: z.enum(SHARED_WORKER_MODES).optional(),
     sharedWorkerCompatibilityMode: z.boolean().optional(),
@@ -274,6 +280,7 @@ export const validateImportedSettings = (
   osmConsent: OsmConsentState;
   browserFingerprintSpoofingEnabled: boolean;
   featureFlags: FeatureFlags;
+  workerPolicyExceptions: WorkerPolicyExceptions;
   sharedWorkerHandlingMode: SharedWorkerHandlingMode;
   sharedWorkerCompatibilityMode: boolean;
   sharedSpoofing?: SharedSpoofingConfig | undefined;
@@ -347,6 +354,7 @@ export const validateImportedSettings = (
     legacyBehavior,
     browserFingerprintSpoofingEnabled: preferences.browserFingerprintSpoofingEnabled,
     featureFlags: normalizeFeatureFlags(settings.featureFlags),
+    workerPolicyExceptions: preferences.workerPolicyExceptions,
     sharedWorkerHandlingMode: preferences.sharedWorkerHandlingMode,
     sharedWorkerCompatibilityMode: preferences.sharedWorkerCompatibilityMode,
     ...(sharedSpoofing ? { sharedSpoofing } : {}),

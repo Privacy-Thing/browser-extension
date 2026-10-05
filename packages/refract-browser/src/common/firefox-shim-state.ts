@@ -32,6 +32,11 @@ import {
   parseHostPauses,
   type HostProtectionPause,
 } from "@/shared/host-protection-pause";
+import {
+  applyWorkerException,
+  applyWorkerPolicy,
+  type WorkerPolicyExceptions,
+} from "@/shared/worker-policy-exceptions";
 
 export * from "./firefox-shim-model";
 
@@ -45,6 +50,7 @@ export type FirefoxWindowSeedEntry = {
 };
 
 export type FirefoxWindowSeedState = {
+  workers?: WorkerPolicyExceptions;
   hostPauses?: HostProtectionPause[];
   entries: FirefoxWindowSeedEntry[];
   containerState: FirefoxShimState | null;
@@ -54,6 +60,7 @@ export type FirefoxWindowSeedState = {
 };
 
 export type FxStaticStateCandidate = {
+  workers?: WorkerPolicyExceptions;
   hostPauses?: HostProtectionPause[];
   buildKey: string;
   pattern: string;
@@ -68,7 +75,7 @@ export type FirefoxHashSeedPayload = {
 
 export const getFirefoxHashSeedPrefix = (): string =>
   `#${__PT_FIREFOX_STATE_PORT_ID__}=`;
-const getFxBootstrapKey = (): string => __PT_SHIM_GUARD_KEY__;
+const FX_BOOTSTRAP_KEY: string = __PT_SHIM_GUARD_KEY__;
 
 const normalizeOriginalHash = (value: string): string =>
   value === "" || value.startsWith("#") ? value : `#${value}`;
@@ -124,6 +131,7 @@ const parseStringList = (value: unknown): string[] =>
 const resolvePausedFxState = (
   hostname: string | null,
   pauses: readonly HostProtectionPause[],
+  baseline: FirefoxShimState | null,
 ): FirefoxShimState | null | undefined => {
   const pause = pauses.find(
     (pause) =>
@@ -131,7 +139,15 @@ const resolvePausedFxState = (
       isHostPauseActive(pause, privateDateNow()),
   );
   if (!pause) return undefined;
-  return hostname === null ? null : { ...buildNativeFxState(), hostPause: pause };
+  if (hostname === null) return null;
+  const policy =
+    pause.workerTest === "service-worker"
+      ? { serviceWorker: false as const }
+      : { sharedWorker: "native" as const };
+  const state = pause.workerTest
+    ? applyWorkerPolicy(baseline, policy)
+    : buildNativeFxState();
+  return state ? { ...state, hostPause: pause } : null;
 };
 
 export const normalizeFxWindowSeed = (
@@ -150,11 +166,18 @@ export const normalizeFxWindowSeed = (
     ? normalizeFxSeedEntries(value.containerEntries, { legacyRevision })
     : null;
   if (Array.isArray(value.containerEntries) && !containerEntries) return null;
+  // Persisted keys were validated in the background; selected values are checked
+  // by applyWorkerPolicy without repeating host parsing in the early runtime.
   const hostPauses = parseHostPauses(value.hostPauses);
   const trustedPatterns = parseStringList(value.trustedPatterns);
   const nativeRulePatterns = parseStringList(value.nativeRulePatterns);
   return {
     entries,
+    ...(isFxRecord(value.workers)
+      ? {
+          workers: value.workers as WorkerPolicyExceptions,
+        }
+      : {}),
     ...(hostPauses.length > 0 ? { hostPauses } : {}),
     containerState,
     ...(containerEntries ? { containerEntries } : {}),
@@ -168,14 +191,10 @@ export const isFirefoxWindowSeedState = (
 ): value is FirefoxWindowSeedState => normalizeFxWindowSeed(value) !== null;
 
 type SeedCandidate = {
+  specificity?: DomainRuleSpecificity;
   pattern: string;
   state: FirefoxShimState | null;
 };
-
-const isMoreSpecific = (
-  candidate: DomainRuleSpecificity,
-  currentBest: DomainRuleSpecificity,
-): boolean => compareRuleSpecificity(candidate, currentBest) > 0;
 
 const resolveFxSeedCandidate = (
   hostname: string,
@@ -185,8 +204,11 @@ const resolveFxSeedCandidate = (
   let matchedSpecificity: DomainRuleSpecificity | null = null;
   for (const entry of entries) {
     if (!compileDomainPattern(entry.pattern).test(hostname)) continue;
-    const specificity = getDomainRuleSpecificity(entry.pattern);
-    if (!matchedSpecificity || isMoreSpecific(specificity, matchedSpecificity)) {
+    const specificity = entry.specificity ?? getDomainRuleSpecificity(entry.pattern);
+    if (
+      !matchedSpecificity ||
+      compareRuleSpecificity(specificity, matchedSpecificity) > 0
+    ) {
       matchedEntry = entry;
       matchedSpecificity = specificity;
     }
@@ -205,8 +227,6 @@ export const resolveFxSeedForHost = (
   ) {
     return null;
   }
-  const paused = resolvePausedFxState(hostname, seedState.hostPauses ?? []);
-  if (paused !== undefined) return paused;
   const matched = resolveFxSeedCandidate(hostname, [
     ...(seedState.containerEntries ?? []),
     ...seedState.entries,
@@ -215,20 +235,23 @@ export const resolveFxSeedForHost = (
       state: null,
     })),
   ]);
-  return matched ? matched.state : seedState.containerState;
+  const baseline = applyWorkerException(
+    matched ? matched.state : seedState.containerState,
+    hostname,
+    seedState.workers,
+  );
+  const paused = resolvePausedFxState(hostname, seedState.hostPauses ?? [], baseline);
+  return paused === undefined ? baseline : paused;
 };
 
-const normalizeFxCandidates = (
-  value: unknown,
-  { legacyRevision = 0 }: { legacyRevision?: number } = {},
-): ResolvedStaticCandidate[] => {
+const normalizeFxCandidates = (value: unknown): ResolvedStaticCandidate[] => {
   if (!Array.isArray(value)) return [];
   const candidates: ResolvedStaticCandidate[] = [];
   for (const candidate of value) {
     if (!isFxRecord(candidate) || !isFxRecord(candidate.specificity)) continue;
     const specificity = candidate.specificity;
     if (
-      candidate.buildKey !== getFxBootstrapKey() ||
+      candidate.buildKey !== FX_BOOTSTRAP_KEY ||
       typeof candidate.pattern !== "string" ||
       typeof specificity.nonWildcardLength !== "number" ||
       !isSpecificityBonus(specificity.exactMatchBonus) ||
@@ -236,49 +259,34 @@ const normalizeFxCandidates = (
       typeof specificity.wildcardCount !== "number"
     )
       continue;
-    if (!normalizeFxState(candidate.state, { legacyRevision })) continue;
-    candidates.push({
-      hostPauses: parseHostPauses(candidate.hostPauses),
-      pattern: candidate.pattern,
-      specificity: specificity as DomainRuleSpecificity,
-      state: candidate.state as FirefoxShimState,
-    });
+    // This pass validates shape; the serialized state is retained verbatim.
+    if (!normalizeFxState(candidate.state)) continue;
+    candidates.push(candidate as FxStaticStateCandidate);
   }
   return candidates;
-};
-
-const resolveFxCandidates = (
-  hostname: string,
-  candidates: readonly ResolvedStaticCandidate[],
-): FirefoxShimState | null => {
-  let matchedCandidate: ResolvedStaticCandidate | null = null;
-  for (const candidate of candidates) {
-    if (!compileDomainPattern(candidate.pattern).test(hostname)) continue;
-    if (
-      !matchedCandidate ||
-      isMoreSpecific(candidate.specificity, matchedCandidate.specificity)
-    ) {
-      matchedCandidate = candidate;
-    }
-  }
-  return matchedCandidate?.state ?? null;
 };
 
 export const takeFxStaticState = (
   globalRef: typeof globalThis,
   hostname: string,
   {
-    legacyRevision = 0,
     topHostname = hostname,
   }: { legacyRevision?: number; topHostname?: string | null } = {},
 ): FirefoxShimState | null => {
   const raw = takeStaticPayload(globalRef, __PT_FX_STATIC_CANDIDATES_KEY__);
-  const candidates = normalizeFxCandidates(raw, { legacyRevision });
-  const pauses = candidates.flatMap((candidate) => candidate.hostPauses ?? []);
+  const candidates = normalizeFxCandidates(raw);
+  const pauses = parseHostPauses(candidates[0]?.hostPauses);
   // An inaccessible top host defers to the tab-aware background while any pause is active.
-  const paused = resolvePausedFxState(topHostname, pauses);
-  if (paused !== undefined) return paused;
-  return resolveFxCandidates(hostname, candidates);
+  // Every candidate in this registration batch carries the same global policies.
+  const exceptions = candidates[0]?.workers;
+  if (topHostname === null && exceptions) return null;
+  const baseline = applyWorkerException(
+    resolveFxSeedCandidate(hostname, candidates)?.state ?? null,
+    topHostname ?? hostname,
+    exceptions,
+  );
+  const paused = resolvePausedFxState(topHostname, pauses, baseline);
+  return paused === undefined ? baseline : paused;
 };
 
 export const clearFirefoxStaticState = (globalRef: typeof globalThis): void => {
@@ -294,7 +302,7 @@ export const parseFirefoxHashSeed = (hash: string): FirefoxHashSeedPayload | nul
     state?: unknown;
   };
   if (
-    parsed.buildKey !== getFxBootstrapKey() ||
+    parsed.buildKey !== FX_BOOTSTRAP_KEY ||
     typeof parsed.originalHash !== "string" ||
     (parsed.originalHash !== "" && !parsed.originalHash.startsWith("#"))
   ) {
@@ -310,7 +318,7 @@ export const buildFirefoxHashSeed = (
 ): string =>
   buildHashTransport(
     {
-      buildKey: getFxBootstrapKey(),
+      buildKey: FX_BOOTSTRAP_KEY,
       originalHash: normalizeOriginalHash(originalHash),
       state,
     },
@@ -332,7 +340,6 @@ export const takeFxEphemeralState = (
   documentRef: Document,
 ): FirefoxShimState | null => {
   const raw = readDomHandoff(documentRef, __PT_FIREFOX_STATE_PORT_ID__);
-  if (raw === null) return null;
   const normalized = normalizeFxState(raw);
   if (!normalized) return null;
   removeDomHandoff(documentRef, __PT_FIREFOX_STATE_PORT_ID__);
@@ -340,8 +347,7 @@ export const takeFxEphemeralState = (
 };
 
 export const parseFxStateEvent = (event: Event): FirefoxShimState | null => {
-  const raw = parseEphemeralTransport(event);
-  return raw !== null ? normalizeFxState(raw) : null;
+  return normalizeFxState(parseEphemeralTransport(event));
 };
 
 export const takeFxMainHandoff = (documentRef: Document): FirefoxMainHandoff | null => {

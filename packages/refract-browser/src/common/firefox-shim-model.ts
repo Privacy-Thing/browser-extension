@@ -385,6 +385,7 @@ export const toSnapshotFromFxState = (
     timeLocaleState ?? resolveNativeTimeLocale(baseEpochMs);
   const sharedWorkerHandlingMode = getTransportWorkerMode(state);
   return {
+    ...pickOverrideDeadline(state),
     geo: {
       latitude: geoState?.latitude ?? 0,
       longitude: geoState?.longitude ?? 0,
@@ -433,3 +434,12 @@ export const toSnapshotFromFxState = (
 
 export const isFirefoxShimState = (value: unknown): value is FirefoxShimState =>
   normalizeFxState(value) !== null;
+
+const pickOverrideDeadline = (
+  state: FirefoxShimState,
+): { hostOverrideExpiresAt?: number } => {
+  const pause = state.hostPause;
+  return pause?.workerTest && pause.expiresAt !== null
+    ? { hostOverrideExpiresAt: pause.expiresAt }
+    : {};
+};

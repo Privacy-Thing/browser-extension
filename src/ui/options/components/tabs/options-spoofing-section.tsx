@@ -1,3 +1,5 @@
+import { WorkerPolicyExceptions } from "./WorkerPolicyExceptions";
+
 import type { SpoofingSurfaceMethodId } from "@/shared/spoofing-surfaces";
 import { cn } from "@/ui/components/lib/utils";
 import {
@@ -398,6 +400,7 @@ export const SpoofingSection = ({ model }: { model: OptionsModel }) => {
             <SurfaceCard key={surface.key} model={model} surface={surface} />
           ))}
         </div>
+        <WorkerPolicyExceptions />
       </SettingsSectionCard>
     </div>
   );

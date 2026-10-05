@@ -245,6 +245,7 @@ export const seedWindowSnapshot = (
       : {
           kind: "snapshot",
           previousName,
+          ...(expiresAt === undefined ? {} : { expiresAt }),
           snapshot,
         },
   );

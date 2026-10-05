@@ -61,6 +61,11 @@ const handleCoreCommand = (
   sendResponse: (response?: unknown) => void,
 ): boolean => {
   switch (command.type) {
+    case EXTENSION_COMMAND_TYPES.getWorkerTest:
+    case EXTENSION_COMMAND_TYPES.startWorkerTest:
+    case EXTENSION_COMMAND_TYPES.finishWorkerTest:
+      fireAndRespond(sendResponse, deps.workerTest(command));
+      return true;
     case EXTENSION_COMMAND_TYPES.getControlState:
       fireAndRespond(sendResponse, deps.getControlState());
       return true;

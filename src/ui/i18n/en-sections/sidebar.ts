@@ -1,6 +1,87 @@
 import { BRAND_DIAGNOSTICS_NAME, BRAND_DISPLAY_NAME } from "@/shared/brand";
 
 export const sidebar = {
+  troubleshooter: {
+    savedExceptions: "Saved worker exceptions",
+    savedHint:
+      "Removing an exception restores the current worker settings and reloads tabs.",
+    details: "Details",
+    sources: {
+      rule: "Site rule",
+      container: "Container",
+      fallback: "Default rule",
+      trustedSite: "Trusted Site",
+      none: "None",
+    },
+    title: "Site not working?",
+    intro: "Test one worker setting, then decide whether to keep it.",
+    rule: "Current setting",
+    exceptions: "Exceptions",
+    unknown: "Unavailable",
+    none: "None",
+    active: "Temporary worker test",
+    scope:
+      "Applies to this host in all matching tabs and containers. Other sites keep their settings.",
+    webrtc:
+      "The global browser WebRTC policy stays active. This assistant cannot change it for one website.",
+    returnHint:
+      "Up to 10 minutes. Matching tabs reload. Try the site, then return here. Closing this window restores settings.",
+    start: "Test and reload",
+    helped: "Helped",
+    failed: "Did not help",
+    restore: "Restore settings",
+    save: "Keep exception",
+    helpedHint:
+      "Keeps this worker setting for this host. Other settings and container identities stay unchanged. You can remove it in Settings.",
+    siteEffects:
+      "Restoring settings does not undo website changes: service/shared workers and their caches may survive or be shared by origin. Only new calls in supported contexts use the selected policy.",
+    noCandidates: "No worker setting is available to test.",
+    error:
+      "The operation could not complete. The website, test or configuration may have changed. Reopen to check the current state; temporary tests expire automatically.",
+    report: "Local before / after report",
+    reportHint:
+      "Redacted JSON only; nothing is sent. Configuration and observations are separate. Missing or stale evidence is not proof. “After” becomes available when you answer or restore the test.",
+    before: "Before",
+    after: "After",
+    kinds: {
+      serviceWorker: "Allow Service Worker registration",
+      sharedWorker: "Use native SharedWorker",
+    },
+    effects: {
+      serviceWorker: "Allows new Service Workers. They can see real browser values.",
+      sharedWorker:
+        "Uses native SharedWorkers. New workers can see real browser values.",
+    },
+    evidence: {
+      observed:
+        "X-Ray has recent worker activity or failure evidence. It is a clue, not proof of the cause.",
+      missing:
+        "No observed evidence. This proposal comes from the configured worker policy; it may not help.",
+      stale:
+        "Worker evidence is stale. The configured policy remains a candidate, but the old observation does not establish the current cause.",
+    },
+    blocked: {
+      unsupported: "A supported website and background state are required.",
+      trusted:
+        "A Trusted Site exception disables protection. Change it explicitly in Settings before testing.",
+      inactive: "No active spoofing configuration is available to test.",
+      pause:
+        "A host pause is already active. Restore it before starting a worker test.",
+      reload:
+        "This document still needs a reload to apply the current decision. Answers are disabled until navigation commits.",
+    },
+    results: {
+      failed:
+        "Test did not help. The temporary override was removed; matching tabs are reloading with current settings.",
+      cancelled:
+        "Test cancelled. The temporary override was removed; matching tabs are reloading with current settings.",
+      expired:
+        "Test ended. The temporary override is no longer used for new decisions. Reload if an existing document still uses the tested policy.",
+      saved:
+        "An exact-host worker exception was saved after your confirmation. Matching tabs are reloading.",
+    },
+    remaining: (minutes: number): string => `Return in at most ${minutes} min.`,
+  },
   xRayTitle: BRAND_DIAGNOSTICS_NAME,
   openSettings: "Open settings",
   openRule: "Edit domain rule",

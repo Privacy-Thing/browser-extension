@@ -360,6 +360,7 @@
   border-color: transparent;
   border-radius: var(--gw-dialog-corner-radius);
   background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
 }
 
 /*
