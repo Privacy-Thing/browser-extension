@@ -182,11 +182,7 @@ const buildFallbackDecision = async (
     state.containerAssignments,
   );
   return {
-    snapshot: applyWorkerException(
-      snapshot,
-      hostname,
-      state.workerPolicyExceptions,
-    ),
+    snapshot: applyWorkerException(snapshot, hostname, state.workerPolicyExceptions),
     trustedSiteMatched: Boolean(matchTrustedSite(hostname, state.trustedSites)),
     fencesIdentity: Boolean(
       snapshot && state.featureFlags.domainFencing && activeIdentity?.kind !== "rule",

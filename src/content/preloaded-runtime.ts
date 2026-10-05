@@ -116,11 +116,7 @@ export const resolvePreloadedSnapshot = (
   // Domain fencing is on. Leftover unknown fingerprint fields from an older
   // session must not fail validation here or re-finalize fencing in page.
   if (!isRuntimeSnapshot(snapshot)) return null;
-  const saved = applyWorkerException(
-    snapshot,
-    hostname,
-    state.workerPolicyExceptions,
-  );
+  const saved = applyWorkerException(snapshot, hostname, state.workerPolicyExceptions);
   return pause ? applyHostOverride(saved, pause) : saved;
 };
 
