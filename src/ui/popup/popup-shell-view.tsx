@@ -17,6 +17,7 @@ import {
 import { BrandHorizontalLogo } from "@/ui/branding/BrandHorizontalLogo";
 import { t } from "@/ui/i18n";
 import { useTheme } from "@/ui/shared/ThemeProvider";
+import { WorkerTroubleshooter } from "@/ui/shared/WorkerTroubleshooter";
 
 type PopupShellProps = React.ComponentProps<typeof PopupShell>;
 type PopupLayoutStyle = CSSProperties & {
@@ -240,19 +241,26 @@ const HostPauseControl = ({ controller }: { controller: PopupController }) => {
   const hostname = state.popupState?.currentTab.hostname;
   if (!viewModel.supported || !hostname) return null;
   return (
-    <PopupHostPause
-      hostname={hostname}
-      status={state.popupState?.hostPause}
-      pending={state.mutationState.status === "pending"}
-      disabled={
-        viewModel.globalProtectionsOff ||
-        state.popupState?.panicMode === true ||
-        state.popupState?.currentTab.winningSource === "trusted-site" ||
-        state.popupState?.currentRule.enabled === false
-      }
-      onPause={(duration) => fireAndForget(controller.hostPause.setPause(duration))}
-      onExpired={controller.hostPause.refreshExpired}
-    />
+    <>
+      <PopupHostPause
+        hostname={hostname}
+        status={state.popupState?.hostPause}
+        pending={state.mutationState.status === "pending"}
+        disabled={
+          viewModel.globalProtectionsOff ||
+          state.popupState?.panicMode === true ||
+          state.popupState?.currentTab.winningSource === "trusted-site" ||
+          state.popupState?.currentRule.enabled === false
+        }
+        onPause={(duration) => fireAndForget(controller.hostPause.setPause(duration))}
+        onExpired={controller.hostPause.refreshExpired}
+      />
+      <WorkerTroubleshooter
+        launchInWindow
+        tabId={state.explicitTargetTabId ?? state.targetTabIdRef.current}
+        entryClassName="gw-popup-troubleshooter-entry"
+      />
+    </>
   );
 };
 

@@ -64,6 +64,7 @@ export type RuntimeWindowSeedPayload = {
 } & (
   | {
       kind: "snapshot";
+      expiresAt?: number;
       snapshot: RuntimeSnapshot;
     }
   | {
@@ -329,14 +330,14 @@ export const parseRuntimeWindowSeed = (
       typeof parsed.sourceHostname === "string"
         ? { sourceHostname: parsed.sourceHostname }
         : {};
+    if (
+      parsed.expiresAt !== undefined &&
+      (typeof parsed.expiresAt !== "number" ||
+        !Number.isFinite(parsed.expiresAt) ||
+        privateDateNow() >= parsed.expiresAt)
+    )
+      return null;
     if (parsed.kind === "disabled") {
-      if (
-        parsed.expiresAt !== undefined &&
-        (typeof parsed.expiresAt !== "number" ||
-          !Number.isFinite(parsed.expiresAt) ||
-          privateDateNow() >= parsed.expiresAt)
-      )
-        return null;
       return {
         kind: "disabled",
         ...(typeof parsed.expiresAt === "number"
@@ -351,6 +352,7 @@ export const parseRuntimeWindowSeed = (
     }
     return {
       kind: "snapshot",
+      ...(typeof parsed.expiresAt === "number" ? { expiresAt: parsed.expiresAt } : {}),
       previousName: parsed.previousName,
       snapshot: parsed.snapshot,
       ...sourceHostname,

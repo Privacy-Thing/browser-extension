@@ -15,6 +15,12 @@ The format is based on Keep a Changelog and the project follows Semantic Version
   explicitly recover setups created with the v2 Privacy Thing naming scheme
   after reinstalling, while release builds preserve but never load its private
   storage namespace.
+- A “Site not working?” assistant offers one temporary Service Worker or
+  SharedWorker policy test for the exact top-document host. Failed, cancelled
+  and expired tests restore current settings; saving a host exception requires
+  a separate confirmation. Redacted before/after reports stay local. Global
+  WebRTC policy is unchanged.
+
 - Regional preset editing, generation, and import now show advisory coordinate/time-zone
   checks and previews of browser languages, Accept-Language, and seasonal date/number
   formatting. Applying a suggestion changes only the time zone; intentional differences
@@ -77,6 +83,11 @@ The format is based on Keep a Changelog and the project follows Semantic Version
   name conflict, and keep preview and sync on one prepared regional-route
   snapshot without rewriting Control D hostname patterns. Hide automatic route
   matches until a fallback needs confirmation or the user opens overrides.
+- Worker policy tests now run in a persistent window and restore protection if
+  activation fails or the window closes. Saved host exceptions change only the
+  selected worker policy, preserve Firefox container profiles, and can be removed
+  in Settings. Test scope and privacy tradeoffs use shorter translated labels.
+
 - Invalid time zones in legacy presets no longer interrupt preload and header
   refreshes for unrelated rules or containers. The affected preset stays inactive
   until repaired, and the time zone picker avoids duplicate UTC entries.

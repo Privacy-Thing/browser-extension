@@ -1,12 +1,17 @@
 import type { EXTENSION_COMMAND_TYPES } from "./extension-contract";
+import type { RuntimeSnapshot } from "./types";
 /** Exact top-document host exceptions; never a domain rule or a preference. */
 export type HostProtectionPause = {
   hostname: string;
   id: string;
   expiresAt: number | null;
+  workerTest?: WorkerTestKind | undefined;
 };
 
+export type WorkerTestKind = "service-worker" | "shared-worker";
+
 export type HostPauseStatus = {
+  workerTest?: HostProtectionPause | undefined;
   pause: HostProtectionPause | null;
   reloadRequired: boolean;
 };
@@ -32,6 +37,9 @@ export const isHostProtectionPause = (value: unknown): value is HostProtectionPa
     typeof item === "object" &&
     typeof item.hostname === "string" &&
     typeof item.id === "string" &&
+    (item.workerTest === undefined ||
+      item.workerTest === "service-worker" ||
+      item.workerTest === "shared-worker") &&
     (item.expiresAt === null ||
       (typeof item.expiresAt === "number" && Number.isFinite(item.expiresAt)))
   );
@@ -44,4 +52,25 @@ export type SetHostPauseCommand = {
   type: typeof EXTENSION_COMMAND_TYPES.setHostProtectionPause;
   tabId?: number;
   duration: "ten-minutes" | "session" | "resume";
+};
+
+/** Worker tests leave every unrelated runtime field intact. */
+export const applyHostOverride = (
+  snapshot: RuntimeSnapshot | null,
+  pause: HostProtectionPause,
+): RuntimeSnapshot | null => {
+  if (!pause.workerTest) return null;
+  if (!snapshot) return snapshot;
+  return pause.workerTest === "service-worker"
+    ? {
+        ...snapshot,
+        hostOverrideExpiresAt: pause.expiresAt ?? undefined,
+        blockServiceWorkerRegistration: false,
+      }
+    : {
+        ...snapshot,
+        hostOverrideExpiresAt: pause.expiresAt ?? undefined,
+        sharedWorkerHandlingMode: "native",
+        sharedWorkerCompatibilityMode: true,
+      };
 };

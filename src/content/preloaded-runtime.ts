@@ -7,11 +7,16 @@ import { matchRule } from "@/shared/domain-match";
 import { STORAGE_PRELOADED_STATE } from "@/shared/extension-contract";
 import {
   findHostPause,
+  applyHostOverride,
   isHostPauseActive,
   type HostProtectionPause,
 } from "@/shared/host-protection-pause";
 import { isRuntimeSnapshot } from "@/shared/runtime-snapshot";
 import type { DomainRule, RuntimeSnapshot, TrustedSite } from "@/shared/types";
+import {
+  applyWorkerException,
+  type WorkerPolicyExceptions,
+} from "@/shared/worker-policy-exceptions";
 
 /** Session-storage key used for per-pattern preloaded runtime snapshots. */
 export const PRELOAD_STATE_KEY = STORAGE_PRELOADED_STATE;
@@ -26,6 +31,7 @@ export type PreloadedRuntimeEntry = {
 /** Serializable snapshot cache hydrated by the background worker. */
 export type PreloadedRuntimeState = {
   entries: PreloadedRuntimeEntry[];
+  workerPolicyExceptions?: WorkerPolicyExceptions;
   hostPauses?: HostProtectionPause[];
   nativeRulePatterns?: string[];
   trustedSites?: TrustedSite[];
@@ -62,7 +68,8 @@ export const resolvePreloadedSnapshot = (
   hostname: string,
   state: PreloadedRuntimeState | null,
 ): RuntimeSnapshot | null => {
-  if (!state || findHostPause(hostname, state.hostPauses ?? [])) {
+  const pause = findHostPause(hostname, state?.hostPauses ?? []);
+  if (!state || (pause && !pause.workerTest)) {
     return null;
   }
 
@@ -105,7 +112,9 @@ export const resolvePreloadedSnapshot = (
   // Shared `"*"` carriers keep the unfenced Default Rule fingerprint when
   // Domain fencing is on. Leftover unknown fingerprint fields from an older
   // session must not fail validation here or re-finalize fencing in page.
-  return isRuntimeSnapshot(snapshot) ? snapshot : null;
+  if (!isRuntimeSnapshot(snapshot)) return null;
+  const saved = applyWorkerException(snapshot, hostname, state.workerPolicyExceptions);
+  return pause ? applyHostOverride(saved, pause) : saved;
 };
 
 /** Subframes need the tab-aware resolver only while a host exception is active. */
@@ -115,7 +124,8 @@ export const resolveDocumentPreload = (
 ): RuntimeSnapshot | null =>
   typeof window !== "undefined" &&
   window !== window.top &&
-  state?.hostPauses?.some((pause) => isHostPauseActive(pause))
+  (state?.hostPauses?.some((pause) => isHostPauseActive(pause)) ||
+    Object.keys(state?.workerPolicyExceptions ?? {}).length > 0)
     ? null
     : resolvePreloadedSnapshot(hostname, state);
 

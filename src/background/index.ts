@@ -87,7 +87,7 @@ import {
   recordSurfaceEvidence,
 } from "@/background/surface-evidence-tracker";
 import { createTabReloader, enableSessionStorage } from "@/background/tab-reload";
-import { createXRayHandlers } from "@/background/xray-commands";
+import { createXRayHandlers, createWorkerTestCtl } from "@/background/xray-commands";
 import { registerControlD } from "@/experimental/control-d/background-entry";
 import { fireAndForget } from "@/shared/async";
 import { BRAND_DISPLAY_NAME } from "@/shared/brand";
@@ -376,6 +376,7 @@ registerControlD({
 
 registerMessageRouter({
   isSupportedWebUrl,
+  workerTest: createWorkerTestCtl(getXRayState, hostPauseController.activate),
   setHostProtectionPause: hostPauseController.setPause,
   getControlState,
   getSettings,

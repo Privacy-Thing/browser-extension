@@ -16,6 +16,7 @@ import type {
   ThemeMode,
   TrustedSite,
 } from "@/shared/types";
+import type { WorkerPolicyExceptions } from "@/shared/worker-policy-exceptions";
 
 export type CachedSettings = {
   profiles: Location[] | null;
@@ -29,6 +30,7 @@ export type CachedSettings = {
   osmConsent: OsmConsentState | null;
   browserFingerprintSpoofingEnabled: boolean | null;
   featureFlags: FeatureFlags | null;
+  workerPolicyExceptions?: WorkerPolicyExceptions;
   sharedWorkerHandlingMode: SharedWorkerHandlingMode | null;
   sharedWorkerCompatibilityMode: boolean | null;
   sharedSpoofingLoaded: boolean;
@@ -56,6 +58,7 @@ export type MutableCachedSettings = Partial<{
   osmConsent: OsmConsentState;
   browserFingerprintSpoofingEnabled: boolean;
   featureFlags: FeatureFlags;
+  workerPolicyExceptions?: WorkerPolicyExceptions;
   sharedWorkerHandlingMode: SharedWorkerHandlingMode;
   sharedWorkerCompatibilityMode: boolean;
   sharedSpoofing: SharedSpoofingConfig | undefined;
@@ -82,6 +85,7 @@ export type CachedSettingsState = {
   osmConsent: OsmConsentState;
   browserFingerprintSpoofingEnabled: boolean;
   featureFlags: FeatureFlags;
+  workerPolicyExceptions?: WorkerPolicyExceptions;
   sharedWorkerHandlingMode: SharedWorkerHandlingMode;
   sharedWorkerCompatibilityMode: boolean;
   sharedSpoofing: SharedSpoofingConfig | undefined;
@@ -102,6 +106,7 @@ class BackgroundRuntimeState<TPreparedDecisions> {
   readonly rewriteTracker = createRewriteTracker();
   readonly rewriteRequestIds = new Set<string>();
 
+  private workerExceptions: WorkerPolicyExceptions | undefined;
   private rules: DomainRule[] | null = null;
   private trustedSites: TrustedSite[] | null = null;
   private profiles: Location[] | null = null;
@@ -275,6 +280,7 @@ class BackgroundRuntimeState<TPreparedDecisions> {
     osmConsent: this.osmConsent,
     browserFingerprintSpoofingEnabled: this.fingerprintEnabled,
     featureFlags: this.featureFlags,
+    ...(this.workerExceptions ? { workerPolicyExceptions: this.workerExceptions } : {}),
     sharedWorkerHandlingMode: this.workerMode,
     sharedWorkerCompatibilityMode: this.workerCompatibility,
     sharedSpoofingLoaded: this.spoofingLoaded,
@@ -330,6 +336,9 @@ class BackgroundRuntimeState<TPreparedDecisions> {
       osmConsent: this.osmConsent,
       browserFingerprintSpoofingEnabled: this.fingerprintEnabled,
       featureFlags: this.featureFlags,
+      ...(this.workerExceptions
+        ? { workerPolicyExceptions: this.workerExceptions }
+        : {}),
       sharedWorkerHandlingMode: this.workerMode,
       sharedWorkerCompatibilityMode: this.workerCompatibility,
       sharedSpoofing: this.sharedSpoofing,
@@ -369,6 +378,11 @@ class BackgroundRuntimeState<TPreparedDecisions> {
     }
     if (Object.hasOwn(values, "featureFlags")) {
       this.featureFlags = values.featureFlags!;
+      this.effectiveSnapshotCache.clear();
+      this.invalidateDecisions();
+    }
+    if (Object.hasOwn(values, "workerPolicyExceptions")) {
+      this.workerExceptions = values.workerPolicyExceptions;
       this.effectiveSnapshotCache.clear();
       this.invalidateDecisions();
     }

@@ -5,6 +5,7 @@ export const shouldSyncPreload = (command: ValidatedSettingsCommand): boolean =>
   command.watchPositionDelay !== undefined ||
   command.browserFingerprintSpoofingEnabled !== undefined ||
   command.featureFlags !== undefined ||
+  command.workerPolicyExceptions !== undefined ||
   command.sharedWorkerHandlingMode !== undefined ||
   command.sharedWorkerCompatibilityMode !== undefined ||
   Object.hasOwn(command, "sharedSpoofing") ||
@@ -13,6 +14,7 @@ export const shouldSyncPreload = (command: ValidatedSettingsCommand): boolean =>
 
 export const shouldSyncHeaderRules = (command: ValidatedSettingsCommand): boolean =>
   command.browserFingerprintSpoofingEnabled !== undefined ||
+  command.workerPolicyExceptions !== undefined ||
   command.sharedWorkerHandlingMode !== undefined ||
   Object.hasOwn(command, "sharedSpoofing") ||
   Object.hasOwn(command, "globalFallbackRule") ||
@@ -20,5 +22,6 @@ export const shouldSyncHeaderRules = (command: ValidatedSettingsCommand): boolea
 
 export const shouldReloadRuntimeTabs = (command: ValidatedSettingsCommand): boolean =>
   command.featureFlags !== undefined ||
+  command.workerPolicyExceptions !== undefined ||
   command.sharedWorkerHandlingMode !== undefined ||
   command.sharedWorkerCompatibilityMode !== undefined;

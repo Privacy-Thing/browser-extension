@@ -1,6 +1,7 @@
 import type { SharedWorkerStatus } from "@privacy-brand/xray-protocol";
 
 import type { ResolutionDecision } from "@/background/effective-snapshot-cache";
+import { findWorkerRequestOwners } from "@/background/firefox-worker-request-context";
 import {
   createRewriteSource,
   forceNoStoreHeaders,
@@ -44,7 +45,10 @@ type FirefoxWebRequestApi = {
     addListener: (
       listener: (
         details: chrome.webRequest.OnBeforeSendHeadersDetails,
-      ) => chrome.webRequest.BlockingResponse | void,
+      ) =>
+        | chrome.webRequest.BlockingResponse
+        | Promise<chrome.webRequest.BlockingResponse | undefined>
+        | void,
       filter: chrome.webRequest.RequestFilter,
       extraInfoSpec?: string[],
     ) => void;
@@ -294,11 +298,12 @@ const getSharedWorkerStatus = (
     : "blob-wrapper-dedup-disabled";
 };
 
-const handleUnknownRequest = (
+const handleUnknownRequest = async (
   deps: FxWorkerRewriteDeps,
   details: chrome.webRequest.OnBeforeSendHeadersDetails,
-): chrome.webRequest.BlockingResponse | undefined => {
+): Promise<chrome.webRequest.BlockingResponse | undefined> => {
   if (
+    !isSharedWorkerRequest(details.requestHeaders) ||
     details.tabId >= 0 ||
     (!details.url.startsWith("http://") && !details.url.startsWith("https://"))
   ) {
@@ -308,9 +313,30 @@ const handleUnknownRequest = (
   if (!cookieStoreId) {
     return isSharedWorkerRequest(details.requestHeaders) ? { cancel: true } : undefined;
   }
-  const decision = deps
-    .getPreparedDecisions()
-    ?.resolveDecision(getExactHostname(details.url), cookieStoreId, false);
+  const prepared = deps.getPreparedDecisions();
+  const documentUrl = (details as typeof details & { documentUrl?: unknown })
+    .documentUrl;
+  const owners = await findWorkerRequestOwners(
+    typeof documentUrl === "string" ? documentUrl : undefined,
+    cookieStoreId,
+    deps.getActiveTabContexts(),
+  );
+  if (
+    owners.length > 0 &&
+    owners.every((owner) => {
+      const state = prepared?.resolveDecision(
+        owner.hostname,
+        owner.cookieStoreId,
+      ).snapshot;
+      return !state || state.sharedWorkerHandlingMode === "native";
+    })
+  )
+    return undefined;
+  const decision = prepared?.resolveDecision(
+    getExactHostname(details.url),
+    cookieStoreId,
+    false,
+  );
   return decision?.snapshot ? { cancel: true } : undefined;
 };
 

@@ -42,6 +42,7 @@ import type {
 } from "@/shared/types";
 
 type ResolvedSimpleSettings = {
+  nextWorkerExceptions: Preferences["workerPolicyExceptions"];
   nextUiLocale: Preferences["uiLocale"];
   nextThemeMode: ThemeMode;
   nextTrustedSites: TrustedSite[];
@@ -104,6 +105,13 @@ const resolveStoredValue = async <T>({
   return cachedLoaded ? cachedValue : loadCurrent();
 };
 
+const resolveTrustedSites = (
+  nextCommand: ValidatedSettingsCommand,
+  previousTrustedSites: readonly TrustedSite[],
+): TrustedSite[] =>
+  Object.hasOwn(nextCommand, "trustedSites")
+    ? [...(nextCommand.trustedSites ?? DEFAULT_TRUSTED_SITES)]
+    : [...previousTrustedSites];
 const resolveSettings = async (
   nextCommand: ValidatedSettingsCommand,
   cachedValues: CachedSettings,
@@ -115,9 +123,7 @@ const resolveSettings = async (
     cachedValues.themeMode,
     currentPreferences.themeMode,
   );
-  const nextTrustedSites = Object.hasOwn(nextCommand, "trustedSites")
-    ? [...(nextCommand.trustedSites ?? DEFAULT_TRUSTED_SITES)]
-    : [...previousTrustedSites];
+  const nextTrustedSites = resolveTrustedSites(nextCommand, previousTrustedSites);
   const nextThemeAccentPreset = resolveCachedSetting(
     nextCommand.themeAccentPreset,
     cachedValues.themeAccentPreset,
@@ -178,6 +184,8 @@ const resolveSettings = async (
     loadCurrent: getGlobalFallbackRule,
   });
   return {
+    nextWorkerExceptions:
+      nextCommand.workerPolicyExceptions ?? currentPreferences.workerPolicyExceptions,
     nextUiLocale: nextCommand.uiLocale ?? currentPreferences.uiLocale,
     nextThemeMode,
     nextTrustedSites,
@@ -240,6 +248,7 @@ const buildPreferencesPatch = (
     "watchPositionDelay",
     "osmConsent",
     "browserFingerprintSpoofingEnabled",
+    "workerPolicyExceptions",
     "sharedWorkerHandlingMode",
     "sharedWorkerCompatibilityMode",
     "highContrastMode",
@@ -330,6 +339,7 @@ const cacheResolvedSettings = (
     osmConsent: settings.nextOsmConsent,
     browserFingerprintSpoofingEnabled: settings.nextFingerprintEnabled,
     featureFlags: settings.nextFeatureFlags,
+    workerPolicyExceptions: settings.nextWorkerExceptions,
     sharedWorkerHandlingMode: settings.nextWorkerMode,
     sharedWorkerCompatibilityMode: settings.nextWorkerCompatibility,
     sharedSpoofing: settings.nextSharedSpoofing,
@@ -383,6 +393,14 @@ export const saveSimpleSettings = async (
     const nextCommand = validateSettingsCommand(command);
     const cachedValues = deps.getCachedValues();
     const currentPreferences = await getPreferences();
+    if (nextCommand.removeWorkerPolicyException) {
+      nextCommand.workerPolicyExceptions = {
+        ...currentPreferences.workerPolicyExceptions,
+      };
+      delete nextCommand.workerPolicyExceptions[
+        nextCommand.removeWorkerPolicyException
+      ];
+    }
     const previousTrustedSites =
       cachedValues.trustedSites ?? (await loadTrustedSites());
     const settings = await resolveSettings(

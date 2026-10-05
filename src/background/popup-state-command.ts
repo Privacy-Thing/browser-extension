@@ -378,8 +378,9 @@ const buildSummary = async (
   const evidenceByRealm = forPopupTab(activeTab.id, deps.getRealmEvidence, {});
   const queryCounts = forPopupTab(activeTab.id, deps.getSurfaceCounts, {});
   const methodCounts = forPopupTab(activeTab.id, deps.getSurfaceMethodCounts, {});
+  const pause = getHostPause(model.hostname);
   const runtimeExpected =
-    !getHostPause(model.hostname) &&
+    (!pause || Boolean(pause.workerTest)) &&
     inputs.fingerprintEnabled &&
     !inputs.controlState.panicMode &&
     model.effectiveSource !== "trusted-site" &&

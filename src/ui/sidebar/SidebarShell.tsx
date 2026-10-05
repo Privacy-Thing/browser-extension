@@ -12,6 +12,7 @@ import {
   getRuleModalAnchor,
 } from "@/ui/options/navigation";
 import { MadeWithLoveBadge } from "@/ui/shared/MadeWithLoveBadge";
+import { WorkerTroubleshooter } from "@/ui/shared/WorkerTroubleshooter";
 
 // ─── Hooks ─────────────────────────────────────────────────────────────────────
 
@@ -146,6 +147,7 @@ export const SidebarShell = () => {
 
       {/* ── Content ───────────────────────────────────────────────────────── */}
       <main className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-4 min-w-0">
+        <WorkerTroubleshooter tabId={tabId} />
         <HostPauseNotice
           status={state?.ok ? state.hostPause : undefined}
           tabId={tabId}

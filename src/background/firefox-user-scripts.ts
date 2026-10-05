@@ -7,6 +7,7 @@ import {
 import { getDomainPatternKind } from "@/shared/domain-match";
 import { buildFxSeedScriptId } from "@/shared/extension-contract";
 import type { HostProtectionPause } from "@/shared/host-protection-pause";
+import type { WorkerPolicyExceptions } from "@/shared/worker-policy-exceptions";
 
 export type UserScriptRuleEntry = {
   pattern: string;
@@ -70,10 +71,12 @@ export const buildUserScriptExcludes = (
 export const createUserScriptRegs = ({
   ruleEntries,
   trustedPatterns = [],
+  workerPolicyExceptions = {},
   hostPauses = [],
 }: {
   ruleEntries: readonly UserScriptRuleEntry[];
   trustedPatterns?: readonly string[];
+  workerPolicyExceptions?: WorkerPolicyExceptions;
   hostPauses?: readonly HostProtectionPause[];
 }): UserScriptRegistration[] => {
   const excludeMatches = Array.from(
@@ -92,6 +95,9 @@ export const createUserScriptRegs = ({
           {
             code: buildFxSeedSource({
               ...buildFxStateCandidate(entry),
+              ...(Object.keys(workerPolicyExceptions).length > 0
+                ? { workers: workerPolicyExceptions }
+                : {}),
               hostPauses: [...hostPauses],
             }),
           },

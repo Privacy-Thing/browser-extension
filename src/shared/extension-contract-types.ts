@@ -34,6 +34,9 @@ import type {
 } from "./spoofing-surfaces.js";
 import type { ThemeAccentPreset, ThemeMode } from "./theme-types.js";
 import type { UiLocalePreference } from "./ui-locale.js";
+import type { WorkerTestCommand } from "./worker-test";
+
+import type { WorkerPolicyExceptions } from "@/shared/worker-policy-exceptions";
 
 export type ResolveSnapshotRequest = {
   type: typeof EXTENSION_COMMAND_TYPES.resolveRuntimeSnapshot;
@@ -54,6 +57,7 @@ export type ResolveSnapshotResponse = {
  * canonical source for extension message types across UI, content, and tests.
  */
 export type ExtensionCommand =
+  | WorkerTestCommand
   | SetHostPauseCommand
   | {
       type: typeof EXTENSION_COMMAND_TYPES.resolveRuntimeSnapshot;
@@ -69,6 +73,8 @@ export type ExtensionCommand =
       osmConsent?: OsmConsentState;
       browserFingerprintSpoofingEnabled?: boolean;
       featureFlags?: Partial<FeatureFlags>;
+      removeWorkerPolicyException?: string;
+      workerPolicyExceptions?: WorkerPolicyExceptions;
       sharedWorkerHandlingMode?: SharedWorkerHandlingMode;
       sharedWorkerCompatibilityMode?: boolean;
       sharedSpoofing?: SharedSpoofingConfig | undefined;
@@ -128,15 +134,11 @@ export type ExtensionCommand =
   | {
       type: typeof EXTENSION_COMMAND_TYPES.getControlState;
     }
-  | {
-      type: typeof EXTENSION_COMMAND_TYPES.getSettings;
-    }
+  | { type: typeof EXTENSION_COMMAND_TYPES.getSettings }
   | {
       type: typeof EXTENSION_COMMAND_TYPES.resetSettings;
     }
-  | {
-      type: typeof EXTENSION_COMMAND_TYPES.exportSettings;
-    }
+  | { type: typeof EXTENSION_COMMAND_TYPES.exportSettings }
   | {
       type: typeof EXTENSION_COMMAND_TYPES.importSettings;
       settings?: ExportedSettings;
@@ -409,6 +411,7 @@ export type GetControlStateResponse = {
  * model plus any migration notice that should be shown to the user.
  */
 export type GetSettingsResponse = {
+  workerPolicyExceptions?: WorkerPolicyExceptions;
   ok: true;
   locations: Location[];
   rules: DomainRule[];
