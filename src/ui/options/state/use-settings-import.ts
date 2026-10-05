@@ -81,6 +81,29 @@ const undoImport = async (input: {
   }
 };
 
+const createImportUpdates = (
+  importPreview: SettingsImportPreview | null,
+  preview: (
+    settings: ExportedSettings,
+    selection?: SettingsImportSelection,
+  ) => Promise<void>,
+) => ({
+  updateImportTimeZone: (id: string, timeZone: string) =>
+    importPreview
+      ? preview(
+          {
+            ...importPreview.source,
+            locations: importPreview.source.locations.map((profile) =>
+              profile.id === id ? { ...profile, timeZone } : profile,
+            ),
+          },
+          importPreview.selection,
+        )
+      : Promise.resolve(),
+  updateImportSelection: (selection: SettingsImportSelection) =>
+    importPreview ? preview(importPreview.source, selection) : Promise.resolve(),
+});
+
 export const useSettingsImport = (options: ImportOptions) => {
   const [importPreview, setImportPreview] = useState<SettingsImportPreview | null>(
     null,
@@ -198,7 +221,6 @@ export const useSettingsImport = (options: ImportOptions) => {
     handleUndoImport,
     cancelImport,
     applyImport,
-    updateImportSelection: (selection: SettingsImportSelection) =>
-      importPreview ? preview(importPreview.source, selection) : Promise.resolve(),
+    ...createImportUpdates(importPreview, preview),
   };
 };

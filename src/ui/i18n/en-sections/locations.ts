@@ -41,6 +41,28 @@ export const locations = {
     networkBodySuffix: ".",
   },
 
+  regionalReview: {
+    title: "Regional preview",
+    mismatch: (saved: string, suggested: string) =>
+      `Time zone ${saved} differs from the suggested ${suggested}.`,
+    approximation:
+      "You can keep your choice. Changing the time zone leaves languages unchanged. The suggestion is approximate near borders and at sea.",
+    applyTimeZone: (zone: string) => `Use ${zone}`,
+    scope:
+      "Values shown when time and language protection is on. Site rules may disable it. English preference changes website languages; dates and numbers keep the regional format.",
+    browserLanguage: "Browser language",
+    preferredLanguages: "Preferred languages",
+    languageHeader: "Website language header",
+    formattingLocale: "Date and number locale",
+    january: "January example",
+    july: "July example",
+    number: "Number example",
+    samples:
+      "Examples use 15 January and 15 July 2026 at 12:34:56 UTC and the number 1234567.89.",
+    unavailable:
+      "Preview unavailable. Check the time zone and languages; your draft is unchanged.",
+  },
+
   editor: {
     title: "Edit preset",
     description:

@@ -14,6 +14,10 @@ The format is based on Keep a Changelog and the project follows Semantic Version
   a separate confirmation. Redacted before/after reports stay local. Global
   WebRTC policy is unchanged.
 
+- Regional preset editing, generation, and import now show advisory coordinate/time-zone
+  checks and previews of browser languages, Accept-Language, and seasonal date/number
+  formatting. Applying a suggestion changes only the time zone; intentional differences
+  can still be saved or imported.
 - Pause spoofing for an exact top-document host for 10 minutes or until browser
   exit. Matching tabs and their supported frames/workers share the exception;
   permanent configuration and global WebRTC policy remain unchanged. Deadline

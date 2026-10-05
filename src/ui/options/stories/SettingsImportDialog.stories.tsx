@@ -102,3 +102,41 @@ export const ForeignContainers: Story = {
     },
   },
 };
+
+export const RegionalPreview: Story = {
+  args: {
+    applyTimeZone: fn(),
+    preview: {
+      ...preview,
+      source: {
+        ...preview.source,
+        locations: [
+          {
+            id: "paris",
+            label: "Paris — English website preference",
+            latitude: 48.85,
+            longitude: 2.35,
+            accuracy: 25,
+            noiseRadius: 50,
+            language: "fr-FR",
+            languages: ["fr-FR", "fr", "en-US"],
+            timeZone: "Asia/Tokyo",
+            preferEnglishContent: true,
+          },
+        ],
+      },
+    },
+  },
+  play: async ({ args }) => {
+    const dialog = within(document.body).getByRole("dialog");
+    await waitFor(() => expect(dialog).toBeVisible());
+    await expect(
+      dialog.querySelector('[data-regional-warning="timeZone"]'),
+    ).toBeVisible();
+    await expect(dialog.querySelector("#settings-import-confirm")).toBeEnabled();
+    await userEvent.click(dialog.querySelector("[data-regional-review] summary")!);
+    await expect(dialog.querySelector("[data-regional-preview]")).toBeVisible();
+    await userEvent.click(dialog.querySelector("[data-regional-apply-timezone]")!);
+    await expect(args.applyTimeZone).toHaveBeenCalledWith("paris", "Europe/Paris");
+  },
+};
