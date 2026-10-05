@@ -192,6 +192,9 @@ test("Firefox saved worker exceptions preserve first-call protection in unrelate
   debuggerPort,
 }) => {
   const options = await openFxOptionsProbe({ context, extensionOrigin, debuggerPort });
+  const hadUserScripts = await options.evaluate<boolean>(
+    'browser.permissions.contains({ permissions: ["userScripts"] })',
+  );
   const command = <T>(type: string, fields: Record<string, unknown> = {}) =>
     options.evaluate<T>(
       `chrome.runtime.sendMessage(${JSON.stringify({ type, ...fields })})`,
@@ -235,6 +238,11 @@ test("Firefox saved worker exceptions preserve first-call protection in unrelate
         serviceWorker: "SecurityError",
       });
   } finally {
+    if (!hadUserScripts) {
+      await options.evaluate(
+        'browser.permissions.remove({ permissions: ["userScripts"] })',
+      );
+    }
     await options.close();
   }
 });
