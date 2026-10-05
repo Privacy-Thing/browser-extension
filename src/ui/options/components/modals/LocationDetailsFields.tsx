@@ -16,6 +16,7 @@ import { Label } from "@/ui/components/ui/label";
 import { NumberInput } from "@/ui/components/ui/number-input";
 import { TagsInput } from "@/ui/components/ui/tags-input";
 import { t } from "@/ui/i18n";
+import { RegionalProfileReview } from "@/ui/options/components/modals/RegionalProfileReview";
 import { commonLocales } from "@/ui/options/locales";
 import { toFiniteNumber } from "@/ui/options/utils";
 
@@ -383,6 +384,13 @@ export function LocationDetailsFields<TDraft extends LocationFieldsDraft>(
       <NameField {...props} />
       <GeolocationFields {...props} />
       <LocaleFields {...props} />
+      <RegionalProfileReview
+        profile={props.draft}
+        disabled={props.disabled}
+        applyTimeZone={(timeZone) =>
+          props.onDraftChange((current) => ({ ...current, timeZone }))
+        }
+      />
     </div>
   );
 }
