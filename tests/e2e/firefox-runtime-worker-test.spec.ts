@@ -184,3 +184,57 @@ test("Firefox worker assistant restores service workers and isolates native shar
     await options.close();
   }
 });
+
+test("Firefox saved worker exceptions preserve first-call protection in unrelated cross-origin frames", async ({
+  context,
+  serverUrl,
+  extensionOrigin,
+  debuggerPort,
+}) => {
+  const options = await openFxOptionsProbe({ context, extensionOrigin, debuggerPort });
+  const command = <T>(type: string, fields: Record<string, unknown> = {}) =>
+    options.evaluate<T>(
+      `chrome.runtime.sendMessage(${JSON.stringify({ type, ...fields })})`,
+    );
+  try {
+    const settings = await command<{ locations: { id: string; timeZone: string }[] }>(
+      commands.getSettings,
+    );
+    const location = settings.locations.find(
+      (item) => item.timeZone === "Europe/Warsaw",
+    )!;
+    expect(
+      (
+        await command<{ ok: boolean }>(commands.saveSimpleSettings, {
+          globalFallbackRule: { enabled: true, locationId: location.id },
+          sharedSpoofing: { serviceWorker: true },
+          workerPolicyExceptions: { localhost: { serviceWorker: false } },
+        })
+      ).ok,
+    ).toBe(true);
+    await options.grantUserScripts();
+    const page = await context.newPage();
+    await page.goto(serverUrl + "/?worker-policy-protected-top");
+    await expect.poll(() => page.evaluate(() => navigator.language)).toBe("pl");
+    const frameUrl =
+      serverUrl.replace("127.0.0.1", "localhost") + "/worker-policy-first-call";
+    await page.evaluate((src) => {
+      const frame = document.createElement("iframe");
+      frame.src = src;
+      document.body.append(frame);
+    }, frameUrl);
+    await expect
+      .poll(() => page.frames().some((frame) => frame.url() === frameUrl))
+      .toBe(true);
+    const frame = page.frames().find((item) => item.url() === frameUrl)!;
+    const result = frame.locator("#worker-policy-first-call");
+    await expect
+      .poll(async () => JSON.parse(await result.innerText()))
+      .toEqual({
+        language: "pl",
+        serviceWorker: "SecurityError",
+      });
+  } finally {
+    await options.close();
+  }
+});

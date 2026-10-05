@@ -166,8 +166,8 @@ export const normalizeFxWindowSeed = (
     ? normalizeFxSeedEntries(value.containerEntries, { legacyRevision })
     : null;
   if (Array.isArray(value.containerEntries) && !containerEntries) return null;
-  // Persisted keys were validated in the background; selected values are checked
-  // by applyWorkerPolicy without repeating host parsing in the early runtime.
+  // Background validates persisted keys. This writable transport does not
+  // authenticate state; applyWorkerPolicy accepts only exact policy values.
   const hostPauses = parseHostPauses(value.hostPauses);
   const trustedPatterns = parseStringList(value.trustedPatterns);
   const nativeRulePatterns = parseStringList(value.nativeRulePatterns);
@@ -276,14 +276,14 @@ export const takeFxStaticState = (
   const raw = takeStaticPayload(globalRef, __PT_FX_STATIC_CANDIDATES_KEY__);
   const candidates = normalizeFxCandidates(raw);
   const pauses = parseHostPauses(candidates[0]?.hostPauses);
-  // An inaccessible top host defers to the tab-aware background while any pause is active.
+  // Unknown top hosts keep the protected baseline until tab-aware convergence.
+  // Native worker exceptions require a known top host; temporary pauses still defer.
   // Every candidate in this registration batch carries the same global policies.
   const exceptions = candidates[0]?.workers;
-  if (topHostname === null && exceptions) return null;
   const baseline = applyWorkerException(
     resolveFxSeedCandidate(hostname, candidates)?.state ?? null,
     topHostname ?? hostname,
-    exceptions,
+    topHostname === null ? undefined : exceptions,
   );
   const paused = resolvePausedFxState(topHostname, pauses, baseline);
   return paused === undefined ? baseline : paused;
