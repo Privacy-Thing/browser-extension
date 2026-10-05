@@ -3,6 +3,7 @@ import type { DiagnosticReport } from "@privacy-brand/xray-protocol/diagnostic-r
 
 import type { EXTENSION_COMMAND_TYPES } from "./extension-contract";
 import type { WorkerTestKind } from "./host-protection-pause";
+import type { WorkerPolicyException } from "./worker-policy-exceptions";
 
 export type WorkerTestSession = {
   id: string;
@@ -19,6 +20,7 @@ export type WorkerTestCandidate = {
   evidence: "observed" | "missing" | "stale";
 };
 export type WorkerTestState = {
+  savedException?: WorkerPolicyException;
   ok: true;
   session: WorkerTestSession | null;
   candidates: WorkerTestCandidate[];

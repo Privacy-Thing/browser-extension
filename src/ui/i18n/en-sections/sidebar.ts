@@ -2,31 +2,40 @@ import { BRAND_DIAGNOSTICS_NAME, BRAND_DISPLAY_NAME } from "@/shared/brand";
 
 export const sidebar = {
   troubleshooter: {
+    savedExceptions: "Saved worker exceptions",
+    savedHint:
+      "Removing an exception restores the current worker settings and reloads tabs.",
+    details: "Details",
+    sources: {
+      rule: "Site rule",
+      container: "Container",
+      fallback: "Default rule",
+      trustedSite: "Trusted Site",
+      none: "None",
+    },
     title: "Site not working?",
-    intro:
-      "Try one reversible worker policy change at a time. You choose every test and whether to keep its result.",
-    rule: "Current rule / source",
+    intro: "Test one worker setting, then decide whether to keep it.",
+    rule: "Current setting",
     exceptions: "Exceptions",
     unknown: "Unavailable",
     none: "None",
     active: "Temporary worker test",
     scope:
-      "Exact top-document hostname only: all matching tabs, including Firefox containers, and supported contexts inheriting their decision. Other independent top documents keep their policies. Requests without a tab context are outside this scope.",
+      "Applies to this host in all matching tabs and containers. Other sites keep their settings.",
     webrtc:
       "The global browser WebRTC policy stays active. This assistant cannot change it for one website.",
     returnHint:
-      "Ten minutes maximum. Starting, restoring and saving reload matching tabs. No help, cancellation or expiry removes only this override and returns to current settings. Closing this dialog also cancels the test.",
-    start: "Start test and reload",
+      "Up to 10 minutes. Matching tabs reload. Try the site, then return here. Closing this window restores settings.",
+    start: "Test and reload",
     helped: "Helped",
     failed: "Did not help",
-    restore: "Restore and reload",
-    save: "Save exception for this host",
+    restore: "Restore settings",
+    save: "Keep exception",
     helpedHint:
-      "Your answer does not prove the technical cause. Save only if you want this worker policy permanently for the displayed hostname. All tabs for this host use the exception; other settings are kept.",
+      "Keeps this worker setting for this host. Other settings and container identities stay unchanged. You can remove it in Settings.",
     siteEffects:
       "Restoring settings does not undo website changes: service/shared workers and their caches may survive or be shared by origin. Only new calls in supported contexts use the selected policy.",
-    noCandidates:
-      "No enabled worker policy is available to test. This MVP does not test Canvas, WebGL or Audio.",
+    noCandidates: "No worker setting is available to test.",
     error:
       "The operation could not complete. The website, test or configuration may have changed. Reopen to check the current state; temporary tests expire automatically.",
     report: "Local before / after report",
@@ -39,10 +48,9 @@ export const sidebar = {
       sharedWorker: "Use native SharedWorker",
     },
     effects: {
-      serviceWorker:
-        "Changes only Service Worker registration blocking. New registrations may succeed; Service Workers do not receive spoofed values. Other protections remain configured.",
+      serviceWorker: "Allows new Service Workers. They can see real browser values.",
       sharedWorker:
-        "Changes only SharedWorker handling to Native. New shared workers can see real browser values. Other protections remain configured.",
+        "Uses native SharedWorkers. New workers can see real browser values.",
     },
     evidence: {
       observed:

@@ -131,6 +131,55 @@ test("Firefox worker assistant restores service workers and isolates native shar
     await cancelled;
     expect(await probe(h, "shared-worker")).toBe("blocked");
     expect(await command(commands.getSettings)).toEqual(before);
+    const saveStartNavigation = h.waitForEvent("domcontentloaded");
+    const saveTest = await command<WorkerTestResponse>(commands.startWorkerTest, {
+      tabId,
+      hostname,
+      kind: "service-worker",
+    });
+    expect(saveTest.ok, JSON.stringify(saveTest)).toBe(true);
+    await saveStartNavigation;
+    if (!saveTest.ok || !saveTest.session)
+      throw new Error("Missing saved test session");
+    expect(
+      (
+        await command<WorkerTestResponse>(commands.finishWorkerTest, {
+          tabId,
+          hostname,
+          id: saveTest.session.id,
+          action: "helped",
+        })
+      ).ok,
+    ).toBe(true);
+    const savedNavigation = h.waitForEvent("domcontentloaded");
+    expect(
+      (
+        await command<WorkerTestResponse>(commands.finishWorkerTest, {
+          tabId,
+          hostname,
+          id: saveTest.session.id,
+          action: "save",
+        })
+      ).ok,
+    ).toBe(true);
+    await savedNavigation;
+    expect(await command(commands.getSettings)).toEqual({
+      ...(before as object),
+      workerPolicyExceptions: { localhost: { serviceWorker: false } },
+    });
+    expect(await probe(h, "service-worker")).toBe("allowed");
+    expect(await probe(k, "service-worker")).toMatch(/^SecurityError:/);
+    const removedNavigation = h.waitForEvent("domcontentloaded");
+    expect(
+      (
+        await command<{ ok: boolean }>(commands.saveSimpleSettings, {
+          removeWorkerPolicyException: hostname,
+        })
+      ).ok,
+    ).toBe(true);
+    await removedNavigation;
+    expect(await probe(h, "service-worker")).toMatch(/^SecurityError:/);
+    expect(await command(commands.getSettings)).toEqual(before);
   } finally {
     await options.close();
   }

@@ -57,6 +57,11 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ### Fixed
 
+- Worker policy tests now run in a persistent window and restore protection if
+  activation fails or the window closes. Saved host exceptions change only the
+  selected worker policy, preserve Firefox container profiles, and can be removed
+  in Settings. Test scope and privacy tradeoffs use shorter translated labels.
+
 - Invalid time zones in legacy presets no longer interrupt preload and header
   refreshes for unrelated rules or containers. The affected preset stays inactive
   until repaired, and the time zone picker avoids duplicate UTC entries.
@@ -79,6 +84,10 @@ The format is based on Keep a Changelog and the project follows Semantic Version
   the shared Select.
 - Confirm installed Battery protection before a page first queries the API, and clear
   stale integrity evidence after the protection recovers.
+
+## [0.9.3.11] - 2026-10-04
+
+- Refreshed extension metadata (hardware profiles, Chrome versions, locale data) from upstream sources to keep spoofed fingerprints current.
 
 ## [0.9.3.10] - 2026-10-01
 

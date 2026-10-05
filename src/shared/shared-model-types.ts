@@ -58,6 +58,8 @@ import { DEFAULT_ACCENT_PRESET, THEME_ACCENT_PRESETS } from "./theme-types.js";
 import type { ThemeAccentPreset, ThemeMode } from "./theme-types.js";
 import type { UiLocalePreference } from "./ui-locale.js";
 
+import type { WorkerPolicyExceptions } from "@/shared/worker-policy-exceptions";
+
 export type {
   BrowserClientHintBrand,
   BrowserClientHints,
@@ -308,6 +310,7 @@ export type RuntimeSnapshot = {
   };
   debugMode: boolean;
   watchPositionDelay: [number, number];
+
   sharedWorkerHandlingMode?: SharedWorkerHandlingMode;
   sharedWorkerCompatibilityMode?: boolean;
   geolocationEnabled?: boolean | undefined;
@@ -339,6 +342,7 @@ export type ExportedSettings = {
   watchPositionDelay?: [number, number];
   osmConsent?: OsmConsentState;
   browserFingerprintSpoofingEnabled?: boolean;
+  workerPolicyExceptions?: WorkerPolicyExceptions;
   sharedWorkerHandlingMode?: SharedWorkerHandlingMode;
   sharedWorkerCompatibilityMode?: boolean;
   sharedSpoofing?: SharedSpoofingConfig | undefined;

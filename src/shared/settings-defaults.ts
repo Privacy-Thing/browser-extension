@@ -15,6 +15,10 @@ import {
 } from "@/shared/theme-types";
 import type { OsmConsentState, ThemeAccentPreset, ThemeMode } from "@/shared/types";
 import { isUiLocalePreference, type UiLocalePreference } from "@/shared/ui-locale";
+import {
+  normalizeWorkerPolicies,
+  type WorkerPolicyExceptions,
+} from "@/shared/worker-policy-exceptions";
 
 /**
  * Canonical scalar preferences for the extension.
@@ -29,6 +33,7 @@ import { isUiLocalePreference, type UiLocalePreference } from "@/shared/ui-local
  * (sharedSpoofing, globalFallbackRule).
  */
 export type Preferences = {
+  workerPolicyExceptions: WorkerPolicyExceptions;
   featureFlags: FeatureFlags;
   debugMode: boolean;
   watchPositionDelay: [number, number];
@@ -61,6 +66,7 @@ export const MIN_RANDOM_RADIUS_KM = 1;
 export const MAX_RANDOM_RADIUS_KM = 99;
 
 export const DEFAULT_PREFERENCES: Preferences = {
+  workerPolicyExceptions: {},
   featureFlags: DEFAULT_FEATURE_FLAGS,
   debugMode: false,
   watchPositionDelay: DEFAULT_WATCH_DELAY,
@@ -113,6 +119,7 @@ export const normalizePreferences = (raw: unknown): Preferences => {
   const source = asRecord(raw);
 
   return {
+    workerPolicyExceptions: normalizeWorkerPolicies(source.workerPolicyExceptions),
     featureFlags: normalizeFeatureFlags(source.featureFlags),
     debugMode:
       typeof source.debugMode === "boolean"

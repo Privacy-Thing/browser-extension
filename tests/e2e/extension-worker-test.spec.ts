@@ -8,6 +8,14 @@ import { EXTENSION_COMMAND_TYPES as commands } from "../../src/shared/extension-
 import { getProbeHostUrl, readSharedWorkerSnapshot } from "./extension-test.helpers";
 import { ackReleaseNotices, expect, test } from "./fixtures";
 
+const openAssistant = async (context: BrowserContext, source: Page): Promise<Page> => {
+  const created = context.waitForEvent("page");
+  await source.locator("[data-worker-test-open]").click();
+  const assistant = await created;
+  await assistant.waitForURL(/workerTest=1/);
+  await source.close();
+  return assistant;
+};
 const registration = async (page: Page | Frame) =>
   page.evaluate(async () => {
     try {
@@ -57,8 +65,7 @@ test("worker assistant restores a single host policy, inherits frames and keeps 
   await Promise.all([h.goto(hUrl), k.goto(kUrl)]);
   await expect.poll(() => h.evaluate(() => navigator.language)).toBe("pl");
   expect(await registration(h)).toBe("SecurityError");
-  const popup = await openPopup(h);
-  await popup.locator("[data-worker-test-open]").click();
+  const popup = await openAssistant(context, await openPopup(h));
   await expect(
     popup.locator('[data-worker-test-start="service-worker"]'),
   ).toBeEnabled();
@@ -144,8 +151,7 @@ test("shared worker assistant needs two decisions to save a narrow exception and
   const h = await context.newPage();
   await h.goto(getProbeHostUrl(serverUrl));
   await expect.poll(() => h.evaluate(() => navigator.language)).toBe("pl");
-  const popup = await openPopup(h);
-  await popup.locator("[data-worker-test-open]").click();
+  const popup = await openAssistant(context, await openPopup(h));
   const navigation = h.waitForEvent("domcontentloaded");
   await popup.locator('[data-worker-test-start="shared-worker"]').click();
   await navigation;
@@ -184,15 +190,24 @@ test("shared worker assistant needs two decisions to save a narrow exception and
     async (type) => chrome.runtime.sendMessage({ type }),
     commands.getSettings,
   );
-  expect(settings.rules).toHaveLength(1);
-  expect(settings.rules[0]).toMatchObject({
-    pattern: new URL(serverUrl).hostname,
-    enabled: true,
-    fingerprintSurfaceOverrides: { sharedWorker: "native" },
+  expect(settings.rules).toEqual([]);
+  expect(settings.workerPolicyExceptions).toEqual({
+    [new URL(serverUrl).hostname]: { sharedWorker: "native" },
   });
+  await options.goto(
+    `chrome-extension://${extensionId}/src/ui/options/index.html#page-options`,
+  );
+  await options.locator("[data-worker-policy-remove]").click();
+  await expect(options.locator("[data-worker-policy-exceptions]")).toHaveCount(0);
+  const restored = await options.evaluate(
+    async (type) => chrome.runtime.sendMessage({ type }),
+    commands.getSettings,
+  );
+  expect(restored.workerPolicyExceptions).toEqual({});
+  expect(restored.rules).toEqual([]);
 });
 
-test("closing the popup restores an active worker test without editing settings", async ({
+test("closing the persistent test window restores an active worker test without editing settings", async ({
   context,
   extensionId,
   serverUrl,
@@ -219,8 +234,7 @@ test("closing the popup restores an active worker test without editing settings"
   const h = await context.newPage();
   await h.goto(getProbeHostUrl(serverUrl));
   await expect.poll(() => h.evaluate(() => navigator.language)).toBe("pl");
-  const popup = await openPopup(h);
-  await popup.locator("[data-worker-test-open]").click();
+  const popup = await openAssistant(context, await openPopup(h));
   const navigation = h.waitForEvent("domcontentloaded");
   await popup.locator('[data-worker-test-start="service-worker"]').click();
   await navigation;

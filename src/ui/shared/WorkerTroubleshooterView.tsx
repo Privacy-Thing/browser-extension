@@ -121,9 +121,10 @@ const CandidateTests = ({
                   ? t.sidebar.troubleshooter.kinds.serviceWorker
                   : t.sidebar.troubleshooter.kinds.sharedWorker}
               </h3>
-              <p className="mt-2 text-xs text-muted-foreground">
-                {getEvidenceCopy(candidate.evidence)}
-              </p>
+              <details className="mt-2 text-xs text-muted-foreground">
+                <summary>{t.sidebar.troubleshooter.details}</summary>
+                <p className="mt-1">{getEvidenceCopy(candidate.evidence)}</p>
+              </details>
               <p className="mt-2 text-xs">
                 {candidate.kind === "service-worker"
                   ? t.sidebar.troubleshooter.effects.serviceWorker
@@ -174,7 +175,16 @@ const getPhase = (session: WorkerTestState["session"], now: number) => {
 const getException = (data: WorkerTestState, active: boolean | null) => {
   if (data.blocked === "trusted") return t.sidebar.trustedSite;
   if (data.blocked === "pause") return t.popup.pauseActive;
+  if (data.savedException) return t.sidebar.troubleshooter.savedExceptions;
   return active ? t.sidebar.troubleshooter.active : t.sidebar.troubleshooter.none;
+};
+const getSourceCopy = (source: string | undefined) => {
+  if (source === "rule") return t.sidebar.troubleshooter.sources.rule;
+  if (source === "container") return t.sidebar.troubleshooter.sources.container;
+  if (source === "fallback") return t.sidebar.troubleshooter.sources.fallback;
+  if (source === "trusted-site") return t.sidebar.troubleshooter.sources.trustedSite;
+  if (source === "none") return t.sidebar.troubleshooter.sources.none;
+  return t.sidebar.troubleshooter.unknown;
 };
 export const WorkerTroubleshooterView = ({
   data,
@@ -208,16 +218,14 @@ export const WorkerTroubleshooterView = ({
         </p>
         <p className="mt-1 text-xs text-muted-foreground">
           {t.sidebar.troubleshooter.rule}:{" "}
-          {state?.rulePattern ??
-            state?.explanation?.winningSource ??
-            t.sidebar.troubleshooter.unknown}
+          {state?.rulePattern ?? getSourceCopy(state?.explanation?.winningSource)}
         </p>
         <p className="mt-1 text-xs text-muted-foreground">
           {t.sidebar.troubleshooter.exceptions}: {getException(data, Boolean(active))}
         </p>
       </div>
       <p className="text-xs text-muted-foreground">{t.sidebar.troubleshooter.scope}</p>
-      <p className="text-xs text-muted-foreground">{t.sidebar.troubleshooter.webrtc}</p>
+
       {data.blocked ? (
         <p
           role="status"
@@ -249,9 +257,11 @@ export const WorkerTroubleshooterView = ({
           phase={phase}
         />
       )}
-      <p className="text-xs text-muted-foreground">
-        {t.sidebar.troubleshooter.siteEffects}
-      </p>
+      <details className="text-xs text-muted-foreground">
+        <summary className="cursor-pointer">{t.sidebar.troubleshooter.details}</summary>
+        <p className="mt-2">{t.sidebar.troubleshooter.webrtc}</p>
+        <p className="mt-2">{t.sidebar.troubleshooter.siteEffects}</p>
+      </details>
       {session ? <WorkerTestReport session={session} /> : null}
     </div>
   );

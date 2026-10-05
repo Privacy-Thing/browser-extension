@@ -14,6 +14,7 @@ import type {
   RuntimeSnapshot,
   TrustedSite,
 } from "@/shared/types";
+import type { WorkerPolicyExceptions } from "@/shared/worker-policy-exceptions";
 
 const buildProfile = (id: string, timeZone: string, latitude: number): Location => ({
   id,
@@ -50,6 +51,7 @@ const comparableSnapshot = (snapshot: RuntimeSnapshot | null) => {
 };
 
 const buildPrepared = ({
+  workerPolicyExceptions = {},
   hostPauses = [],
   locations = profiles,
   rules = [],
@@ -59,6 +61,7 @@ const buildPrepared = ({
   fingerprintEnabled = true,
   domainFencing = false,
 }: {
+  workerPolicyExceptions?: WorkerPolicyExceptions;
   hostPauses?: HostProtectionPause[];
   locations?: Location[];
   rules?: DomainRule[];
@@ -69,6 +72,7 @@ const buildPrepared = ({
   domainFencing?: boolean;
 }) =>
   createPreparedDecisions({
+    workerPolicyExceptions,
     hostPauses,
     rules,
     trustedSites,
@@ -828,4 +832,60 @@ describe("host protection pause", () => {
       trustedSiteMatched: false,
     });
   });
+});
+
+it("saved worker exceptions preserve each fenced container identity and Firefox early state", () => {
+  const hostname = "h.example.test";
+  const containerAssignments: ContainerAssignment[] = [
+    {
+      cookieStoreId: "firefox-container-1",
+      enabled: true,
+      locationId: "warsaw",
+      ruleSeedKey: "seed01",
+      authKey: "auth0001",
+    },
+    {
+      cookieStoreId: "firefox-container-2",
+      enabled: true,
+      locationId: "berlin",
+      ruleSeedKey: "seed02",
+      authKey: "auth0002",
+    },
+  ];
+  const options = { containerAssignments, domainFencing: true };
+  const baseline = buildPrepared(options);
+  const adjusted = buildPrepared({
+    ...options,
+    workerPolicyExceptions: { [hostname]: { serviceWorker: false } },
+  });
+  for (const assignment of containerAssignments) {
+    const original = baseline.resolveDecision(
+      hostname,
+      assignment.cookieStoreId,
+    ).snapshot!;
+    const next = adjusted.resolveDecision(hostname, assignment.cookieStoreId).snapshot!;
+    expect(comparableSnapshot(next)).toEqual(
+      comparableSnapshot({ ...original, blockServiceWorkerRegistration: false }),
+    );
+    const seed = adjusted.getFxWindowSeed(assignment.cookieStoreId, hostname)!;
+    const fx = resolveFxSeedForHost(hostname, seed)!;
+    expect(fx.blockServiceWorkerRegistration).toBe(false);
+    expect(fx.timeLocale?.timeZone).toBe(original.locale.timeZone);
+    expect(
+      comparableSnapshot(
+        adjusted.resolveDecision("k.example.test", assignment.cookieStoreId).snapshot,
+      ),
+    ).toEqual(
+      comparableSnapshot(
+        baseline.resolveDecision("k.example.test", assignment.cookieStoreId).snapshot,
+      ),
+    );
+  }
+  expect(
+    adjusted.resolveDecision(hostname, containerAssignments[0]!.cookieStoreId).snapshot
+      ?.authKey,
+  ).not.toBe(
+    adjusted.resolveDecision(hostname, containerAssignments[1]!.cookieStoreId).snapshot
+      ?.authKey,
+  );
 });

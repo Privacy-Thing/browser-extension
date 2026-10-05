@@ -147,3 +147,66 @@ it.each(["service-worker", "shared-worker"] as const)(
     );
   },
 );
+
+it("saved worker policies survive early transports without changing regional values or independent top hosts", async () => {
+  const fx = await import("@privacy-brand/refract-browser/common/firefox-shim-state");
+  const preload = await import("@/content/preloaded-runtime");
+  const workerPolicyExceptions = { "h.example": { serviceWorker: false as const } };
+  const baseline = { ...snapshot, blockServiceWorkerRegistration: true };
+  const state = fx.buildFirefoxShimState(baseline);
+  const seed = {
+    entries: [{ pattern: "*", state }],
+    containerState: null,
+    workerPolicyExceptions,
+  };
+  const restored = fx.normalizeFxWindowSeed(seed)!;
+  expect(
+    fx.resolveFxSeedForHost("h.example", restored)?.blockServiceWorkerRegistration,
+  ).toBe(false);
+  expect(
+    fx.resolveFxSeedForHost("k.example", restored)?.blockServiceWorkerRegistration,
+  ).toBe(true);
+  const readStatic = (topHostname: string | null) => {
+    (globalThis as Record<symbol, unknown>)[Symbol.for(FX_STATIC_CANDIDATES_KEY)] = [
+      {
+        buildKey: SHIM_GUARD_KEY,
+        pattern: "*",
+        specificity: {
+          nonWildcardLength: 0,
+          exactMatchBonus: 0,
+          subdomainOnlyBonus: 0,
+          wildcardCount: 1,
+        },
+        state,
+        workerPolicyExceptions,
+      },
+    ];
+    return fx.takeFxStaticState(globalThis, "k.example", { topHostname });
+  };
+  expect(readStatic("h.example")?.blockServiceWorkerRegistration).toBe(false);
+  expect(readStatic("k.example")?.blockServiceWorkerRegistration).toBe(true);
+  expect(readStatic(null)).toBeNull();
+  const preloaded = {
+    entries: [
+      { pattern: "*", snapshot: baseline, blockServiceWorkerRegistration: true },
+    ],
+    workerPolicyExceptions,
+  };
+  expect(preload.resolvePreloadedSnapshot("h.example", preloaded)).toEqual({
+    ...baseline,
+    blockServiceWorkerRegistration: false,
+  });
+  expect(preload.resolvePreloadedSnapshot("k.example", preloaded)).toEqual(baseline);
+  expect(
+    preload.resolvePreloadedSnapshot("h.example", {
+      ...preloaded,
+      trustedSites: [{ pattern: "h.example", enabled: true }],
+    }),
+  ).toBeNull();
+  expect(
+    fx.resolveFxSeedForHost("h.example", {
+      ...restored,
+      trustedPatterns: ["h.example"],
+    }),
+  ).toBeNull();
+});

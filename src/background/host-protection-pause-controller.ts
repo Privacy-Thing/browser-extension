@@ -65,6 +65,7 @@ export const createHostPauseCtl = (deps: PauseControllerDeps) => {
     await reloadHosts(contexts, [hostname]);
   };
   const reconcile = async (): Promise<void> => {
+    await initializeHostPauses();
     const tests = getHostPauses().filter((pause) => pause.workerTest);
     const expired = await expireHostPauses();
     if (expired.length > 0) {

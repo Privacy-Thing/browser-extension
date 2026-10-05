@@ -256,6 +256,7 @@ const HostPauseControl = ({ controller }: { controller: PopupController }) => {
         onExpired={controller.hostPause.refreshExpired}
       />
       <WorkerTroubleshooter
+        launchInWindow
         tabId={state.explicitTargetTabId ?? state.targetTabIdRef.current}
         entryClassName="gw-popup-troubleshooter-entry"
       />

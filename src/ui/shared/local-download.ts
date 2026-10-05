@@ -15,6 +15,7 @@ export const downloadLocalText = (
     anchor.click();
   } finally {
     anchor.remove();
-    queueMicrotask(() => URL.revokeObjectURL(url));
+    // The download reads the Blob asynchronously. Keep its URL alive until the
+    // document unloads, when the browser releases document-owned object URLs.
   }
 };

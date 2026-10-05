@@ -178,16 +178,10 @@ it("keeps a helped test temporary until a second explicit decision saves only an
   expect(storage.getHostPause("h.example.test")).toBeDefined();
   const saved = ready(await run(finish(id, "save")));
   expect(saved.session?.phase).toBe("saved");
-  const rules = local[keys.rules] as Record<string, unknown>[];
-  expect(rules).toHaveLength(2);
-  expect(rules[1]).toEqual((original as unknown[])[0]);
-  expect(rules[0]).toMatchObject({
-    pattern: "h.example.test",
-    ruleSeedKey: "seed01",
-    relaxCspForWorkers: false,
-    fingerprintSurfaceOverrides: { canvas: false, serviceWorker: false },
+  expect(local[keys.rules]).toEqual(original);
+  expect(local[keys.preferences]).toMatchObject({
+    workerPolicyExceptions: { "h.example.test": { serviceWorker: false } },
   });
-  expect(rules[0]?.authKey).not.toBe("auth0001");
   expect(storage.getHostPause("h.example.test")).toBeUndefined();
 });
 it("refuses a stale save after configuration changes, while cancellation still restores the current settings", async () => {
@@ -275,3 +269,46 @@ it.each(["trusted", "pause", "reload"])(
     expect(await run(start())).toEqual({ ok: false, error: "test-unavailable" });
   },
 );
+
+it("rolls back an override when activation fails", async () => {
+  const { run, storage, activate } = await setup();
+  activate.mockRejectedValueOnce(new Error("seed failed"));
+  expect(await run(start())).toEqual({ ok: false, error: "test-failed" });
+  expect(storage.getHostPause("h.example.test")).toBeUndefined();
+  expect(activate).toHaveBeenCalledTimes(2);
+  expect(
+    ready(
+      await run({ type: commands.getWorkerTest, hostname: "h.example.test", tabId: 1 }),
+    ).session?.phase,
+  ).toBe("failed");
+});
+it("saves policy without copying a Firefox container location or identity into global rules", async () => {
+  const { run } = await setup();
+  local[keys.rules] = [];
+  local[keys.containerAssignments] = [
+    {
+      cookieStoreId: "firefox-container-1",
+      enabled: true,
+      locationId: "war",
+      ruleSeedKey: "seed01",
+      authKey: "auth0001",
+    },
+    {
+      cookieStoreId: "firefox-container-2",
+      enabled: true,
+      locationId: "tok",
+      ruleSeedKey: "seed02",
+      authKey: "auth0002",
+    },
+  ];
+  Object.assign(tab, { cookieStoreId: "firefox-container-1" });
+  const before = structuredClone(local[keys.containerAssignments]);
+  const id = ready(await run(start("shared-worker"))).session!.id;
+  await run(finish(id, "helped"));
+  ready(await run(finish(id, "save")));
+  expect(local[keys.rules]).toEqual([]);
+  expect(local[keys.containerAssignments]).toEqual(before);
+  expect(local[keys.preferences]).toMatchObject({
+    workerPolicyExceptions: { "h.example.test": { sharedWorker: "native" } },
+  });
+});

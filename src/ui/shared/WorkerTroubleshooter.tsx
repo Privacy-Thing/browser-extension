@@ -1,3 +1,5 @@
+import { useEffect, useRef } from "react";
+
 import {
   Dialog,
   DialogContent,
@@ -13,12 +15,42 @@ import { WorkerTroubleshooterView } from "@/ui/shared/WorkerTroubleshooterView";
 export const WorkerTroubleshooter = ({
   tabId,
   entryClassName,
+  launchInWindow,
 }: {
   tabId?: number | undefined;
   entryClassName?: string;
+  launchInWindow?: boolean;
 }) => {
-  const { target, data, xray, pending, error, now, open, action, close } =
+  const { target, data, xray, pending, error, now, open, action, close, setError } =
     useWorkerTroubleshooter(tabId);
+  const persistent = new URLSearchParams(window.location.search).has("workerTest");
+  const opened = useRef(false);
+  useEffect(() => {
+    if (!persistent || opened.current) return;
+    opened.current = true;
+    void open();
+  }, [persistent, open]);
+  const show = async () => {
+    if (!launchInWindow || persistent) return open();
+    try {
+      const tab =
+        tabId === undefined
+          ? (await chrome.tabs.query({ active: true, currentWindow: true }))[0]
+          : await chrome.tabs.get(tabId);
+      if (tab?.id === undefined || !tab.url || !/^https?:/.test(tab.url))
+        throw new Error("unsupported");
+      await chrome.windows.create({
+        url: chrome.runtime.getURL(
+          `src/ui/popup/index.html?tabId=${tab.id}&workerTest=1`,
+        ),
+        type: "popup",
+        width: 560,
+        height: 760,
+      });
+    } catch {
+      setError(t.sidebar.troubleshooter.error);
+    }
+  };
   return (
     <>
       <button
@@ -28,7 +60,7 @@ export const WorkerTroubleshooter = ({
           entryClassName ??
           "mb-3 w-full rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
         }
-        onClick={() => void open()}
+        onClick={() => void show()}
         disabled={pending !== null}
       >
         {t.sidebar.troubleshooter.title}

@@ -2,31 +2,40 @@ import { BRAND_DIAGNOSTICS_NAME, BRAND_DISPLAY_NAME } from "@/shared/brand";
 
 export const sidebar = {
   troubleshooter: {
+    savedExceptions: "Exceções de workers salvas",
+    savedHint:
+      "Remover uma exceção restaura as configurações atuais de workers e recarrega as abas.",
+    details: "Detalhes",
+    sources: {
+      rule: "Regra do site",
+      container: "Contêiner",
+      fallback: "Regra padrão",
+      trustedSite: "Site confiável",
+      none: "Nenhum",
+    },
     title: "O site não funciona?",
-    intro:
-      "Teste uma alteração reversível de workers por vez. Você escolhe cada teste e se deseja guardar o resultado.",
-    rule: "Regra / origem atual",
+    intro: "Teste uma configuração de workers e decida se deseja mantê-la.",
+    rule: "Configuração atual",
     exceptions: "Exceções",
     unknown: "Indisponível",
     none: "Nenhuma",
     active: "Teste temporário de workers",
     scope:
-      "Somente o host exato do documento principal: todas as abas correspondentes, incluindo contêineres do Firefox, e contextos compatíveis que herdam a decisão. Outros documentos principais mantêm suas políticas. Requisições sem contexto de aba ficam fora deste escopo.",
+      "Aplica-se a este host em todas as abas e contêineres correspondentes. Outros sites mantêm suas configurações.",
     webrtc:
       "A política global WebRTC do navegador continua ativa. Este assistente não pode alterá-la para apenas um site.",
     returnHint:
-      "No máximo dez minutos. Iniciar, restaurar e guardar recarregam as abas afetadas. Não ajudou, cancelamento ou expiração remove apenas esta exceção e retorna às opções atuais. Fechar este diálogo cancela o teste.",
-    start: "Iniciar teste e recarregar",
+      "Até 10 minutos. As abas deste host são recarregadas. Teste o site e volte aqui. Fechar esta janela restaura as configurações.",
+    start: "Testar e recarregar",
     helped: "Ajudou",
     failed: "Não ajudou",
-    restore: "Restaurar e recarregar",
-    save: "Guardar exceção para este host",
+    restore: "Restaurar configurações",
+    save: "Manter exceção",
     helpedHint:
-      "Sua resposta não prova a causa técnica. Guarde apenas se desejar esta política permanentemente para o host exibido. Todas as suas abas usam a exceção; as outras opções são preservadas.",
+      "Mantém esta configuração para o host sem alterar outras configurações ou identidades dos contêineres. Você pode removê-la em Configurações.",
     siteEffects:
       "Restaurar opções não desfaz alterações do site: workers e caches podem sobreviver ou ser compartilhados pela origem. Apenas novas chamadas em contextos compatíveis usam a política escolhida.",
-    noCandidates:
-      "Nenhuma política de workers ativa está disponível para testar. Este MVP não testa Canvas, WebGL ou Audio.",
+    noCandidates: "Nenhuma configuração de workers está disponível para teste.",
     error:
       "Não foi possível concluir a operação. O site, o teste ou a configuração podem ter mudado. Reabra para verificar; testes temporários expiram automaticamente.",
     report: "Relatório local antes / depois",
@@ -40,9 +49,9 @@ export const sidebar = {
     },
     effects: {
       serviceWorker:
-        "Altera apenas o bloqueio do registro de Service Worker. Novos registros podem funcionar; esses workers não recebem valores simulados. Outras proteções continuam configuradas.",
+        "Permite novos Service Workers. Eles podem ver os valores reais do navegador.",
       sharedWorker:
-        "Altera apenas SharedWorker para Nativo. Novos workers compartilhados podem ver valores reais. Outras proteções continuam configuradas.",
+        "Usa SharedWorkers nativos. Novos workers podem ver os valores reais do navegador.",
     },
     evidence: {
       observed:

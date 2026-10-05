@@ -43,6 +43,10 @@ import type {
   SharedSpoofingConfig,
   TrustedSite,
 } from "@/shared/types";
+import {
+  applyWorkerException,
+  type WorkerPolicyExceptions,
+} from "@/shared/worker-policy-exceptions";
 
 export type ResolutionDecision = {
   hostPause?: HostProtectionPause;
@@ -53,6 +57,7 @@ export type ResolutionDecision = {
 };
 
 export type PreparedRuntimeInputs = {
+  workerPolicyExceptions?: WorkerPolicyExceptions;
   hostPauses?: readonly HostProtectionPause[];
   rules: readonly DomainRule[];
   trustedSites: readonly TrustedSite[];
@@ -81,6 +86,7 @@ export type PreparedRuntimeDecisions = {
     cookieStoreId?: string,
     respectHostPause?: boolean,
   ) => ResolutionDecision;
+  getWorkerPolicyExceptions?: () => WorkerPolicyExceptions;
   getHostPauses: () => readonly HostProtectionPause[];
   getPreloadedEntries: () => PreloadedDecisionEntry[];
   getNativeRulePatterns: () => string[];
@@ -547,6 +553,7 @@ const getFxSeed = (
   return {
     entries,
     containerState,
+    workerPolicyExceptions: inputs.workerPolicyExceptions ?? {},
     hostPauses: [...(inputs.hostPauses ?? [])],
     containerEntries,
     ...(nativeRulePatterns.length > 0 ? { nativeRulePatterns } : {}),
@@ -601,8 +608,23 @@ export const createPreparedDecisions = (
   };
 
   return {
-    resolveDecision: (hostname, cookieStoreId, respectHostPause) =>
-      resolvePreparedDecision(state, hostname, cookieStoreId, respectHostPause),
+    resolveDecision: (hostname, cookieStoreId, respectHostPause) => {
+      const decision = resolvePreparedDecision(
+        state,
+        hostname,
+        cookieStoreId,
+        respectHostPause,
+      );
+      return {
+        ...decision,
+        snapshot: applyWorkerException(
+          decision.snapshot,
+          hostname,
+          inputs.workerPolicyExceptions,
+        ),
+      };
+    },
+    getWorkerPolicyExceptions: () => inputs.workerPolicyExceptions ?? {},
     getHostPauses: () => inputs.hostPauses ?? [],
     getPreloadedEntries: () => getPreparedEntries(state),
     getNativeRulePatterns: () => getNativePatterns(state),

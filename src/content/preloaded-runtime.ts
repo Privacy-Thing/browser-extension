@@ -13,6 +13,11 @@ import {
 } from "@/shared/host-protection-pause";
 import { isRuntimeSnapshot } from "@/shared/runtime-snapshot";
 import type { DomainRule, RuntimeSnapshot, TrustedSite } from "@/shared/types";
+import {
+  isWorkerPolicyExceptions,
+  applyWorkerException,
+  type WorkerPolicyExceptions,
+} from "@/shared/worker-policy-exceptions";
 
 /** Session-storage key used for per-pattern preloaded runtime snapshots. */
 export const PRELOAD_STATE_KEY = STORAGE_PRELOADED_STATE;
@@ -27,6 +32,7 @@ export type PreloadedRuntimeEntry = {
 /** Serializable snapshot cache hydrated by the background worker. */
 export type PreloadedRuntimeState = {
   entries: PreloadedRuntimeEntry[];
+  workerPolicyExceptions?: WorkerPolicyExceptions;
   hostPauses?: HostProtectionPause[];
   nativeRulePatterns?: string[];
   trustedSites?: TrustedSite[];
@@ -41,6 +47,8 @@ const isPreloadedRuntimeState = (value: unknown): value is PreloadedRuntimeState
   }
 
   return (
+    (value.workerPolicyExceptions === undefined ||
+      isWorkerPolicyExceptions(value.workerPolicyExceptions)) &&
     Array.isArray(value.entries) &&
     value.entries.every(
       (entry) =>
@@ -108,7 +116,12 @@ export const resolvePreloadedSnapshot = (
   // Domain fencing is on. Leftover unknown fingerprint fields from an older
   // session must not fail validation here or re-finalize fencing in page.
   if (!isRuntimeSnapshot(snapshot)) return null;
-  return pause ? applyHostOverride(snapshot, pause) : snapshot;
+  const saved = applyWorkerException(
+    snapshot,
+    hostname,
+    state.workerPolicyExceptions,
+  );
+  return pause ? applyHostOverride(saved, pause) : saved;
 };
 
 /** Subframes need the tab-aware resolver only while a host exception is active. */
@@ -118,7 +131,8 @@ export const resolveDocumentPreload = (
 ): RuntimeSnapshot | null =>
   typeof window !== "undefined" &&
   window !== window.top &&
-  state?.hostPauses?.some((pause) => isHostPauseActive(pause))
+  (state?.hostPauses?.some((pause) => isHostPauseActive(pause)) ||
+    Object.keys(state?.workerPolicyExceptions ?? {}).length > 0)
     ? null
     : resolvePreloadedSnapshot(hostname, state);
 

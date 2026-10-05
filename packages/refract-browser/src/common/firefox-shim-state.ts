@@ -32,6 +32,11 @@ import {
   parseHostPauses,
   type HostProtectionPause,
 } from "@/shared/host-protection-pause";
+import {
+  applyWorkerException,
+  normalizeWorkerPolicies,
+  type WorkerPolicyExceptions,
+} from "@/shared/worker-policy-exceptions";
 
 export * from "./firefox-shim-model";
 
@@ -45,6 +50,7 @@ export type FirefoxWindowSeedEntry = {
 };
 
 export type FirefoxWindowSeedState = {
+  workerPolicyExceptions?: WorkerPolicyExceptions;
   hostPauses?: HostProtectionPause[];
   entries: FirefoxWindowSeedEntry[];
   containerState: FirefoxShimState | null;
@@ -54,6 +60,7 @@ export type FirefoxWindowSeedState = {
 };
 
 export type FxStaticStateCandidate = {
+  workerPolicyExceptions?: WorkerPolicyExceptions;
   hostPauses?: HostProtectionPause[];
   buildKey: string;
   pattern: string;
@@ -163,11 +170,15 @@ export const normalizeFxWindowSeed = (
     ? normalizeFxSeedEntries(value.containerEntries, { legacyRevision })
     : null;
   if (Array.isArray(value.containerEntries) && !containerEntries) return null;
+  const workerPolicyExceptions = normalizeWorkerPolicies(value.workerPolicyExceptions);
   const hostPauses = parseHostPauses(value.hostPauses);
   const trustedPatterns = parseStringList(value.trustedPatterns);
   const nativeRulePatterns = parseStringList(value.nativeRulePatterns);
   return {
     entries,
+    ...(Object.keys(workerPolicyExceptions).length > 0
+      ? { workerPolicyExceptions }
+      : {}),
     ...(hostPauses.length > 0 ? { hostPauses } : {}),
     containerState,
     ...(containerEntries ? { containerEntries } : {}),
@@ -226,7 +237,11 @@ export const resolveFxSeedForHost = (
       state: null,
     })),
   ]);
-  const baseline = matched ? matched.state : seedState.containerState;
+  const baseline = applyWorkerException(
+    matched ? matched.state : seedState.containerState,
+    hostname,
+    seedState.workerPolicyExceptions,
+  );
   const paused = resolvePausedFxState(hostname, seedState.hostPauses ?? [], baseline);
   return paused === undefined ? baseline : paused;
 };
@@ -251,6 +266,7 @@ const normalizeFxCandidates = (
       continue;
     if (!normalizeFxState(candidate.state, { legacyRevision })) continue;
     candidates.push({
+      workerPolicyExceptions: normalizeWorkerPolicies(candidate.workerPolicyExceptions),
       hostPauses: parseHostPauses(candidate.hostPauses),
       pattern: candidate.pattern,
       specificity: specificity as DomainRuleSpecificity,
@@ -289,7 +305,16 @@ export const takeFxStaticState = (
   const candidates = normalizeFxCandidates(raw, { legacyRevision });
   const pauses = candidates.flatMap((candidate) => candidate.hostPauses ?? []);
   // An inaccessible top host defers to the tab-aware background while any pause is active.
-  const baseline = resolveFxCandidates(hostname, candidates);
+  const exceptions = Object.assign(
+    {},
+    ...candidates.map((candidate) => candidate.workerPolicyExceptions),
+  );
+  if (topHostname === null && Object.keys(exceptions).length > 0) return null;
+  const baseline = applyWorkerException(
+    resolveFxCandidates(hostname, candidates),
+    topHostname ?? hostname,
+    exceptions,
+  );
   const paused = resolvePausedFxState(topHostname, pauses, baseline);
   if (paused !== undefined) return paused;
   return baseline;

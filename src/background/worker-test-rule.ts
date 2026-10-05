@@ -1,6 +1,10 @@
 import { loadContainerAssignments } from "@/background/storage/container-assignments";
-import { getGlobalFallbackRule } from "@/background/storage/preferences";
-import { loadRules, saveRules } from "@/background/storage/rules";
+import {
+  getPreferences,
+  savePreferences,
+  getGlobalFallbackRule,
+} from "@/background/storage/preferences";
+import { loadRules } from "@/background/storage/rules";
 import { loadTrustedSites } from "@/background/storage/trusted-sites";
 import { resolveRuleSources } from "@/shared/rule-resolution";
 import type { WorkerTestSession } from "@/shared/worker-test";
@@ -22,30 +26,19 @@ export const saveWorkerTestException = async (
     trustedSites: await loadTrustedSites(),
   });
   if (resolved.trustedSite) throw new Error("test-unavailable");
-  // Copy the current source so an exact exception keeps unrelated policy
-  // and identity fields; never replace a wildcard or a container assignment.
   const source =
     resolved.activeRule ?? resolved.usableContainer ?? resolved.runtimeFallbackRule;
   if (!source) throw new Error("test-unavailable");
-  await saveRules([
-    {
-      ...(source.locationId ? { locationId: source.locationId } : {}),
-      ...(source.ruleSeedKey ? { ruleSeedKey: source.ruleSeedKey } : {}),
-      ...("pattern" in source && source.pattern === hostname && source.authKey
-        ? { authKey: source.authKey }
-        : {}),
-      ...("relaxCspForWorkers" in source
-        ? { relaxCspForWorkers: source.relaxCspForWorkers }
-        : {}),
-      pattern: hostname,
-      enabled: true,
-      fingerprintSurfaceOverrides: {
-        ...source.fingerprintSurfaceOverrides,
+  const preferences = await getPreferences();
+  await savePreferences({
+    workerPolicyExceptions: {
+      ...preferences.workerPolicyExceptions,
+      [hostname]: {
+        ...preferences.workerPolicyExceptions[hostname],
         ...(session.kind === "service-worker"
           ? { serviceWorker: false }
-          : { sharedWorker: "native" as const }),
+          : { sharedWorker: "native" }),
       },
     },
-    ...rules.filter((rule) => rule.pattern !== hostname),
-  ]);
+  });
 };

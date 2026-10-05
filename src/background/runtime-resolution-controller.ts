@@ -46,6 +46,7 @@ import {
   type HostProtectionPause,
 } from "@/shared/host-protection-pause";
 import type { GlobalFallbackRule } from "@/shared/types";
+import { applyWorkerException } from "@/shared/worker-policy-exceptions";
 
 type RuntimeState = ReturnType<typeof createRuntimeState<PreparedRuntimeDecisions>>;
 type LoadedLocations = CachedSettingsState["profiles"];
@@ -181,7 +182,11 @@ const buildFallbackDecision = async (
     state.containerAssignments,
   );
   return {
-    snapshot,
+    snapshot: applyWorkerException(
+      snapshot,
+      hostname,
+      state.workerPolicyExceptions,
+    ),
     trustedSiteMatched: Boolean(matchTrustedSite(hostname, state.trustedSites)),
     fencesIdentity: Boolean(
       snapshot && state.featureFlags.domainFencing && activeIdentity?.kind !== "rule",
