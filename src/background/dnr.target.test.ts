@@ -26,6 +26,12 @@ import type {
   SharedSpoofingConfig,
 } from "@/shared/types";
 
+vi.mock("@/background/storage/host-protection-pauses", () => ({
+  initializeHostPauses: async () => undefined,
+  getHostPause: () => undefined,
+  getHostPauses: () => [],
+}));
+
 const withRuleSeeds = (rules: readonly DomainRule[]): DomainRule[] =>
   rules.map((rule, index) => ({
     ...rule,
@@ -1559,4 +1565,133 @@ describe("buildCspRemovalRules", () => {
 
     expect(result[0]?.id).toBeGreaterThanOrEqual(3_000_000);
   });
+});
+
+describe("legacy invalid time zone header isolation", () => {
+  const valid: Location = {
+    id: "valid",
+    label: "Valid",
+    latitude: 52,
+    longitude: 21,
+    accuracy: 25,
+    noiseRadius: 50,
+    language: "pl",
+    languages: ["pl"],
+    timeZone: "Europe/Warsaw",
+  };
+  const invalid: Location = {
+    ...valid,
+    id: "invalid",
+    label: "Invalid",
+    timeZone: "Mars/Olympus",
+  };
+  const rules: DomainRule[] = [
+    {
+      pattern: "bad.test",
+      enabled: true,
+      locationId: "invalid",
+      ruleSeedKey: "bad001",
+    },
+    { pattern: "good.test", enabled: true, locationId: "valid", ruleSeedKey: "good01" },
+  ];
+  it.each(["valid", "invalid"])(
+    "keeps valid tab and domain rules with fallback %s",
+    (fallbackId) => {
+      const fallback: GlobalFallbackRule = {
+        enabled: true,
+        locationId: fallbackId,
+        ruleSeedKey: "glob01",
+      };
+      const tabs = buildHeaderRulesBase({
+        contexts: [
+          { tabId: 1, hostname: "bad.test" },
+          { tabId: 2, hostname: "good.test" },
+          { tabId: 3, hostname: "other.test", cookieStoreId: "bad-container" },
+        ],
+        profiles: [valid, invalid],
+        rules,
+        fingerprintEnabled: true,
+        sharedSpoofing: NATIVE_FP_SURFACES,
+        globalFallbackRule: fallback,
+        containerAssignments: [
+          {
+            cookieStoreId: "bad-container",
+            locationId: "invalid",
+            ruleSeedKey: "badc01",
+          },
+        ],
+      });
+      const good = tabs.find((rule) => rule.condition.tabIds?.includes(2));
+      expect(good?.action.requestHeaders).toEqual(expectedLocaleHeaders("pl"));
+      for (const tabId of [1, 3]) {
+        const bad = tabs.find((rule) => rule.condition.tabIds?.includes(tabId));
+        expect(bad?.action.type).toBe("allow");
+        expect(bad?.action.requestHeaders).toBeUndefined();
+        expect(bad?.priority).toBe(good?.priority);
+      }
+      const domains = buildDomainFallbackRulesBase({
+        profiles: [valid, invalid],
+        rules,
+        fingerprintEnabled: true,
+        sharedSpoofing: NATIVE_FP_SURFACES,
+        globalFallbackRule: fallback,
+      });
+      const goodDomain = domains.find(
+        (rule) =>
+          rule.action.type === "modifyHeaders" &&
+          matchesRuleUrl(rule, "https://good.test/"),
+      );
+      expect(goodDomain?.action.requestHeaders).toEqual(expectedLocaleHeaders("pl"));
+      const badDomain = domains.find(
+        (rule) =>
+          rule.action.type === "allow" && matchesRuleUrl(rule, "https://bad.test/"),
+      );
+      expect(badDomain?.action.requestHeaders).toBeUndefined();
+      if (fallbackId === "valid") {
+        const global = domains.find((rule) =>
+          matchesRuleUrl(rule, "https://other.test/"),
+        );
+        expect(global?.action.requestHeaders).toEqual(expectedLocaleHeaders("pl"));
+        expect(badDomain!.priority).toBeGreaterThan(global!.priority);
+      } else {
+        expect(
+          domains.some((rule) => matchesRuleUrl(rule, "https://other.test/")),
+        ).toBe(false);
+      }
+    },
+  );
+});
+
+it("bypasses headers by top-document tab only while the exact host pause is active", () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(1000);
+  const contexts = [
+    { tabId: 1, hostname: "h.example" },
+    { tabId: 2, hostname: "k.example" },
+    { tabId: 3, hostname: "sub.h.example" },
+  ];
+  const result = buildHeaderRulesBase({
+    contexts,
+    profiles: [],
+    rules: [],
+    fingerprintEnabled: true,
+    hostPauses: [{ hostname: "h.example", id: "pause", expiresAt: 1100 }],
+  });
+  expect(result).toHaveLength(1);
+  expect(result[0]?.action.type).toBe("allow");
+  expect(result[0]?.condition.tabIds).toEqual([1]);
+  expect(result[0]?.condition.regexFilter).toBeUndefined();
+  expect(result[0]?.condition.resourceTypes).toContain("sub_frame");
+  expect(result[0]?.condition.resourceTypes).toContain("script");
+  vi.setSystemTime(1100);
+  expect(
+    buildHeaderRulesBase({
+      contexts,
+      profiles: [],
+      rules: [],
+      fingerprintEnabled: true,
+      hostPauses: [{ hostname: "h.example", id: "pause", expiresAt: 1100 }],
+    }),
+  ).toEqual([]);
+  vi.useRealTimers();
 });

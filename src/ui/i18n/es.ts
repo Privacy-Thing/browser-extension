@@ -8,6 +8,7 @@ import { options, optionsPage } from "./es-sections/options";
 import { osm } from "./es-sections/osm";
 import { popup } from "./es-sections/popup";
 import { rules } from "./es-sections/rules";
+import { settingsImport } from "./es-sections/settings-import";
 import { sidebar } from "./es-sections/sidebar";
 import { trustedSites } from "./es-sections/trusted-sites";
 import { welcome } from "./es-sections/welcome";
@@ -27,4 +28,5 @@ export const es = {
   firefoxContainers,
   sidebar,
   welcome,
+  settingsImport,
 } as const;

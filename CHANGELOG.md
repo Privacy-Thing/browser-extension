@@ -15,6 +15,23 @@ The format is based on Keep a Changelog and the project follows Semantic Version
   explicitly recover setups created with the v2 Privacy Thing naming scheme
   after reinstalling, while release builds preserve but never load its private
   storage namespace.
+- Pause spoofing for an exact top-document host for 10 minutes or until browser
+  exit. Matching tabs and their supported frames/workers share the exception;
+  permanent configuration and global WebRTC policy remain unchanged. Deadline
+  expiry restores decisions for new documents; open documents show a reload
+  requirement. Requests without a tab context keep the configured global header policy.
+- X-Ray can preview and download a versioned local diagnostic report as JSON or
+  text. Site data is excluded by default; opt-in adds only the hostname and
+  matching rule or Trusted Site pattern. Reports exclude secrets, preset IDs,
+  coordinates, fingerprints and raw logs, and distinguish missing or stale
+  observations from configured protection.
+
+- Configuration imports now show a preview before confirmation, detect newer edits,
+  recover interrupted writes, and offer one local undo copy for 7 days (until the
+  next configuration edit). Undo restores configuration, not website sessions.
+- Import can merge selected presets and rules with explicit ID/pattern conflict
+  choices, remapped preset references, and manual Firefox container mapping.
+
 - Added complete Spanish and Portuguese interface translations, selected
   automatically from the browser interface language with English as the fallback.
 - Added complete Russian and Ukrainian interface translations, selected
@@ -24,8 +41,15 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ### Changed
 
+- Upgrade the location map to MapLibre GL JS 6 while keeping its worker bundled
+  locally for Chromium and Firefox extension pages. Maps now require WebGL2.
+
 - The interface language can be chosen in Settings. Automatic still follows the
   browser language. Popup, sidebar, and Settings update without a reload.
+- Language choices show the English name and the name from the active translation.
+  The English interface keeps English names only.
+- Accent colors, protection labels, and X-Ray labels follow the active interface
+  language. Long About link labels stay inside their buttons.
 - Experimental: every subframe in a tab now uses the top-frame runtime snapshot
   (locale, timezone, fingerprint, geolocation) so iframe and worker realms do
   not diverge from the page. Per-tab header rules apply to all requests in that
@@ -33,6 +57,12 @@ The format is based on Keep a Changelog and the project follows Semantic Version
   rules. Domain fencing session rules still apply only to the top-frame host.
 
 ### Fixed
+
+- Control D previews now expire when local or remote inputs change, and background
+  actions serialize with disconnect. Automatic sync never approves approximate
+  routes; moving a hostname between exit folders preserves the rule. API keys
+  migrate to private extension storage. The setup uses concise labels in all five
+  languages, and release bundle checks still run when a display version is set.
 
 - Preserve optional profile country codes through saving, export and import,
   including later edits, so Control D keeps selecting exits in the confirmed
@@ -43,11 +73,36 @@ The format is based on Keep a Changelog and the project follows Semantic Version
   name conflict, and keep preview and sync on one prepared regional-route
   snapshot without rewriting Control D hostname patterns. Hide automatic route
   matches until a fallback needs confirmation or the user opens overrides.
+- Invalid time zones in legacy presets no longer interrupt preload and header
+  refreshes for unrelated rules or containers. The affected preset stays inactive
+  until repaired, and the time zone picker avoids duplicate UTC entries.
+
+- Experimental Domain fencing now uses the bundled Public Suffix List, including
+  private hosting suffixes, wildcards and exceptions. Independent S3 tenants and
+  school domains no longer share a fingerprint partition. Corrected site boundaries
+  produce new per-site fingerprints on the next activation after updating; sites
+  whose boundary is unchanged keep their identity. Saved seeds and auth keys remain
+  unchanged. Domain fencing remains disabled by default.
+- Saving and importing location presets now reject time zones unsupported by the
+  browser before any settings write, with the preset name, ID and `timeZone` field
+  in the error. UTC and supported aliases remain valid. For an invalid preset saved
+  by an older version, open Settings → Locations, edit the preset, choose a supported
+  time zone, save and reload affected tabs. The draft remains editable; activation
+  rejects the invalid preset instead of substituting the device time zone.
+
 - Keep popup rule-editor Selects open through leftover opening-pointer dismisses
   and host window resize/blur that Radix treats as dismiss, without replacing
   the shared Select.
 - Confirm installed Battery protection before a page first queries the API, and clear
   stale integrity evidence after the protection recovers.
+
+## [0.9.3.11] - 2026-10-04
+
+- Refreshed extension metadata (hardware profiles, Chrome versions, locale data) from upstream sources to keep spoofed fingerprints current.
+
+## [0.9.3.10] - 2026-10-01
+
+- Refreshed extension metadata (hardware profiles, Chrome versions, locale data) from upstream sources to keep spoofed fingerprints current.
 
 ## [0.9.3.9] - 2026-09-28
 

@@ -1,7 +1,7 @@
 export const createControlDSyncQueue = <T>() => {
-  let active: Promise<T> | null = null;
+  let active: Promise<unknown> | null = null;
 
-  const run = async (operation: () => Promise<T>): Promise<T> => {
+  const run = async <R = T>(operation: () => Promise<R>): Promise<R> => {
     while (active) {
       try {
         await active;

@@ -28,6 +28,8 @@ export const optionsPage = {
     description: `Escolha quais proteções do navegador o ${BRAND_DISPLAY_NAME} usa por padrão. Configurações mais específicas podem substituir proteções individuais, enquanto Sites Confiáveis podem desativá-las para sites correspondentes.`,
     disabledNote: `As proteções do navegador estão desativadas em todos os lugares. Ative-as novamente para escolher o que o ${BRAND_DISPLAY_NAME} deve simular por padrão.`,
     copyLinkLabel: "proteções do navegador",
+    interceptsApis: (count: number) =>
+      `Intercepta ${count} ${count === 1 ? "API do navegador" : "APIs do navegador"}`,
     items: {
       geolocation: {
         label: "Geolocalização",

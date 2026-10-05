@@ -1,8 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createSettingsHandlers } from "@/background/settings-commands";
+import { saveContainerAssignments } from "@/background/storage/container-assignments";
 import type * as LegacyBehaviorModule from "@/background/storage/legacy-behavior-data";
-import { EXTENSION_COMMAND_TYPES } from "@/shared/extension-contract";
+import { saveLocations } from "@/background/storage/locations";
+import { saveRules } from "@/background/storage/rules";
+import { clearSiteSuggestions } from "@/background/storage/site-suggestions";
+import {
+  EXTENSION_COMMAND_TYPES,
+  EXTENSION_STORAGE_KEYS,
+} from "@/shared/extension-contract";
 import { DEFAULT_PREFERENCES } from "@/shared/settings-defaults";
 import type { EffectiveTabContext, TrustedSite } from "@/shared/types";
 
@@ -149,6 +156,7 @@ const createDeps = () => ({
 describe("createSettingsHandlers", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.unstubAllGlobals();
     loadTrustedSites.mockResolvedValue([]);
     saveTrustedSites.mockResolvedValue();
     getThemeMode.mockResolvedValue("system");
@@ -163,6 +171,66 @@ describe("createSettingsHandlers", () => {
     getHighContrastMode.mockResolvedValue(false);
   });
 
+  it.each(["Mars/Olympus", "", "   "])(
+    "does not mutate storage or caches when timeZone is %j",
+    async (timeZone) => {
+      const deps = createDeps();
+      const handlers = createSettingsHandlers(deps);
+      const locations = [
+        {
+          id: "invalid",
+          label: "Invalid preset",
+          latitude: 0,
+          longitude: 0,
+          accuracy: 25,
+          noiseRadius: 50,
+          language: "en-US",
+          languages: ["en-US"],
+          timeZone,
+        },
+      ];
+      const saveResult = await handlers.saveLocationModel({
+        type: EXTENSION_COMMAND_TYPES.saveLocationModel,
+        locations,
+        rules: [],
+        containerAssignments: [],
+      });
+      const importResult = await handlers.importSettings({
+        type: EXTENSION_COMMAND_TYPES.importSettings,
+        settings: {
+          version: 3,
+          exportedAt: "2026-01-15T12:00:00Z",
+          locations,
+          rules: [],
+        },
+      });
+      expect(saveResult).toMatchObject({
+        ok: false,
+        error: expect.stringMatching(/Invalid preset.*invalid.*timeZone/),
+      });
+      expect(importResult).toMatchObject({
+        ok: false,
+        error: expect.stringMatching(/Invalid preset.*invalid.*timeZone/),
+      });
+      for (const mutate of [
+        saveLocations,
+        saveRules,
+        saveContainerAssignments,
+        savePreferences,
+        saveTrustedSites,
+        clearSiteSuggestions,
+        saveLegacyBehavior,
+        deps.ensureStorageMigration,
+        deps.setCachedValues,
+        deps.syncPreloadedState,
+        deps.resyncActiveHeaderRules,
+        deps.refreshFxInjectionMode,
+      ]) {
+        expect(mutate).not.toHaveBeenCalled();
+      }
+    },
+  );
+
   it("exports active feature flags but omits retired profile data", async () => {
     const { exportSettings } = createSettingsHandlers(createDeps());
 
@@ -176,6 +244,25 @@ describe("createSettingsHandlers", () => {
   });
 
   it("preserves retired profile data when importing an old backup", async () => {
+    const stored: Record<string, unknown> = {};
+    vi.stubGlobal("chrome", {
+      storage: {
+        local: {
+          get: async (keys: string | string[]) =>
+            Object.fromEntries(
+              (Array.isArray(keys) ? keys : [keys])
+                .filter((key) => Object.hasOwn(stored, key))
+                .map((key) => [key, stored[key]]),
+            ),
+          set: async (patch: Record<string, unknown>) => {
+            Object.assign(stored, patch);
+          },
+          remove: async (keys: string | string[]) => {
+            for (const key of Array.isArray(keys) ? keys : [keys]) delete stored[key];
+          },
+        },
+      },
+    });
     const { importSettings } = createSettingsHandlers(createDeps());
     const profiles = [{ id: "legacy-profile", opaque: true }];
 
@@ -207,11 +294,12 @@ describe("createSettingsHandlers", () => {
     if (!response.ok) {
       throw new Error(response.error);
     }
-    expect(saveLegacyBehavior).toHaveBeenCalledWith({
-      profiles,
-      enabled: true,
-      refs: [{ id: "warsaw", profileId: "legacy-profile" }],
-    });
+    expect(stored.behavioralProfiles).toEqual(profiles);
+    expect(stored[EXTENSION_STORAGE_KEYS.locations]).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "warsaw", behaviorProfileId: "legacy-profile" }),
+      ]),
+    );
   });
 
   it("clears retired profile data on an explicit reset", async () => {

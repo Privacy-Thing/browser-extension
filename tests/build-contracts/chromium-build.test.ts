@@ -85,7 +85,11 @@ test("contains no retired namespace outside approved notification copy", async (
 
 test("keeps the Control D experiment out of release artifacts", async () => {
   const manifest = await readChromiumManifest();
-  if (manifest.version_name) return;
+  if (
+    manifest.version_name?.endsWith("-local") ||
+    manifest.version_name?.endsWith("-beta")
+  )
+    return;
 
   expect(manifest.optional_host_permissions).toBeUndefined();
   expect(await findControlDReleaseLeaks("chrome")).toEqual([]);

@@ -9,7 +9,9 @@ import type {
   SharedWorkerHandlingMode,
   SharedSpoofingConfig,
 } from "./fingerprint-types.js";
+import type { SetHostPauseCommand } from "./host-protection-pause";
 import type { ExtensionLogLevel } from "./logging-types.js";
+import type { SettingsImportSelection } from "./settings-import";
 import type {
   ContainerAssignment,
   DomainRule,
@@ -52,6 +54,7 @@ export type ResolveSnapshotResponse = {
  * canonical source for extension message types across UI, content, and tests.
  */
 export type ExtensionCommand =
+  | SetHostPauseCommand
   | {
       type: typeof EXTENSION_COMMAND_TYPES.resolveRuntimeSnapshot;
       hostname: string;
@@ -136,8 +139,17 @@ export type ExtensionCommand =
     }
   | {
       type: typeof EXTENSION_COMMAND_TYPES.importSettings;
-      settings: ExportedSettings;
+      settings?: ExportedSettings;
+      previewToken?: string;
     }
+  | {
+      type: typeof EXTENSION_COMMAND_TYPES.previewSettingsImport;
+      settings: ExportedSettings;
+      selection?: SettingsImportSelection;
+      previousToken?: string;
+    }
+  | { type: typeof EXTENSION_COMMAND_TYPES.undoSettingsImport }
+  | { type: typeof EXTENSION_COMMAND_TYPES.getImportUndoStatus }
   | {
       type: typeof EXTENSION_COMMAND_TYPES.loadSampleData;
     }
@@ -508,6 +520,9 @@ export type ImportSettingsResponse =
       themeMode: ThemeMode;
       themeAccentPreset: ThemeAccentPreset;
       reduceMotion: boolean;
+      onboardingCompleted?: boolean;
+      highContrastExplicit?: boolean;
+      attentionMotionEnabled?: boolean;
       debugMode: boolean;
       watchPositionDelay: [number, number];
       osmConsent: OsmConsentState;

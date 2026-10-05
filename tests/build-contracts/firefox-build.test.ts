@@ -64,7 +64,11 @@ test("contains no retired namespace outside approved Firefox IDs and notificatio
 
 test("keeps the Control D experiment out of release artifacts", async () => {
   const manifest = await readFirefoxManifest();
-  if (manifest.version_name) return;
+  if (
+    manifest.version_name?.endsWith("-local") ||
+    manifest.version_name?.endsWith("-beta")
+  )
+    return;
 
   expect(manifest.optional_host_permissions).toBeUndefined();
   expect(await findControlDReleaseLeaks("firefox")).toEqual([]);

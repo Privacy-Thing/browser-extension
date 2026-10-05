@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 
+import { HostPauseNotice } from "./HostPauseNotice";
 import { SIDEBAR_MODULES } from "./modules/registry";
 import { useXRayState } from "./useXRayState";
 
@@ -145,6 +146,11 @@ export const SidebarShell = () => {
 
       {/* ── Content ───────────────────────────────────────────────────────── */}
       <main className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-4 min-w-0">
+        <HostPauseNotice
+          status={state?.ok ? state.hostPause : undefined}
+          tabId={tabId}
+          refresh={refresh}
+        />
         <Component
           tabId={tabId}
           xRayState={state}

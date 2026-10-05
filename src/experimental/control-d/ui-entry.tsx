@@ -177,6 +177,7 @@ export const ControlDFeatureToggle = ({
       focusControlOnTitleClick
       action={
         <Switch
+          data-control-d-toggle
           aria-label={t.enableLabel}
           checked={state?.enabled ?? false}
           disabled={!state || busy}
@@ -187,7 +188,13 @@ export const ControlDFeatureToggle = ({
       {state?.enabled ? (
         <div className="flex flex-wrap items-center justify-between gap-3">
           <StatusBadge label={stateLabel(state)} />
-          <Button type="button" size="sm" variant="outline" onClick={openIntegration}>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={openIntegration}
+            data-control-d-open
+          >
             {t.open}
             <span className="fa-solid fa-arrow-right" aria-hidden="true" />
           </Button>
@@ -261,10 +268,18 @@ export const ControlDSubpage = () => {
       const response = await send(message);
       if (response.state) setState(response.state);
       if (!response.ok) {
+        setSnapshot(null);
+        setConfirmApproximate(false);
         setNotice(response.error);
         return response;
       }
-      if (response.snapshot) setSnapshot(response.snapshot);
+      if (response.snapshot) {
+        setSnapshot(response.snapshot);
+        setConfirmApproximate(false);
+      } else if (!response.ok) {
+        setSnapshot(null);
+        setConfirmApproximate(false);
+      }
       if (response.candidates) {
         setCandidates(response.candidates);
         setSelectedProfileId(null);
@@ -326,8 +341,10 @@ export const ControlDSubpage = () => {
   const chooseNew = async () => {
     const response = await run({ type: CONTROL_D_COMMANDS.selectNew });
     if (!response?.ok) return;
-    await run({ type: CONTROL_D_COMMANDS.preview });
-    setStepOverride(2);
+    setSnapshot(null);
+    setConfirmApproximate(false);
+    const prepared = await run({ type: CONTROL_D_COMMANDS.preview });
+    if (prepared?.ok) setStepOverride(2);
   };
 
   const adopt = async (candidate: ControlDRecoveryCandidate) => {
@@ -338,11 +355,15 @@ export const ControlDSubpage = () => {
       code: candidate.code,
     });
     if (!response?.ok) return;
-    await run({ type: CONTROL_D_COMMANDS.preview });
-    setStepOverride(2);
+    setSnapshot(null);
+    setConfirmApproximate(false);
+    const prepared = await run({ type: CONTROL_D_COMMANDS.preview });
+    if (prepared?.ok) setStepOverride(2);
   };
 
   const updateMapping = async (mapping: ControlDMapping, proxyPk: string) => {
+    setSnapshot(null);
+    setConfirmApproximate(false);
     const proxy = proxyByPk.get(proxyPk);
     const shared = {
       locationId: mapping.locationId,
@@ -367,9 +388,11 @@ export const ControlDSubpage = () => {
       state?.status === "conflict"
         ? CONTROL_D_COMMANDS.repair
         : CONTROL_D_COMMANDS.apply;
-    const response = await run(
-      type === CONTROL_D_COMMANDS.apply ? { type, confirmApproximate } : { type },
-    );
+    const response = await run({
+      type,
+      confirmApproximate,
+      previewToken: snapshot?.token ?? "",
+    });
     if (response?.ok) setStepOverride(3);
   };
 
@@ -428,7 +451,7 @@ export const ControlDSubpage = () => {
   };
 
   const stepAlert =
-    notice ?? state?.lastError ? (
+    (notice ?? state?.lastError) ? (
       <div
         role="alert"
         className="rounded-lg border border-tone-error-border bg-tone-error-bg px-3 py-2 text-sm text-tone-error-text"
@@ -461,6 +484,7 @@ export const ControlDSubpage = () => {
               type="password"
               autoComplete="off"
               value={apiKey}
+              data-control-d-api-key
               placeholder={t.account.placeholder}
               aria-label={t.account.placeholder}
               onChange={(event) => setApiKey(event.target.value)}

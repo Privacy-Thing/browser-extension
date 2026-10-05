@@ -169,7 +169,7 @@ export const advanced = {
     import: {
       title: "Import",
       description:
-        "Replace current local settings with a previously exported JSON backup.",
+        "Preview a JSON backup, then replace configuration or merge selected presets and rules.",
       button: "Import settings",
       copyLinkLabel: "import settings",
     },

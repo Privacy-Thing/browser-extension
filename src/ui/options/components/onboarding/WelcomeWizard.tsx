@@ -1,6 +1,5 @@
 import "@/ui/options/components/subpages/privacy-policy-content.css";
 
-import type { ChangeEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { fireAndForget } from "@/shared/async";
@@ -16,18 +15,16 @@ import { defaultSharedSpoofing } from "@/shared/fingerprint-spoofing";
 import { withFallbackSeed } from "@/shared/rule-seed";
 import type {
   ImportLocationsResponse,
-  ImportSettingsResponse,
   SaveSettingsResponse,
   SharedSpoofingConfig,
 } from "@/shared/types";
-import { notify } from "@/ui/components/ui/toast";
 import { t } from "@/ui/i18n";
 import { WelcomeWizardView } from "@/ui/options/components/onboarding/welcome-wizard-view";
 import { PAGE_ANCHORS } from "@/ui/options/navigation";
 import { useSettings } from "@/ui/options/state/SettingsContext";
 import { sendMessageOrThrow } from "@/ui/shared/runtime-messaging";
 import { getThemeAccentTokens } from "@/ui/shared/theme";
-import { THEME_ACCENT_OPTIONS } from "@/ui/shared/theme-accent-options";
+import { getThemeAccentOptions } from "@/ui/shared/theme-accent-options";
 import { useTheme } from "@/ui/shared/ThemeProvider";
 
 const DEFAULT_PRESET_IDS = [
@@ -266,39 +263,6 @@ const completeOnboarding = (settings: Settings, onComplete: () => void): void =>
   onComplete();
 };
 
-const importSettings = async ({
-  complete,
-  draft,
-  event,
-}: {
-  complete: () => void;
-  draft: Draft;
-  event: ChangeEvent<HTMLInputElement>;
-}): Promise<void> => {
-  const file = event.target.files?.[0];
-  if (!file) return;
-  try {
-    const response = (await sendMessageOrThrow({
-      type: EXTENSION_COMMAND_TYPES.importSettings,
-      settings: JSON.parse(await file.text()),
-    })) as ImportSettingsResponse;
-    if (!response.ok) throw new Error(response.error);
-    const saved = (await sendMessageOrThrow({
-      type: EXTENSION_COMMAND_TYPES.saveSimpleSettings,
-      onboardingCompleted: true,
-    })) as SaveSettingsResponse;
-    if (!saved.ok) throw new Error(saved.error);
-    notify.success(t.welcome.importSuccess);
-    complete();
-  } catch (error) {
-    const message = error instanceof Error ? error.message : t.welcome.importParseError;
-    draft.setError(message);
-    notify.error(t.welcome.importError, { description: message });
-  } finally {
-    event.target.value = "";
-  }
-};
-
 const saveSetup = async ({
   complete,
   draft,
@@ -371,18 +335,20 @@ const setWizardContrast = async (
   await theme.setHighContrast(checked);
 };
 
-const getAccentView = (theme: Theme) => ({
-  color: `hsl(${getThemeAccentTokens(theme.accentPreset, theme.theme, theme.highContrast).primary})`,
-  label:
-    THEME_ACCENT_OPTIONS.find((option) => option.preset === theme.accentPreset)
-      ?.label ??
-    THEME_ACCENT_OPTIONS[0]?.label ??
-    theme.accentPreset,
-  options: THEME_ACCENT_OPTIONS.map((option) => ({
-    ...option,
-    color: `hsl(${getThemeAccentTokens(option.preset, theme.theme, theme.highContrast).primary})`,
-  })),
-});
+const getAccentView = (theme: Theme) => {
+  const accentOptions = getThemeAccentOptions();
+  return {
+    color: `hsl(${getThemeAccentTokens(theme.accentPreset, theme.theme, theme.highContrast).primary})`,
+    label:
+      accentOptions.find((option) => option.preset === theme.accentPreset)?.label ??
+      accentOptions[0]?.label ??
+      theme.accentPreset,
+    options: accentOptions.map((option) => ({
+      ...option,
+      color: `hsl(${getThemeAccentTokens(option.preset, theme.theme, theme.highContrast).primary})`,
+    })),
+  };
+};
 
 export const WelcomeWizard = ({ onComplete }: { onComplete: () => void }) => {
   const settings = useSettings();
@@ -491,7 +457,8 @@ export const WelcomeWizard = ({ onComplete }: { onComplete: () => void }) => {
       step={draft.step}
       welcome={{
         importFileRef: draft.importFileRef,
-        importSettings: (event) => importSettings({ complete, draft, event }),
+        importSettings: (event) =>
+          settings.handleImportSettings(event, { onApplied: complete }),
         saveAdvanced: () => save(true),
         startGuided: () => draft.setStep("privacy"),
       }}

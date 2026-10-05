@@ -99,8 +99,9 @@ const proxies = [
     longitude: -75.7,
   },
 ];
-const snapshot: ControlDPreparedSnapshot = { diff, proxies };
+const snapshot: ControlDPreparedSnapshot = { token: "story-preview", diff, proxies };
 const firstSnapshot: ControlDPreparedSnapshot = {
+  token: "first-preview",
   proxies,
   diff: {
     ...diff,
@@ -112,6 +113,7 @@ const firstSnapshot: ControlDPreparedSnapshot = {
   },
 };
 const approximateSnapshot: ControlDPreparedSnapshot = {
+  token: "approximate-preview",
   proxies: [
     ...proxies,
     {
@@ -296,10 +298,10 @@ export const Account: Story = {
   render: () => <Surface state={disconnected} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const progress = canvas.getByLabelText("Control D setup progress");
+    const progress = canvas.getByLabelText("Setup progress");
     await expect(progress.querySelectorAll("button")).toHaveLength(4);
-    await expect(canvas.getByRole("button", { name: "Control D account" })).toBeEnabled();
-    await expect(canvas.getByRole("button", { name: "Choose setup" })).toBeDisabled();
+    await expect(canvas.getByRole("button", { name: "Account" })).toBeEnabled();
+    await expect(canvas.getByRole("button", { name: "Setup" })).toBeDisabled();
     await expect(
       canvas.getByRole("button", { name: "API instructions" }),
     ).toBeVisible();
@@ -345,7 +347,7 @@ export const SelectInteraction: Story = {
     await expect(await canvas.findByText("Sao Paulo, Brazil")).toBeVisible();
     await userEvent.click(canvas.getByRole("button", { name: "Change" }));
     const select = canvas.getByRole("combobox", {
-      name: "Choose Control D exit for Rio de Janeiro",
+      name: "Exit for Rio de Janeiro",
     });
     await userEvent.click(select);
     await expect(

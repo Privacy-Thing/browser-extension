@@ -156,6 +156,19 @@ See `licenses/tailwind-merge-LICENSE.txt`
 
 -------------------------------------------------------------------------------
 
+## Tldts
+
+Package: `tldts`
+Copyright (c) 2017 Thomas Parisot, 2018 Rémi Berson
+Website: https://github.com/remusao/tldts#readme
+
+Tldts is licensed under the MIT license.
+
+Full license text:
+See `licenses/Tldts-LICENSE.txt`
+
+-------------------------------------------------------------------------------
+
 ## Zod
 
 Package: `zod`

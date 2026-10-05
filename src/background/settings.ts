@@ -288,6 +288,7 @@ export const validateImportedSettings = (
   onboardingCompleted: boolean;
   showBadgeQueryCount: boolean;
   includeDateCallsInBadgeCount: boolean;
+  attentionMotionEnabled: boolean;
 } => {
   if (settings.version !== 1 && settings.version !== 2 && settings.version !== 3) {
     throw new Error(`Unsupported settings export version: ${settings.version}`);
@@ -297,6 +298,13 @@ export const validateImportedSettings = (
     throw new Error("Invalid exportedAt timestamp.");
   }
 
+  const importPatterns = domainRulesSchema
+    .parse(settings.rules)
+    .map((rule) => rule.pattern.trim().toLowerCase());
+  if (new Set(importPatterns).size !== importPatterns.length)
+    throw new Error(
+      "Duplicate imported rule patterns. Resolve the duplicates in the backup first.",
+    );
   const validated = validateSettings(
     settings.locations,
     settings.rules,
@@ -356,6 +364,7 @@ export const validateImportedSettings = (
     onboardingCompleted: preferences.onboardingCompleted,
     showBadgeQueryCount: preferences.showBadgeQueryCount,
     includeDateCallsInBadgeCount: preferences.includeDateCallsInBadgeCount,
+    attentionMotionEnabled: preferences.attentionMotionEnabled,
   };
 };
 

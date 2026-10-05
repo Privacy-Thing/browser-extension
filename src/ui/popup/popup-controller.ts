@@ -1,3 +1,5 @@
+import { useCallback } from "react";
+
 import {
   useBrandSheetPose,
   usePopupAppState,
@@ -23,6 +25,9 @@ import {
 } from "./popup-rule-actions";
 import { derivePopupViewModel } from "./popup-view-model";
 
+import { EXTENSION_COMMAND_TYPES } from "@/shared/extension-contract";
+import type { ToggleRuleResponse } from "@/shared/types";
+
 export const usePopupController = () => {
   const state = usePopupAppState();
   const sheets = createSheetActions(state);
@@ -38,6 +43,29 @@ export const usePopupController = () => {
     closeSheet: sheets.closeSheet,
     syncSheetDraft: sheets.syncSheetDraft,
   };
+  const setPause = async (duration: "ten-minutes" | "session" | "resume") => {
+    state.dispatchMutation({ type: "start", action: "host-pause" });
+    try {
+      const response = (await chrome.runtime.sendMessage({
+        type: EXTENSION_COMMAND_TYPES.setHostProtectionPause,
+        duration,
+        tabId: await refresh.getTargetTabId(),
+      })) as ToggleRuleResponse;
+      if (!response.ok) throw new Error(response.error);
+      state.setPopupState(response.state);
+      state.dispatchMutation({ type: "succeed", action: "host-pause" });
+    } catch (error) {
+      state.dispatchMutation({
+        type: "fail",
+        action: "host-pause",
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+  };
+  const refreshExpired = useCallback(() => {
+    void state.loadPopupStateRef.current();
+  }, [state.loadPopupStateRef]);
+  const hostPause = { setPause, refreshExpired };
   const cleanup = createCleanupActions(deps);
   const saves = createSaveActions(deps);
   const toggles = createToggleActions(deps);
@@ -66,6 +94,7 @@ export const usePopupController = () => {
     state,
     sheets,
     refresh,
+    hostPause,
     cleanup,
     saves,
     toggles,

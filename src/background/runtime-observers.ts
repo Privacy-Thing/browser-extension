@@ -1,7 +1,12 @@
 import { sameRuleShape } from "@/background/config-watch";
+import {
+  isSettingsImportActive,
+  withConfigurationLock,
+} from "@/background/settings-import-transaction";
 import { LOCATIONS_STORAGE_KEY } from "@/background/storage/locations";
 import { RULES_STORAGE_KEY } from "@/background/storage/rules";
 import { fireAndForget } from "@/shared/async";
+import { CMD_GET_SURFACE_USAGE } from "@/shared/extension-contract";
 import type { DomainRule } from "@/shared/types";
 
 export type RuntimeObserverDeps = {
@@ -30,7 +35,7 @@ export const registerRuntimeObservers = (deps: RuntimeObserverDeps): void => {
   });
 
   chrome.storage.onChanged.addListener((changes, areaName) => {
-    if (areaName !== "local") {
+    if (areaName !== "local" || isSettingsImportActive()) {
       return;
     }
 
@@ -56,6 +61,21 @@ export const registerRuntimeObservers = (deps: RuntimeObserverDeps): void => {
       return;
     }
 
-    fireAndForget(deps.handleConfigMutation());
+    fireAndForget(withConfigurationLock(deps.handleConfigMutation));
+  });
+};
+
+export const registerSurfaceUsage = (
+  refreshBadgeCountForTab: (tabId: number) => Promise<void>,
+): void => {
+  chrome.webNavigation.onCompleted.addListener((details) => {
+    if (details.frameId !== 0) return;
+    const { tabId } = details;
+    fireAndForget(
+      chrome.tabs
+        .sendMessage(tabId, { type: CMD_GET_SURFACE_USAGE })
+        .catch(() => undefined),
+    );
+    fireAndForget(refreshBadgeCountForTab(tabId));
   });
 };

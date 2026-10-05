@@ -34,6 +34,7 @@ import type {
   FirefoxContainerColor,
   FirefoxContainerIcon,
 } from "./firefox-containers.js";
+import type { HostPauseStatus } from "./host-protection-pause";
 import {
   ExtensionLogLevel,
   getLogLevelsAtOrAbove,
@@ -359,6 +360,7 @@ export type ExportedSettings = {
   onboardingCompleted?: boolean;
   showBadgeQueryCount?: boolean;
   includeDateCallsInBadgeCount?: boolean;
+  attentionMotionEnabled?: boolean;
 };
 
 /**
@@ -424,6 +426,7 @@ export type PopupEffectiveSummary = {
 };
 
 export type PopupState = {
+  hostPause?: HostPauseStatus;
   panicMode: boolean;
   effectiveSummary: PopupEffectiveSummary;
   availableLocations: Array<{

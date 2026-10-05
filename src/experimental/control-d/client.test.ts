@@ -263,7 +263,7 @@ describe("ControlDClient", () => {
               profile: { PK: "main-profile", name: "Main" },
               profile_id2: "-1",
               profile2: { PK: "privacy-profile", name: "Privacy Thing" },
-              profile_id3: 0,
+              profile_id3: "0",
               resolvers: { doh: "https://dns.controld.com/secret" },
             },
           ],
@@ -271,15 +271,17 @@ describe("ControlDClient", () => {
       }),
     );
 
-    await expect(new ControlDClient("token", fetchImpl).listDevices()).resolves.toEqual([
-      {
-        id: "device-1",
-        name: "PT-Browser",
-        profileId: "main-profile",
-        enforcedProfileIds: ["main-profile", "privacy-profile"],
-        resolverDoh: "https://dns.controld.com/secret",
-      },
-    ]);
+    await expect(new ControlDClient("token", fetchImpl).listDevices()).resolves.toEqual(
+      [
+        {
+          id: "device-1",
+          name: "PT-Browser",
+          profileId: "main-profile",
+          enforcedProfileIds: ["main-profile", "privacy-profile"],
+          resolverDoh: "https://dns.controld.com/secret",
+        },
+      ],
+    );
   });
 
   it("reads a scalar second profile and a lowercase profile key", async () => {
@@ -307,22 +309,24 @@ describe("ControlDClient", () => {
       }),
     );
 
-    await expect(new ControlDClient("token", fetchImpl).listDevices()).resolves.toEqual([
-      {
-        id: "scalar",
-        name: "Scalar",
-        profileId: "main-profile",
-        enforcedProfileIds: ["main-profile", "privacy-profile"],
-        resolverDoh: "https://dns.controld.com/secret",
-      },
-      {
-        id: "lowercase",
-        name: "Lowercase",
-        profileId: "main-profile",
-        enforcedProfileIds: ["main-profile", "privacy-profile", "listed-profile"],
-        resolverDoh: "https://dns.controld.com/secret",
-      },
-    ]);
+    await expect(new ControlDClient("token", fetchImpl).listDevices()).resolves.toEqual(
+      [
+        {
+          id: "scalar",
+          name: "Scalar",
+          profileId: "main-profile",
+          enforcedProfileIds: ["main-profile", "privacy-profile"],
+          resolverDoh: "https://dns.controld.com/secret",
+        },
+        {
+          id: "lowercase",
+          name: "Lowercase",
+          profileId: "main-profile",
+          enforcedProfileIds: ["main-profile", "privacy-profile", "listed-profile"],
+          resolverDoh: "https://dns.controld.com/secret",
+        },
+      ],
+    );
   });
 
   it("reads a second enforced profile from the endpoint", async () => {
@@ -342,15 +346,17 @@ describe("ControlDClient", () => {
       }),
     );
 
-    await expect(new ControlDClient("token", fetchImpl).listDevices()).resolves.toEqual([
-      {
-        id: "device-1",
-        name: "PT-Browser",
-        profileId: "main-profile",
-        enforcedProfileIds: ["main-profile", "privacy-profile"],
-        resolverDoh: "https://dns.controld.com/secret",
-      },
-    ]);
+    await expect(new ControlDClient("token", fetchImpl).listDevices()).resolves.toEqual(
+      [
+        {
+          id: "device-1",
+          name: "PT-Browser",
+          profileId: "main-profile",
+          enforcedProfileIds: ["main-profile", "privacy-profile"],
+          resolverDoh: "https://dns.controld.com/secret",
+        },
+      ],
+    );
   });
 
   it("respects Retry-After for a safe request", async () => {

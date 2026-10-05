@@ -19,6 +19,7 @@ import { LocationEditorModal } from "@/ui/options/components/modals/LocationEdit
 import { LocationGeneratorModal } from "@/ui/options/components/modals/LocationGeneratorModal";
 import { OsmConsentModal } from "@/ui/options/components/modals/OsmConsentModal";
 import { RuleDialog } from "@/ui/options/components/modals/RuleDialog";
+import { SettingsImportDialog } from "@/ui/options/components/modals/SettingsImportDialog";
 import { TrustedSiteDialog } from "@/ui/options/components/modals/TrustedSiteDialog";
 import { RulesTab } from "@/ui/options/components/tabs/RulesTab";
 import { PAGE_ANCHORS } from "@/ui/options/navigation";
@@ -153,6 +154,7 @@ const PlaygroundHiddenModals = () => (
   <>
     <LocationEditorModal />
     <ConfirmDialog />
+    <SettingsImportDialog />
     <RuleDialog />
     <TrustedSiteDialog />
     <GlobalFallbackRuleDialog />
@@ -277,6 +279,7 @@ export const OptionsUi = () => {
           />
         </React.Suspense>
         <GlobalFallbackRuleDialog />
+        <SettingsImportDialog />
         <AppToaster />
       </AppPageFrame>
     );

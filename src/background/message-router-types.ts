@@ -10,6 +10,10 @@ import type {
 import type { UpdateCurrentRuleInput } from "@/background/popup-command-types";
 import type { EXTENSION_COMMAND_TYPES } from "@/shared/extension-contract";
 import type {
+  ImportPreviewResponse,
+  ImportUndoStatusResponse,
+} from "@/shared/settings-import";
+import type {
   ApplySuggestionResponse,
   AssignLocationResponse,
   CleanupDomainResponse,
@@ -63,6 +67,10 @@ export type RouterDeps = {
   getControlState: () => Promise<GetControlStateResponse>;
   getSettings: () => Promise<GetSettingsResponse>;
   getPopupState: (tabId?: number) => Promise<GetPopupStateResponse>;
+  setHostProtectionPause: (
+    duration: "ten-minutes" | "session" | "resume",
+    tabId?: number,
+  ) => Promise<ToggleRuleResponse>;
   markNoticeRead: (id: string) => Promise<unknown>;
   markNoticesAutoPresented: (ids: string[]) => Promise<unknown>;
   resolvePopupNotification: (id: string) => Promise<unknown>;
@@ -124,6 +132,14 @@ export type RouterDeps = {
   resetSettings: () => Promise<ResetSettingsResponse>;
   exportSettings: () => Promise<ExportSettingsResponse>;
   importSettings: (command: ImportSettingsCommand) => Promise<ImportSettingsResponse>;
+  previewSettingsImport: (
+    command: Extract<
+      ExtensionCommand,
+      { type: typeof EXTENSION_COMMAND_TYPES.previewSettingsImport }
+    >,
+  ) => Promise<ImportPreviewResponse>;
+  undoSettingsImport: () => Promise<ImportSettingsResponse>;
+  getImportUndoStatus: () => Promise<ImportUndoStatusResponse>;
   ensureStorageMigration: () => Promise<void>;
   setLastKnownProfiles: (profiles: Location[]) => void;
   syncPreloadedState: () => Promise<void>;

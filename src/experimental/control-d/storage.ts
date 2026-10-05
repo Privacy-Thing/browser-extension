@@ -1,4 +1,10 @@
 import {
+  deletePrivateApiKey,
+  readPrivateApiKey,
+  writePrivateApiKey,
+} from "./api-key-store";
+
+import {
   controlDConfigSchema,
   type ControlDConfig,
   type ControlDPublicState,
@@ -56,17 +62,34 @@ export const saveControlDConfig = async (config: ControlDConfig): Promise<void> 
   await chrome.storage.local.set({ [CONFIG_KEY]: controlDConfigSchema.parse(config) });
 };
 
+const protectLegacyApiKey = async (): Promise<void> => {
+  // Firefox versions without setAccessLevel still use the private database.
+  if (chrome.storage.local.setAccessLevel) {
+    await chrome.storage.local.setAccessLevel({ accessLevel: "TRUSTED_CONTEXTS" });
+  }
+};
+
 export const loadControlDApiKey = async (): Promise<string | null> => {
+  await protectLegacyApiKey();
+  const privateKey = await readPrivateApiKey();
   const stored = await chrome.storage.local.get(API_KEY);
-  const value = stored[API_KEY];
-  return typeof value === "string" && value.trim() ? value : null;
+  const legacy = stored[API_KEY];
+  const migratedKey =
+    typeof legacy === "string" && legacy.trim() ? legacy.trim() : null;
+  if (!privateKey && migratedKey) await writePrivateApiKey(migratedKey);
+  if (legacy !== undefined) await chrome.storage.local.remove(API_KEY);
+  return privateKey ?? migratedKey;
 };
 
 export const saveControlDApiKey = async (apiKey: string): Promise<void> => {
-  await chrome.storage.local.set({ [API_KEY]: apiKey.trim() });
+  await protectLegacyApiKey();
+  await writePrivateApiKey(apiKey.trim());
+  await chrome.storage.local.remove(API_KEY);
 };
 
 export const forgetControlDApiKey = async (): Promise<void> => {
+  await protectLegacyApiKey();
+  await deletePrivateApiKey();
   await chrome.storage.local.remove(API_KEY);
 };
 

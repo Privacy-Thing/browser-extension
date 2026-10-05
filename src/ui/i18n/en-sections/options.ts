@@ -28,6 +28,8 @@ export const optionsPage = {
     description: `Choose which browser protections ${BRAND_DISPLAY_NAME} uses by default. More specific settings can override individual protections, while Trusted Sites can disable them for matching sites.`,
     disabledNote: `Browser protections are off everywhere. Turn them back on to choose what ${BRAND_DISPLAY_NAME} should spoof by default.`,
     copyLinkLabel: "browser protections",
+    interceptsApis: (count: number) =>
+      `Intercepts ${count} browser ${count === 1 ? "API" : "APIs"}`,
     items: {
       geolocation: {
         label: "Geolocation",

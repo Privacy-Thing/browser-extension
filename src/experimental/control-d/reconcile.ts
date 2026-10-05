@@ -1,6 +1,10 @@
 /* eslint-disable max-lines-per-function, max-params, sonarjs/cognitive-complexity -- Reconcile keeps remote ownership checks in one module. */
 import type { ControlDClient } from "./client";
-import { ControlDApiError, deviceUsesAnotherProfile, type ControlDRule } from "./client";
+import {
+  ControlDApiError,
+  deviceUsesAnotherProfile,
+  type ControlDRule,
+} from "./client";
 import { compileControlDState, type ControlDCompilation } from "./compiler";
 import type {
   ControlDDiff,
@@ -17,6 +21,7 @@ import {
 
 import { loadLocations } from "@/background/storage/locations";
 import { loadRules } from "@/background/storage/rules";
+import type { DomainRule, Location } from "@/shared/types";
 
 export class ControlDConflictError extends Error {
   constructor(message: string) {
@@ -26,6 +31,8 @@ export class ControlDConflictError extends Error {
 }
 
 export type ControlDPreparedSync = {
+  inputHash: string;
+  remoteHash: string;
   compilation: ControlDCompilation;
   proxies: ControlDProxyLocation[];
   diff: ControlDDiff;
@@ -72,6 +79,42 @@ export const hashControlDValue = async (value: unknown): Promise<string> => {
     .join("");
 };
 
+export const hashControlDInputs = (
+  config: ControlDConfig,
+  rules: readonly DomainRule[],
+  locations: readonly Location[],
+) =>
+  hashControlDValue({
+    rules,
+    locations,
+    enabled: config.enabled,
+    connected: config.connected,
+    resourceIdentity: config.resourceIdentity,
+    profileId: config.profileId,
+    endpointId: config.endpointId,
+    managedFolders: config.managedFolders,
+    locationMappings: config.locationMappings,
+    lastSyncedHash: config.lastSyncedHash,
+  });
+const remoteSnapshot = async (client: ControlDClient, config: ControlDConfig) => {
+  const profiles = await client.listProfiles();
+  const profile = config.profileId
+    ? profiles.find((profile) => profile.id === config.profileId)
+    : null;
+  const groups = profile ? await client.listGroups(profile.id) : [];
+  const rules = profile
+    ? await Promise.all(
+        Object.values(config.managedFolders).map(async (folder) => ({
+          id: folder.folderId,
+          rules: canonicalRules(await client.listRules(profile.id, folder.folderId)),
+        })),
+      )
+    : [];
+  const device = config.endpointId
+    ? (await client.listDevices()).find((device) => device.id === config.endpointId)
+    : null;
+  return hashControlDValue({ profiles, groups, rules, device });
+};
 const desiredByProxy = (compilation: ControlDCompilation): Map<string, string[]> => {
   const result = new Map<string, string[]>();
   for (const rule of compilation.rules) {
@@ -138,6 +181,7 @@ export const prepareControlDSync = async (
   config: ControlDConfig,
 ): Promise<ControlDPreparedSync> => {
   resourceCode(config);
+  const remoteHash = await remoteSnapshot(client, config);
   const [rules, locations, proxies, profiles] = await Promise.all([
     loadRules(),
     loadLocations(),
@@ -167,6 +211,19 @@ export const prepareControlDSync = async (
   if (knownProfile) {
     const groups = await client.listGroups(knownProfile.id);
     createFolders = 0;
+    const managedRules: ControlDRule[] = [];
+    for (const managed of Object.values(config.managedFolders)) {
+      const group = groups.find((candidate) => candidate.id === managed.folderId);
+      if (!group)
+        throw new ControlDConflictError(
+          `Managed folder ${managed.folderId} is missing.`,
+        );
+      managedRules.push(...(await client.listRules(knownProfile.id, group.id)));
+    }
+    const desiredHosts = new Set(compilation.rules.map((rule) => rule.hostname));
+    counts.deleteRules = managedRules.filter(
+      (rule) => !desiredHosts.has(rule.hostname),
+    ).length;
     for (const [proxyPk, hostnames] of desired) {
       const managed = config.managedFolders[proxyPk];
       const group = managed
@@ -179,7 +236,12 @@ export const prepareControlDSync = async (
           );
         }
         createFolders += 1;
-        counts.addRules += hostnames.length;
+        counts.addRules += hostnames.filter(
+          (host) => !managedRules.some((rule) => rule.hostname === host),
+        ).length;
+        counts.updateRules += hostnames.filter((host) =>
+          managedRules.some((rule) => rule.hostname === host),
+        ).length;
         continue;
       }
       if (
@@ -188,7 +250,9 @@ export const prepareControlDSync = async (
       ) {
         throw new ControlDConflictError(`Managed folder ${group.id} was changed.`);
       }
-      const remoteRules = await client.listRules(knownProfile.id, group.id);
+      const remoteRules = managedRules.filter((rule) =>
+        hostnames.includes(rule.hostname),
+      );
       const folderCounts = compareFolderRules(
         remoteRules,
         hostnames,
@@ -198,7 +262,7 @@ export const prepareControlDSync = async (
       );
       counts.addRules += folderCounts.addRules;
       counts.updateRules += folderCounts.updateRules;
-      counts.deleteRules += folderCounts.deleteRules;
+
       counts.unchangedRules += folderCounts.unchangedRules;
     }
 
@@ -210,7 +274,6 @@ export const prepareControlDSync = async (
           `Managed folder ${managed.folderId} is missing.`,
         );
       }
-      counts.deleteRules += (await client.listRules(knownProfile.id, group.id)).length;
     }
   } else {
     counts.addRules = compilation.rules.length;
@@ -223,16 +286,19 @@ export const prepareControlDSync = async (
   if (config.endpointId && !knownEndpoint) {
     throw new ControlDConflictError("The managed Control D endpoint is missing.");
   }
-  if (
-    knownEndpoint &&
-    deviceUsesAnotherProfile(knownEndpoint, knownProfile?.id)
-  ) {
+  if (knownEndpoint && deviceUsesAnotherProfile(knownEndpoint, knownProfile?.id)) {
     throw new ControlDConflictError(
       "The managed Control D endpoint uses another profile.",
     );
   }
 
+  if (remoteHash !== (await remoteSnapshot(client, config)))
+    throw new ControlDConflictError(
+      "Remote setup changed while preparing the preview. Refresh it.",
+    );
   return {
+    inputHash: await hashControlDInputs(config, rules, locations),
+    remoteHash,
     compilation,
     proxies,
     diff: {
@@ -367,6 +433,10 @@ export const applyControlDSync = async ({
     throw new Error("Confirm every approximate location mapping before applying.");
   }
 
+  if (prepared.remoteHash !== (await remoteSnapshot(client, config)))
+    throw new ControlDConflictError(
+      "Remote setup changed. Refresh and review the preview.",
+    );
   const confirmedMappings = Object.fromEntries(
     Object.values(prepared.compilation.mappings).map((mapping) => [
       mapping.locationId,
@@ -406,12 +476,19 @@ export const applyControlDSync = async ({
     preflightRules.set(group.id, remoteRules);
   }
 
-  await client.setDefaultBypass(profileId);
   const endpoint = await ensureEndpoint(client, nextConfig, profileId);
+  await client.setDefaultBypass(profileId);
   const managedFolders: Record<string, ControlDManagedFolder> = {
     ...nextConfig.managedFolders,
   };
 
+  const desiredHosts = new Set(prepared.compilation.rules.map((rule) => rule.hostname));
+  const allManagedRules = [...preflightRules.values()].flat();
+  const existingHosts = new Set(allManagedRules.map((rule) => rule.hostname));
+  for (const rule of allManagedRules) {
+    if (!desiredHosts.has(rule.hostname))
+      await client.deleteRule(profileId, rule.hostname);
+  }
   for (const [proxyPk, hostnames] of desired) {
     const known = managedFolders[proxyPk];
     let group = known
@@ -459,25 +536,24 @@ export const applyControlDSync = async ({
       );
     }
 
-    const desiredSet = new Set(hostnames);
-    const existingSet = new Set(remoteRules.map((rule) => rule.hostname));
-    const toDelete = remoteRules
-      .filter((rule) => !desiredSet.has(rule.hostname))
-      .map((rule) => rule.hostname);
-    const toCreate = hostnames.filter((hostname) => !existingSet.has(hostname));
-    const toUpdate = remoteRules
-      .filter(
-        (rule) =>
-          desiredSet.has(rule.hostname) &&
-          ((rule.action !== null && rule.action !== 3) ||
-            (rule.via !== null && rule.via !== proxyPk) ||
-            (rule.status !== null && rule.status !== 1) ||
-            (rule.comment !== null &&
-              rule.comment !== ruleComment(resourceCode(nextConfig)))),
-      )
-      .map((rule) => rule.hostname);
+    const destinationHosts = new Set(remoteRules.map((rule) => rule.hostname));
+    const toCreate = hostnames.filter(
+      (hostname) => !existingHosts.has(hostname) && !destinationHosts.has(hostname),
+    );
+    const toUpdate = hostnames.filter((hostname) => {
+      const rule =
+        allManagedRules.find((rule) => rule.hostname === hostname) ??
+        remoteRules.find((rule) => rule.hostname === hostname);
+      return (
+        rule &&
+        (rule.groupId !== group.id ||
+          rule.action !== 3 ||
+          rule.via !== proxyPk ||
+          rule.status !== 1 ||
+          rule.comment !== ruleComment(resourceCode(nextConfig)))
+      );
+    });
 
-    for (const hostname of toDelete) await client.deleteRule(profileId, hostname);
     await client.createRules(
       profileId,
       group.id,
@@ -493,21 +569,15 @@ export const applyControlDSync = async ({
       ruleComment(resourceCode(nextConfig)),
     );
 
-    const finalRules = await client.listRules(profileId, group.id);
-    managedFolders[proxyPk] = {
-      proxyPk,
-      folderId: group.id,
-      remoteHash: await hashControlDValue(canonicalRules(finalRules)),
-    };
+    managedFolders[proxyPk] = { proxyPk, folderId: group.id, remoteHash: "" };
   }
-
+  // Hash final state after moves; no later source-folder cleanup can delete a destination.
   for (const [proxyPk, managed] of Object.entries(managedFolders)) {
-    if (desired.has(proxyPk)) continue;
-    const remoteRules = preflightRules.get(managed.folderId) ?? [];
-    for (const rule of remoteRules) await client.deleteRule(profileId, rule.hostname);
     managedFolders[proxyPk] = {
       ...managed,
-      remoteHash: await hashControlDValue([]),
+      remoteHash: await hashControlDValue(
+        canonicalRules(await client.listRules(profileId, managed.folderId)),
+      ),
     };
   }
 

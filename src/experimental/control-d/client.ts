@@ -30,7 +30,7 @@ const asArray = (value: unknown): unknown[] => (Array.isArray(value) ? value : [
 const asString = (value: unknown): string | null =>
   typeof value === "string" && value.length > 0 ? value : null;
 const profileKey = (value: unknown): string | null => {
-  if (value === 0 || value === -1) return null;
+  if (value === 0 || value === "0" || value === -1) return null;
   const id = asString(value);
   return id && id !== "-1" ? id : null;
 };
@@ -40,7 +40,7 @@ const profileIdFromValue = (value: unknown): string | null => {
 };
 const slotProfileId = (profile: unknown, profileId: unknown): string | null =>
   profileIdFromValue(profile) ?? profileIdFromValue(profileId);
-const enforcedProfileIdsFromDevice = (record: UnknownRecord): string[] => [
+const enforcedDeviceProfiles = (record: UnknownRecord): string[] => [
   ...new Set(
     [
       slotProfileId(record.profile, record.profile_id),
@@ -121,7 +121,7 @@ export const deviceUsesAnotherProfile = (
 ): boolean => {
   if (!managedProfileId) return false;
   const ids = deviceProfileIds(device);
-  return ids.length > 0 && !ids.includes(managedProfileId);
+  return !ids.includes(managedProfileId);
 };
 export type ControlDRetryEvent = {
   attempt: number;
@@ -421,7 +421,7 @@ export class ControlDClient {
     return extractCollection(payload, "devices").flatMap((entry) => {
       const record = asRecord(entry);
       const resolvers = asRecord(record.resolvers);
-      const enforcedProfileIds = enforcedProfileIdsFromDevice(record);
+      const enforcedProfileIds = enforcedDeviceProfiles(record);
       const id = asString(record.PK ?? record.pk ?? record.id);
       const name = asString(record.name);
       return id && name
@@ -487,7 +487,8 @@ export class ControlDClient {
       const id = asString(record.PK ?? record.pk ?? record.id);
       const resolvers = asRecord(record.resolvers);
       const resolverDoh = asString(resolvers.doh ?? record.doh);
-      if (id) return { id, name, profileId, enforcedProfileIds: [profileId], resolverDoh };
+      if (id)
+        return { id, name, profileId, enforcedProfileIds: [profileId], resolverDoh };
     }
     return null;
   }

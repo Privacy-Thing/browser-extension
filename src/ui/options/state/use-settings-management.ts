@@ -52,36 +52,6 @@ const handleExportSettings = async (): Promise<void> => {
   }
 };
 
-const importSettingsFromFile = async (
-  event: React.ChangeEvent<HTMLInputElement>,
-  applyLoadedSettingsState: ManagementOptions["applyLoadedSettingsState"],
-): Promise<void> => {
-  const file = event.target.files?.[0];
-  if (!file) {
-    return;
-  }
-
-  try {
-    const payload = JSON.parse(await file.text());
-    const response = (await sendMessageOrThrow({
-      type: EXTENSION_COMMAND_TYPES.importSettings,
-      settings: payload,
-    })) as ImportSettingsResponse;
-
-    if (!response.ok) {
-      notify.error(response.error);
-      return;
-    }
-
-    applyLoadedSettingsState(response);
-    notify.success("Settings imported.");
-  } catch {
-    notify.error("Import failed.");
-  } finally {
-    event.target.value = "";
-  }
-};
-
 /**
  * Whole-profile operations: reload, reset, export, import.
  *
@@ -174,13 +144,8 @@ export const createManagementHandlers = ({
     }
   };
 
-  const handleImportSettings = (
-    event: React.ChangeEvent<HTMLInputElement>,
-  ): Promise<void> => importSettingsFromFile(event, applyLoadedSettingsState);
-
   return {
     handleExportSettings,
-    handleImportSettings,
     handleReloadSettings,
     handleResetSettings,
     resetAndRunOnboarding,

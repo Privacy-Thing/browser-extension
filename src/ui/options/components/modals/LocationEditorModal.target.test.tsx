@@ -160,6 +160,44 @@ describe("LocationEditorModal", () => {
     vi.clearAllMocks();
   });
 
+  it("keeps an invalid legacy draft open and editable until its timeZone is repaired", async () => {
+    const settings = createSettingsValue({
+      profile: { ...baseProfile, timeZone: "Mars/Olympus" },
+    });
+    useSettingsMock.mockReturnValue(settings as never);
+    root = await renderWithRoot();
+    const error = document.querySelector('[data-field-error="timeZone"]');
+    expect(error?.textContent).toMatch(/Warsaw.*warsaw.*timeZone.*Mars\/Olympus/);
+    expect(locationFieldsMock.mock.lastCall?.[0].activeSection).toBe("locale");
+    const save = document.querySelector(
+      '[data-testid="form-dialog-footer"] > button',
+    ) as HTMLButtonElement;
+    expect(save.disabled).toBe(true);
+    expect(settings.handlePersistProfile).not.toHaveBeenCalled();
+    expect(settings.setProfileDialogOpened).not.toHaveBeenCalled();
+    await act(async () => {
+      locationFieldsMock.mock.lastCall?.[0].onDraftChange((draft) => ({
+        ...draft,
+        label: "Unsaved repair",
+        timeZone: "UTC",
+      }));
+    });
+    expect(document.querySelector('[data-field-error="timeZone"]')).toBeNull();
+    expect(save.disabled).toBe(false);
+    expect(locationFieldsMock.mock.lastCall?.[0].draft).toMatchObject({
+      label: "Unsaved repair",
+      timeZone: "UTC",
+    });
+    settings.handlePersistProfile.mockResolvedValue(false);
+    await act(async () => save.click());
+    expect(settings.handlePersistProfile).toHaveBeenCalledWith(
+      0,
+      expect.objectContaining({ label: "Unsaved repair", timeZone: "UTC" }),
+    );
+    expect(settings.setProfileDialogOpened).not.toHaveBeenCalled();
+    expect(locationFieldsMock.mock.lastCall?.[0].draft.label).toBe("Unsaved repair");
+  });
+
   it("keeps rendered content visible after close starts", async () => {
     useSettingsMock.mockReturnValue(createSettingsValue() as never);
 

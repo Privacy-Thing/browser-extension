@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createPreparedDecisions } from "@/background/prepared-runtime-decisions";
 import { resolveProfileSnapshot } from "@/background/rules/resolver";
 import type { ProfileSnapshotOptions } from "@/background/rules/resolver-options";
+import type { HostProtectionPause } from "@/shared/host-protection-pause";
 import type {
   ContainerAssignment,
   ControlState,
@@ -49,6 +50,8 @@ const comparableSnapshot = (snapshot: RuntimeSnapshot | null) => {
 };
 
 const buildPrepared = ({
+  hostPauses = [],
+  locations = profiles,
   rules = [],
   trustedSites = [],
   globalFallbackRule,
@@ -56,6 +59,8 @@ const buildPrepared = ({
   fingerprintEnabled = true,
   domainFencing = false,
 }: {
+  hostPauses?: HostProtectionPause[];
+  locations?: Location[];
   rules?: DomainRule[];
   trustedSites?: TrustedSite[];
   globalFallbackRule?: GlobalFallbackRule;
@@ -64,9 +69,10 @@ const buildPrepared = ({
   domainFencing?: boolean;
 }) =>
   createPreparedDecisions({
+    hostPauses,
     rules,
     trustedSites,
-    locations: profiles,
+    locations,
     controlState,
     debugMode: false,
     watchPositionDelay: [60, 500],
@@ -139,6 +145,100 @@ const baselineOptions = ({
 });
 
 describe("createPreparedDecisions", () => {
+  it.each(["warsaw", "invalid"])(
+    "isolates invalid rules and containers with fallback %s",
+    (fallbackId) => {
+      const rules: DomainRule[] = [
+        {
+          pattern: "bad.test",
+          locationId: "invalid",
+          enabled: true,
+          ruleSeedKey: "bad001",
+        },
+        {
+          pattern: "good.test",
+          locationId: "berlin",
+          enabled: true,
+          ruleSeedKey: "good01",
+        },
+        { pattern: "inherited.test", enabled: true, ruleSeedKey: "inhr01" },
+      ];
+      const prepared = buildPrepared({
+        locations: [...profiles, buildProfile("invalid", "Mars/Olympus", 99)],
+        rules,
+        globalFallbackRule: {
+          enabled: true,
+          locationId: fallbackId,
+          ruleSeedKey: "glob01",
+        },
+        containerAssignments: [
+          {
+            cookieStoreId: "bad-container",
+            locationId: "invalid",
+            ruleSeedKey: "badc01",
+          },
+          {
+            cookieStoreId: "good-container",
+            locationId: "berlin",
+            ruleSeedKey: "goodc1",
+          },
+        ],
+        domainFencing: true,
+      });
+      expect(prepared.resolveDecision("bad.test").snapshot).toBeNull();
+      expect(prepared.resolveDecision("good.test").snapshot?.date.timeZone).toBe(
+        "Europe/Berlin",
+      );
+      expect(
+        prepared.resolveDecision("other.test", "bad-container").snapshot,
+      ).toBeNull();
+      expect(
+        prepared.resolveDecision("inherited.test", "bad-container").snapshot,
+      ).toBeNull();
+      expect(
+        prepared.resolveDecision("inherited.test", "good-container").snapshot?.date
+          .timeZone,
+      ).toBe("Europe/Berlin");
+      expect(
+        prepared.resolveDecision("other.test", "good-container").snapshot?.date
+          .timeZone,
+      ).toBe("Europe/Berlin");
+      const fallbackZone = fallbackId === "warsaw" ? "Europe/Warsaw" : undefined;
+      expect(prepared.resolveDecision("other.test").snapshot?.date.timeZone).toBe(
+        fallbackZone,
+      );
+      expect(prepared.resolveDecision("inherited.test").snapshot?.date.timeZone).toBe(
+        fallbackZone,
+      );
+      expect(
+        prepared.getPreloadedEntries().find((entry) => entry.pattern === "bad.test"),
+      ).toBeUndefined();
+      expect(
+        prepared.getPreloadedEntries().find((entry) => entry.pattern === "good.test")
+          ?.snapshot.date.timeZone,
+      ).toBe("Europe/Berlin");
+      expect(prepared.getNativeRulePatterns()).toContain("bad.test");
+      const seed = prepared.getFxWindowSeed("bad-container");
+      expect(seed?.containerState).toBeNull();
+      const inheritedState = seed?.containerEntries?.find(
+        (entry) => entry.pattern === "inherited.test",
+      )?.state;
+      expect(inheritedState).toMatchObject({
+        geo: null,
+        timeLocale: null,
+        fingerprint: null,
+      });
+      expect(seed?.nativeRulePatterns).toContain("bad.test");
+      expect(seed?.entries.some((entry) => entry.pattern === "good.test")).toBe(true);
+      const goodSeed = prepared.getFxWindowSeed("good-container");
+      expect(
+        resolveFxSeedForHost("inherited.test", goodSeed!)?.timeLocale?.timeZone,
+      ).toBe("Europe/Berlin");
+      expect(resolveFxSeedForHost("bad.test", goodSeed!)).toBeNull();
+      expect(resolveFxSeedForHost("inherited.test", seed!)?.timeLocale).toBeNull();
+    },
+  );
+
   afterEach(() => {
     vi.useRealTimers();
   });
@@ -416,6 +516,36 @@ describe("createPreparedDecisions", () => {
     );
   });
 
+  it("caches S3 tenants independently in both browser preload catalogs", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-15T12:00:00.000Z"));
+    const prepared = buildPrepared({
+      domainFencing: true,
+      globalFallbackRule: {
+        enabled: true,
+        locationId: "warsaw",
+        ruleSeedKey: "glb123",
+        authKey: "fa11bac0",
+      },
+    });
+    const alice = prepared.resolveDecision("alice.s3.amazonaws.com");
+    const sub = prepared.resolveDecision("assets.alice.s3.amazonaws.com");
+    const bob = prepared.resolveDecision("bob.s3.amazonaws.com");
+    expect(alice.snapshot?.fingerprint?.canvasNoiseSeed).toEqual(expect.any(Number));
+    expect(comparableSnapshot(sub.snapshot)).toEqual(
+      comparableSnapshot(alice.snapshot),
+    );
+    expect(bob.snapshot?.fingerprint?.canvasNoiseSeed).not.toBe(
+      alice.snapshot?.fingerprint?.canvasNoiseSeed,
+    );
+    expect(prepared.getPreloadedEntries().map((row) => row.pattern)).toEqual(
+      expect.arrayContaining(["*alice.s3.amazonaws.com", "*bob.s3.amazonaws.com"]),
+    );
+    expect(prepared.getPreloadedEntries().map((row) => row.pattern)).not.toContain(
+      "*amazonaws.com",
+    );
+  });
+
   it("keeps the unfenced Default Rule fingerprint on the shared star template", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-01-15T12:00:00.000Z"));
@@ -615,5 +745,87 @@ describe("createPreparedDecisions", () => {
 
     expect(decision.fencesIdentity).toBeFalsy();
     expect(comparableSnapshot(decision.snapshot)).toEqual(comparableSnapshot(baseline));
+  });
+});
+
+describe("host protection pause", () => {
+  it("expires without rebuilding the prepared catalog and preserves independent hosts and containers", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1000);
+    const pause = { hostname: "h.example", id: "pause-1", expiresAt: 1100 };
+    const fallback = {
+      enabled: true,
+      locationId: "warsaw",
+      ruleSeedKey: "fallback",
+      authKey: "nonce",
+    };
+    const prepared = buildPrepared({
+      hostPauses: [pause],
+      globalFallbackRule: fallback,
+      containerAssignments: [
+        {
+          cookieStoreId: "firefox-container-1",
+          locationId: "berlin",
+          ruleSeedKey: "container",
+          authKey: "container-nonce",
+        },
+      ],
+    });
+    expect(prepared.resolveDecision("h.example")).toEqual({
+      snapshot: null,
+      trustedSiteMatched: false,
+      hostPause: pause,
+    });
+    expect(
+      prepared.resolveDecision("h.example", "firefox-container-1").snapshot,
+    ).toBeNull();
+    expect(
+      prepared.resolveDecision("k.example", "firefox-container-1").snapshot?.geo
+        .latitude,
+    ).toBe(53);
+    expect(prepared.resolveDecision("sub.h.example").snapshot?.geo.latitude).toBe(52);
+    expect(
+      prepared.resolveDecision("h.example", undefined, false).snapshot?.geo.latitude,
+    ).toBe(52);
+    vi.setSystemTime(1100);
+    expect(prepared.resolveDecision("h.example").snapshot?.geo.latitude).toBe(52);
+    expect(
+      prepared.resolveDecision("h.example", "firefox-container-1").snapshot?.geo
+        .latitude,
+    ).toBe(53);
+    expect(prepared.getPreloadedEntries().length).toBeGreaterThan(0);
+    expect(fallback.enabled).toBe(true);
+  });
+
+  it("keeps Trusted Sites and global off above the pause", () => {
+    const hostPauses = [{ hostname: "h.example", id: "session", expiresAt: null }];
+    const trusted = buildPrepared({
+      hostPauses,
+      trustedSites: [{ pattern: "h.example", enabled: true }],
+    });
+    expect(trusted.resolveDecision("h.example")).toEqual({
+      snapshot: null,
+      trustedSiteMatched: true,
+    });
+    const prepared = createPreparedDecisions({
+      hostPauses,
+      rules: [],
+      trustedSites: [],
+      locations: profiles,
+      controlState: { panicMode: true },
+      debugMode: false,
+      watchPositionDelay: [60, 500],
+      fingerprintEnabled: true,
+      featureFlags: { temporalApi: false, domainFencing: false },
+      sharedWorkerHandlingMode: "native",
+      sharedSpoofing: undefined,
+      browserFingerprintSource: undefined,
+      globalFallbackRule: undefined,
+      containerAssignments: [],
+    });
+    expect(prepared.resolveDecision("h.example")).toEqual({
+      snapshot: null,
+      trustedSiteMatched: false,
+    });
   });
 });

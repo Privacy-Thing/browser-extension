@@ -5,7 +5,7 @@ import {
   deriveFencedSeedKey,
   getSiteKey,
   toFencePattern,
-} from "@/shared/domain-fencing";
+} from "@/background/domain-fencing";
 
 describe("getSiteKey", () => {
   it("returns the registrable domain for plain TLDs", () => {
@@ -28,13 +28,52 @@ describe("getSiteKey", () => {
     expect(getSiteKey("bob.netlify.app")).toBe("bob.netlify.app");
   });
 
-  it("degrades unknown multi-label public suffixes to a coarser site key", () => {
-    // Compact ccTLD/private heuristic, not a full PSL. Unlisted 3-label
-    // suffixes keep the last two labels; unrelated tenants may share a key.
-    expect(getSiteKey("school-a.k12.ca.us")).toBe("ca.us");
-    expect(getSiteKey("school-b.k12.ca.us")).toBe("ca.us");
-    expect(getSiteKey("alice.s3.amazonaws.com")).toBe("amazonaws.com");
-    expect(getSiteKey("bob.s3.amazonaws.com")).toBe("amazonaws.com");
+  it("separates tenants of public and private multi-label suffixes", () => {
+    expect(getSiteKey("school-a.k12.ca.us")).toBe("school-a.k12.ca.us");
+    expect(getSiteKey("school-b.k12.ca.us")).toBe("school-b.k12.ca.us");
+    expect(getSiteKey("alice.s3.amazonaws.com")).toBe("alice.s3.amazonaws.com");
+    expect(getSiteKey("assets.alice.s3.amazonaws.com")).toBe("alice.s3.amazonaws.com");
+    expect(getSiteKey("bob.s3.amazonaws.com")).toBe("bob.s3.amazonaws.com");
+    const base = deriveFenceBaseKey("abc123");
+    expect(deriveFencedSeedKey(base, getSiteKey("alice.s3.amazonaws.com"))).not.toBe(
+      deriveFencedSeedKey(base, getSiteKey("bob.s3.amazonaws.com")),
+    );
+  });
+
+  it("honors PSL wildcards and exceptions", () => {
+    expect(getSiteKey("a.b.ck")).toBe("a.b.ck");
+    expect(getSiteKey("x.a.b.ck")).toBe("a.b.ck");
+    expect(getSiteKey("www.ck")).toBe("www.ck");
+    expect(getSiteKey("x.www.ck")).toBe("www.ck");
+    expect(getSiteKey("a.city.kawasaki.jp")).toBe("city.kawasaki.jp");
+    expect(getSiteKey("a.b.kawasaki.jp")).toBe("a.b.kawasaki.jp");
+  });
+
+  it("canonicalizes IDN, IPs and localhost with the platform URL parser", () => {
+    expect(getSiteKey("WWW.BÜCHER.DE.")).toBe("xn--bcher-kva.de");
+    expect(getSiteKey("www.xn--bcher-kva.de")).toBe("xn--bcher-kva.de");
+    expect(getSiteKey("127.1")).toBe("127.0.0.1");
+    expect(getSiteKey("[0:0:0:0:0:0:0:1]")).toBe("[::1]");
+    expect(getSiteKey("a.localhost")).toBe("a.localhost");
+    expect(getSiteKey("co.uk")).toBe("co.uk");
+    expect(getSiteKey("a.b.unknown-tld")).toBe("b.unknown-tld");
+  });
+
+  it.each([
+    "",
+    "   ",
+    "a..com",
+    "example.com..",
+    "https://example.com",
+    "user@example.com",
+    "example.com:80",
+    "example.com/path",
+    "example.com?x",
+    "example.com#x",
+    "[broken]",
+    "::1",
+  ])("does not create a fence for invalid hostname %j", (hostname) => {
+    expect(getSiteKey(hostname)).toBe("");
   });
 
   it("returns IP literals and single-label hosts unchanged", () => {

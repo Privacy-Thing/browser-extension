@@ -6,6 +6,38 @@ const formatCount = (count: number, singular: string, plural: string): string =>
   `${count} ${count === 1 ? singular : plural}`;
 
 export const popup = {
+  pauseTimedHint: "Vuelve automáticamente",
+  pauseManage: "Gestionar pausa",
+  pauseAutoResume: "La protección vuelve automáticamente",
+  pauseSessionOptionHint: "Hasta que cierres el navegador",
+  pauseResumeHint: "Aplicar tu configuración actual",
+  pauseReloadNotice: "Pausar o reanudar recarga todas las pestañas de este sitio.",
+  pauseDetails: "Cómo funciona esta pausa",
+  pauseExpiredSummary:
+    "La pausa terminó. Recarga para aplicar tu configuración actual.",
+  pauseTimedSummary:
+    "Al vencer, recarga las pestañas abiertas para aplicar la protección.",
+  pauseSessionSummary: "La protección vuelve al abrir de nuevo el navegador.",
+  pauseProtection: "Pausar la suplantación",
+  pauseActive: "Suplantación pausada",
+  pauseSessionActive: "Pausada hasta cerrar el navegador",
+  pauseCountdown: (time: string) => `En pausa · ${time}`,
+  pauseReloadRequired: "Se requiere recargar",
+  pauseTenMinutes: "10 minutos",
+  pauseUntilSessionEnd: "Esta sesión del navegador",
+  pauseResumeReload: "Reanudar y recargar",
+  pauseScope: (hostname: string) =>
+    `Todas las pestañas cuyo documento principal es exactamente ${hostname}, incluidos sus marcos y workers compatibles. Las reglas y los sitios de confianza no cambian.`,
+  pauseLimits:
+    "La política global de privacidad de WebRTC sigue activa. Las solicitudes sin contexto de pestaña quedan fuera de la garantía de pausa de cabeceras.",
+  pauseReloadHint:
+    "Iniciar o reanudar recarga todas las pestañas coincidentes. Tras el vencimiento, recarga los documentos abiertos para aplicar la configuración actual.",
+  pauseSessionHint:
+    "La sesión termina al cerrar el navegador o si falla; suspender el worker no la termina.",
+  pauseExpiredHint:
+    "La excepción ha terminado. Este documento puede seguir sin modificaciones. Recarga para aplicar la configuración actual.",
+  pauseStartReloadRequired:
+    "La excepción está activa, pero este documento aún necesita recargarse para aplicarla.",
   loading: "Cargando…",
   protectionProtected: "Protegido",
   protectionOff: "Protecciones desactivadas",

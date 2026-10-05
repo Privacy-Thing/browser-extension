@@ -11,19 +11,19 @@ import type { Location } from "@/shared/types";
 const {
   collectFingerprintMock,
   installGeoPatchMock,
-  toRuntimeSnapshotMock,
+  buildRuntimeSnapshotMock,
   useSettingsMock,
 } = vi.hoisted(() => ({
   collectFingerprintMock: vi.fn(async () => null),
   installGeoPatchMock: vi.fn(),
-  toRuntimeSnapshotMock: vi.fn(() => ({
+  buildRuntimeSnapshotMock: vi.fn(() => ({
     watchPositionDelay: [60, 500] as [number, number],
   })),
   useSettingsMock: vi.fn(),
 }));
 
-vi.mock("@/background/rules/resolver", () => ({
-  toRuntimeSnapshot: toRuntimeSnapshotMock,
+vi.mock("@/shared/runtime-snapshot-builder", () => ({
+  buildRuntimeSnapshot: buildRuntimeSnapshotMock,
 }));
 
 vi.mock("@/injection/main/early-runtime", () => ({
@@ -117,6 +117,33 @@ describe("usePlaygroundState", () => {
     document.body.innerHTML = "";
     Reflect.deleteProperty(globalThis, "IS_REACT_ACT_ENVIRONMENT");
     vi.clearAllMocks();
+  });
+
+  it("leaves an invalid legacy preset available for repair without building a preview", async () => {
+    useSettingsMock.mockReturnValue({
+      ...useSettingsMock(),
+      profiles: [{ ...profile, timeZone: "Mars/Olympus" }],
+    });
+    const Harness = () => {
+      const state = usePlaygroundState();
+      return createElement(
+        "button",
+        {
+          id: "select-invalid",
+          onClick: () => state.handleSelectLocation(profile.id),
+        },
+        String(state.snapshot === null),
+      );
+    };
+    act(() => {
+      root = createRoot(document.getElementById("root")!);
+      root.render(createElement(Harness));
+    });
+    const button = document.querySelector<HTMLButtonElement>("#select-invalid")!;
+    await act(async () => button.click());
+    expect(button.textContent).toBe("true");
+    expect(buildRuntimeSnapshotMock).not.toHaveBeenCalled();
+    expect(installGeoPatchMock).not.toHaveBeenCalled();
   });
 
   it("retains distinct batched callbacks and deduplicates identical consecutive points", async () => {

@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { IDBFactory } from "fake-indexeddb";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { registerControlD } from "./background-entry";
 import {
@@ -6,7 +7,11 @@ import {
   type ControlDConfig,
   type ControlDPreparedSnapshot,
 } from "./contracts";
-import { applyControlDSync, prepareControlDSync } from "./reconcile";
+import {
+  hashControlDInputs,
+  applyControlDSync,
+  prepareControlDSync,
+} from "./reconcile";
 import { CONTROL_D_STORE_KEYS } from "./storage";
 
 import { logExtensionEvent } from "@/background/logger";
@@ -48,7 +53,13 @@ let messageListener: MessageListener;
 let storageListener: StorageListener;
 
 beforeEach(() => {
+  vi.stubGlobal("indexedDB", new IDBFactory());
   vi.clearAllMocks();
+  vi.mocked(prepareControlDSync).mockReset();
+  vi.mocked(applyControlDSync).mockReset();
+  vi.useFakeTimers({
+    toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval", "Date"],
+  });
   for (const key of Object.keys(storageState))
     Reflect.deleteProperty(storageState, key);
 
@@ -80,6 +91,36 @@ beforeEach(() => {
   });
 });
 
+afterEach(() => {
+  vi.clearAllTimers();
+  vi.useRealTimers();
+});
+
+const deferred = <T>() => {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  const promise = new Promise<T>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+};
+const fixtureConfig = (): ControlDConfig => ({
+  version: 2,
+  enabled: true,
+  connected: true,
+  autoSyncEnabled: false,
+  status: "ready",
+  resourceIdentity: { code: "ABCDE-FGHJK" },
+  profileId: "profile-id",
+  endpointId: "endpoint-id",
+  resolverDoh: "https://example.test/private-resolver",
+  dnsVerification: null,
+  managedFolders: {},
+  locationMappings: {},
+  lastSyncedHash: "hash",
+  lastAttemptAt: "2026-09-10T10:00:00.000Z",
+  lastSuccessAt: "2026-09-10T10:00:00.000Z",
+  lastError: null,
+});
 describe("Control D background entry", () => {
   const request = (message: unknown) =>
     new Promise<Record<string, unknown>>((resolve) => {
@@ -108,6 +149,8 @@ describe("Control D background entry", () => {
       lastError: null,
     };
     const prepared: Awaited<ReturnType<typeof prepareControlDSync>> = {
+      inputHash: await hashControlDInputs(config, [], []),
+      remoteHash: "remote-state",
       compilation: { rules: [], warnings: [], mappings: {} },
       proxies: [
         {
@@ -142,6 +185,7 @@ describe("Control D background entry", () => {
       },
     };
     const expectedSnapshot: ControlDPreparedSnapshot = {
+      token: expect.any(String),
       diff: prepared.diff,
       proxies: prepared.proxies,
     };
@@ -161,7 +205,20 @@ describe("Control D background entry", () => {
       lastError: null,
     });
 
-    const syncResponse = await request({ type: CONTROL_D_COMMANDS.syncNow });
+    const token = (previewResponse.snapshot as ControlDPreparedSnapshot).token;
+    const syncResponse = await request({
+      type: CONTROL_D_COMMANDS.apply,
+      confirmApproximate: false,
+      previewToken: token,
+    });
+    expect(prepareControlDSync).toHaveBeenCalledTimes(1);
+    expect(
+      await request({
+        type: CONTROL_D_COMMANDS.apply,
+        confirmApproximate: true,
+        previewToken: token,
+      }),
+    ).toMatchObject({ ok: false });
 
     expect(syncResponse).toMatchObject({ ok: true, snapshot: expectedSnapshot });
     expect(syncResponse).not.toHaveProperty("diff");
@@ -188,6 +245,12 @@ describe("Control D background entry", () => {
     };
     storageState[CONTROL_D_STORE_KEYS[1]] = "api-key";
     vi.mocked(prepareControlDSync).mockResolvedValueOnce({
+      inputHash: await hashControlDInputs(
+        storageState[CONTROL_D_STORE_KEYS[0]] as ControlDConfig,
+        [],
+        [],
+      ),
+      remoteHash: "remote-state",
       compilation: { rules: [], warnings: [], mappings: {} },
       proxies: [],
       diff: {
@@ -393,5 +456,101 @@ describe("Control D background entry", () => {
     expect(clearTimeoutSpy).toHaveBeenCalledTimes(3);
     timeoutSpy.mockRestore();
     clearTimeoutSpy.mockRestore();
+  });
+  it("waits for in-flight sync before acknowledging disconnect and cannot reconnect afterward", async () => {
+    const config = fixtureConfig();
+    storageState[CONTROL_D_STORE_KEYS[0]] = config;
+    storageState[CONTROL_D_STORE_KEYS[1]] = "api-key";
+    const started = deferred<void>();
+    const pending = deferred<Awaited<ReturnType<typeof prepareControlDSync>>>();
+    vi.mocked(prepareControlDSync).mockImplementationOnce(() => {
+      started.resolve();
+      return pending.promise;
+    });
+    vi.mocked(applyControlDSync).mockResolvedValueOnce(config);
+    registerControlD({ getDebugMode: async () => false });
+    const sync = request({ type: CONTROL_D_COMMANDS.syncNow });
+    await started.promise;
+    let disconnected = false;
+    const disconnect = request({ type: CONTROL_D_COMMANDS.disconnect }).then(
+      (value) => {
+        disconnected = true;
+        return value;
+      },
+    );
+    await Promise.resolve();
+    expect(disconnected).toBe(false);
+    pending.resolve({
+      inputHash: "",
+      remoteHash: "",
+      compilation: { rules: [], warnings: [], mappings: {} },
+      proxies: [],
+      diff: {
+        createProfile: false,
+        createEndpoint: false,
+        createFolders: 0,
+        addRules: 0,
+        updateRules: 0,
+        deleteRules: 0,
+        unchangedRules: 0,
+        warnings: [],
+        mappings: [],
+        requiresApproximationConfirmation: false,
+      },
+    });
+    await sync;
+    expect(await disconnect).toMatchObject({ ok: true });
+    expect(storageState[CONTROL_D_STORE_KEYS[0]]).toMatchObject({
+      connected: false,
+      autoSyncEnabled: false,
+      status: "disconnected",
+    });
+    expect(storageState[CONTROL_D_STORE_KEYS[1]]).toBeUndefined();
+    expect(applyControlDSync).toHaveBeenCalledTimes(1);
+  });
+  it("requires another preview when local rules change after consent", async () => {
+    const config = fixtureConfig();
+    storageState[CONTROL_D_STORE_KEYS[0]] = config;
+    storageState[CONTROL_D_STORE_KEYS[1]] = "api-key";
+    vi.mocked(prepareControlDSync).mockResolvedValueOnce({
+      inputHash: await hashControlDInputs(config, [], []),
+      remoteHash: "remote",
+      compilation: { rules: [], warnings: [], mappings: {} },
+      proxies: [],
+      diff: {
+        createProfile: false,
+        createEndpoint: false,
+        createFolders: 0,
+        addRules: 0,
+        updateRules: 0,
+        deleteRules: 0,
+        unchangedRules: 0,
+        warnings: [],
+        mappings: [],
+        requiresApproximationConfirmation: false,
+      },
+    });
+    registerControlD({ getDebugMode: async () => false });
+    const preview = await request({ type: CONTROL_D_COMMANDS.preview });
+    storageState[RULES_STORAGE_KEY] = [
+      {
+        pattern: "changed.example",
+        enabled: true,
+        locationId: "changed",
+        ruleSeedKey: "seed01",
+        authKey: "auth0001",
+      },
+    ];
+    expect(
+      await request({
+        type: CONTROL_D_COMMANDS.apply,
+        confirmApproximate: true,
+        previewToken: (preview.snapshot as ControlDPreparedSnapshot).token,
+      }),
+    ).toMatchObject({
+      ok: false,
+      error: "Preview changed. Refresh and review before applying.",
+    });
+    expect(applyControlDSync).not.toHaveBeenCalled();
   });
 });

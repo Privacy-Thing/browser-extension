@@ -9,6 +9,7 @@ import {
   type ControlDPreparedSnapshot,
 } from "./contracts";
 import {
+  hashControlDInputs,
   applyControlDSync,
   ControlDConflictError,
   isControlDAuthError,
@@ -29,8 +30,8 @@ import {
 import { createControlDSyncQueue } from "./sync-queue";
 
 import { logExtensionEvent } from "@/background/logger";
-import { LOCATIONS_STORAGE_KEY } from "@/background/storage/locations";
-import { RULES_STORAGE_KEY } from "@/background/storage/rules";
+import { loadLocations, LOCATIONS_STORAGE_KEY } from "@/background/storage/locations";
+import { loadRules, RULES_STORAGE_KEY } from "@/background/storage/rules";
 import { fireAndForget } from "@/shared/async";
 import { ExtensionLogLevel, LogCategory } from "@/shared/types";
 
@@ -47,10 +48,10 @@ type SyncResult =
   | { ok: false; failed: ControlDConfig; error: unknown }
   | null;
 
-const toPreparedSnapshot = ({
-  diff,
-  proxies,
-}: ControlDPreparedSync): ControlDPreparedSnapshot => ({ diff, proxies });
+const toPreparedSnapshot = (
+  { diff, proxies }: ControlDPreparedSync,
+  token: string,
+): ControlDPreparedSnapshot => ({ diff, proxies, token });
 
 const log = (
   deps: BackgroundEntryDeps,
@@ -147,6 +148,13 @@ const createController = (deps: BackgroundEntryDeps) => {
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
   const syncQueue = createControlDSyncQueue<SyncResult>();
   let rerunRequested = false;
+  let preview: {
+    token: string;
+    inputHash: string;
+    prepared: ControlDPreparedSync;
+  } | null = null;
+  const inputHash = async (config: ControlDConfig) =>
+    hashControlDInputs(config, await loadRules(), await loadLocations());
   const createClient = (apiKey: string): ControlDClient =>
     new ControlDClient(apiKey, fetch, 12_000, (retry) =>
       log(deps, "control-d.api.retry", retry, undefined, apiKey),
@@ -156,7 +164,9 @@ const createController = (deps: BackgroundEntryDeps) => {
     confirmApproximate,
     repair,
     automatic,
+    reviewed,
   }: {
+    reviewed?: ControlDPreparedSync;
     confirmApproximate: boolean;
     repair: boolean;
     automatic: boolean;
@@ -181,7 +191,7 @@ const createController = (deps: BackgroundEntryDeps) => {
 
     try {
       const client = createClient(apiKey);
-      const prepared = await prepareControlDSync(client, config);
+      const prepared = reviewed ?? (await prepareControlDSync(client, config));
       const next = await applyControlDSync({
         client,
         config,
@@ -249,7 +259,7 @@ const createController = (deps: BackgroundEntryDeps) => {
       return;
     }
     await runExclusive({
-      confirmApproximate: true,
+      confirmApproximate: false,
       repair: false,
       automatic: true,
     });
@@ -265,6 +275,16 @@ const createController = (deps: BackgroundEntryDeps) => {
 
   // eslint-disable-next-line max-lines-per-function, sonarjs/cognitive-complexity -- Command boundary keeps secrets in background.
   const respond = async (command: ControlDCommand): Promise<unknown> => {
+    if (
+      ![
+        CONTROL_D_COMMANDS.getState,
+        CONTROL_D_COMMANDS.preview,
+        CONTROL_D_COMMANDS.apply,
+        CONTROL_D_COMMANDS.repair,
+        CONTROL_D_COMMANDS.dnsAction,
+      ].includes(command.type as never)
+    )
+      preview = null;
     if (command.type === CONTROL_D_COMMANDS.getState) {
       return {
         ok: true,
@@ -478,12 +498,15 @@ const createController = (deps: BackgroundEntryDeps) => {
           apiKey,
         );
         const resolved = await withoutResolvedConflict(config);
+        const token = crypto.randomUUID();
+        preview = { token, inputHash: prepared.inputHash, prepared };
         return {
           ok: true,
           state: await toControlDPublicState(resolved),
-          snapshot: toPreparedSnapshot(prepared),
+          snapshot: toPreparedSnapshot(prepared, token),
         };
       } catch (error) {
+        preview = null;
         const failed = await saveFailure(config, error);
         log(
           deps,
@@ -512,11 +535,34 @@ const createController = (deps: BackgroundEntryDeps) => {
       clearTimeout(debounceTimer);
       debounceTimer = null;
     }
-    const result = await runExclusive({
+    let reviewed: ControlDPreparedSync | undefined;
+    if (
+      command.type === CONTROL_D_COMMANDS.apply ||
+      command.type === CONTROL_D_COMMANDS.repair
+    ) {
+      if (
+        !preview ||
+        command.previewToken !== preview.token ||
+        preview.inputHash !== (await inputHash(config))
+      ) {
+        preview = null;
+        return {
+          ok: false,
+          error: "Preview changed. Refresh and review before applying.",
+        };
+      }
+      reviewed = preview.prepared;
+      preview = null;
+    }
+    const result = await runSync({
       confirmApproximate:
-        command.type === CONTROL_D_COMMANDS.apply ? command.confirmApproximate : true,
+        command.type === CONTROL_D_COMMANDS.apply ||
+        command.type === CONTROL_D_COMMANDS.repair
+          ? command.confirmApproximate
+          : false,
       repair: command.type === CONTROL_D_COMMANDS.repair,
       automatic: false,
+      ...(reviewed ? { reviewed } : {}),
     });
     if (!result) return { ok: false, error: "Synchronization did not run." };
     if (!result.ok) {
@@ -529,11 +575,24 @@ const createController = (deps: BackgroundEntryDeps) => {
     return {
       ok: true,
       state: await toControlDPublicState(result.next),
-      snapshot: toPreparedSnapshot(result.prepared),
+      snapshot: toPreparedSnapshot(result.prepared, ""),
     };
   };
 
-  return { respond, scheduleAutomatic };
+  return {
+    respond: (command: ControlDCommand) =>
+      syncQueue.run(async () => {
+        try {
+          return await respond(command);
+        } finally {
+          if (rerunRequested) {
+            rerunRequested = false;
+            scheduleAutomatic();
+          }
+        }
+      }),
+    scheduleAutomatic,
+  };
 };
 
 export const registerControlD = (deps: BackgroundEntryDeps): void => {

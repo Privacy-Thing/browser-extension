@@ -17,6 +17,10 @@ import { syncFenceDnrRule } from "@/background/dnr-domain-fencing";
 import { createFxBootstrap } from "@/background/firefox-bootstrap-controller";
 import { firefoxBrowserApi } from "@/background/firefox-browser-api";
 import { configureFxTestCookie } from "@/background/firefox-test-cookie";
+import {
+  createHostPauseCtl,
+  createPauseActivation,
+} from "@/background/host-protection-pause-controller";
 import { registerLifecycle } from "@/background/lifecycle-listeners";
 import { createLocationDrafts } from "@/background/location-draft-commands";
 import { logExtensionEvent } from "@/background/logger";
@@ -28,15 +32,29 @@ import { createPopupHandlers } from "@/background/popup-commands";
 import type { PreparedRuntimeDecisions } from "@/background/prepared-runtime-decisions";
 import { applyPrivacyDefaults } from "@/background/privacy";
 import { createRuntimeConfig } from "@/background/runtime-config-controller";
-import { registerRuntimeObservers } from "@/background/runtime-observers";
+import {
+  registerRuntimeObservers,
+  registerSurfaceUsage,
+} from "@/background/runtime-observers";
 import { createRuntimeResolverCtl } from "@/background/runtime-resolution-controller";
 import { createRuntimeState } from "@/background/runtime-state";
 import { createSettingsHandlers } from "@/background/settings-commands";
+import { rebuildImportRuntime } from "@/background/settings-import-commands";
+import { recoverSettingsImport } from "@/background/settings-import-storage";
+import {
+  registerImportExpiry,
+  withConfigMutation,
+} from "@/background/settings-import-transaction";
+import { createMigrationGuard } from "@/background/settings-migration-guard";
 import {
   publishSidebarEvent,
   registerSidebarEventHub,
 } from "@/background/sidebar-event-hub";
 import { registerSidebarMenu, syncSidebarMenus } from "@/background/sidebar-menus";
+import {
+  initializeHostPauses,
+  recordPausedDocument,
+} from "@/background/storage/host-protection-pauses";
 import {
   markNoticeRead as markNoticeReadStore,
   markNoticesAutoPresented as markNoticesAutoPresentedStore,
@@ -68,17 +86,16 @@ import {
   getRealmEvidence,
   recordSurfaceEvidence,
 } from "@/background/surface-evidence-tracker";
+import { createTabReloader, enableSessionStorage } from "@/background/tab-reload";
 import { createXRayHandlers } from "@/background/xray-commands";
 import { registerControlD } from "@/experimental/control-d/background-entry";
 import { fireAndForget } from "@/shared/async";
 import { BRAND_DISPLAY_NAME } from "@/shared/brand";
 import { BUILD_BROWSER_TARGET, BUILD_CHANNEL } from "@/shared/build-flags";
-import { CMD_GET_SURFACE_USAGE } from "@/shared/extension-contract";
 import { getAllReleaseNotices } from "@/shared/release-notification";
 
 const runtimeState = createRuntimeState<PreparedRuntimeDecisions>();
 const { activeTabContexts, effectiveSnapshotCache, rewriteTracker } = runtimeState;
-let storageMigrationPromise: Promise<void> | null = null;
 
 const { logFirefoxBootstrapEvent, logResolverEvent } = createBackgroundLogs(
   runtimeState.getLastKnownDebugMode,
@@ -86,21 +103,27 @@ const { logFirefoxBootstrapEvent, logResolverEvent } = createBackgroundLogs(
 
 const WINDOW_SEED_PREFIX = "\u001f\u001e";
 const MAIN_WORLD = "MAIN" satisfies `${chrome.scripting.ExecutionWorld}`;
-const ensureStorageMigration = async (): Promise<void> => {
-  if (!storageMigrationPromise) {
-    storageMigrationPromise = runStorageMigration().then(() => undefined);
-  }
-
-  await storageMigrationPromise;
-};
-
-const enableSessionStorage = async (): Promise<void> => {
-  await chrome.storage.session
-    .setAccessLevel?.({
-      accessLevel: "TRUSTED_AND_UNTRUSTED_CONTEXTS" as chrome.storage.AccessLevel,
-    })
-    .catch(() => undefined);
-};
+const ensureStorageMigration = createMigrationGuard({
+  recover: recoverSettingsImport,
+  migrate: async () => {
+    await runStorageMigration();
+    await initializeHostPauses();
+  },
+  rebuildRuntime: () =>
+    rebuildImportRuntime({
+      setCachedValues: runtimeState.setCachedValues,
+      syncPreloadedState,
+      resyncActiveHeaderRules,
+      refreshFxInjectionMode,
+      getActiveTabContexts: runtimeState.getActiveTabContexts,
+      reloadTabs: async () => {
+        const tabs = await chrome.tabs.query({});
+        await reloadSupportedWebTabs(
+          tabs.flatMap((tab) => (tab.id === undefined ? [] : [tab.id])),
+        );
+      },
+    }),
+});
 
 const {
   canRequestUserScripts,
@@ -119,26 +142,7 @@ const {
   logBootstrapEvent: logFirefoxBootstrapEvent,
 });
 
-const reloadSupportedWebTabs = async (tabIds: readonly number[]): Promise<void> => {
-  const uniqueTabIds = [...new Set(tabIds)];
-  let prunedStaleContext = false;
-
-  await Promise.all(
-    uniqueTabIds.map(async (tabId) => {
-      const tab = await chrome.tabs.get(tabId).catch(() => undefined);
-      if (!isSupportedWebUrl(tab?.url)) {
-        prunedStaleContext = activeTabContexts.delete(tabId) || prunedStaleContext;
-        return;
-      }
-
-      await chrome.tabs.reload(tabId).catch(() => undefined);
-    }),
-  );
-
-  if (prunedStaleContext) {
-    await syncDynamicHeaderRules([...activeTabContexts.values()]);
-  }
-};
+const reloadSupportedWebTabs = createTabReloader(activeTabContexts);
 
 const getCachedState = createCachedStateLoader(runtimeState);
 
@@ -312,10 +316,29 @@ const {
   updateSnapshotCache,
   injectFxWindowSeed,
   seedWindowSnapshot,
+  seedPausedTab: (context) => hostPauseController.prepareReload(context),
   mainWorld: MAIN_WORLD,
   runtimeWindowSeedPrefix: WINDOW_SEED_PREFIX,
   logExtensionEvent: logExtensionEvent,
 });
+
+const hostPauseController = createHostPauseCtl({
+  getPopupState,
+  ...createPauseActivation({
+    resolveRuntimeDecision,
+    seedChromiumWindow,
+    injectFxWindowSeed,
+    ensureStorageMigration,
+    effectiveSnapshotCache,
+    activeTabContexts,
+    refreshCachedConfig,
+    syncPreloadedState,
+    resyncActiveHeaderRules,
+    refreshActionState,
+    publishSidebarEvent,
+  }),
+});
+hostPauseController.register();
 
 const {
   exportSettings,
@@ -323,6 +346,9 @@ const {
   saveLocationModel,
   resetSettings,
   importSettings,
+  previewSettingsImport,
+  undoSettingsImport,
+  getImportUndoStatus,
 } = createSettingsHandlers({
   ensureStorageMigration,
   syncPreloadedState,
@@ -350,6 +376,7 @@ registerControlD({
 
 registerMessageRouter({
   isSupportedWebUrl,
+  setHostProtectionPause: hostPauseController.setPause,
   getControlState,
   getSettings,
   getPopupState,
@@ -431,6 +458,9 @@ registerMessageRouter({
   resetSettings,
   exportSettings,
   importSettings,
+  previewSettingsImport,
+  undoSettingsImport,
+  getImportUndoStatus,
   ensureStorageMigration,
   setLastKnownProfiles: runtimeState.setLastKnownProfiles,
   syncPreloadedState,
@@ -503,8 +533,8 @@ registerLifecycle({
   applyPrivacyDefaults,
   refreshCachedConfig,
   syncPreloadedState,
-  provisionContainers,
-  reconcileContainers,
+  provisionContainers: () => withConfigMutation(() => provisionContainers()),
+  reconcileContainers: () => withConfigMutation(() => reconcileContainers()),
   refreshActionState,
   refreshFxInjectionMode,
   syncSidebarMenus: () =>
@@ -534,9 +564,8 @@ registerLifecycle({
 
 if (BUILD_BROWSER_TARGET === "firefox") {
   fireAndForget(
-    refreshFxInjectionMode().catch((error) => {
-      console.warn("Failed to register Firefox injection scripts", error);
-    }),
+    ensureStorageMigration().then(() => refreshFxInjectionMode()),
+    (error) => console.warn("Failed to register Firefox injection scripts", error),
   );
 }
 
@@ -560,7 +589,12 @@ registerNavListeners({
       ["blocking"],
     );
   },
-  loadRuntimeCaches: ensureRuntimeCache,
+  loadRuntimeCaches: async () => {
+    await ensureRuntimeCache();
+    await hostPauseController.reconcile();
+  },
+  onTopDocumentCommitted: (tabId, hostname, decision) =>
+    recordPausedDocument(tabId, hostname, decision.hostPause?.id),
   getPopupTabById,
   getExactHostname,
   resolveRuntimeDecision,
@@ -589,13 +623,6 @@ registerRuntimeObservers({
   setLastKnownRules: runtimeState.setLastKnownRules,
 });
 
-chrome.webNavigation.onCompleted.addListener((details) => {
-  if (details.frameId !== 0) return;
-  const { tabId } = details;
-  fireAndForget(
-    chrome.tabs
-      .sendMessage(tabId, { type: CMD_GET_SURFACE_USAGE })
-      .catch(() => undefined),
-  );
-  fireAndForget(refreshBadgeCountForTab(tabId));
-});
+registerSurfaceUsage(refreshBadgeCountForTab);
+
+registerImportExpiry();

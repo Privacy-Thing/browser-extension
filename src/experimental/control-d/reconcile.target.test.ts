@@ -130,14 +130,26 @@ class FakeClient {
   ) {
     this.updateRulesCalls += hostnames.length;
     const selected = new Set(hostnames);
-    this.rules.set(
-      folderId,
-      (this.rules.get(folderId) ?? []).map((rule) =>
-        selected.has(rule.hostname)
-          ? { ...rule, action: 3, via: proxyPk, status: 1, comment }
-          : rule,
-      ),
-    );
+    const moved: ControlDRule[] = [];
+    for (const [sourceId, rules] of this.rules) {
+      moved.push(
+        ...rules
+          .filter((rule) => selected.has(rule.hostname))
+          .map((rule) => ({
+            ...rule,
+            groupId: folderId,
+            action: 3,
+            via: proxyPk,
+            status: 1,
+            comment,
+          })),
+      );
+      this.rules.set(
+        sourceId,
+        rules.filter((rule) => !selected.has(rule.hostname)),
+      );
+    }
+    this.rules.set(folderId, [...(this.rules.get(folderId) ?? []), ...moved]);
   }
 
   async deleteRule(_profileId: string, hostname: string) {
@@ -467,4 +479,88 @@ describe("Control D reconcile", () => {
     expect(fake.groups).toHaveLength(1);
     expect(fake.createRulesCalls).toBe(1);
   });
+});
+
+it("moves hostnames between proxy folders without deleting the destination and remains idempotent", async () => {
+  const fake = new FakeClient();
+  fake.proxies = [proxy, berlinProxy];
+  let current = config();
+  current = await applyControlDSync({
+    client: asClient(fake),
+    config: current,
+    prepared: await prepareControlDSync(asClient(fake), current),
+    confirmApproximate: false,
+    repair: false,
+  });
+  const locations = await loadLocations();
+  vi.mocked(loadLocations).mockResolvedValue(
+    locations.map((location) => ({ ...location, countryCode: "DE" })),
+  );
+  current = { ...current, locationMappings: {} };
+  const preview = await prepareControlDSync(asClient(fake), current);
+  expect(preview.diff.updateRules).toBe(1);
+  expect(preview.diff.deleteRules).toBe(0);
+  current = await applyControlDSync({
+    client: asClient(fake),
+    config: current,
+    prepared: preview,
+    confirmApproximate: false,
+    repair: false,
+  });
+  const destination = current.managedFolders.BER!.folderId;
+  expect(fake.rules.get(destination)).toMatchObject([
+    { hostname: "*example.com", via: "BER" },
+  ]);
+  expect(fake.rules.get(current.managedFolders.WAW!.folderId)).toEqual([]);
+  const next = await prepareControlDSync(asClient(fake), current);
+  expect(next.diff).toMatchObject({
+    addRules: 0,
+    updateRules: 0,
+    deleteRules: 0,
+    unchangedRules: 1,
+  });
+  await applyControlDSync({
+    client: asClient(fake),
+    config: current,
+    prepared: next,
+    confirmApproximate: false,
+    repair: false,
+  });
+  expect(fake.deleteRuleCalls).toBe(0);
+});
+it("rejects remote changes after preview before any write, including repair", async () => {
+  const fake = new FakeClient();
+  const current = config();
+  const prepared = await prepareControlDSync(asClient(fake), current);
+  fake.profiles.push({ id: "new-other", name: "Changed" });
+  await expect(
+    applyControlDSync({
+      client: asClient(fake),
+      config: current,
+      prepared,
+      confirmApproximate: true,
+      repair: true,
+    }),
+  ).rejects.toThrow("Remote setup changed");
+  expect(fake.setDefaultBypassCalls).toBe(0);
+  expect(fake.createRulesCalls).toBe(0);
+});
+it("does not approve a newly approximate mapping during unattended sync", async () => {
+  const fake = new FakeClient();
+  vi.mocked(loadLocations).mockResolvedValue(
+    (await loadLocations()).map((location) => ({ ...location, countryCode: "DE" })),
+  );
+  const current = config();
+  const prepared = await prepareControlDSync(asClient(fake), current);
+  expect(prepared.diff.requiresApproximationConfirmation).toBe(true);
+  await expect(
+    applyControlDSync({
+      client: asClient(fake),
+      config: current,
+      prepared,
+      confirmApproximate: false,
+      repair: false,
+    }),
+  ).rejects.toThrow("Confirm every approximate");
+  expect(fake.profiles).toEqual([]);
 });

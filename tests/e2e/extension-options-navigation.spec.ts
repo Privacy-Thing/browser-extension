@@ -38,23 +38,21 @@ test("loads the options page from the extension", async ({ context, extensionId 
       "https://api.controld.com/*",
     ),
   );
-  const controlDToggle = page.getByRole("switch", {
-    name: "Enable Control D integration",
-  });
+  const controlDToggle = page.locator("[data-control-d-toggle]");
   await expect(controlDToggle).toHaveCount(hasControlDPermission ? 1 : 0);
   if (hasControlDPermission) {
-    await expect(
-      page.getByRole("heading", { name: "Control D", exact: true }),
-    ).toHaveCount(0);
+    await expect(page.locator("[data-control-d-state]")).toHaveCount(0);
     await controlDToggle.click();
-    await expect(
-      page.getByRole("heading", { name: "Control D", exact: true }),
-    ).toBeVisible();
-    await expect(page.getByLabel("Control D API key")).toHaveAttribute(
+    await expect(controlDToggle).toHaveAttribute("data-state", "checked");
+    await page.locator("[data-control-d-open]").click();
+    await expect(page.locator("[data-control-d-state]")).toHaveAttribute(
+      "data-control-d-state",
+      "disconnected",
+    );
+    await expect(page.locator("[data-control-d-api-key]")).toHaveAttribute(
       "type",
       "password",
     );
-    await expect(page.locator("[data-control-d-state]")).toContainText("Not connected");
   }
   await openSettingsTab(page, "about");
   await expect(page.locator("#about-version")).toHaveText(/^\d+\.\d+/);
@@ -85,9 +83,7 @@ test("shows Control D actions in View Logs when debug mode is enabled", async ({
   await saveSimpleSettings(page, { debugMode: true });
   await openSettingsTab(page, "advanced");
 
-  const controlDToggle = page.getByRole("switch", {
-    name: "Enable Control D integration",
-  });
+  const controlDToggle = page.locator("[data-control-d-toggle]");
   if ((await controlDToggle.count()) === 0) return;
 
   await controlDToggle.click();

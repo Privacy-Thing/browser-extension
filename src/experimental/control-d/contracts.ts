@@ -120,6 +120,7 @@ export type ControlDDiff = {
 };
 
 export type ControlDPreparedSnapshot = {
+  token: string;
   diff: ControlDDiff;
   proxies: ControlDProxyLocation[];
 };
@@ -203,9 +204,17 @@ export type ControlDCommand =
       code: string;
     }
   | { type: typeof CONTROL_D_COMMANDS.preview }
-  | { type: typeof CONTROL_D_COMMANDS.apply; confirmApproximate: boolean }
+  | {
+      type: typeof CONTROL_D_COMMANDS.apply;
+      confirmApproximate: boolean;
+      previewToken: string;
+    }
   | { type: typeof CONTROL_D_COMMANDS.syncNow }
-  | { type: typeof CONTROL_D_COMMANDS.repair }
+  | {
+      type: typeof CONTROL_D_COMMANDS.repair;
+      confirmApproximate: boolean;
+      previewToken: string;
+    }
   | { type: typeof CONTROL_D_COMMANDS.updateMapping; mapping: ControlDMapping }
   | { type: typeof CONTROL_D_COMMANDS.confirmDns; verified: boolean }
   | {

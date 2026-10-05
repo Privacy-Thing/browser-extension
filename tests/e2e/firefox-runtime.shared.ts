@@ -113,6 +113,7 @@ const HOST_PAGE = readFileSync(
 
 type FirefoxExtensionFixtures = {
   context: BrowserContext;
+  runtimeIsolation: void;
   debuggerPort: number;
   extensionOrigin: string;
   firefoxExecutablePath: string;
@@ -546,7 +547,7 @@ const routeFxRuntimeReq = (
   return false;
 };
 
-const test = base.extend<FirefoxExtensionFixtures & FxExtWorkerFixtures>({
+export const test = base.extend<FirefoxExtensionFixtures & FxExtWorkerFixtures>({
   serverUrl: [
     async ({ browserName: _browserName }, use) => {
       const server = createServer((request, response) => {
@@ -735,6 +736,22 @@ const test = base.extend<FirefoxExtensionFixtures & FxExtWorkerFixtures>({
     },
     { scope: "worker" },
   ],
+  // Automatic fixtures apply to every importing spec; module-level hooks only
+  // register in the first spec that loads this cached shared module.
+  runtimeIsolation: [
+    async (
+      { context, extensionOrigin, debuggerPort, persistentContextSession },
+      use,
+    ) => {
+      await resetFirefoxRuntimeState({ context, extensionOrigin, debuggerPort });
+      try {
+        await use();
+      } finally {
+        await cleanupFxRuntimePages(persistentContextSession);
+      }
+    },
+    { auto: true },
+  ],
   context: async ({ persistentContextSession }, use) => {
     await use(await persistentContextSession.getContext());
   },
@@ -778,7 +795,9 @@ const newFirefoxPage = async (context: BrowserContext): Promise<Page> => {
   throw new Error("Firefox newPage retry exhausted without returning a page.");
 };
 
-test.afterEach(async ({ persistentContextSession }) => {
+const cleanupFxRuntimePages = async (
+  persistentContextSession: FxContextSession,
+): Promise<void> => {
   // Always fetch the current active context — a test may have called restartContext(),
   // closing the context captured by the `context` fixture before afterEach runs.
   const context = await persistentContextSession.getContext();
@@ -806,9 +825,16 @@ test.afterEach(async ({ persistentContextSession }) => {
       .goto("about:blank", { waitUntil: "domcontentloaded" })
       .catch(() => undefined);
   }
-});
+};
 
-test.beforeEach(async ({ context, extensionOrigin, debuggerPort }) => {
+const resetFirefoxRuntimeState = async ({
+  context,
+  extensionOrigin,
+  debuggerPort,
+}: Pick<
+  FirefoxExtensionFixtures,
+  "context" | "extensionOrigin" | "debuggerPort"
+>): Promise<void> => {
   const bridgeMarker = Math.random().toString(36).slice(2, 10);
   const bridgeUrl = `${extensionOrigin}/test-bridge.html?pt-e2e-reset=${bridgeMarker}`;
   const page = await newFirefoxPage(context);
@@ -851,7 +877,7 @@ test.beforeEach(async ({ context, extensionOrigin, debuggerPort }) => {
   } finally {
     await page.close().catch(() => undefined);
   }
-});
+};
 
 const runFirefoxRuntimePhase = async <T>(
   title: string,
@@ -2449,6 +2475,73 @@ const warmUpFirefoxSpoofing = async (
 export const registerFxCoreTests = () => {
   test.describe.configure({ timeout: 120_000 });
 
+  test("rejects unsupported preset time zones in the Firefox background and accepts native Intl aliases", async ({
+    context,
+    serverUrl,
+  }) => {
+    const page = await prepareFirefoxHostPage(context);
+    await gotoFirefoxHostUrl(page, serverUrl);
+    await waitForFxBridge(page);
+    const readSettings = () =>
+      requestFxSettingsBridge<GetSettingsResponse>(
+        page,
+        FXT_BRIDGE_EVENTS.getSettings,
+        FXT_BRIDGE_EVENTS.getSettingsResult,
+        null,
+      );
+    const before = await readSettings();
+    expect(before.ok).toBe(true);
+    const save = (timeZone: string) =>
+      requestFxSettingsBridge<SaveLocationResponse>(
+        page,
+        FXT_BRIDGE_EVENTS.saveLocationModel,
+        FXT_BRIDGE_EVENTS.saveLocationModelResult,
+        {
+          locations: [
+            ...before.locations,
+            {
+              id: "pt21",
+              label: "PT-21 preset",
+              latitude: 52,
+              longitude: 21,
+              accuracy: 25,
+              noiseRadius: 50,
+              language: "pl",
+              languages: ["pl"],
+              timeZone,
+            },
+          ],
+          rules: before.rules,
+          containerAssignments: before.containerAssignments ?? [],
+        },
+      );
+    try {
+      for (const timeZone of ["Mars/Olympus", "", "   "]) {
+        const response = await save(timeZone);
+        expect(response).toMatchObject({
+          ok: false,
+          error: expect.stringMatching(/PT-21 preset.*pt21.*timeZone/),
+        });
+      }
+      expect(await readSettings()).toEqual(before);
+      for (const timeZone of ["Europe/Warsaw", "UTC", "US/Eastern", "Asia/Calcutta"]) {
+        expect((await save(timeZone)).ok).toBe(true);
+      }
+    } finally {
+      const restored = await requestFxSettingsBridge<SaveLocationResponse>(
+        page,
+        FXT_BRIDGE_EVENTS.saveLocationModel,
+        FXT_BRIDGE_EVENTS.saveLocationModelResult,
+        {
+          locations: before.locations,
+          rules: before.rules,
+          containerAssignments: before.containerAssignments ?? [],
+        },
+      );
+      expect(restored.ok).toBe(true);
+    }
+  });
+
   test("applies opt-in Temporal defaults in Firefox while preserving explicit arguments", async ({
     context,
     serverUrl,
@@ -2457,21 +2550,33 @@ export const registerFxCoreTests = () => {
     await gotoFirefoxHostUrl(page, serverUrl);
     await waitForFxBridge(page);
 
-    const saveSettingsResult = await requestFxSettingsBridge<SaveSettingsResponse>(
-      page,
-      FXT_BRIDGE_EVENTS.saveSimpleSettings,
-      FXT_BRIDGE_EVENTS.saveSimpleSettingsResult,
-      { featureFlags: { temporalApi: true } },
-    );
+    // Saving a runtime feature flag reloads this tab. Observe that navigation
+    // before dispatching the command instead of racing it with a second one.
+    const reloaded = page.waitForEvent("domcontentloaded");
+    const [saveSettingsResult] = await Promise.all([
+      requestFxSettingsBridge<SaveSettingsResponse>(
+        page,
+        FXT_BRIDGE_EVENTS.saveSimpleSettings,
+        FXT_BRIDGE_EVENTS.saveSimpleSettingsResult,
+        { featureFlags: { temporalApi: true } },
+      ),
+      reloaded,
+    ]);
     expect(saveSettingsResult.ok).toBe(true);
     if (!saveSettingsResult.ok) {
       throw new Error(saveSettingsResult.error);
     }
 
-    await page.goto("about:blank", { waitUntil: "domcontentloaded" });
-    await gotoFirefoxHostUrl(page, serverUrl);
-    await waitForHostProbeReady(page);
-    await waitForSpoofedSnapshot(page, { allowReload: true });
+    // This test owns Temporal readiness. The asynchronous geolocation probe
+    // can outlive the settings reload and does not establish this contract.
+    await page.waitForFunction(() => {
+      const temporal = (
+        globalThis as typeof globalThis & {
+          Temporal?: { Now: { timeZoneId: () => string } };
+        }
+      ).Temporal;
+      return !temporal || temporal.Now.timeZoneId() === "Europe/Warsaw";
+    });
     const snapshot = await readTemporalE2ESnapshot(page);
 
     expect(snapshot.supported, "Firefox E2E requires native Temporal").toBe(true);
@@ -5014,3 +5119,41 @@ export const registerFxEdgeTests = () => {
     expect(snapshot.initialHash).toBe("#posted");
   });
 };
+
+/** Firefox extension pages need RDP; Playwright does not receive their load events. */
+const openFxUiProbe = async (
+  input: {
+    context: BrowserContext;
+    extensionOrigin: string;
+    debuggerPort: number;
+  },
+  pagePath: string,
+) => {
+  const page = await input.context.newPage();
+  const url = `${input.extensionOrigin}${pagePath}`;
+  await navigateFirefoxPopupPage(page, url);
+  const remote = await connectRemoteFirefox(input.debuggerPort);
+  const tab = await waitForRemoteFirefoxTab(remote, url);
+  const consoleActor = await getRemoteFxConsoleActor(remote, tab.actor);
+  return {
+    evaluate: <T>(expression: string): Promise<T> =>
+      probeRemoteFxTabJson<T>(
+        remote,
+        consoleActor,
+        url,
+        expression,
+        "extension-ui",
+        15_000,
+        tab.actor,
+      ),
+    close: async () => {
+      remote.disconnect();
+      await page.close().catch(() => undefined);
+    },
+  };
+};
+
+export const openFxOptionsProbe = (input: Parameters<typeof openFxUiProbe>[0]) =>
+  openFxUiProbe(input, "/src/ui/options/index.html?pt-e2e-import=preview");
+export const openFxSidebarProbe = (input: Parameters<typeof openFxUiProbe>[0]) =>
+  openFxUiProbe(input, "/src/ui/sidebar/index.html?pt-e2e-report=preview");

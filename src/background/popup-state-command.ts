@@ -19,6 +19,10 @@ import {
 } from "@/background/popup-state";
 import { loadContainerAssignments } from "@/background/storage/container-assignments";
 import { loadControlState } from "@/background/storage/control-state";
+import {
+  getHostPause,
+  getHostPauseStatus,
+} from "@/background/storage/host-protection-pauses";
 import { loadLocations } from "@/background/storage/locations";
 import {
   loadPopupNotifications,
@@ -375,6 +379,7 @@ const buildSummary = async (
   const queryCounts = forPopupTab(activeTab.id, deps.getSurfaceCounts, {});
   const methodCounts = forPopupTab(activeTab.id, deps.getSurfaceMethodCounts, {});
   const runtimeExpected =
+    !getHostPause(model.hostname) &&
     inputs.fingerprintEnabled &&
     !inputs.controlState.panicMode &&
     model.effectiveSource !== "trusted-site" &&
@@ -500,6 +505,9 @@ export const createPopupStateHandler = (deps: PopupCommandDeps) => {
     }
     const model = await resolvePopupModel(deps, inputs);
     const summary = await buildSummary(deps, inputs, model, ++generation);
-    return buildSupportedResponse(inputs, model, summary);
+    const response = buildSupportedResponse(inputs, model, summary);
+    const hostname = response.state.currentTab.hostname;
+    if (hostname) response.state.hostPause = getHostPauseStatus(hostname, activeTab.id);
+    return response;
   };
 };

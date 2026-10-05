@@ -1,3 +1,4 @@
+import { IDBFactory } from "fake-indexeddb";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -13,6 +14,7 @@ import { EXTENSION_STORAGE_KEYS } from "@/shared/extension-contract";
 const state: Record<string, unknown> = {};
 
 beforeEach(() => {
+  vi.stubGlobal("indexedDB", new IDBFactory());
   for (const key of Object.keys(state)) Reflect.deleteProperty(state, key);
   vi.stubGlobal("chrome", {
     storage: {
@@ -65,7 +67,25 @@ describe("Control D storage", () => {
   it("stores and forgets only the private API key", async () => {
     await saveControlDApiKey(" secret ");
     expect(await loadControlDApiKey()).toBe("secret");
+    expect(state[CONTROL_D_STORE_KEYS[1]]).toBeUndefined();
     await forgetControlDApiKey();
     expect(await loadControlDApiKey()).toBeNull();
+  });
+
+  it("migrates the legacy key and removes the content-script-readable copy", async () => {
+    state[CONTROL_D_STORE_KEYS[1]] = " legacy-secret ";
+    const restrict = vi.fn(async () => undefined);
+    Object.assign(chrome.storage.local, { setAccessLevel: restrict });
+    expect(await loadControlDApiKey()).toBe("legacy-secret");
+    expect(restrict).toHaveBeenCalledWith({ accessLevel: "TRUSTED_CONTEXTS" });
+    expect(state[CONTROL_D_STORE_KEYS[1]]).toBeUndefined();
+    expect(await loadControlDApiKey()).toBe("legacy-secret");
+  });
+
+  it("does not replace the current private key with a stale legacy copy", async () => {
+    await saveControlDApiKey("current-secret");
+    state[CONTROL_D_STORE_KEYS[1]] = "stale-secret";
+    expect(await loadControlDApiKey()).toBe("current-secret");
+    expect(state[CONTROL_D_STORE_KEYS[1]]).toBeUndefined();
   });
 });

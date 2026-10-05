@@ -6,6 +6,24 @@ export const sidebar = {
   openRule: "Edit domain rule",
   openLocation: "Edit preset",
   openLogs: "View logs",
+  report: {
+    prepare: "Prepare report",
+    title: "Diagnostic report",
+    localOnly: "Prepared locally. Nothing is sent or collected automatically.",
+    partial: "Partial report.",
+    complete: "Evidence available.",
+    evidenceHint:
+      "Configuration and X-Ray assessments are separate from observations. Missing or stale evidence and unfinished collection do not confirm protection.",
+    includeSite: "Include site data",
+    siteHint:
+      "Adds only the hostname and matching rule or Trusted Site pattern. Preset names, URLs, logs and secrets stay excluded.",
+    preview: "Report preview",
+    text: "Text",
+    cancel: "Cancel",
+    downloadText: "Download text",
+    downloadJson: "Download JSON",
+    error: "The report could not be prepared or downloaded.",
+  },
   region: "Region",
 
   errorPrefix: `${BRAND_DISPLAY_NAME} hit a problem:`,

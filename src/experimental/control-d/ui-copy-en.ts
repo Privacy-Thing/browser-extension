@@ -1,0 +1,161 @@
+import { BRAND_DISPLAY_NAME } from "@/shared/brand";
+export const controlDEn = {
+  title: "Control D",
+  featureTitle: "Control D integration",
+  featureDescription:
+    "Sync regional rules to a separate Control D profile. Beta and local builds only.",
+  open: "Open Control D",
+  back: "Back to Advanced",
+  lead: "Send regional rules to Control D. Changes go one way, from this extension.",
+  progressLabel: "Setup progress",
+  enableLabel: "Enable integration",
+  status: {
+    loading: "Loading",
+    disconnected: "Not connected",
+    authError: "Authorization failed",
+    conflict: "Review required",
+    syncError: "Sync error",
+    syncing: "Synchronizing",
+    chooseSetup: "Choose setup",
+    review: "Ready to review",
+    dnsPending: "Rules synced · Check DNS",
+    active: "Active",
+  },
+  account: {
+    title: "Connect account",
+    description:
+      "Use an API key with write access. It stays in this installation and is excluded from exports and browser sync.",
+    placeholder: "Control D API key",
+    connect: "Connect",
+    connectedTitle: "API access verified",
+    connectedDescription: "Account access works. No remote changes have been made.",
+    docs: "API instructions",
+    permissionDenied: "Control D API access was not granted.",
+  },
+  setup: {
+    title: "Choose setup",
+    description: `Create a separate setup or reconnect one previously created by ${BRAND_DISPLAY_NAME}.`,
+    none: "No compatible setups found.",
+    existing: "Existing setups",
+    missingEndpoint: "An endpoint will be created when you apply.",
+    blocked: "Resolve this setup's conflicts in Control D first.",
+    useExisting: "Use this setup",
+    createNew: "Create new setup",
+    confirmTitle: "Use this setup?",
+    confirmDescription:
+      "Link this installation to the selected profile. Remote changes start only after reviewing and applying the plan.",
+    folders: (count: number) => `Folders: ${count}`,
+  },
+  rules: {
+    title: "Review changes",
+    description: "Review this plan before changing managed resources.",
+    preview: "Refresh preview",
+    apply: "Apply changes",
+    repair: "Repair rules",
+    sync: "Sync now",
+    routes: "Route overrides",
+    showRoutes: "Review routes",
+    hideRoutes: "Hide routes",
+    acceptApproximate: "I accept the approximate routes in this preview.",
+    upToDate: "Rules are up to date.",
+    routeDescription: "Change an automatic choice only when you need another exit.",
+  },
+  dns: {
+    title: "Configure browser DNS",
+    description: `Set Secure DNS in your browser. ${BRAND_DISPLAY_NAME} cannot change or verify it automatically.`,
+    copy: "Copy resolver",
+    copied: "Copied",
+    settings: "Open DNS settings",
+    verify: "Check on Control D",
+    guide: "Setup instructions",
+    confirm: "I verified this resolver",
+    verified: "DNS verified",
+    verifiedDescription: "You confirmed this endpoint on the Control D status page.",
+    verifiedState: "Verified",
+    unverifiedState: "Not verified",
+  },
+  overview: {
+    title: "Integration overview",
+    account: "API access",
+    rules: "Managed rules",
+    dns: "Browser DNS",
+    review: "Review routes",
+    verify: "Check DNS again",
+    setupLabel: (code: string) => `Setup ${code}`,
+    syncedAt: (time: string) => `Synced ${time}`,
+  },
+  summary: {
+    profiles: "Profiles",
+    endpoints: "Endpoints",
+    folders: "Folders",
+    add: "Add",
+    update: "Update",
+    remove: "Remove",
+  },
+  disconnect: {
+    action: "Disconnect",
+    title: "Disconnect Control D?",
+    description:
+      "Forget the API key and stop sync. Remote resources and browser DNS settings remain.",
+    confirm: "Disconnect",
+  },
+  common: {
+    cancel: "Cancel",
+    continue: "Continue",
+    notYet: "Not yet",
+    working: "Working…",
+    selected: "Selected",
+    requestFailed: "Control D request failed.",
+    copyFailed: "Could not copy the resolver.",
+    applyFirst: "Apply changes to create an endpoint and resolver.",
+    confirmedAt: (time: string) => `Confirmed ${time}`,
+  },
+  help: {
+    account: {
+      title: "Your key stays here",
+      body: "Connect grants this extension access to Control D. The key stays in this browser.",
+      note: "Write access is needed to create and update regional rules.",
+    },
+    setup: {
+      title: "A separate setup",
+      body: "Use a new setup or reconnect an existing one. Other setups keep their settings.",
+      note: "Remote changes start only after you apply the reviewed plan.",
+    },
+    rules: {
+      title: "Review, then apply",
+      body: "The preview shows planned additions, updates and removals.",
+      note: "Changes affect this setup's managed resources.",
+    },
+    dns: {
+      title: "Set DNS in your browser",
+      body: "Copy the resolver and use it as Secure DNS in browser settings.",
+      note: "Check the Control D status page, then confirm this resolver here.",
+    },
+    overview: {
+      title: "Three separate checks",
+      body: "Account access, rule sync and browser DNS are checked separately.",
+      note: "Disconnect removes the key and stops sync. DNS and remote resources remain.",
+    },
+  },
+  route: {
+    notSynchronized: "Not synchronized",
+    unavailable: "Exit unavailable",
+    exact: "Nearest exit in the same country.",
+    approximate: "Approximate exit. Choose another if needed.",
+    skipped: "Excluded from sync.",
+    change: "Change",
+    choose: "Choose exit",
+    skip: "Skip sync",
+    ruleCount: (count: number) => `Rules: ${count}`,
+    selectLabel: (location: string) => `Exit for ${location}`,
+  },
+  steps: ["Account", "Setup", "Rules", "DNS"],
+} as const;
+type MessageShape<T> = T extends string
+  ? string
+  : T extends (...args: never[]) => unknown
+    ? T
+    : T extends readonly string[]
+      ? readonly string[]
+      : { [K in keyof T]: MessageShape<T[K]> };
+export type ControlDMessages = MessageShape<typeof controlDEn>;

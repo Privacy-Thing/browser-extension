@@ -1,3 +1,7 @@
+import {
+  isHostPauseActive,
+  type HostProtectionPause,
+} from "@/shared/host-protection-pause";
 import type { RuntimeSnapshot } from "@/shared/types";
 
 export const SNAPSHOT_CACHE_TTL_MS = 5 * 60 * 1_000;
@@ -6,6 +10,7 @@ export type ResolutionDecision = {
   snapshot: RuntimeSnapshot | null;
   trustedSiteMatched: boolean;
   fencesIdentity?: boolean;
+  hostPause?: HostProtectionPause;
 };
 
 export type SnapshotCacheEntry = {
@@ -66,7 +71,10 @@ export const createSnapshotCache = (ttlMs = SNAPSHOT_CACHE_TTL_MS) => {
       return undefined;
     }
 
-    const expired = now - entry.cachedAt > ttlMs;
+    const expired =
+      now - entry.cachedAt > ttlMs ||
+      (entry.decision.hostPause !== undefined &&
+        !isHostPauseActive(entry.decision.hostPause, now));
     const hostnameMismatch = entry.hostname !== hostname;
     const cookieStoreMismatch = entry.cookieStoreId !== cookieStoreId;
 
@@ -98,7 +106,11 @@ export const createSnapshotCache = (ttlMs = SNAPSHOT_CACHE_TTL_MS) => {
     if (!entry) {
       return undefined;
     }
-    if (now - entry.cachedAt > ttlMs) {
+    if (
+      now - entry.cachedAt > ttlMs ||
+      (entry.decision.hostPause !== undefined &&
+        !isHostPauseActive(entry.decision.hostPause, now))
+    ) {
       entries.delete(key);
       return undefined;
     }
