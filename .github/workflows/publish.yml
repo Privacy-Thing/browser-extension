@@ -959,10 +959,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          ASSET_NAME="$(node --input-type=module -e 'import { buildArtifactFileName } from "./scripts/brand-config.mjs"; process.stdout.write(buildArtifactFileName(process.env.PT_ARTIFACT_VERSION_LABEL, "chromium", "zip"));')"
           ASSET_JSON="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG}" \
-            | jq -ce --arg suffix "-${PT_ARTIFACT_VERSION_LABEL}-chromium.zip" \
-              '[.assets[] | select(.name | endswith($suffix))] | if length == 1 then .[0] else error("Expected exactly one Chromium release asset") end')"
-          ASSET_NAME="$(jq -r '.name' <<< "${ASSET_JSON}")"
+            | jq -ce --arg name "${ASSET_NAME}" \
+              '[.assets[] | select(.name == $name)] | if length == 1 then .[0] else error("Expected exactly one Chromium release asset") end')"
           ASSET_DIGEST="$(jq -r '.digest' <<< "${ASSET_JSON}")"
           if ! [[ "${ASSET_NAME}" =~ ^[a-zA-Z0-9._-]+$ ]] || ! [[ "${ASSET_DIGEST}" =~ ^sha256:[a-f0-9]{64}$ ]]; then
             echo "Release asset has an invalid name or missing SHA-256 digest."
