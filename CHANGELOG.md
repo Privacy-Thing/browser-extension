@@ -8,6 +8,13 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ### Added
 
+- Added an experimental, one-way Control D regional DNS integration to local
+  and beta builds. It previews managed rule changes, requires confirmation
+  before the first sync, preserves unrelated Control D resources, and guides
+  users through manual browser DoH setup. The dedicated four-step flow can
+  explicitly recover setups created with the v2 Privacy Thing naming scheme
+  after reinstalling, while release builds preserve but never load its private
+  storage namespace.
 - A “Site not working?” assistant offers one temporary Service Worker or
   SharedWorker policy test for the exact top-document host. Failed, cancelled
   and expired tests restore current settings; saving a host exception requires
@@ -60,6 +67,25 @@ The format is based on Keep a Changelog and the project follows Semantic Version
   rules. Domain fencing session rules still apply only to the top-frame host.
 
 ### Fixed
+
+- Control D keeps saved route overrides when all rules for a region are disabled,
+  and status colors follow integration state in every interface language.
+
+- Control D previews now expire when local or remote inputs change, and background
+  actions serialize with disconnect. Automatic sync never approves approximate
+  routes; moving a hostname between exit folders preserves the rule. API keys
+  migrate to private extension storage. The setup uses concise labels in all five
+  languages, and release bundle checks still run when a display version is set.
+
+- Preserve optional profile country codes through saving, export and import,
+  including later edits, so Control D keeps selecting exits in the confirmed
+  country. Lowercase codes still normalize to uppercase; older profiles without
+  a country code remain valid.
+- Keep Control D synchronization attached to resources by their saved IDs when
+  the API normalizes display names, restore automatic sync after the obsolete
+  name conflict, and keep preview and sync on one prepared regional-route
+  snapshot without rewriting Control D hostname patterns. Hide automatic route
+  matches until a fallback needs confirmation or the user opens overrides.
 
 - Saved worker exceptions no longer defer Firefox early protection in cross-origin
   frames of unrelated sites. Frames with an unknown top host start with the

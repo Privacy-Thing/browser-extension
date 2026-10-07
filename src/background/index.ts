@@ -32,7 +32,10 @@ import { createPopupHandlers } from "@/background/popup-commands";
 import type { PreparedRuntimeDecisions } from "@/background/prepared-runtime-decisions";
 import { applyPrivacyDefaults } from "@/background/privacy";
 import { createRuntimeConfig } from "@/background/runtime-config-controller";
-import { registerRuntimeObservers } from "@/background/runtime-observers";
+import {
+  registerRuntimeObservers,
+  registerSurfaceUsage,
+} from "@/background/runtime-observers";
 import { createRuntimeResolverCtl } from "@/background/runtime-resolution-controller";
 import { createRuntimeState } from "@/background/runtime-state";
 import { createSettingsHandlers } from "@/background/settings-commands";
@@ -58,7 +61,10 @@ import {
   resolvePopupNotification as resolvePopupNotificationStore,
   syncUpdateNotices,
 } from "@/background/storage/popup-notifications";
-import { getOnboardingCompleted } from "@/background/storage/preferences";
+import {
+  getOnboardingCompleted,
+  getPreferences,
+} from "@/background/storage/preferences";
 import {
   setTrustedSiteEnabled,
   upsertTrustedSite,
@@ -82,10 +88,10 @@ import {
 } from "@/background/surface-evidence-tracker";
 import { createTabReloader, enableSessionStorage } from "@/background/tab-reload";
 import { createXRayHandlers, createWorkerTestCtl } from "@/background/xray-commands";
+import { registerControlD } from "@/experimental/control-d/background-entry";
 import { fireAndForget } from "@/shared/async";
 import { BRAND_DISPLAY_NAME } from "@/shared/brand";
 import { BUILD_BROWSER_TARGET, BUILD_CHANNEL } from "@/shared/build-flags";
-import { CMD_GET_SURFACE_USAGE } from "@/shared/extension-contract";
 import { getAllReleaseNotices } from "@/shared/release-notification";
 
 const runtimeState = createRuntimeState<PreparedRuntimeDecisions>();
@@ -363,6 +369,11 @@ const {
 // messages can reach the background router.
 registerRewriteListeners();
 
+registerControlD({
+  getDebugMode: async () =>
+    runtimeState.getLastKnownDebugMode() ?? (await getPreferences()).debugMode,
+});
+
 registerMessageRouter({
   isSupportedWebUrl,
   workerTest: createWorkerTestCtl(getXRayState, hostPauseController.activate),
@@ -613,15 +624,6 @@ registerRuntimeObservers({
   setLastKnownRules: runtimeState.setLastKnownRules,
 });
 
-chrome.webNavigation.onCompleted.addListener((details) => {
-  if (details.frameId !== 0) return;
-  const { tabId } = details;
-  fireAndForget(
-    chrome.tabs
-      .sendMessage(tabId, { type: CMD_GET_SURFACE_USAGE })
-      .catch(() => undefined),
-  );
-  fireAndForget(refreshBadgeCountForTab(tabId));
-});
+registerSurfaceUsage(refreshBadgeCountForTab);
 
 registerImportExpiry();

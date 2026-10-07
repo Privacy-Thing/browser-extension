@@ -37,7 +37,14 @@ const getReleaseChannelLabel = (channel: "local" | "beta" | "stable"): string =>
 };
 
 const renderAboutSubpage = (
-  view: "privacyPolicy" | "thirdPartyNotices" | "license" | "none" | "logs" | null,
+  view:
+    | "privacyPolicy"
+    | "thirdPartyNotices"
+    | "license"
+    | "none"
+    | "logs"
+    | "experimentalIntegration"
+    | null,
 ) => {
   if (view === "privacyPolicy")
     return (

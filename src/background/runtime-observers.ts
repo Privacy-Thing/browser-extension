@@ -6,6 +6,7 @@ import {
 import { LOCATIONS_STORAGE_KEY } from "@/background/storage/locations";
 import { RULES_STORAGE_KEY } from "@/background/storage/rules";
 import { fireAndForget } from "@/shared/async";
+import { CMD_GET_SURFACE_USAGE } from "@/shared/extension-contract";
 import type { DomainRule } from "@/shared/types";
 
 export type RuntimeObserverDeps = {
@@ -61,5 +62,20 @@ export const registerRuntimeObservers = (deps: RuntimeObserverDeps): void => {
     }
 
     fireAndForget(withConfigurationLock(deps.handleConfigMutation));
+  });
+};
+
+export const registerSurfaceUsage = (
+  refreshBadgeCountForTab: (tabId: number) => Promise<void>,
+): void => {
+  chrome.webNavigation.onCompleted.addListener((details) => {
+    if (details.frameId !== 0) return;
+    const { tabId } = details;
+    fireAndForget(
+      chrome.tabs
+        .sendMessage(tabId, { type: CMD_GET_SURFACE_USAGE })
+        .catch(() => undefined),
+    );
+    fireAndForget(refreshBadgeCountForTab(tabId));
   });
 };

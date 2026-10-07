@@ -13,11 +13,13 @@ import {
 } from "../../config/build-budgets";
 import { BRAND_DISPLAY_NAME } from "../../scripts/brand-config.mjs";
 
+import { findControlDReleaseLeaks } from "./experimental-integrations";
 import { findRetiredBuildLeaks } from "./retired-name";
 
 type ChromiumManifest = {
   version?: string;
   version_name?: string;
+  optional_host_permissions?: string[];
   content_scripts?: Array<{
     all_frames?: boolean;
     js?: string[];
@@ -81,6 +83,18 @@ test("contains no retired namespace outside approved notification copy", async (
   expect(await findRetiredBuildLeaks("chrome")).toEqual([]);
 });
 
+test("keeps the Control D experiment out of release artifacts", async () => {
+  const manifest = await readChromiumManifest();
+  if (
+    manifest.version_name?.endsWith("-local") ||
+    manifest.version_name?.endsWith("-beta")
+  )
+    return;
+
+  expect(manifest.optional_host_permissions).toBeUndefined();
+  expect(await findControlDReleaseLeaks("chrome")).toEqual([]);
+});
+
 test("exposes only the runtime-applied marker to downstream CI jobs", async () => {
   const markerPath = path.resolve(
     process.cwd(),
@@ -112,13 +126,15 @@ test("does not expose worker bootstrap resources in the chromium manifest", asyn
 test("stamps chromium manifests for release, local, and beta builds", async () => {
   const manifest = await readChromiumManifest();
 
-  if (manifest.version_name) {
+  if (/-(local|beta)$/.test(manifest.version_name ?? "")) {
     expect(manifest.version_name).toMatch(/^0\.\d{4}\.\d{3,4}\.\d{1,4}-(local|beta)$/);
     expect(manifest.version).toMatch(/^0\.\d{4}\.\d{3,4}\.\d{1,4}$/);
     return;
   }
 
   expect(manifest.version).toMatch(/^\d+\.\d+\.\d+(?:\.\d+)?$/);
+  if (manifest.version_name)
+    expect(manifest.version_name).toMatch(/^\d+\.\d+\.\d+(?:\.\d+)?$/);
 });
 
 test("uses static content script bundles instead of async loader stubs", async () => {

@@ -27,6 +27,8 @@ export const common = {
     `${count} ${count === 1 ? "seleccionado" : "seleccionados"}`,
 
   fields: {
+    countryCodeHint: "Código de país de dos letras para servicios regionales.",
+    countryCode: "Código de país",
     name: "Nombre",
     latitude: "Latitud",
     longitude: "Longitud",

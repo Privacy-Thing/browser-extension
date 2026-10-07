@@ -24,6 +24,8 @@ export const common = {
   },
   selectionCount: (count: number) => `Вибрано: ${count}`,
   fields: {
+    countryCodeHint: "Дволітерний код країни для регіональних сервісів.",
+    countryCode: "Код країни",
     name: "Назва",
     latitude: "Широта",
     longitude: "Довгота",

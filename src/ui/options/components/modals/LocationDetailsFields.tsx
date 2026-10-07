@@ -31,6 +31,7 @@ type LocationFieldsDraft = {
   label: string;
   latitude: number;
   longitude: number;
+  countryCode?: string;
   accuracy: number;
   noiseRadius: number;
   language: string;
@@ -73,6 +74,34 @@ const NameField = <TDraft extends LocationFieldsDraft>({
       onChange={(event) => {
         const value = event.currentTarget.value;
         onDraftChange((current) => ({ ...current, label: value }));
+      }}
+    />
+  </div>
+);
+
+const CountryCodeField = <TDraft extends LocationFieldsDraft>({
+  draft,
+  onDraftChange,
+  disabled,
+}: LocationFieldsProps<TDraft>) => (
+  <div className="max-w-40">
+    <FieldLabel info={t.common.fields.countryCodeHint}>
+      {t.common.fields.countryCode}
+    </FieldLabel>
+    <Input
+      value={draft.countryCode ?? ""}
+      maxLength={2}
+      placeholder="PL"
+      autoCapitalize="characters"
+      disabled={disabled}
+      onChange={(event) => {
+        const value = event.currentTarget.value.replace(/[^a-z]/gi, "").toUpperCase();
+        onDraftChange((current) => {
+          const next = { ...current };
+          if (value) next.countryCode = value;
+          else delete next.countryCode;
+          return next;
+        });
       }}
     />
   </div>
@@ -139,6 +168,11 @@ const GeolocationFields = <TDraft extends LocationFieldsDraft>({
           />
         </div>
       </div>
+      <CountryCodeField
+        draft={draft}
+        onDraftChange={onDraftChange}
+        disabled={disabled}
+      />
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <FieldLabel

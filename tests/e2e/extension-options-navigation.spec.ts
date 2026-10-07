@@ -14,6 +14,7 @@ import {
   expectAnchorInViewport,
   importSettings,
   openSettingsTab,
+  saveSimpleSettings,
 } from "./extension-test.helpers";
 import { expect, test } from "./fixtures";
 
@@ -32,6 +33,27 @@ test("loads the options page from the extension", async ({ context, extensionId 
   await expect(page.locator("#rules-preview-hostname-preview")).toHaveCount(0);
   await openSettingsTab(page, "advanced");
   await expect(page.locator("#export-settings")).toBeVisible();
+  const hasControlDPermission = await page.evaluate(() =>
+    (chrome.runtime.getManifest().optional_host_permissions ?? []).includes(
+      "https://api.controld.com/*",
+    ),
+  );
+  const controlDToggle = page.locator("[data-control-d-toggle]");
+  await expect(controlDToggle).toHaveCount(hasControlDPermission ? 1 : 0);
+  if (hasControlDPermission) {
+    await expect(page.locator("[data-control-d-state]")).toHaveCount(0);
+    await controlDToggle.click();
+    await expect(controlDToggle).toHaveAttribute("data-state", "checked");
+    await page.locator("[data-control-d-open]").click();
+    await expect(page.locator("[data-control-d-state]")).toHaveAttribute(
+      "data-control-d-state",
+      "disconnected",
+    );
+    await expect(page.locator("[data-control-d-api-key]")).toHaveAttribute(
+      "type",
+      "password",
+    );
+  }
   await openSettingsTab(page, "about");
   await expect(page.locator("#about-version")).toHaveText(/^\d+\.\d+/);
   await expect(page.getByRole("link", { name: "Tomasz Janusz" })).toHaveAttribute(
@@ -49,6 +71,106 @@ test("loads the options page from the extension", async ({ context, extensionId 
   await expect(
     page.getByText(/Advanced still contains other in-progress features/),
   ).toHaveCount(0);
+});
+
+test("keeps Control D credentials in the extension origin and rejects page commands", async ({
+  context,
+  extensionId,
+  serverUrl,
+}) => {
+  const options = await context.newPage();
+  await options.goto(`chrome-extension://${extensionId}/src/ui/options/index.html`);
+  const supported = await options.evaluate(() =>
+    (chrome.runtime.getManifest().optional_host_permissions ?? []).includes(
+      "https://api.controld.com/*",
+    ),
+  );
+  if (!supported) return;
+  const migrated = await options.evaluate(async () => {
+    const legacyKey = "pt.experimental.control-d.v2.api-key";
+    await chrome.storage.local.set({ [legacyKey]: "test-only-credential" });
+    const response = await chrome.runtime.sendMessage({
+      type: "pt.control-d.get-state",
+    });
+    return { response, legacy: (await chrome.storage.local.get(legacyKey))[legacyKey] };
+  });
+  expect(migrated.response).toMatchObject({ ok: true, state: { hasApiKey: true } });
+  expect(migrated.legacy).toBeUndefined();
+  const site = await context.newPage();
+  await site.goto(serverUrl);
+  const tabId = await options.evaluate(
+    async (url) => (await chrome.tabs.query({})).find((tab) => tab.url === url)?.id,
+    site.url(),
+  );
+  expect(tabId).toBeDefined();
+  const [result] = await options.evaluate(
+    async (id) =>
+      chrome.scripting.executeScript({
+        target: { tabId: id! },
+        world: "ISOLATED",
+        func: async () => {
+          let localDenied = false;
+          try {
+            await chrome.storage.local.get("pt.experimental.control-d.v2.api-key");
+          } catch {
+            localDenied = true;
+          }
+          let commandRejected: boolean;
+          try {
+            const response = await chrome.runtime.sendMessage({
+              type: "pt.control-d.disconnect",
+            });
+            commandRejected = response?.ok !== true;
+          } catch {
+            commandRejected = true;
+          }
+          const hasPrivateStore = await new Promise<boolean>((resolve, reject) => {
+            const request = indexedDB.open("pt.experimental.control-d.credentials", 1);
+            request.onsuccess = () => {
+              const hasStore = request.result.objectStoreNames.contains("keys");
+              request.result.close();
+              resolve(hasStore);
+            };
+            request.onerror = () => reject(request.error);
+          });
+          return { localDenied, commandRejected, hasPrivateStore };
+        },
+      }),
+    tabId,
+  );
+  expect(result?.result).toEqual({
+    localDenied: true,
+    commandRejected: true,
+    hasPrivateStore: false,
+  });
+  const disconnected = await options.evaluate(() =>
+    chrome.runtime.sendMessage({ type: "pt.control-d.disconnect" }),
+  );
+  expect(disconnected).toMatchObject({ ok: true, state: { hasApiKey: false } });
+});
+
+test("shows Control D actions in View Logs when debug mode is enabled", async ({
+  context,
+  extensionId,
+}) => {
+  const page = await context.newPage();
+  const optionsUrl = `chrome-extension://${extensionId}/src/ui/options/index.html`;
+  await page.goto(optionsUrl);
+  await saveSimpleSettings(page, { debugMode: true });
+  await openSettingsTab(page, "advanced");
+
+  const controlDToggle = page.locator("[data-control-d-toggle]");
+  if ((await controlDToggle.count()) === 0) return;
+
+  await controlDToggle.click();
+  await expect(
+    page.getByRole("heading", { name: "Control D", exact: true }),
+  ).toBeVisible();
+  await page.goto(`${optionsUrl}#page-logs`);
+
+  await expect(
+    page.getByText("control-d.integration.toggled", { exact: true }),
+  ).toBeVisible();
 });
 
 test("keeps the selected settings tab in the URL across reloads", async ({

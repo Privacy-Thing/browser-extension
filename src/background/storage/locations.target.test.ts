@@ -77,6 +77,9 @@ describe("loadLocations", () => {
       "spf-berlin",
       "spf-madrid",
     ]);
+    expect(
+      EXAMPLE_LOCATIONS.every((profile) => profile.countryCode?.length === 2),
+    ).toBe(true);
   });
 
   it("randomizes preset coordinates inside the requested radius without changing privacy radius", () => {
@@ -150,6 +153,40 @@ describe("loadLocations", () => {
         timeZone: "UTC",
       },
     ]);
+  });
+
+  it("restores country codes for older built-in regional presets", async () => {
+    const withoutCountryCode = EXAMPLE_LOCATIONS.map(
+      ({ countryCode: _countryCode, ...profile }) => profile,
+    );
+    storageState[LOCATIONS_STORAGE_KEY] = [
+      withoutCountryCode[0],
+      withoutCountryCode[1],
+      withoutCountryCode[3],
+    ];
+
+    const profiles = await loadLocations();
+
+    expect(profiles.map((profile) => profile.countryCode)).toEqual(["PL", "FR", "CA"]);
+  });
+
+  it("keeps older profiles valid when they have no country code", async () => {
+    storageState[LOCATIONS_STORAGE_KEY] = [
+      {
+        id: "legacy-countryless",
+        label: "Legacy",
+        latitude: 1,
+        longitude: 2,
+        accuracy: 25,
+        noiseRadius: 50,
+        language: "en",
+        languages: ["en"],
+        timeZone: "UTC",
+      },
+    ];
+
+    const [profile] = await loadLocations();
+    expect(profile).not.toHaveProperty("countryCode");
   });
 
   it("does not read a retired namespace outside the startup migrator", async () => {

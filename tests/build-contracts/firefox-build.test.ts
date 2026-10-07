@@ -14,11 +14,13 @@ import {
   STABLE_FX_EXT_ID,
 } from "../../scripts/brand-config.mjs";
 
+import { findControlDReleaseLeaks } from "./experimental-integrations";
 import { findRetiredBuildLeaks } from "./retired-name";
 
 type FirefoxManifest = {
   version?: string;
   version_name?: string;
+  optional_host_permissions?: string[];
   background?: {
     scripts?: string[];
     service_worker?: string;
@@ -60,9 +62,21 @@ test("contains no retired namespace outside approved Firefox IDs and notificatio
   expect(await findRetiredBuildLeaks("firefox")).toEqual([]);
 });
 
+test("keeps the Control D experiment out of release artifacts", async () => {
+  const manifest = await readFirefoxManifest();
+  if (
+    manifest.version_name?.endsWith("-local") ||
+    manifest.version_name?.endsWith("-beta")
+  )
+    return;
+
+  expect(manifest.optional_host_permissions).toBeUndefined();
+  expect(await findControlDReleaseLeaks("firefox")).toEqual([]);
+});
+
 test("builds a firefox artifact with gecko settings and script-injection fallback", async () => {
   const manifest = await readFirefoxManifest();
-  const isNonReleaseBuild = Boolean(manifest.version_name);
+  const isNonReleaseBuild = /-(local|beta)$/.test(manifest.version_name ?? "");
 
   expect(manifest.minimum_chrome_version).toBeUndefined();
   expect(manifest.browser_specific_settings?.gecko?.id).toBe(
@@ -146,13 +160,15 @@ test("does not emit or bundle Chromium Battery support", async () => {
 test("stamps firefox manifests for release, local, and beta builds", async () => {
   const manifest = await readFirefoxManifest();
 
-  if (manifest.version_name) {
+  if (/-(local|beta)$/.test(manifest.version_name ?? "")) {
     expect(manifest.version_name).toMatch(/^0\.\d{4}\.\d{3,4}\.\d{1,4}-(local|beta)$/);
     expect(manifest.version).toMatch(/^0\.\d{4}\.\d{3,4}\.\d{1,4}$/);
     return;
   }
 
   expect(manifest.version).toMatch(/^\d+\.\d+\.\d+(?:\.\d+)?$/);
+  if (manifest.version_name)
+    expect(manifest.version_name).toMatch(/^\d+\.\d+\.\d+(?:\.\d+)?$/);
 });
 
 test("compiled firefox page-world scripts do not contain product-identifying channel strings", async () => {

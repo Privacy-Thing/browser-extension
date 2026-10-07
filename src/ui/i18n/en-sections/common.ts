@@ -29,6 +29,8 @@ export const common = {
     name: "Name",
     latitude: "Latitude",
     longitude: "Longitude",
+    countryCodeHint: "Two-letter country code for regional services.",
+    countryCode: "Country code",
     accuracy: "Accuracy",
     noiseRadius: "Max radius (m)",
     timeZone: "Time zone",

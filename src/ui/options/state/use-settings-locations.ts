@@ -234,6 +234,7 @@ const commitGeneratedLocation = async (
       label: draft.label,
       latitude: draft.latitude,
       longitude: draft.longitude,
+      ...(draft.countryCode ? { countryCode: draft.countryCode } : {}),
       accuracy: draft.accuracy,
       noiseRadius: draft.noiseRadius,
       language: draft.language,

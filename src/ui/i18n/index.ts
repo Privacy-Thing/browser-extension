@@ -43,7 +43,7 @@ export const applyUiLocalePreference = (preference: UiLocalePreference): void =>
 const isMessageRecord = (value: unknown): value is Record<PropertyKey, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
-const createMessagesProxy = (read: () => object): object =>
+export const createMessagesProxy = (read: () => object): object =>
   new Proxy(
     {},
     {

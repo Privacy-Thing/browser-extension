@@ -88,6 +88,11 @@ const normalizeLegacyWorker = (
  */
 export const locationProfileSchema = z
   .object({
+    countryCode: z
+      .string()
+      .regex(/^[a-zA-Z]{2}$/)
+      .transform((value) => value.toUpperCase())
+      .optional(),
     id: z.string().min(1),
     label: z.string().min(1),
     latitude: z.number().min(-90).max(90),

@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import privacyPolicyMarkdown from "../../../../../PRIVACY.md?raw";
 
-import { cn } from "@/ui/components/lib/utils";
 import {
   Dialog,
   DialogCloseButton,
@@ -12,6 +11,7 @@ import {
   DialogTitle,
 } from "@/ui/components/ui/dialog";
 import { t } from "@/ui/i18n";
+import { SetupProgress } from "@/ui/options/components/onboarding/setup-progress";
 import type { WizardStep } from "@/ui/options/components/onboarding/WelcomeWizard";
 import {
   NUMERIC_ROLLING_ALPHABET,
@@ -37,34 +37,7 @@ const PARENT_PROGRESS: Record<WizardStep, number | null> = {
 export const WizardProgress = ({ step }: { step: WizardStep }) => {
   const active = PARENT_PROGRESS[step];
   if (!active) return null;
-  const fillScale = (active - 1) / 3;
-  return (
-    <div
-      aria-label={t.welcome.progressLabel}
-      className="mx-auto h-[22px] w-full max-w-[340px]"
-    >
-      <div className="relative grid h-[22px] grid-cols-4 place-items-center">
-        <div className="absolute left-[11px] right-[11px] top-1/2 h-0.5 -translate-y-1/2 rounded-full bg-border" />
-        <div
-          className="absolute left-[11px] right-[11px] top-1/2 h-0.5 origin-left rounded-full bg-primary transition-transform duration-300 ease-out"
-          style={{ transform: `translateY(-50%) scaleX(${fillScale})` }}
-        />
-        {[1, 2, 3, 4].map((item) => (
-          <div
-            key={item}
-            className={cn(
-              "relative z-[1] grid h-[22px] w-[22px] place-items-center rounded-full border text-xs font-semibold leading-none transition-[background-color,border-color,color,transform] duration-300",
-              item <= active
-                ? "scale-100 border-primary bg-primary text-primary-foreground"
-                : "scale-95 border-border bg-background text-muted-foreground",
-            )}
-          >
-            {item}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+  return <SetupProgress active={active} label={t.welcome.progressLabel} />;
 };
 
 const OdometerDigit = ({

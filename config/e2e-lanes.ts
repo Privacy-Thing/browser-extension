@@ -30,6 +30,7 @@ export const E2E_OWNERSHIP_LANES = {
     "firefox-runtime-bootstrap.spec.ts",
     "firefox-runtime-core.spec.ts",
     "firefox-runtime-host-pause.spec.ts",
+    "firefox-runtime-control-d.spec.ts",
     "firefox-runtime-worker-test.spec.ts",
     "firefox-runtime-edge.spec.ts",
     "firefox-runtime-transport-refresh.spec.ts",
