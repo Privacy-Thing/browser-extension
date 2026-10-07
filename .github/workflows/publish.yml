@@ -954,24 +954,33 @@ jobs:
           echo "PT_RELEASE_VERSION=${RELEASE_TAG#v}" >> "$GITHUB_ENV"
           PT_BUILD_CHANNEL=release PT_RELEASE_VERSION="${RELEASE_TAG#v}" node scripts/resolve-build-metadata.mjs >> "$GITHUB_ENV"
 
-      - name: Enable Corepack
+      - name: Download and verify stable Chromium ZIP
         if: steps.config.outputs.configured == 'true' && steps.edge_throttle.outputs.publish == 'true'
-        run: corepack enable
-
-      - name: Install dependencies
-        if: steps.config.outputs.configured == 'true' && steps.edge_throttle.outputs.publish == 'true'
-        run: pnpm install --frozen-lockfile
-
-      - name: Build stable Chrome ZIP
-        if: steps.config.outputs.configured == 'true' && steps.edge_throttle.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          pnpm build:chrome
-          node scripts/package-release-assets.mjs chromium
+          ASSET_JSON="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG}" \
+            | jq -ce --arg suffix "-${PT_ARTIFACT_VERSION_LABEL}-chromium.zip" \
+              '[.assets[] | select(.name | endswith($suffix))] | if length == 1 then .[0] else error("Expected exactly one Chromium release asset") end')"
+          ASSET_NAME="$(jq -r '.name' <<< "${ASSET_JSON}")"
+          ASSET_DIGEST="$(jq -r '.digest' <<< "${ASSET_JSON}")"
+          if ! [[ "${ASSET_NAME}" =~ ^[a-zA-Z0-9._-]+$ ]] || ! [[ "${ASSET_DIGEST}" =~ ^sha256:[a-f0-9]{64}$ ]]; then
+            echo "Release asset has an invalid name or missing SHA-256 digest."
+            exit 1
+          fi
+          mkdir -p build/artifacts
+          gh release download "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" \
+            --pattern "${ASSET_NAME}" --dir build/artifacts
+          CHROMIUM_ZIP_PATH="build/artifacts/${ASSET_NAME}"
+          printf '%s  %s\n' "${ASSET_DIGEST#sha256:}" "${CHROMIUM_ZIP_PATH}" | sha256sum --check --strict
+          unzip -p "${CHROMIUM_ZIP_PATH}" manifest.json \
+            | jq -e --arg version "${PT_MANIFEST_VERSION}" '.manifest_version == 3 and .version == $version'
+          echo "CHROMIUM_ZIP_PATH=${CHROMIUM_ZIP_PATH}" >> "$GITHUB_ENV"
 
       - name: Publish stable package to Edge Add-ons
         if: steps.config.outputs.configured == 'true' && steps.edge_throttle.outputs.publish == 'true'
         run: |
           node scripts/publish-edge.mjs \
             --product-id "${EDGE_PRODUCT_ID}" \
-            --zip-path build/artifacts/*-${PT_ARTIFACT_VERSION_LABEL}-chromium.zip \
+            --zip-path "${CHROMIUM_ZIP_PATH}" \
             --notes "Privacy Thing ${RELEASE_TAG}"

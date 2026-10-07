@@ -21,22 +21,23 @@ overrides:
   playwright: 1.58.2
   playwright-core: 1.58.2
   "@babel/core": ^7.29.6
-  basic-ftp: ^5.3.1
+  basic-ftp: ^6.2.1
   esbuild@>=0.27.0: ^0.28.1
-  adm-zip: 0.6.0
-  brace-expansion@^1.1.0: ^1.1.18
-  brace-expansion@^5.0.0: ^5.0.9
+  adm-zip: 0.6.1
+  brace-expansion@^1.1.0: ^1.1.21
+  brace-expansion@^5.0.0: ^5.0.12
   fast-uri: ^3.1.5
   ip-address: ^10.3.1
-  js-yaml: 4.3.1
+  js-yaml: 4.3.2
   nanoid@<3.3.17: 3.3.17
   node-forge: ^1.4.0
   picomatch@^2.0.0: ^2.3.2
   picomatch@^4.0.0: ^4.0.4
   postcss: ^8.5.23
-  shell-quote: 1.9.0
+  postcss-selector-parser@^6.0.0: 7.1.6
+  shell-quote: 1.11.0
   tar: ^7.5.21
-  undici: ^7.29.0
+  undici: ^7.29.1
   ws: ^8.20.1
 
 allowBuilds:

@@ -120,8 +120,12 @@ const uploadPackage = async ({
 
   if (!response.ok) {
     const details = await response.text();
+    const hint =
+      response.status === 401
+        ? " Check the API key expiry and matching Client ID in Partner Center > Microsoft Edge > Publish API, then update EDGE_API_KEY and EDGE_CLIENT_ID in the GitHub edge environment."
+        : "";
     throw new Error(
-      `Edge upload failed with ${response.status}${details ? `: ${details}` : ""}`,
+      `Edge upload failed with ${response.status}${details ? `: ${details}` : ""}${hint}`,
     );
   }
 
