@@ -729,7 +729,8 @@ jobs:
       - name: Download Firefox E2E build artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
-          name: e2e-build-firefox-runtime
+          # Product bundle budgets exclude the host-specific runtime test instrumentation.
+          name: e2e-build-firefox
           path: build/firefox
 
       - name: Firefox build assertions

@@ -102,6 +102,20 @@ describe("uploadPackage", () => {
       uploadPackage({ credentials, productId: "p", zipPath: "pkg.zip", fetchImpl }),
     ).rejects.toThrow(/401: bad key/);
   });
+
+  it("explains credential recovery when a 401 has no response body", async () => {
+    vi.spyOn(fs, "readFileSync").mockReturnValue(Buffer.from("zip"));
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValue(fakeResponse({ ok: false, status: 401 }));
+
+    await expect(
+      uploadPackage({ credentials, productId: "p", zipPath: "pkg.zip", fetchImpl }),
+    ).rejects.toThrow(
+      /401.*API key expiry.*matching Client ID.*EDGE_API_KEY.*EDGE_CLIENT_ID.*GitHub edge environment/,
+    );
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("pollOperation", () => {
