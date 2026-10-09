@@ -1,5 +1,11 @@
 import type { ControlDProxyLocation } from "./contracts";
 import { redactControlDLogValue } from "./redaction";
+import {
+  parseProfileServices,
+  parseControlDServices,
+  type ControlDProfileService,
+  type ControlDService,
+} from "./services";
 
 const API_BASE = "https://api.controld.com";
 const MAX_ATTEMPTS = 3;
@@ -241,6 +247,44 @@ export class ControlDClient {
       const name = asString(record.name);
       return id && name ? [{ id, name }] : [];
     });
+  }
+
+  async listServices(): Promise<ControlDService[]> {
+    const payload = await this.request(
+      "/services/categories/all",
+      {},
+      true,
+      "list service catalogue",
+    );
+    const services = parseControlDServices(payload);
+    if (!services) {
+      throw new ControlDApiError(
+        "Control D returned an invalid service catalogue.",
+        200,
+        null,
+        null,
+      );
+    }
+    return services;
+  }
+
+  async listProfileServices(profileId: string): Promise<ControlDProfileService[]> {
+    const payload = await this.request(
+      `/profiles/${encodeURIComponent(profileId)}/services`,
+      {},
+      true,
+      "list profile services",
+    );
+    const services = parseProfileServices(payload);
+    if (!services) {
+      throw new ControlDApiError(
+        "Control D returned invalid profile services.",
+        200,
+        null,
+        null,
+      );
+    }
+    return services;
   }
 
   async createProfile(name: string): Promise<void> {
