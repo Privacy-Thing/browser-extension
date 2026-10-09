@@ -171,6 +171,8 @@ const RuleDialogHarness = () => {
       editingRulePattern: persistedRule.pattern,
       editingRuleSeedKey: persistedRule.ruleSeedKey,
       trustedSites: [],
+      featureBindings: [],
+      decorators: [],
     }),
     [
       closeRuleDialog,

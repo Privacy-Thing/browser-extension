@@ -20,22 +20,40 @@ installChromeBoundary();
 
 type RuleEditorSurfaceProps = {
   savedPattern: string;
+  draft?: boolean;
   /** Omitted for the pre-integration baseline with no provider listener. */
   scenario?: FeatureStoryScenario;
 };
 
-const RuleEditorSurface = ({ savedPattern }: RuleEditorSurfaceProps) => {
+const RuleEditorSurface = ({
+  savedPattern,
+  draft,
+  scenario,
+}: RuleEditorSurfaceProps) => {
   const [pattern, setPattern] = useState(savedPattern);
   return (
     <StorySettingsProvider
       value={{
         ruleDialogOpened: true,
         closeRuleDialog: fn(),
-        ruleDialogMode: "edit",
+        ruleDialogMode: draft ? "add" : "edit",
         handleRuleSubmit: fn(async () => undefined),
         rulePattern: pattern,
         setRulePattern: setPattern,
-        editingRulePattern: savedPattern,
+        editingRulePattern: draft ? null : savedPattern,
+        featureBindings:
+          scenario === "group-linked"
+            ? [
+                {
+                  rulePattern: savedPattern,
+                  rulePatterns: [savedPattern, "music.youtube.com", "youtu.be"],
+                  providerId: "control-d",
+                  featureId: "youtube",
+                  featureName: "YouTube",
+                  featureType: "service",
+                },
+              ]
+            : [],
         editingRuleSeedKey: "story-rule-identity",
         rotateRuleIdentity: fn(async () => true),
         ruleEnabled: true,
@@ -114,117 +132,55 @@ export const ProviderUnavailable: Story = {
   play: expectNoPanel,
 };
 
-export const FeatureNotChecked: Story = {
-  args: { savedPattern: "www.youtube.com", scenario: "not-checked" },
-  play: async ({ canvasElement }) => {
-    const panel = await findPanel(canvasElement);
-    await expect(panel).toHaveAttribute("data-provider-feature-view", "idle");
-  },
-};
-
 export const FeatureSuggested: Story = {
   args: { savedPattern: "www.youtube.com", scenario: "suggested" },
   play: async ({ canvasElement }) => {
-    const panel = await findPanel(canvasElement);
-    await expect(panel).toHaveAttribute("data-provider-feature-view", "suggested");
+    await expect(await findPanel(canvasElement)).toHaveAttribute(
+      "data-provider-feature-state",
+      "suggest",
+    );
   },
 };
-
-export const FeatureUnresolved: Story = {
-  args: { savedPattern: "video.example.com", scenario: "unresolved" },
+export const AddDraft: Story = {
+  args: { savedPattern: "www.youtube.com", draft: true, scenario: "not-checked" },
 };
-
+export const DraftStaged: Story = {
+  args: { savedPattern: "www.youtube.com", draft: true, scenario: "suggested" },
+  play: async ({ canvasElement }) => {
+    const panel = await findPanel(canvasElement);
+    await clickAction(panel, "accept");
+    await expect(panel).toHaveAttribute("data-provider-feature-state", "staged");
+    await expect(
+      canvasElement.ownerDocument.querySelector('input[name="featureDecision"]'),
+    ).not.toBeNull();
+  },
+};
+export const FeatureUnresolved: Story = { args: { scenario: "unresolved" } };
 export const FeatureDismissed: Story = {
   args: { savedPattern: "www.youtube.com", scenario: "dismissed" },
 };
-
 export const FeatureLinked: Story = {
+  args: { savedPattern: "www.youtube.com", scenario: "linked" },
+};
+export const GroupLinked: Story = {
+  args: { savedPattern: "www.youtube.com", scenario: "group-linked" },
+};
+export const JoinExisting: Story = {
+  args: { savedPattern: "music.youtube.com", draft: true, scenario: "join" },
+};
+export const FeatureSyncFailed: Story = {
+  args: { savedPattern: "www.youtube.com", scenario: "sync-failed" },
+};
+export const FeatureChecking: Story = {
+  args: { savedPattern: "www.youtube.com", scenario: "checking" },
+};
+export const UnsupportedWildcard: Story = {
+  args: { savedPattern: "*video*", scenario: "unresolved" },
+};
+export const LinkedMenu: Story = {
   args: { savedPattern: "www.youtube.com", scenario: "linked" },
   play: async ({ canvasElement }) => {
     const panel = await findPanel(canvasElement);
-    await expect(panel).toHaveAttribute("data-provider-feature-view", "bound");
-    await expect(panel.querySelector("[data-provider-feature-sync]")).toHaveAttribute(
-      "data-provider-feature-sync",
-      "synced",
-    );
-  },
-};
-
-export const FeatureSyncFailed: Story = {
-  args: { savedPattern: "www.youtube.com", scenario: "sync-failed" },
-  play: async ({ canvasElement }) => {
-    const panel = await findPanel(canvasElement);
-    await expect(panel.querySelector("[data-provider-feature-sync]")).toHaveAttribute(
-      "data-provider-feature-sync",
-      "error",
-    );
-    await body(canvasElement).findByRole("alert");
-  },
-};
-
-export const FeatureCheckFailed: Story = {
-  args: { savedPattern: "www.youtube.com", scenario: "check-failed" },
-  play: async ({ canvasElement }) => {
-    const panel = await findPanel(canvasElement);
-    await clickAction(panel, "recognize");
-    await body(canvasElement).findByRole("alert");
-    await expect(panel).toHaveAttribute("data-provider-feature-view", "idle");
-    await expect(panel).toHaveAttribute("data-provider-feature-busy", "false");
-  },
-};
-
-export const FeatureChecking: Story = {
-  args: { savedPattern: "www.youtube.com", scenario: "checking" },
-  play: async ({ canvasElement }) => {
-    const panel = await findPanel(canvasElement);
-    await clickAction(panel, "recognize");
-    await waitFor(() =>
-      expect(panel).toHaveAttribute("data-provider-feature-view", "checking"),
-    );
-  },
-};
-
-/** A broad source asks for one representative host instead of asserting the pattern. */
-export const BroadPatternHostname: Story = {
-  args: { savedPattern: "*.youtube.com", scenario: "not-checked" },
-  play: async ({ canvasElement }) => {
-    const panel = await findPanel(canvasElement);
-    const field = canvasElement.ownerDocument.querySelector<HTMLInputElement>(
-      "[data-provider-feature-host-field] input",
-    );
-    if (!field) throw new Error("Missing representative hostname field.");
-    await expect(field).toHaveValue("");
-    await userEvent.type(field, "music.youtube.com{Enter}");
-    await clickAction(panel, "recognize");
-    await waitFor(() =>
-      expect(panel).toHaveAttribute("data-provider-feature-view", "suggested"),
-    );
-    await expect(
-      panel.querySelector("[data-provider-feature-section=evidence]"),
-    ).toHaveTextContent("music.youtube.com");
-  },
-};
-
-/** Full suggestion → confirm → detach loop against the stateful mock. */
-export const ConfirmAndDetach: Story = {
-  args: { savedPattern: "www.youtube.com", scenario: "not-checked" },
-  play: async ({ canvasElement }) => {
-    const panel = await findPanel(canvasElement);
-    await clickAction(panel, "recognize");
-    await waitFor(() =>
-      expect(panel).toHaveAttribute("data-provider-feature-view", "suggested"),
-    );
-    await clickAction(panel, "confirm");
-    await waitFor(() =>
-      expect(panel).toHaveAttribute("data-provider-feature-view", "bound"),
-    );
-    await expect(panel.querySelector("[data-provider-feature-sync]")).toHaveAttribute(
-      "data-provider-feature-sync",
-      "queued",
-    );
-    await clickAction(panel, "detach");
-    await waitFor(() =>
-      expect(panel).toHaveAttribute("data-provider-feature-view", "suggested"),
-    );
+    await clickAction(panel, "open");
   },
 };

@@ -58,7 +58,7 @@ import { DEFAULT_ACCENT_PRESET, THEME_ACCENT_PRESETS } from "./theme-types.js";
 import type { ThemeAccentPreset, ThemeMode } from "./theme-types.js";
 import type { UiLocalePreference } from "./ui-locale.js";
 
-import type { RuleFeatureBinding } from "@/shared/provider-feature";
+import type { ProviderDecorator, RuleFeatureBinding } from "@/shared/provider-feature";
 import type { WorkerPolicyExceptions } from "@/shared/worker-policy-exceptions";
 
 export type {
@@ -434,6 +434,8 @@ export type PopupEffectiveSummary = {
 };
 
 export type PopupState = {
+  decorators?: ProviderDecorator[];
+  groupPatterns?: string[];
   hostPause?: HostPauseStatus;
   panicMode: boolean;
   effectiveSummary: PopupEffectiveSummary;

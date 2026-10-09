@@ -92,6 +92,10 @@ const {
   syncSiteNotices: vi.fn<() => Promise<PopupNotification[]>>(async () => []),
 }));
 
+vi.mock("@/background/storage/provider-features", () => ({
+  loadFeatureBindings: vi.fn(async () => []),
+}));
+
 vi.mock("@/background/storage/popup-notifications", () => ({
   loadPopupNotifications,
   selectPopupNotifications,

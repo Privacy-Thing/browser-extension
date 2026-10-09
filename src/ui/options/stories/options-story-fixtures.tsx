@@ -78,15 +78,18 @@ export const STORY_GLOBAL_FALLBACK: GlobalFallbackRule = {
 const createSettingsFixture = (
   values: Partial<SettingsContextValue>,
 ): SettingsContextValue =>
-  new Proxy(values, {
-    get(target, property, receiver) {
-      if (Reflect.has(target, property)) {
-        return Reflect.get(target, property, receiver);
-      }
+  new Proxy(
+    { featureBindings: [], decorators: [], ...values },
+    {
+      get(target, property, receiver) {
+        if (Reflect.has(target, property)) {
+          return Reflect.get(target, property, receiver);
+        }
 
-      throw new Error(`Missing Options story fixture field: ${String(property)}`);
+        throw new Error(`Missing Options story fixture field: ${String(property)}`);
+      },
     },
-  }) as SettingsContextValue;
+  ) as SettingsContextValue;
 
 export const StorySettingsProvider = ({
   children,

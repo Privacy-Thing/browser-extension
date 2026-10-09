@@ -33,6 +33,7 @@ type PopupRuleCardProps = {
   detailsLabel?: string;
   onDetails?: () => void;
   pauseControl?: ReactNode;
+  decorators?: ReactNode;
 };
 
 type PopupRuleCardStyle = CSSProperties &
@@ -150,6 +151,13 @@ const PopupRuleFooter = ({
     </div>
   ) : null;
 
+const PopupRuleDecorators = ({ children }: { children: ReactNode }) =>
+  children ? (
+    <div data-provider-decorators className="gw-popup-rule-decorators">
+      {children}
+    </div>
+  ) : null;
+
 export const PopupRuleCard = ({
   presentationKind,
   protectionStatus,
@@ -169,6 +177,7 @@ export const PopupRuleCard = ({
   detailsLabel,
   onDetails,
   pauseControl,
+  decorators,
 }: PopupRuleCardProps) => {
   const animatedBorderAccent =
     animatedBorderColor ?? accentColor ?? getPopupRuleToneAccent(tone);
@@ -260,6 +269,7 @@ export const PopupRuleCard = ({
           summaryCounts={summaryCounts}
           countAttributes={countAttributes}
         />
+        <PopupRuleDecorators>{decorators}</PopupRuleDecorators>
       </div>
       {pauseControl ? (
         <div className="gw-popup-rule-control">{pauseControl}</div>

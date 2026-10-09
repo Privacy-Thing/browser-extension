@@ -13,6 +13,7 @@ export const getUpdateRuleInput = (
     { type: typeof EXTENSION_COMMAND_TYPES.updateCurrentRule }
   >,
 ): UpdateCurrentRuleInput => ({
+  ...(command.featureDecision ? { featureDecision: command.featureDecision } : {}),
   locationId: command.locationId,
   patternMode: command.patternMode,
   replaceExisting: command.replaceExisting,

@@ -1,6 +1,10 @@
 import { ControlDClient } from "./client";
 import { CONTROL_D_PROVIDER_ID } from "./contracts";
-import { loadRecognitionState } from "./recognition-setup";
+import {
+  ensureControlDRecognition,
+  isRecognitionSweepActive,
+  loadRecognitionState,
+} from "./recognition-setup";
 import { loadControlDApiKey, loadControlDConfig } from "./storage";
 
 import type { FeatureProvider } from "@/background/provider-features";
@@ -28,6 +32,38 @@ export const resolverIdFrom = (input: string): string => {
   )
     throw new Error("Control D resolver URL was rejected.");
   return resolverId;
+};
+
+export class ControlDRecognitionError extends Error {
+  readonly code:
+    "recognition-preparing" | "recognition-blocked" | "recognition-unavailable";
+
+  constructor(code: ControlDRecognitionError["code"], message: string) {
+    super(message);
+    this.name = "ControlDRecognitionError";
+    this.code = code;
+  }
+}
+
+const recognitionError = (
+  code: ControlDRecognitionError["code"],
+): ControlDRecognitionError => {
+  if (code === "recognition-preparing") {
+    return new ControlDRecognitionError(
+      code,
+      "Control D is preparing domain matching.",
+    );
+  }
+  if (code === "recognition-blocked") {
+    return new ControlDRecognitionError(
+      code,
+      "Choose a service manually while lookup matching is blocked.",
+    );
+  }
+  return new ControlDRecognitionError(
+    code,
+    "Connect Control D before recognizing domains.",
+  );
 };
 
 const syncState = async (binding: RuleFeatureBinding | null | undefined) => {
@@ -114,24 +150,61 @@ export const createControlDProvider = (): FeatureProvider => {
     }
   };
 
+  const recognitionStatus = async (): Promise<
+    "ready" | "preparing" | "blocked" | "unavailable"
+  > => {
+    const config = await loadControlDConfig();
+    if (!config.enabled || !config.connected) return "unavailable";
+    if (isRecognitionSweepActive()) return "preparing";
+    const state = await loadRecognitionState();
+    if (state.phase === "blocked") return "blocked";
+    if (state.phase === "preparing")
+      return state.lastError ? "unavailable" : "preparing";
+    if (state.phase === "ready" && state.resolverDoh) return "ready";
+    return "unavailable";
+  };
+
   return {
     id: CONTROL_D_PROVIDER_ID,
     name: "Control D",
+    initials: "CD",
+    // Official controld.com palette: greenApple on blue800.
+    badgeColors: { background: "#1BE3AD", foreground: "#010818" },
     capabilities: { catalogue: true, domainRecognition: true, ruleSync: true },
     getFeatures,
     getStatus: async (binding) => {
       const status = await syncState(binding);
-      return { ...status, error: status.error ?? catalogueError };
+      const recognition = await recognitionStatus();
+      const blocked =
+        recognition === "blocked" || recognition === "unavailable"
+          ? await loadRecognitionState()
+          : null;
+      return Object.assign(
+        {
+          available: status.available,
+          syncStatus: status.syncStatus,
+          error: status.error ?? catalogueError ?? blocked?.lastError ?? null,
+        },
+        { recognitionStatus: recognition },
+      );
     },
     recognizeDomain: async (hostname) => {
-      const config = await loadRecognitionState();
-      if (config.phase !== "ready" || !config.resolverDoh)
-        throw new Error(
-          "Preview and apply the Control D lookup setup before recognizing domains. You can still choose a service manually.",
-        );
+      const config = await loadControlDConfig();
+      if (!config.enabled || !config.connected || !(await loadControlDApiKey())) {
+        throw recognitionError("recognition-unavailable");
+      }
+      if (isRecognitionSweepActive()) throw recognitionError("recognition-preparing");
+      const outcome = await ensureControlDRecognition();
+      if (outcome.phase === "preparing" || isRecognitionSweepActive()) {
+        throw recognitionError("recognition-preparing");
+      }
+      if (outcome.phase === "blocked") throw recognitionError("recognition-blocked");
+      if (outcome.phase !== "ready" || !outcome.resolverDoh) {
+        throw recognitionError("recognition-unavailable");
+      }
       const result = await (
         await client()
-      ).queryDomain(resolverIdFrom(config.resolverDoh), hostname);
+      ).queryDomain(resolverIdFrom(outcome.resolverDoh), hostname);
       const features = await getFeatures();
       const known = features.some((feature) => feature.featureId === result.serviceId);
       return {

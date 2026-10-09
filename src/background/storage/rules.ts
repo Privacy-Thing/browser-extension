@@ -1,10 +1,17 @@
 import {
+  applyFeatureDecision,
+  type RuleFeatureDecision,
+} from "@/background/storage/feature-rule-update";
+import {
   FEATURE_STORAGE_KEY,
+  FEATURE_CACHE_KEY,
   loadFeatureState,
   reconcileFeatureRefs,
 } from "@/background/storage/provider-features";
 import { CONFORMANCE_LOCATION_ID, FX_RUNTIME_TEST_HOST } from "@/shared/build-flags";
 import { EXTENSION_STORAGE_KEYS } from "@/shared/extension-contract";
+import { synchronizeFeatureGroups } from "@/shared/feature-groups";
+import { validateFeatureBindings } from "@/shared/provider-feature";
 import { normalizeRuleSeedKey, withAuthKey, withRuleSeedKey } from "@/shared/rule-seed";
 import type { DomainRule, SurfaceOverrides } from "@/shared/types";
 
@@ -84,13 +91,31 @@ export const loadRules = async (): Promise<DomainRule[]> => {
     : DEFAULT_RULES;
 };
 
-export const saveRules = async (rules: readonly DomainRule[]): Promise<void> => {
-  const [previous, state] = await Promise.all([loadRules(), loadFeatureState()]);
-  const next = rules.map((rule) => withAuthKey(withRuleSeedKey(rule)));
+export const saveRules = async (
+  rules: readonly DomainRule[],
+  decision?: RuleFeatureDecision,
+): Promise<DomainRule[]> => {
+  const [previous, stored] = await Promise.all([loadRules(), loadFeatureState()]);
+  const normalized = rules.map((rule) => withAuthKey(withRuleSeedKey(rule)));
+  let state = reconcileFeatureRefs(stored, previous, normalized);
+  let next = synchronizeFeatureGroups(previous, normalized, state.featureBindings);
+  if (decision) {
+    const updated = await applyFeatureDecision(next, state, decision);
+    next = updated.rules;
+    state = updated.state;
+  }
+  validateFeatureBindings(state.featureBindings, next);
   await chrome.storage.local.set({
     [RULES_STORAGE_KEY]: next,
-    [FEATURE_STORAGE_KEY]: {
-      featureBindings: reconcileFeatureRefs(state, previous, next).featureBindings,
-    },
+    [FEATURE_STORAGE_KEY]: { featureBindings: state.featureBindings },
+    ...(decision?.featureId === null
+      ? {
+          [FEATURE_CACHE_KEY]: {
+            featureMatches: state.featureMatches,
+            dismissedMatches: state.dismissedMatches,
+          },
+        }
+      : {}),
   });
+  return next;
 };

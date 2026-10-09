@@ -1,3 +1,4 @@
+import { decorateFeatureBindings } from "@/background/feature-provider-registry";
 import { clearExtensionLogs } from "@/background/logger";
 import { validateSettings } from "@/background/settings";
 import type { SettingsCommandDeps } from "@/background/settings-command-types";
@@ -106,11 +107,12 @@ const saveLocationModel = async (
       command.containerAssignments,
     );
     await deps.ensureStorageMigration();
-    await Promise.all([
+    const [, savedRules] = await Promise.all([
       saveLocations(settings.locations),
-      saveRules(settings.rules),
+      saveRules(settings.rules, command.featureDecision),
       saveContainerAssignments(settings.containerAssignments),
     ]);
+    settings.rules = savedRules ?? settings.rules;
     deps.setCachedValues({
       profiles: settings.locations,
       rules: settings.rules,
@@ -119,10 +121,13 @@ const saveLocationModel = async (
     await deps.syncPreloadedState();
     await deps.resyncActiveHeaderRules();
     await deps.refreshFxInjectionMode();
+    const featureBindings = await loadFeatureBindings();
     return {
       ok: true,
       locations: settings.locations,
       rules: settings.rules,
+      featureBindings,
+      decorators: decorateFeatureBindings(featureBindings),
       containerAssignments: settings.containerAssignments,
     };
   } catch (error) {

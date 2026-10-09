@@ -11,7 +11,13 @@ import {
   STORY_TRUSTED_SITES,
 } from "./options-story-fixtures";
 
+import { findFeatureBinding } from "@/shared/feature-groups";
 import { defaultSharedSpoofing } from "@/shared/fingerprint-spoofing";
+import {
+  bindingPatterns,
+  type RuleFeatureBinding,
+  type ProviderDecorator,
+} from "@/shared/provider-feature";
 import { DEFAULT_PREFERENCES } from "@/shared/settings-defaults";
 import type { SpoofingBrowserTarget } from "@/shared/spoofing-surfaces";
 import type { DomainRule, SharedSpoofingConfig } from "@/shared/types";
@@ -90,15 +96,31 @@ const OptionsSurfaceShell = ({
   </Tabs>
 );
 
-const RulesSurface = ({ rules = STORY_RULES }: { rules?: readonly DomainRule[] }) => {
+const RulesSurface = ({
+  rules = STORY_RULES,
+  featureBindings = [],
+  decorators = [],
+}: {
+  rules?: readonly DomainRule[];
+  featureBindings?: RuleFeatureBinding[];
+  decorators?: ProviderDecorator[];
+}) => {
   const [rulesFilter, setRulesFilter] = useState("");
   const [linkedRuleLocationId, setRuleLocationFilter] = useState<string | null>(null);
   const [selectedRulePatterns, setSelectedRulePatterns] = useState(new Set<string>());
   const [previewHostname, setPreviewHostname] = useState("browserleaks.com");
   const viewModels = useMemo(
     () =>
-      buildRuleViewModels(rules, STORY_LOCATIONS, rulesFilter, linkedRuleLocationId),
-    [linkedRuleLocationId, rules, rulesFilter],
+      buildRuleViewModels(
+        rules,
+        STORY_LOCATIONS,
+        rulesFilter,
+        linkedRuleLocationId,
+      ).filter(({ rule }) => {
+        const binding = findFeatureBinding(featureBindings, rule.pattern);
+        return !binding || rule.pattern === binding.rulePattern;
+      }),
+    [linkedRuleLocationId, rules, rulesFilter, featureBindings],
   );
   const visibleRuleKeys = viewModels.map(({ rule }) => rule.pattern);
 
@@ -106,6 +128,8 @@ const RulesSurface = ({ rules = STORY_RULES }: { rules?: readonly DomainRule[] }
     <StorySettingsProvider
       value={{
         rulesFilter,
+        featureBindings,
+        decorators,
         setRulesFilter,
         profiles: STORY_LOCATIONS,
         globalFallbackRule: STORY_GLOBAL_FALLBACK,
@@ -458,6 +482,43 @@ type Story = StoryObj<typeof meta>;
 
 export const Rules: Story = {
   render: () => <RulesSurface />,
+};
+
+const videoGroup: RuleFeatureBinding = {
+  rulePattern: "youtube.com",
+  rulePatterns: ["youtube.com", "youtu.be", "music.youtube.com"],
+  providerId: "control-d",
+  featureId: "youtube",
+  featureName: "YouTube",
+  featureType: "service",
+};
+export const RulesWithServices: Story = {
+  render: () => (
+    <RulesSurface
+      rules={[
+        ...bindingPatterns(videoGroup).map((pattern) => ({
+          pattern,
+          locationId: "warsaw",
+          enabled: true,
+          ruleSeedKey: "abc123",
+          authKey: "abcdefgh",
+        })),
+        ...STORY_RULES,
+      ]}
+      featureBindings={[videoGroup]}
+      decorators={[
+        {
+          providerId: "control-d",
+          providerName: "Control D",
+          initials: "CD",
+          badgeColors: { background: "#1BE3AD", foreground: "#010818" },
+          featureId: "youtube",
+          label: "YouTube",
+          type: "service",
+        },
+      ]}
+    />
+  ),
 };
 
 export const RulesInteractionTest: Story = {

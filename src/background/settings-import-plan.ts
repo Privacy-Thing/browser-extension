@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { validateImportedSettings } from "@/background/settings";
 import { canonical } from "@/background/settings-import-storage";
+import { bindingPatterns, type RuleFeatureBinding } from "@/shared/provider-feature";
 import type {
   SettingsImportChange,
   SettingsImportSelection,
@@ -241,6 +242,26 @@ const localAssignments = (input: {
     });
 };
 
+const retainBindingPatterns = (
+  bindings: readonly RuleFeatureBinding[],
+  keep: (pattern: string) => boolean,
+): RuleFeatureBinding[] =>
+  bindings.flatMap((binding) => {
+    const members = bindingPatterns(binding).filter(keep);
+    const primary = members.includes(binding.rulePattern)
+      ? binding.rulePattern
+      : members[0];
+    return primary
+      ? [
+          {
+            ...binding,
+            rulePattern: primary,
+            ...(binding.rulePatterns ? { rulePatterns: members } : {}),
+          },
+        ]
+      : [];
+  });
+
 export const planSettingsImport = (input: {
   current: ExportedSettings;
   source: ExportedSettings;
@@ -293,21 +314,22 @@ export const planSettingsImport = (input: {
     containerAssignments: assignments,
     featureBindings: merge
       ? [
-          ...(current.featureBindings ?? []).filter(
-            (binding) =>
+          ...retainBindingPatterns(
+            current.featureBindings ?? [],
+            (pattern) =>
               !source.rules.some(
                 (rule) =>
-                  rule.pattern === binding.rulePattern &&
-                  selection.rules[rule.pattern] !== "keep" &&
-                  selection.rules[rule.pattern] !== "skip",
+                  rule.pattern === pattern &&
+                  selection.rules[pattern] !== "keep" &&
+                  selection.rules[pattern] !== "skip",
               ),
           ),
-          ...(source.featureBindings ?? []).filter((binding) =>
+          ...retainBindingPatterns(source.featureBindings ?? [], (pattern) =>
             source.rules.some(
               (rule) =>
-                rule.pattern === binding.rulePattern &&
-                selection.rules[rule.pattern] !== "keep" &&
-                selection.rules[rule.pattern] !== "skip",
+                rule.pattern === pattern &&
+                selection.rules[pattern] !== "keep" &&
+                selection.rules[pattern] !== "skip",
             ),
           ),
         ]

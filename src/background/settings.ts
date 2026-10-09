@@ -5,6 +5,7 @@ import {
   type LegacyBehaviorData,
 } from "@/background/storage/legacy-behavior-data";
 import { normalizeFeatureFlags, type FeatureFlags } from "@/shared/feature-flags";
+import { validateGroupRules } from "@/shared/feature-groups";
 import { SHARED_WORKER_MODES } from "@/shared/fingerprint-types";
 import { normalizeLocationLocales } from "@/shared/locale-catalog";
 import {
@@ -346,12 +347,18 @@ export const validateImportedSettings = (
     );
   }
 
+  const featureBindings = validateFeatureBindings(
+    settings.featureBindings,
+    validated.rules,
+  );
+  validateGroupRules(featureBindings, validated.rules);
+
   // Scalar preference defaults come from the single canon, not inline literals.
   const preferences = normalizePreferences(settings);
 
   return {
     ...validated,
-    featureBindings: validateFeatureBindings(settings.featureBindings, validated.rules),
+    featureBindings,
     trustedSites,
     uiLocale: preferences.uiLocale,
     themeMode: sanitizeThemeMode(settings.themeMode),

@@ -1,11 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { findFeatureBinding } from "@/shared/feature-groups";
+import { bindingPatterns } from "@/shared/provider-feature";
 import { matchTrustedSite } from "@/shared/rule-resolution";
+import { providerFeatureCopy } from "@/ui/components/provider-feature";
 import { Button } from "@/ui/components/ui/button";
 import { FormDialogShell } from "@/ui/components/ui/form-dialog-shell";
 import { Input } from "@/ui/components/ui/input";
 import { Switch } from "@/ui/components/ui/switch";
 import { t } from "@/ui/i18n";
+import { useUiLocale } from "@/ui/i18n/LocaleRefresh";
 import {
   DialogIdentitySection,
   DialogFieldRow,
@@ -112,6 +116,22 @@ const RuleDialogFooter = ({ openAdvanced }: { openAdvanced: () => void }) => {
   );
 };
 
+const GroupHostList = () => {
+  const locale = useUiLocale();
+  const { featureBindings, editingRulePattern } = useSettings();
+  const binding = editingRulePattern
+    ? findFeatureBinding(featureBindings, editingRulePattern)
+    : undefined;
+  const hosts = binding
+    ? bindingPatterns(binding).filter((pattern) => pattern !== editingRulePattern)
+    : [];
+  return hosts.length ? (
+    <p data-feature-group-hosts className="text-xs break-all text-muted-foreground">
+      {providerFeatureCopy[locale].sharedWith(hosts)}
+    </p>
+  ) : null;
+};
+
 const RuleFields = () => {
   const {
     closeRuleDialog,
@@ -138,7 +158,7 @@ const RuleFields = () => {
   ];
   return (
     <section className="rounded-xl border border-border/70 bg-card/35 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
-      <div className="space-y-3">
+      <div className="space-y-3 [&_[data-provider-feature-host]]:border-b [&_[data-provider-feature-host]]:border-border/70 [&_[data-provider-feature-host]]:pb-3">
         {ruleDialogMode === "edit" ? (
           <>
             <DialogToggleRow
@@ -175,6 +195,11 @@ const RuleFields = () => {
             onChange={(event) => setRulePattern(event.currentTarget.value)}
           />
         </DialogFieldRow>
+        <GroupHostList />
+        <ProviderFeatureHost
+          rulePattern={rulePattern}
+          {...(editingRulePattern ? { savedRulePattern: editingRulePattern } : {})}
+        />
         <LocationFormFields
           sectionLabel={t.rules.dialog.locationProfileLabel}
           sectionHint={t.rules.dialog.locationProfileHint}
@@ -223,14 +248,8 @@ const RuleFields = () => {
 };
 
 const RuleDialogBody = () => {
-  const {
-    editingRulePattern,
-    ruleDialogMode,
-    rulePattern,
-    ruleSurfaceOverrides,
-    setRuleSurfaceOverrides,
-    trustedSites,
-  } = useSettings();
+  const { rulePattern, ruleSurfaceOverrides, setRuleSurfaceOverrides, trustedSites } =
+    useSettings();
   const trustedPattern = useMemo(() => {
     const raw = rulePattern.trim();
     if (!raw) return null;
@@ -267,15 +286,12 @@ const RuleDialogBody = () => {
       <div className="grid gap-4 md:grid-cols-[minmax(0,1.15fr)_minmax(19rem,0.95fr)] md:items-start">
         <div className="space-y-4">
           <RuleFields />
-          {ruleDialogMode === "edit" && editingRulePattern ? (
-            <ProviderFeatureHost rulePattern={editingRulePattern} />
-          ) : null}
         </div>
         <section className="rounded-xl border border-border/70 bg-card/35 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
           <div>
-            <h4 className="text-sm font-semibold">
+            <h3 className="text-sm font-semibold">
               {t.rules.dialog.surfaceOverrides.title}
-            </h4>
+            </h3>
             <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
               {t.rules.dialog.surfaceOverrides.description}
             </p>

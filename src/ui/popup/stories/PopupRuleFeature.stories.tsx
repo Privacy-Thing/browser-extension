@@ -53,17 +53,14 @@ const PopupRuleFeatureSurface = ({ savedPattern, hostname }: PopupRuleFeaturePro
           view="rule-form"
           title={savedPattern ?? hostname}
           description={t.popup.sheetLead}
-          {...(savedPattern
-            ? {
-                formExtra: (
-                  <ProviderFeatureHost
-                    variant="compact"
-                    rulePattern={savedPattern}
-                    hostname={hostname}
-                  />
-                ),
-              }
-            : {})}
+          formExtra={
+            <ProviderFeatureHost
+              variant="compact"
+              rulePattern={savedPattern ?? hostname}
+              {...(savedPattern ? { savedRulePattern: savedPattern } : {})}
+              hostname={hostname}
+            />
+          }
           selectedLocationId={locationId}
           noPresetLabel={t.popup.noPresetLabel}
           locations={LOCATIONS}
@@ -125,9 +122,12 @@ const meta = {
   },
   beforeEach: ({ args }) => {
     installFeatureRuntime(
-      args.scenario && args.savedPattern
-        ? createFeatureRuntimeMock(args.scenario, args.savedPattern, args.hostname)
-            .sendMessage
+      args.scenario
+        ? createFeatureRuntimeMock(
+            args.scenario,
+            args.savedPattern ?? args.hostname,
+            args.hostname,
+          ).sendMessage
         : null,
     );
   },
@@ -143,42 +143,31 @@ const findPanel = async (canvasElement: HTMLElement) =>
     return panel;
   });
 
-/** The current tab is the representative host, so no hostname field appears. */
 export const SavedRuleSuggested: Story = {
   play: async ({ canvasElement }) => {
-    const panel = await findPanel(canvasElement);
-    await expect(panel).toHaveAttribute("data-provider-feature-variant", "compact");
-    await expect(panel).toHaveAttribute("data-provider-feature-view", "suggested");
-    await expect(
-      canvasElement.querySelector("[data-provider-feature-host-field]"),
-    ).toBeNull();
-  },
-};
-
-export const SavedRuleLinked: Story = {
-  args: { scenario: "linked" },
-};
-
-export const SavedRuleCheckFailed: Story = {
-  args: { scenario: "check-failed", hostname: "music.youtube.com" },
-  play: async ({ canvasElement }) => {
-    const panel = await findPanel(canvasElement);
-    const recognize = panel.querySelector<HTMLElement>(
-      '[data-provider-feature-action="recognize"]',
-    );
-    if (!recognize) throw new Error("Missing recognize action.");
-    await userEvent.click(recognize);
-    await waitFor(() =>
-      expect(canvasElement.querySelector('[role="alert"]')).not.toBeNull(),
+    await expect(await findPanel(canvasElement)).toHaveAttribute(
+      "data-provider-feature-state",
+      "suggest",
     );
   },
 };
-
-/** A draft for the current site has no saved source, so the panel stays out. */
+export const SavedRuleLinked: Story = { args: { scenario: "linked" } };
+export const GroupLinked: Story = { args: { scenario: "group-linked" } };
+export const JoinExisting: Story = {
+  args: { savedPattern: null, hostname: "music.youtube.com", scenario: "join" },
+};
 export const UnsavedDraft: Story = {
+  args: { savedPattern: null, scenario: "not-checked" },
+};
+export const DraftStaged: Story = {
   args: { savedPattern: null, scenario: "suggested" },
   play: async ({ canvasElement }) => {
-    await expect(canvasElement.querySelector("#current-rule-mode")).not.toBeNull();
-    await expect(canvasElement.querySelector("[data-provider-feature]")).toBeNull();
+    const panel = await findPanel(canvasElement);
+    const accept = panel.querySelector<HTMLElement>(
+      '[data-provider-feature-action="accept"]',
+    );
+    if (!accept) throw new Error("Missing accept action.");
+    await userEvent.click(accept);
+    await expect(panel).toHaveAttribute("data-provider-feature-state", "staged");
   },
 };

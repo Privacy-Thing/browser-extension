@@ -31,6 +31,7 @@ import {
 import { fireAndForget } from "@/shared/async";
 import { EXTENSION_STORAGE_KEYS } from "@/shared/extension-contract";
 import { EXTENSION_COMMAND_TYPES } from "@/shared/extension-contract";
+import type { FeatureDecision } from "@/shared/provider-feature";
 import type {
   CleanupPlan,
   CleanupResult,
@@ -65,6 +66,7 @@ const readExplicitPopupTabId = (): number | undefined => {
 
 export const usePopupAppState = () => {
   const explicitTargetTabId = useMemo(readExplicitPopupTabId, []);
+  const [featureDecision, setFeatureDecision] = useState<FeatureDecision>();
   const [popupState, setPopupState] = useState<PopupState | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [mutationState, dispatchMutation] = useReducer(
@@ -108,6 +110,8 @@ export const usePopupAppState = () => {
   const previousSheetOpenRef = useRef(false);
 
   return {
+    featureDecision,
+    setFeatureDecision,
     explicitTargetTabId,
     popupState,
     setPopupState,

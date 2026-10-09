@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createControlDProvider, resolverIdFrom } from "./feature-provider";
+import { ensureControlDRecognition } from "./recognition-setup";
 
 import type { RuleFeatureBinding } from "@/shared/provider-feature";
 
@@ -21,6 +22,12 @@ const fixture = vi.hoisted(() => ({
     status: "matched" as const,
     serviceId: "video",
   })),
+  recognition: {
+    phase: "ready" as string,
+    resolverDoh: "https://dns.controld.com/test-resolver" as string | null,
+    lastError: null as string | null,
+  },
+  sweeping: false,
 }));
 vi.mock("./client", () => ({
   ControlDClient: class {
@@ -29,10 +36,13 @@ vi.mock("./client", () => ({
   },
 }));
 vi.mock("./recognition-setup", () => ({
-  loadRecognitionState: vi.fn(async () => ({
-    phase: "ready",
-    resolverDoh: "https://dns.controld.com/test-resolver",
-  })),
+  loadRecognitionState: vi.fn(async () => fixture.recognition),
+  ensureControlDRecognition: vi.fn(async () =>
+    fixture.recognition.phase === "not-setup"
+      ? { ...fixture.recognition, phase: "preparing" }
+      : fixture.recognition,
+  ),
+  isRecognitionSweepActive: vi.fn(() => fixture.sweeping),
 }));
 vi.mock("./storage", () => ({
   loadControlDConfig: vi.fn(async () => fixture.config),
@@ -55,6 +65,13 @@ beforeEach(() => {
   vi.setSystemTime(new Date("2026-10-09T10:00:00Z"));
   fixture.services.mockClear();
   fixture.query.mockClear();
+  fixture.recognition.phase = "ready";
+  fixture.recognition.resolverDoh = "https://dns.controld.com/test-resolver";
+  fixture.recognition.lastError = null;
+  fixture.sweeping = false;
+  vi.mocked(ensureControlDRecognition).mockClear();
+  fixture.config.enabled = true;
+  fixture.config.connected = true;
   fixture.config.status = "ready";
   fixture.config.managedServices = {};
   fixture.config.locationMappings.warsaw.proxyPk = "WAW";
@@ -77,6 +94,10 @@ afterEach(() => {
 });
 
 describe("Control D feature provider", () => {
+  it("uses Control D initials", () => {
+    expect(createControlDProvider().initials).toBe("CD");
+  });
+
   it("recognizes each individual domain through the resolver without constructing a domain catalogue", async () => {
     const provider = createControlDProvider();
     expect(await provider.recognizeDomain("video.example.com")).toMatchObject({
@@ -93,6 +114,71 @@ describe("Control D feature provider", () => {
       ["test-resolver", "stream.example.net"],
     ]);
     expect(fixture.services).toHaveBeenCalledOnce();
+  });
+
+  it("throws preparing while lookup setup is still running and does not query", async () => {
+    const provider = createControlDProvider();
+    fixture.recognition.phase = "preparing";
+    fixture.recognition.resolverDoh = null;
+    await expect(provider.recognizeDomain("video.example.com")).rejects.toMatchObject({
+      code: "recognition-preparing",
+    });
+    fixture.recognition.phase = "ready";
+    fixture.recognition.resolverDoh = "https://dns.controld.com/test-resolver";
+    fixture.sweeping = true;
+    await expect(provider.recognizeDomain("video.example.com")).rejects.toMatchObject({
+      code: "recognition-preparing",
+    });
+    expect(fixture.query).not.toHaveBeenCalled();
+    expect(ensureControlDRecognition).toHaveBeenCalledOnce();
+  });
+
+  it("starts lookup setup on the first recognize and blocks a profile that cannot be trusted", async () => {
+    const provider = createControlDProvider();
+    fixture.recognition.phase = "not-setup";
+    fixture.recognition.resolverDoh = null;
+    await expect(provider.recognizeDomain("video.example.com")).rejects.toMatchObject({
+      code: "recognition-preparing",
+    });
+    fixture.recognition.phase = "blocked";
+    fixture.recognition.lastError = "The lookup profile has custom rules.";
+    await expect(provider.recognizeDomain("video.example.com")).rejects.toMatchObject({
+      code: "recognition-blocked",
+    });
+    fixture.config.enabled = false;
+    await expect(provider.recognizeDomain("video.example.com")).rejects.toMatchObject({
+      code: "recognition-unavailable",
+    });
+    expect(fixture.query).not.toHaveBeenCalled();
+    expect(await provider.getStatus()).toMatchObject({
+      recognitionStatus: "unavailable",
+    });
+    expect(ensureControlDRecognition).toHaveBeenCalledTimes(2);
+  });
+
+  it("reports recognition without starting lookup setup", async () => {
+    const provider = createControlDProvider();
+    expect(await provider.getStatus()).toMatchObject({ recognitionStatus: "ready" });
+    fixture.sweeping = true;
+    expect(await provider.getStatus()).toMatchObject({
+      recognitionStatus: "preparing",
+    });
+    expect(ensureControlDRecognition).not.toHaveBeenCalled();
+  });
+
+  it("stops reporting a pending request when setup has failed and settled", async () => {
+    fixture.recognition.phase = "preparing";
+    fixture.recognition.lastError = "Service API unavailable";
+    const provider = createControlDProvider();
+    expect(await provider.getStatus()).toMatchObject({
+      recognitionStatus: "unavailable",
+      error: "Service API unavailable",
+    });
+    fixture.sweeping = true;
+    expect(await provider.getStatus()).toMatchObject({
+      recognitionStatus: "preparing",
+    });
+    expect(ensureControlDRecognition).not.toHaveBeenCalled();
   });
 
   it("reports queued until the source's current route is applied", async () => {

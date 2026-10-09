@@ -1,5 +1,6 @@
 import { EXTENSION_STORAGE_KEYS } from "@/shared/extension-contract";
 import {
+  bindingPatterns,
   featureStateSchema,
   type RuleFeatureBinding,
   type StoredFeatureState,
@@ -7,7 +8,7 @@ import {
 import type { DomainRule } from "@/shared/types";
 
 export const FEATURE_STORAGE_KEY = EXTENSION_STORAGE_KEYS.providerFeatures;
-const FEATURE_CACHE_KEY = EXTENSION_STORAGE_KEYS.providerFeatureMatches;
+export const FEATURE_CACHE_KEY = EXTENSION_STORAGE_KEYS.providerFeatureMatches;
 
 export const loadFeatureState = async (): Promise<StoredFeatureState> => {
   const [stored, cached] = await Promise.all([
@@ -58,18 +59,32 @@ export const reconcileFeatureRefs = (
   const renamed = new Map<string, string>();
   for (const oldRule of previous) {
     if (patterns.has(oldRule.pattern)) continue;
-    const replacement = next.find((rule) =>
-      oldRule.authKey
-        ? rule.authKey === oldRule.authKey
-        : Boolean(oldRule.ruleSeedKey && rule.ruleSeedKey === oldRule.ruleSeedKey),
+    const replacement = next.find(
+      (rule) =>
+        !previous.some((entry) => entry.pattern === rule.pattern) &&
+        (oldRule.authKey
+          ? rule.authKey === oldRule.authKey
+          : Boolean(oldRule.ruleSeedKey && rule.ruleSeedKey === oldRule.ruleSeedKey)),
     );
     if (replacement) renamed.set(oldRule.pattern, replacement.pattern);
   }
   return {
     ...state,
     featureBindings: state.featureBindings.flatMap((binding) => {
-      const rulePattern = renamed.get(binding.rulePattern) ?? binding.rulePattern;
-      return patterns.has(rulePattern) ? [{ ...binding, rulePattern }] : [];
+      const members = bindingPatterns(binding)
+        .map((pattern) => renamed.get(pattern) ?? pattern)
+        .filter((pattern) => patterns.has(pattern));
+      const source = renamed.get(binding.rulePattern) ?? binding.rulePattern;
+      const rulePattern = members.includes(source) ? source : members[0];
+      return rulePattern
+        ? [
+            {
+              ...binding,
+              rulePattern,
+              ...(binding.rulePatterns ? { rulePatterns: members } : {}),
+            },
+          ]
+        : [];
     }),
   };
 };

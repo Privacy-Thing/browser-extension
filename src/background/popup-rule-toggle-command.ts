@@ -20,9 +20,11 @@ import {
   getFingerprintEnabled,
   getGlobalFallbackRule,
 } from "@/background/storage/preferences";
+import { loadFeatureBindings } from "@/background/storage/provider-features";
 import { loadRules } from "@/background/storage/rules";
 import { loadTrustedSites } from "@/background/storage/trusted-sites";
 import { getContainer } from "@/shared/container-service";
+import { bindingPatterns } from "@/shared/provider-feature";
 import {
   LogCategory,
   type ContainerAssignment,
@@ -118,12 +120,9 @@ const persistRuleToggle = async (
       ? { ...rule, enabled: input.enabled }
       : rule,
   );
-  await persistPopupRuleMutation(
-    context.deps,
-    nextRules,
-    input.hostname,
-    input.activeTab,
-  );
+  await persistPopupRuleMutation(context.deps, nextRules, input.hostname, {
+    activeTab: input.activeTab,
+  });
   context.deps.logExtensionEvent({
     enabled: context.deps.getLastKnownDebugMode() ?? false,
     category: LogCategory.System,
@@ -286,8 +285,14 @@ const deleteCurrentRule = async (
     }),
   );
   if (!currentRule) return { ok: false, error: "No current rule to delete." };
-  const nextRules = loaded.rules.filter((rule) => rule.pattern !== currentRule.pattern);
-  await persistPopupRuleMutation(deps, nextRules, hostname, loaded.activeTab);
+  const binding = (await loadFeatureBindings()).find((entry) =>
+    bindingPatterns(entry).includes(currentRule.pattern),
+  );
+  const patterns = binding ? bindingPatterns(binding) : [currentRule.pattern];
+  const nextRules = loaded.rules.filter((rule) => !patterns.includes(rule.pattern));
+  await persistPopupRuleMutation(deps, nextRules, hostname, {
+    activeTab: loaded.activeTab,
+  });
   deps.logExtensionEvent({
     enabled: deps.getLastKnownDebugMode() ?? false,
     category: LogCategory.System,

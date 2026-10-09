@@ -1,4 +1,5 @@
 import { syncDynamicHeaderRules } from "@/background/dnr";
+import { decorateFeatureBindings } from "@/background/feature-provider-registry";
 import {
   clearExtensionLogs,
   getExtensionLogs,
@@ -15,6 +16,7 @@ import {
   getPreferences,
   getSharedSpoofing,
 } from "@/background/storage/preferences";
+import { loadFeatureBindings } from "@/background/storage/provider-features";
 import { loadRules } from "@/background/storage/rules";
 import { loadTrustedSites } from "@/background/storage/trusted-sites";
 import { LogCategory } from "@/shared/types";
@@ -83,6 +85,7 @@ const getSettings = async (deps: SettingsApiDeps): Promise<GetSettingsResponse> 
     getGlobalFallbackRule(),
     loadContainerAssignments(),
   ]);
+  const featureBindings = await loadFeatureBindings();
   const {
     browserFingerprintSpoofingEnabled: fingerprintEnabled,
     sharedWorkerHandlingMode: workerMode,
@@ -116,6 +119,8 @@ const getSettings = async (deps: SettingsApiDeps): Promise<GetSettingsResponse> 
   return {
     ok: true,
     locations: profiles,
+    featureBindings,
+    decorators: decorateFeatureBindings(featureBindings),
     rules,
     trustedSites,
     ...preferences,

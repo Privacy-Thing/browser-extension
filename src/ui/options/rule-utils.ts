@@ -367,12 +367,12 @@ export const upsertRule = (
     rules.find((rule) => normalizePattern(rule.pattern) === normalizedEditingPattern) ??
     rules.find((rule) => normalizePattern(rule.pattern) === normalizedPattern);
   const preservedRuleSeedKey = nextRule.ruleSeedKey ?? replacedRule?.ruleSeedKey;
-  const nextRuleWithSeed = preservedRuleSeedKey
-    ? {
-        ...nextRule,
-        ruleSeedKey: preservedRuleSeedKey,
-      }
-    : nextRule;
+  const preservedAuthKey = nextRule.authKey ?? replacedRule?.authKey;
+  const nextRuleWithSeed = {
+    ...nextRule,
+    ...(preservedRuleSeedKey ? { ruleSeedKey: preservedRuleSeedKey } : {}),
+    ...(preservedAuthKey ? { authKey: preservedAuthKey } : {}),
+  };
 
   return [
     nextRuleWithSeed,

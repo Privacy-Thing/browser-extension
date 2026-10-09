@@ -1,3 +1,4 @@
+import { decorateFeatureBindings } from "@/background/feature-provider-registry";
 import {
   buildPopupState,
   defaultPopupCurrentRule,
@@ -36,6 +37,7 @@ import {
   getSharedSpoofing,
   getWorkerMode,
 } from "@/background/storage/preferences";
+import { loadFeatureBindings } from "@/background/storage/provider-features";
 import { loadRules } from "@/background/storage/rules";
 import {
   loadSiteSuggestions,
@@ -44,6 +46,7 @@ import {
 import { loadTrustedSites } from "@/background/storage/trusted-sites";
 import { getContainer } from "@/shared/container-service";
 import { isNoticeAttention } from "@/shared/popup-notification-state";
+import { bindingPatterns } from "@/shared/provider-feature";
 import {
   LogCategory,
   type ContainerAssignment,
@@ -507,6 +510,11 @@ export const createPopupStateHandler = (deps: PopupCommandDeps) => {
     const model = await resolvePopupModel(deps, inputs);
     const summary = await buildSummary(deps, inputs, model, ++generation);
     const response = buildSupportedResponse(inputs, model, summary);
+    const bindings = (await loadFeatureBindings()).filter((binding) =>
+      bindingPatterns(binding).includes(response.state.currentRule.pattern ?? ""),
+    );
+    response.state.decorators = decorateFeatureBindings(bindings);
+    response.state.groupPatterns = bindings.flatMap(bindingPatterns);
     const hostname = response.state.currentTab.hostname;
     if (hostname) response.state.hostPause = getHostPauseStatus(hostname, activeTab.id);
     return response;

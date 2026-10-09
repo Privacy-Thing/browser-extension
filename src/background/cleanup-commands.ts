@@ -338,8 +338,8 @@ const handleCleanupDomainState = async (
     );
 
     if (didRotate) {
-      await saveRules(nextRules);
-      deps.setLastKnownRules(nextRules);
+      const savedRules = await saveRules(nextRules);
+      deps.setLastKnownRules(savedRules ?? nextRules);
       deps.clearSnapshotCache();
       await deps.syncPreloadedState();
     }
@@ -450,8 +450,8 @@ const rotateIdentity = async (
       };
     }
 
-    await saveRules(nextRules);
-    deps.setLastKnownRules(nextRules);
+    const savedRules = await saveRules(nextRules);
+    deps.setLastKnownRules(savedRules ?? nextRules);
     deps.clearSnapshotCache();
     await deps.syncPreloadedState();
 

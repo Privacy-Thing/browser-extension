@@ -101,12 +101,12 @@ describe("provider feature lifecycle", () => {
     ).toBe(true);
     expect(
       stateOf(await restarted.respond(request(FEATURE_COMMANDS.recognize))).dismissed,
-    ).toBe(false);
+    ).toBe(true);
     expect(adapter.recognizeDomain).toHaveBeenCalledOnce();
     expect((await loadFeatureState()).featureBindings).toEqual([]);
   });
 
-  it.each(["fresh", "cached", "dismiss"] as const)(
+  it.each(["fresh", "dismiss"] as const)(
     "does not restore a concurrently deleted binding during %s cache writes",
     async (mode) => {
       const match = await provider().recognizeDomain("video.example.com");
@@ -136,6 +136,21 @@ describe("provider feature lifecycle", () => {
       expect(data[RULES_STORAGE_KEY]).toEqual([]);
     },
   );
+
+  it("reads a cached recognition without writing configuration or cache", async () => {
+    const adapter = provider();
+    await saveFeatureState({
+      featureBindings: [binding],
+      featureMatches: [await adapter.recognizeDomain("video.example.com")],
+      dismissedMatches: [],
+    });
+    vi.mocked(chrome.storage.local.set).mockClear();
+    await createFeatureController([adapter]).respond(
+      request(FEATURE_COMMANDS.recognize),
+    );
+    expect(chrome.storage.local.set).not.toHaveBeenCalled();
+    expect((await loadFeatureState()).featureBindings).toEqual([binding]);
+  });
 
   it("confirms a manual selection, rejects duplicate ownership, and detaches without changing PT rules", async () => {
     const controller = createFeatureController([provider()]);

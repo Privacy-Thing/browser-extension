@@ -1,5 +1,6 @@
 import {
   FEATURE_COMMANDS,
+  bindingPatterns,
   type ProviderFeature,
   type ProviderFeatureCommand,
   type ProviderFeatureMatch,
@@ -17,11 +18,13 @@ export const FEATURE_STORY_SCENARIOS = [
   "sync-failed",
   "check-failed",
   "checking",
+  "join",
+  "group-linked",
 ] as const;
 
 export type FeatureStoryScenario = (typeof FEATURE_STORY_SCENARIOS)[number];
 
-const PROVIDER_ID = "example-dns";
+const PROVIDER_ID = "control-d";
 const CHECKED_AT = "2026-10-09T12:40:00.000Z";
 
 const service = (featureId: string, name: string): ProviderFeature => ({
@@ -72,7 +75,9 @@ const seed = (
   const state: MockState = {
     available: scenario !== "unavailable",
     providerId: PROVIDER_ID,
-    providerName: "Example DNS",
+    providerName: "Control D",
+    providerInitials: "CD",
+    badgeColors: { background: "#1BE3AD", foreground: "#010818" },
     features: FEATURES,
     matches: new Map(),
     binding: null,
@@ -93,7 +98,11 @@ const seed = (
       status: "unresolved",
     });
   }
-  if (scenario === "linked" || scenario === "sync-failed") {
+  if (
+    scenario === "linked" ||
+    scenario === "sync-failed" ||
+    scenario === "group-linked"
+  ) {
     state.binding = {
       rulePattern,
       providerId: PROVIDER_ID,
@@ -102,12 +111,39 @@ const seed = (
       featureType: "service",
     };
   }
+  if (scenario === "group-linked" && state.binding)
+    state.binding.rulePatterns = [rulePattern, "music.youtube.com", "youtu.be"];
+  state.bindings = state.binding ? [state.binding] : [];
+  if (scenario === "join") {
+    state.bindings = [
+      {
+        rulePattern: "www.youtube.com",
+        rulePatterns: ["www.youtube.com", "youtu.be"],
+        providerId: PROVIDER_ID,
+        featureId: "youtube",
+        featureName: "YouTube",
+        featureType: "service",
+      },
+    ];
+    state.matches.set(hostname, recognizeHost(hostname));
+  }
   return state;
 };
 
-const snapshot = (state: MockState, hostname: string): ProviderFeatureState => {
+const snapshot = (
+  state: MockState,
+  hostname: string,
+  pattern: string,
+): ProviderFeatureState => {
   const { matches, ...rest } = state;
-  return { ...rest, match: matches.get(hostname) ?? null };
+  const binding =
+    state.bindings?.find((item) => bindingPatterns(item).includes(pattern)) ?? null;
+  return {
+    ...rest,
+    binding,
+    groupPatterns: binding ? bindingPatterns(binding) : [],
+    match: matches.get(hostname) ?? null,
+  };
 };
 
 /**
@@ -127,7 +163,11 @@ export const createFeatureRuntimeMock = (
       case FEATURE_COMMANDS.recognize:
         if (scenario === "check-failed") {
           const error = "Example DNS could not be reached. Try again later.";
-          return { ok: false, error, state: { ...snapshot(state, hostname), error } };
+          return {
+            ok: false,
+            error,
+            state: { ...snapshot(state, hostname, command.rulePattern), error },
+          };
         }
         state.matches.set(hostname, recognizeHost(hostname));
         state.dismissed = false;
@@ -158,7 +198,7 @@ export const createFeatureRuntimeMock = (
       default:
         break;
     }
-    return { ok: true, state: snapshot(state, hostname) };
+    return { ok: true, state: snapshot(state, hostname, command.rulePattern) };
   };
   const sendMessage = async (
     message: unknown,

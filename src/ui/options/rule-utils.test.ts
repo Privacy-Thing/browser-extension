@@ -186,7 +186,7 @@ describe("rule mutations", () => {
     ]);
   });
 
-  it("preserves ruleSeedKey when editing an existing rule from the options flow", () => {
+  it("preserves ruleSeedKey and authKey when editing an existing rule from the options flow", () => {
     const result = upsertRule(
       [
         {
@@ -194,6 +194,7 @@ describe("rule mutations", () => {
           locationId: "warsaw",
           enabled: true,
           ruleSeedKey: "seed01",
+          authKey: "abcd1234",
         },
         {
           pattern: "shop.example.com",
@@ -215,6 +216,7 @@ describe("rule mutations", () => {
       locationId: "warsaw",
       enabled: false,
       ruleSeedKey: "seed01",
+      authKey: "abcd1234",
     });
     expect(result[1]).toEqual({
       pattern: "shop.example.com",

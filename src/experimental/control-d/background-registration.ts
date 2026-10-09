@@ -1,6 +1,6 @@
 import { isControlDCommand, type ControlDCommand } from "./contracts";
 import { createControlDProvider } from "./feature-provider";
-import { createRecognitionController, isDiagnosticCommand } from "./recognition-setup";
+import { ensureControlDRecognition } from "./recognition-setup";
 import { loadControlDConfig, CONTROL_D_STORE_KEYS } from "./storage";
 
 import {
@@ -17,8 +17,12 @@ export const registerControllers = (controller: {
   respond: (command: ControlDCommand) => Promise<unknown>;
   scheduleAutomatic: () => void;
 }): void => {
+  const prepareMatching = async () => {
+    const config = await loadControlDConfig();
+    if (config.enabled && config.connected) await ensureControlDRecognition();
+  };
   const features = createFeatureController([createControlDProvider()]);
-  const recognition = createRecognitionController();
+  fireAndForget(prepareMatching());
   fireAndForget(
     loadControlDConfig().then((config) => {
       if (
@@ -38,7 +42,6 @@ export const registerControllers = (controller: {
       return false;
     let result: Promise<unknown> | null = null;
     if (isFeatureCommand(message)) result = features.respond(message);
-    else if (isDiagnosticCommand(message)) result = recognition.respond(message);
     else if (isControlDCommand(message)) result = controller.respond(message);
     if (!result) return false;
     fireAndForget(result.then(sendResponse), (error) =>
@@ -51,6 +54,7 @@ export const registerControllers = (controller: {
   });
   chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName === "local" && CONTROL_D_STORE_KEYS[0] in changes) {
+      fireAndForget(prepareMatching());
       fireAndForget(
         chrome.runtime.sendMessage({
           type: FEATURE_EVENTS.stateChanged,

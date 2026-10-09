@@ -6,6 +6,14 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ## [Unreleased]
 
+### Changed
+
+- Provider services are suggested automatically while creating or editing a domain
+  rule, with compact service badges in the editor, rule list and popup. Choices
+  are applied on Save. Hosts linked to the same service share one configuration
+  and identity; removing the service keeps their domain rules. Control D prepares
+  its recognition resources automatically without a separate setup panel.
+
 ### Added
 
 - Experimental local and beta builds can recognize a rule hostname as a provider
@@ -13,8 +21,8 @@ The format is based on Keep a Changelog and the project follows Semantic Version
   support confirmation, manual selection, dismissal and detach. Generic bindings
   survive backups and pattern changes; local Privacy Thing protection keeps its
   domain scope. Native service sync preserves unrelated provider rules.
-  A separately reviewed lookup profile avoids Custom Rule overrides without
-  changing the browser's regional DNS endpoint.
+  An internal lookup profile avoids Custom Rule overrides without changing the
+  browser's regional DNS endpoint.
 
 - Added an experimental, one-way Control D regional DNS integration to local
   and beta builds. It previews managed rule changes, requires confirmation

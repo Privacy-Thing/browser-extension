@@ -229,6 +229,17 @@ export const PopupSheetPane = ({ controller }: { controller: PopupController }) 
   const copy = getSheetTitle(controller);
   const inheritedProfileLabel = getInheritedProfileLabel(state.popupState);
   const savedRulePattern = getSavedRulePattern(controller);
+  const savedFeatureProps = savedRulePattern ? { savedRulePattern } : {};
+  const featureHost = state.popupState.currentTab.hostname;
+  const featureExtra = featureHost ? (
+    <ProviderFeatureHost
+      variant="compact"
+      rulePattern={savedRulePattern ?? controller.sheets.getRuleSheetPatternLabel()}
+      {...savedFeatureProps}
+      hostname={featureHost}
+      onDecisionChange={state.setFeatureDecision}
+    />
+  ) : null;
   const titleTooltip =
     state.sheetView === "rule-form"
       ? controller.sheets.getRuleSheetPatternLabel()
@@ -242,17 +253,7 @@ export const PopupSheetPane = ({ controller }: { controller: PopupController }) 
       {...(titleTooltip ? { titleTooltip } : {})}
       description={copy.description}
       body={renderSheetBody(controller)}
-      {...(savedRulePattern
-        ? {
-            formExtra: (
-              <ProviderFeatureHost
-                variant="compact"
-                rulePattern={savedRulePattern}
-                hostname={state.popupState.currentTab.hostname}
-              />
-            ),
-          }
-        : {})}
+      formExtra={featureExtra}
       selectedLocationId={state.selectedLocationId}
       allowInheritedLocation={state.allowInheritedLocation}
       {...(inheritedProfileLabel

@@ -2,14 +2,20 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   DIAGNOSTIC_COMMANDS,
-  RECOGNITION_LIMITATIONS,
   RECOGNITION_STORE_KEY,
   createRecognitionController,
+  ensureControlDRecognition,
   isDiagnosticCommand,
+  isRecognitionSweepActive,
   loadRecognitionState,
-  type RecognitionResponse,
+  resetRecognitionRuntime,
+  toRecognitionSummary,
+  whenRecognitionSettled,
+  type RecognitionDeps,
 } from "./recognition-setup";
 import { controlDEndpointName, controlDProfileName } from "./resource-names";
+
+import { FEATURE_EVENTS } from "@/shared/provider-feature";
 
 const CODE = "ABCDE-FGHJK";
 const SECRET = "lookup-secret";
@@ -18,20 +24,27 @@ type Profile = { id: string; name: string };
 type Device = { id: string; name: string; profileIds: string[]; resolver: string };
 type Service = { PK: string; name: string; category: string };
 type Call = { method: string; url: string; body: string | null };
+type StoredService = { PK: string; do: number; status: number };
 
 const storage: Record<string, unknown> = {};
 let profiles: Profile[] = [];
 let devices: Device[] = [];
 let services: Service[] = [];
-let profileServices: Record<string, { PK: string; do: number; status: number }[]> = {};
+let profileServices: Record<string, StoredService[]> = {};
 let groups: Record<string, { PK: number; group: string }[]> = {};
 let rules: Record<string, { PK: string }[]> = {};
 let failDevice = false;
 let extraProfileOnCreate = false;
+let rejectStatus = new Map<string, number>();
+let allowKey = true;
 const calls: Call[] = [];
+const sendMessage = vi.fn(async (_message: unknown) => undefined);
 
-const json = (body: unknown, status = 200): Response =>
-  new Response(JSON.stringify({ success: status < 400, body }), { status });
+const json = (body: unknown, status = 200, headers?: HeadersInit): Response =>
+  new Response(JSON.stringify({ success: status < 400, body }), {
+    status,
+    ...(headers ? { headers } : {}),
+  });
 
 const resetWorld = (): void => {
   profiles = [{ id: "main-profile", name: controlDProfileName(CODE) }];
@@ -52,7 +65,10 @@ const resetWorld = (): void => {
   rules = {};
   failDevice = false;
   extraProfileOnCreate = false;
+  rejectStatus = new Map();
+  allowKey = true;
   calls.length = 0;
+  sendMessage.mockClear();
 };
 
 const deviceBody = (device: Device) => ({
@@ -74,29 +90,35 @@ const serviceBody = (profileId: string) =>
     };
   });
 
+const recordBypass = (profileId: string, pk: string): void => {
+  const current = profileServices[profileId] ?? [];
+  profileServices[profileId] = [
+    ...current.filter((item) => item.PK !== pk),
+    { PK: pk, do: 1, status: 1 },
+  ];
+};
+
 const handle = (call: Call): Response => {
   const url = new URL(call.url);
   const path = url.pathname;
-  if (call.method === "GET" && path === "/services/categories/all") {
+  if (call.method === "GET" && path === "/services/categories/all")
     return json({ services });
-  }
   if (call.method === "GET" && path === "/profiles") return json({ profiles });
-  if (call.method === "GET" && path === "/devices")
+  if (call.method === "GET" && path === "/devices") {
     return json({ devices: devices.map(deviceBody) });
+  }
   if (call.method === "GET" && path === "/devices/types") {
     return json({ types: { "browser-other": "Other Browser" } });
   }
-  const profileId = /^\/profiles\/([^/]+)/.exec(path)?.[1];
-  const decoded = profileId ? decodeURIComponent(profileId) : "";
-  if (call.method === "GET" && decoded && path.endsWith("/services")) {
+  const profileMatch = /^\/profiles\/([^/]+)(?:\/(.*))?$/.exec(path);
+  const decoded = profileMatch?.[1] ? decodeURIComponent(profileMatch[1]) : "";
+  const rest = profileMatch?.[2] ?? "";
+  if (call.method === "GET" && rest === "services")
     return json({ services: serviceBody(decoded) });
-  }
-  if (call.method === "GET" && decoded && path.endsWith("/groups")) {
+  if (call.method === "GET" && rest === "groups")
     return json({ groups: groups[decoded] ?? [] });
-  }
-  if (call.method === "GET" && decoded && path.endsWith("/rules/all")) {
+  if (call.method === "GET" && rest === "rules/all")
     return json({ rules: rules[decoded] ?? [] });
-  }
   if (call.method === "POST" && path === "/profiles") {
     profiles.push({ id: "lookup-profile", name: "PT Lookup ABCDE-FGHJK" });
     return json({});
@@ -118,13 +140,20 @@ const handle = (call: Call): Response => {
       },
     });
   }
-  if (call.method === "PUT" && decoded && path.endsWith("/services")) {
-    const body = JSON.parse(call.body ?? "{}") as { services?: { PK: string }[] };
-    profileServices[decoded] = (body.services ?? []).flatMap((service) =>
-      service.PK ? [{ PK: service.PK, do: 1, status: 1 }] : [],
-    );
+  const servicePut = /^services\/([^/]+)$/.exec(rest);
+  const servicePk = servicePut?.[1] ? decodeURIComponent(servicePut[1]) : "";
+  if (call.method === "PUT" && servicePk) {
+    const status = rejectStatus.get(servicePk);
+    if (status === 429) {
+      return json({ error: { message: "slow" } }, 429, { "retry-after": "0" });
+    }
+    if (status) return json({ error: { message: "rejected" } }, status);
+    const params = new URLSearchParams(call.body ?? "");
+    if (params.get("do") !== "1" || params.get("status") !== "1") return json({}, 400);
+    recordBypass(decoded, servicePk);
     return json({ services: [] });
   }
+  if (call.method === "PUT" && rest === "services") return json({}, 400);
   return json({}, 404);
 };
 
@@ -149,30 +178,53 @@ const fetchImpl: typeof fetch = vi.fn(async (input, init) => {
   return handle(call);
 });
 
-const controller = () =>
-  createRecognitionController({
-    fetchImpl,
-    loadApiKey: async () => "token",
-    createToken: () => "preview-token",
-    createCode: () => CODE,
-  });
+const deps = (): RecognitionDeps => ({
+  fetchImpl,
+  loadApiKey: async () => (allowKey ? "token" : null),
+  createCode: () => CODE,
+});
 
-const previewAndApply = async (): Promise<RecognitionResponse> => {
-  const api = controller();
-  await api.respond({ type: DIAGNOSTIC_COMMANDS.preview });
-  return api.respond({
-    type: DIAGNOSTIC_COMMANDS.apply,
-    previewToken: "preview-token",
-  });
+const settle = async () => {
+  const immediate = await ensureControlDRecognition(deps());
+  await whenRecognitionSettled();
+  return { immediate, state: await loadRecognitionState() };
 };
 
-const writesSince = (start: number): Call[] =>
-  calls.slice(start).filter((call) => call.method !== "GET");
+const writes = (): Call[] => calls.filter((call) => call.method !== "GET");
+const puts = (): Call[] => calls.filter((call) => call.method === "PUT");
+const events = (): unknown[] => sendMessage.mock.calls.map((call) => call[0]);
 
-beforeEach(() => {
+const seedLookup = (): void => {
+  profiles.push({ id: "lookup-profile", name: "PT Lookup ABCDE-FGHJK" });
+  devices.push({
+    id: "lookup-endpoint",
+    name: "PT Probe ABCDE-FGHJK",
+    profileIds: ["lookup-profile"],
+    resolver: `https://dns.controld.com/${SECRET}`,
+  });
+  storage[RECOGNITION_STORE_KEY] = {
+    version: 2,
+    phase: "preparing",
+    code: CODE,
+    profileId: "lookup-profile",
+    endpointId: "lookup-endpoint",
+    resolverDoh: null,
+    servicePks: [],
+    failedPks: [],
+    expectedFingerprint: null,
+    freshFingerprint: null,
+    lastError: null,
+    verifiedAt: null,
+  };
+};
+
+beforeEach(async () => {
+  await whenRecognitionSettled();
+  resetRecognitionRuntime();
   for (const key of Object.keys(storage)) Reflect.deleteProperty(storage, key);
   resetWorld();
   vi.stubGlobal("chrome", {
+    runtime: { sendMessage },
     storage: {
       local: {
         get: vi.fn(async (key: string) =>
@@ -187,127 +239,92 @@ beforeEach(() => {
   });
 });
 
-describe("Control D diagnostic recognition setup", () => {
-  it("exposes the diagnostic commands and a safe unloaded state", async () => {
+describe("Control D automatic recognition setup", () => {
+  it("accepts the exact hyphenated endpoint name returned by the live API", async () => {
+    seedLookup();
+    devices.find((device) => device.id === "lookup-endpoint")!.name =
+      "PT-Probe-ABCDE-FGHJK";
+    const { state } = await settle();
+    expect(state.phase).toBe("ready");
+    expect(writes().every((call) => call.method === "PUT")).toBe(true);
+    expect(state.endpointId).toBe("lookup-endpoint");
+  });
+  it("keeps diagnostic exports from writing and starts from an empty record", async () => {
     expect(isDiagnosticCommand({ type: DIAGNOSTIC_COMMANDS.getState })).toBe(true);
-    expect(isDiagnosticCommand({ type: DIAGNOSTIC_COMMANDS.preview })).toBe(true);
-    expect(
-      isDiagnosticCommand({ type: DIAGNOSTIC_COMMANDS.apply, previewToken: "token" }),
-    ).toBe(true);
     expect(isDiagnosticCommand({ type: DIAGNOSTIC_COMMANDS.apply })).toBe(false);
-    expect(isDiagnosticCommand({ type: "query" })).toBe(false);
     expect(RECOGNITION_STORE_KEY).toBe("pt.experimental.control-d.v2.recognition");
-
-    const state = await loadRecognitionState();
-    expect(state.phase).toBe("not-setup");
-    expect(state.resolverDoh).toBeNull();
-    expect(storage[RECOGNITION_STORE_KEY]).toBeUndefined();
+    expect((await loadRecognitionState()).phase).toBe("not-setup");
     await expect(
-      controller().respond({ type: "query-domain", hostname: "example.com" }),
-    ).resolves.toMatchObject({
-      ok: false,
-      error: "Unknown diagnostic command.",
-      summary: { phase: "not-setup", hasResolver: false },
-    });
+      createRecognitionController().respond({ type: DIAGNOSTIC_COMMANDS.preview }),
+    ).resolves.toMatchObject({ ok: false, summary: { phase: "not-setup" } });
     expect(calls).toEqual([]);
   });
 
-  it("does not treat a stored resolver-less record as ready", async () => {
-    storage[RECOGNITION_STORE_KEY] = {
-      version: 1,
-      phase: "ready",
-      code: CODE,
-      profileId: "lookup-profile",
-      endpointId: "lookup-endpoint",
-      resolverDoh: null,
-      servicePks: ["netflix"],
-      expectedFingerprint: null,
-      freshFingerprint: null,
-      lastError: null,
-    };
-
-    expect((await loadRecognitionState()).phase).toBe("error");
-    expect((await loadRecognitionState()).resolverDoh).toBeNull();
-  });
-
-  it("previews creation with read-only catalogue, profile, and endpoint checks", async () => {
-    const result = await controller().respond({ type: DIAGNOSTIC_COMMANDS.preview });
-
-    expect(result).toMatchObject({
-      ok: true,
-      summary: { phase: "not-setup", hasResolver: false, serviceCount: 0 },
-      preview: {
-        token: "preview-token",
-        profileCreateCount: 1,
-        endpointCreateCount: 1,
-        serviceCount: 2,
-      },
-    });
-    expect(calls.every((call) => call.method === "GET")).toBe(true);
-    expect(calls.map((call) => new URL(call.url).pathname)).toEqual([
-      "/services/categories/all",
-      "/profiles",
-      "/devices",
-    ]);
-    expect(JSON.stringify(result)).not.toContain(SECRET);
-    expect(JSON.stringify(result)).not.toContain("browser-secret");
-  });
-
-  it("applies only the reviewed lookup resources and keeps the resolver out of the summary", async () => {
-    const result = await previewAndApply();
+  it("creates the lookup profile on first use with singular Bypass writes", async () => {
+    const { immediate, state } = await settle();
     const profilePost = calls.find(
       (call) => call.method === "POST" && call.url.endsWith("/profiles"),
     );
     const devicePost = calls.find(
       (call) => call.method === "POST" && call.url.endsWith("/devices"),
     );
-    const bypass = calls.find((call) => call.method === "PUT");
 
-    expect(result.ok).toBe(true);
-    expect(result.summary).toMatchObject({
+    expect(immediate.phase).toBe("preparing");
+    expect(state).toMatchObject({
       phase: "ready",
       code: CODE,
       profileId: "lookup-profile",
       endpointId: "lookup-endpoint",
-      hasResolver: true,
-      serviceCount: 2,
-      lastError: null,
+      resolverDoh: SECRET,
+      servicePks: ["netflix", "zoom"],
+      failedPks: [],
     });
-    expect(JSON.stringify(result.summary)).not.toContain(SECRET);
+    expect(JSON.stringify(toRecognitionSummary(state))).not.toContain(SECRET);
     expect(profilePost?.body).toContain("name=PT+Lookup+ABCDE-FGHJK");
     expect(devicePost?.body).toContain("name=PT+Probe+ABCDE-FGHJK");
     expect(devicePost?.body).toContain("profile_id=lookup-profile");
-    expect("PT Lookup ABCDE-FGHJK".length).toBeLessThanOrEqual(32);
-    expect("PT Probe ABCDE-FGHJK".length).toBeLessThanOrEqual(32);
-    expect(profilePost?.body).not.toContain("Privacy+Thing");
+    expect(devicePost?.body).toContain("stats=0");
+    expect(devicePost?.body).toContain("learn_ip=0");
+    expect(devicePost?.body).not.toContain("restricted");
+    expect(devicePost?.body).not.toContain("profile_id2");
     expect(devicePost?.body).not.toContain("PT+Browser");
-    expect(devicePost?.body).not.toContain("PT+Firefox");
-    expect(bypass?.url).toBe(
-      "https://api.controld.com/profiles/lookup-profile/services",
-    );
-    expect(bypass?.body).toBe(
-      JSON.stringify({
-        services: [
-          { PK: "netflix", do: 1, status: 1 },
-          { PK: "zoom", do: 1, status: 1 },
-        ],
-      }),
-    );
+    expect(puts().map((call) => new URL(call.url).pathname)).toEqual([
+      "/profiles/lookup-profile/services/netflix",
+      "/profiles/lookup-profile/services/zoom",
+    ]);
+    expect(puts().every((call) => call.body === "do=1&status=1")).toBe(true);
     expect(calls.some((call) => call.method === "DELETE")).toBe(false);
     expect(calls.some((call) => call.url.includes("/default"))).toBe(false);
     expect(calls.some((call) => call.url.includes("main-profile"))).toBe(false);
     expect(
       calls.some((call) => new URL(call.url).origin === "https://dns.controld.com"),
     ).toBe(false);
-    expect(await loadRecognitionState()).toMatchObject({
-      phase: "ready",
-      resolverDoh: SECRET,
-      servicePks: ["netflix", "zoom"],
-    });
     expect(storage["pt.experimental.control-d.v2.config"]).toBeUndefined();
+    expect(events()).toEqual([
+      { type: FEATURE_EVENTS.stateChanged, providerId: "control-d" },
+      { type: FEATURE_EVENTS.stateChanged, providerId: "control-d" },
+      { type: FEATURE_EVENTS.stateChanged, providerId: "control-d" },
+    ]);
   });
 
-  it("saves the lookup code before creating remote resources", async () => {
+  it("notifies the UI after a failed sweep stops making requests", async () => {
+    seedLookup();
+    rejectStatus.set("netflix", 400);
+    const activity: boolean[] = [];
+    sendMessage.mockImplementation(async () => {
+      activity.push(isRecognitionSweepActive());
+    });
+    try {
+      const { state } = await settle();
+      expect(state.phase).toBe("preparing");
+      expect(state.lastError).not.toBeNull();
+      expect(activity.at(-1)).toBe(false);
+    } finally {
+      sendMessage.mockImplementation(async () => undefined);
+    }
+  });
+
+  it("saves the lookup code before creating the profile", async () => {
     let release: (() => void) | undefined;
     let opened: (() => void) | undefined;
     const gate = new Promise<void>((resolve) => {
@@ -316,7 +333,8 @@ describe("Control D diagnostic recognition setup", () => {
     const started = new Promise<void>((resolve) => {
       opened = resolve;
     });
-    const api = createRecognitionController({
+    const pending = ensureControlDRecognition({
+      ...deps(),
       fetchImpl: async (input, init) => {
         if (
           (init?.method ?? "GET") === "POST" &&
@@ -327,45 +345,151 @@ describe("Control D diagnostic recognition setup", () => {
         }
         return fetchImpl(input, init);
       },
-      loadApiKey: async () => "token",
-      createToken: () => "preview-token",
-      createCode: () => CODE,
-    });
-    await api.respond({ type: DIAGNOSTIC_COMMANDS.preview });
-    const pending = api.respond({
-      type: DIAGNOSTIC_COMMANDS.apply,
-      previewToken: "preview-token",
     });
     await started;
     expect(calls.some((call) => call.method === "POST")).toBe(false);
     expect(storage[RECOGNITION_STORE_KEY]).toMatchObject({
       code: CODE,
-      phase: "error",
+      phase: "preparing",
       resolverDoh: null,
     });
     release?.();
     await pending;
+    await whenRecognitionSettled();
   });
 
-  it("refuses a stale preview without writing and preserves the ready resolver", async () => {
-    expect((await previewAndApply()).summary.phase).toBe("ready");
-    const api = controller();
-    await api.respond({ type: DIAGNOSTIC_COMMANDS.preview });
-    groups["lookup-profile"] = [{ PK: 4, group: "Custom" }];
-    const start = calls.length;
-    const result = await api.respond({
-      type: DIAGNOSTIC_COMMANDS.apply,
-      previewToken: "preview-token",
+  it("skips services that are already Bypass and persists each new one", async () => {
+    seedLookup();
+    recordBypass("lookup-profile", "netflix");
+    let release: (() => void) | undefined;
+    let opened: (() => void) | undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
     });
+    const started = new Promise<void>((resolve) => {
+      opened = resolve;
+    });
+    const pending = ensureControlDRecognition({
+      ...deps(),
+      fetchImpl: async (input, init) => {
+        if ((init?.method ?? "GET") === "PUT" && requestUrl(input).endsWith("/zoom")) {
+          opened?.();
+          await gate;
+        }
+        return fetchImpl(input, init);
+      },
+    });
+    await started;
+    expect(storage[RECOGNITION_STORE_KEY]).toMatchObject({
+      phase: "preparing",
+      servicePks: ["netflix"],
+    });
+    expect(puts().map((call) => call.url.endsWith("/netflix"))).not.toContain(true);
+    release?.();
+    await pending;
+    await whenRecognitionSettled();
+    expect(puts().map((call) => new URL(call.url).pathname)).toEqual([
+      "/profiles/lookup-profile/services/zoom",
+    ]);
+    expect((await loadRecognitionState()).phase).toBe("ready");
+  });
 
-    expect(result).toMatchObject({
-      ok: false,
-      error: "Control D changed since the preview. Review it again.",
-      summary: { phase: "stale", hasResolver: true, lastError: expect.any(String) },
+  it("keeps a partial sweep preparing when one service is rejected", async () => {
+    seedLookup();
+    rejectStatus.set("netflix", 400);
+    const { state } = await settle();
+    expect(state.phase).toBe("preparing");
+    expect(state.servicePks).toEqual(["zoom"]);
+    expect(state.failedPks).toEqual(["netflix"]);
+    expect(state.resolverDoh).toBeNull();
+    expect(calls.some((call) => call.method === "DELETE")).toBe(false);
+    expect(events().some((event) => JSON.stringify(event).includes("ready"))).toBe(
+      false,
+    );
+  });
+
+  it("stops on rate limit, keeps the cursor, and resumes the remaining service", async () => {
+    seedLookup();
+    rejectStatus.set("netflix", 429);
+    const paused = await settle();
+    expect(paused.state.phase).toBe("preparing");
+    expect(paused.state.servicePks).toEqual([]);
+    expect(calls.filter((call) => call.url.endsWith("/netflix"))).toHaveLength(3);
+    expect(calls.some((call) => call.url.endsWith("/zoom"))).toBe(false);
+
+    rejectStatus.clear();
+    calls.length = 0;
+    const resumed = await settle();
+    expect(resumed.state.phase).toBe("ready");
+    expect(puts().map((call) => new URL(call.url).pathname)).toEqual([
+      "/profiles/lookup-profile/services/netflix",
+      "/profiles/lookup-profile/services/zoom",
+    ]);
+  });
+
+  it("does not trust a stored ready record when a catalogue service is not Bypass", async () => {
+    seedLookup();
+    storage[RECOGNITION_STORE_KEY] = {
+      ...(storage[RECOGNITION_STORE_KEY] as Record<string, unknown>),
+      version: 1,
+      phase: "ready",
+      resolverDoh: SECRET,
+      servicePks: ["netflix", "zoom"],
+    };
+    recordBypass("lookup-profile", "netflix");
+    const { state } = await settle();
+    expect(
+      calls.some((call) => call.method === "GET" && call.url.endsWith("/services")),
+    ).toBe(true);
+    expect(puts().map((call) => new URL(call.url).pathname)).toEqual([
+      "/profiles/lookup-profile/services/zoom",
+    ]);
+    expect(state.phase).toBe("ready");
+    expect(storage[RECOGNITION_STORE_KEY]).toMatchObject({
+      version: 2,
+      phase: "ready",
     });
-    expect(writesSince(start)).toEqual([]);
-    expect((await loadRecognitionState()).resolverDoh).toBe(SECRET);
-    expect(JSON.stringify(result.summary)).not.toContain(SECRET);
+  });
+
+  it("adds a new catalogue service without rewriting Bypass services", async () => {
+    seedLookup();
+    recordBypass("lookup-profile", "netflix");
+    recordBypass("lookup-profile", "zoom");
+    storage[RECOGNITION_STORE_KEY] = {
+      ...(storage[RECOGNITION_STORE_KEY] as Record<string, unknown>),
+      phase: "ready",
+      resolverDoh: SECRET,
+      servicePks: ["netflix", "zoom"],
+      verifiedAt: 0,
+    };
+    services.push({ PK: "hulu", name: "Hulu", category: "video" });
+    const { state } = await settle();
+    expect(puts().map((call) => new URL(call.url).pathname)).toEqual([
+      "/profiles/lookup-profile/services/hulu",
+    ]);
+    expect(state.servicePks).toEqual(["hulu", "netflix", "zoom"]);
+    expect(state.phase).toBe("ready");
+  });
+
+  it("repairs a missing lookup endpoint without touching the browser profile", async () => {
+    seedLookup();
+    devices.splice(
+      devices.findIndex((device) => device.id === "lookup-endpoint"),
+      1,
+    );
+    storage[RECOGNITION_STORE_KEY] = {
+      ...(storage[RECOGNITION_STORE_KEY] as Record<string, unknown>),
+      endpointId: null,
+    };
+    recordBypass("lookup-profile", "netflix");
+    recordBypass("lookup-profile", "zoom");
+    const start = calls.length;
+    const { state } = await settle();
+    const created = calls.slice(start).filter((call) => call.method === "POST");
+    expect(created.map((call) => new URL(call.url).pathname)).toEqual(["/devices"]);
+    expect(created[0]?.body).toContain("stats=0");
+    expect(state.phase).toBe("ready");
+    expect(calls.some((call) => call.url.includes("main-profile"))).toBe(false);
   });
 
   it.each([
@@ -399,59 +523,54 @@ describe("Control D diagnostic recognition setup", () => {
         if (endpoint) endpoint.profileIds = ["lookup-profile", "main-profile"];
       },
     ],
-  ])("refuses %s without changing remote resources", async (_label, mutate) => {
-    expect((await previewAndApply()).summary.phase).toBe("ready");
+  ])("blocks %s without deleting remote resources", async (_label, mutate) => {
+    seedLookup();
     mutate();
-    const start = calls.length;
-    const result = await controller().respond({ type: DIAGNOSTIC_COMMANDS.preview });
-
-    expect(result.ok).toBe(false);
-    expect(result.preview).toBeUndefined();
-    expect(result.summary.phase).toBe("stale");
-    expect(result.summary.hasResolver).toBe(true);
-    expect(writesSince(start)).toEqual([]);
-    expect((await loadRecognitionState()).resolverDoh).toBe(SECRET);
-    expect(JSON.stringify(result)).not.toContain("other-secret");
+    const before = JSON.stringify({ rules, groups, devices });
+    const { state } = await settle();
+    expect(state.phase).toBe("blocked");
+    expect(state.resolverDoh).toBeNull();
+    expect(writes()).toEqual([]);
+    expect(calls.some((call) => call.method === "DELETE")).toBe(false);
+    expect(JSON.stringify({ rules, groups, devices })).toBe(before);
+    expect(JSON.stringify(toRecognitionSummary(state))).not.toContain("other-secret");
   });
 
-  it("does not adopt the managed browser profile or its endpoint", async () => {
-    const result = await previewAndApply();
-
-    expect(result.summary.profileId).toBe("lookup-profile");
-    expect(result.summary.endpointId).toBe("lookup-endpoint");
-    expect(
-      devices.find((device) => device.id === "browser-device")?.profileIds,
-    ).toEqual(["main-profile"]);
-    expect((await loadRecognitionState()).resolverDoh).not.toBe("browser-secret");
+  it("stops a sweep when the API key disappears and does not delete the profile", async () => {
+    let putsSeen = 0;
+    const { immediate } = await ensureControlDRecognition({
+      ...deps(),
+      loadApiKey: async () => (putsSeen === 0 ? "token" : null),
+      fetchImpl: async (input, init) => {
+        if ((init?.method ?? "GET") === "PUT") putsSeen += 1;
+        return fetchImpl(input, init);
+      },
+    }).then(async (immediateState) => {
+      await whenRecognitionSettled();
+      return { immediate: immediateState };
+    });
+    expect(immediate.phase).toBe("preparing");
+    const state = await loadRecognitionState();
+    expect(state.phase).toBe("preparing");
+    expect(state.profileId).toBe("lookup-profile");
+    expect(puts()).toHaveLength(1);
+    expect(calls.some((call) => call.method === "DELETE")).toBe(false);
   });
 
-  it("keeps a failed device create recoverable without claiming ready", async () => {
+  it("keeps a failed endpoint create recoverable without claiming ready", async () => {
     failDevice = true;
-    const failed = await previewAndApply();
-    expect(failed.summary.phase).toBe("error");
-    expect(failed.summary.hasResolver).toBe(false);
-    expect(await loadRecognitionState()).toMatchObject({
-      phase: "error",
+    const failed = await settle();
+    expect(failed.state).toMatchObject({
+      phase: "preparing",
       code: CODE,
       profileId: "lookup-profile",
       endpointId: null,
       resolverDoh: null,
     });
-
     failDevice = false;
-    const api = controller();
-    const reviewed = await api.respond({ type: DIAGNOSTIC_COMMANDS.preview });
     const start = calls.length;
-    const applied = await api.respond({
-      type: DIAGNOSTIC_COMMANDS.apply,
-      previewToken: "preview-token",
-    });
-
-    expect(reviewed.preview).toMatchObject({
-      profileCreateCount: 0,
-      endpointCreateCount: 1,
-    });
-    expect(applied.summary.phase).toBe("ready");
+    const recovered = await settle();
+    expect(recovered.state.phase).toBe("ready");
     expect(
       calls
         .slice(start)
@@ -459,32 +578,16 @@ describe("Control D diagnostic recognition setup", () => {
     ).toBe(false);
   });
 
-  it("rejects an endpoint that also enforces another profile", async () => {
+  it("blocks an endpoint that also enforces another profile and does not delete it", async () => {
     extraProfileOnCreate = true;
-    const result = await previewAndApply();
-
-    expect(result.ok).toBe(false);
-    expect(result.summary.phase).not.toBe("ready");
-    expect((await loadRecognitionState()).resolverDoh).toBeNull();
+    const { state } = await settle();
+    expect(state.phase).toBe("blocked");
+    expect(state.resolverDoh).toBeNull();
     expect(calls.some((call) => call.method === "DELETE")).toBe(false);
+    expect(puts()).toEqual([]);
   });
 
-  it("requires an explicit fresh preview before apply and does not query DNS", async () => {
-    const api = controller();
-    const skipped = await api.respond({
-      type: DIAGNOSTIC_COMMANDS.apply,
-      previewToken: "preview-token",
-    });
-    expect(skipped).toMatchObject({
-      ok: false,
-      error: "Preview and review the diagnostic setup before applying.",
-    });
-    expect(calls).toEqual([]);
-    expect(RECOGNITION_LIMITATIONS.join(" ")).toContain("overridden");
-    expect(RECOGNITION_LIMITATIONS.join(" ")).toContain("browser DNS");
-  });
-
-  it("runs preview and apply one at a time", async () => {
+  it("runs one setup at a time", async () => {
     let release: (() => void) | undefined;
     let opened: (() => void) | undefined;
     const gate = new Promise<void>((resolve) => {
@@ -494,40 +597,36 @@ describe("Control D diagnostic recognition setup", () => {
       opened = resolve;
     });
     let catalogues = 0;
-    const api = createRecognitionController({
-      fetchImpl: async (input, init) => {
-        if (requestUrl(input).includes("/services/categories/all")) {
-          catalogues += 1;
+    let held = true;
+    const fetchGated: typeof fetch = async (input, init) => {
+      if (requestUrl(input).includes("/services/categories/all")) {
+        catalogues += 1;
+        if (held) {
+          held = false;
           opened?.();
           await gate;
         }
-        return fetchImpl(input, init);
-      },
-      loadApiKey: async () => "token",
-      createToken: () => "preview-token",
-      createCode: () => CODE,
-    });
-    const first = api.respond({ type: DIAGNOSTIC_COMMANDS.preview });
-    const second = api.respond({ type: DIAGNOSTIC_COMMANDS.preview });
+      }
+      return fetchImpl(input, init);
+    };
+    const first = ensureControlDRecognition({ ...deps(), fetchImpl: fetchGated });
     await started;
+    const second = ensureControlDRecognition({ ...deps(), fetchImpl: fetchGated });
     expect(catalogues).toBe(1);
     release?.();
     await first;
     await second;
-    expect(catalogues).toBe(2);
+    await whenRecognitionSettled();
+    expect(catalogues).toBeGreaterThan(1);
+    expect(
+      profiles.filter((profile) => profile.name.startsWith("PT Lookup")),
+    ).toHaveLength(1);
   });
 
   it("does not call Control D when the API key is missing", async () => {
-    const api = createRecognitionController({
-      fetchImpl,
-      loadApiKey: async () => null,
-    });
-    await expect(
-      api.respond({ type: DIAGNOSTIC_COMMANDS.preview }),
-    ).resolves.toMatchObject({
-      ok: false,
-      error: "Connect a Control D API key first.",
-      summary: { phase: "not-setup" },
+    allowKey = false;
+    await expect(ensureControlDRecognition(deps())).resolves.toMatchObject({
+      phase: "not-setup",
     });
     expect(calls).toEqual([]);
   });

@@ -1,327 +1,446 @@
 import { CONTROL_D_PROVIDER_ID } from "../../src/experimental/control-d/contracts";
-import type { ExportedSettings } from "../../src/shared/types";
+import type { ExportedSettings, PopupState } from "../../src/shared/types";
 
 import {
   exportSettings,
+  getPopupState,
   importSettings,
+  openPopupWithDefaults,
+  openSettingsTab,
   saveLocationModel,
 } from "./extension-test.helpers";
 import { ackReleaseNotices, expect, test } from "./fixtures";
 import {
+  CLIPS_HOST,
+  LOCAL_HOST,
   LOOPBACK_HOST,
-  LOOPBACK_SOURCE,
+  MEDIA_HOST,
+  PARIS_LOCATION_ID,
   SOCIAL_FEATURE,
   VIDEO_FEATURE,
   VIDEO_HOST,
-  VIDEO_SOURCE,
+  WARSAW_LOCATION_ID,
+  cancelRuleDialog,
+  chooseCatalogueFeature,
   clickFeatureAction,
-  confirmManualFeature,
-  expectFeatureState,
+  expectExportSealed,
+  expectFeatureDecision,
+  expectFeatureSlot,
   expectHostUnprotected,
-  expectQuietProvider,
-  expectSourceUnchanged,
-  expectedDomainQuery,
-  openPopupRuleEditor,
+  expectNoFeatureDecision,
+  expectPageHasNoProvider,
+  expectProviderQuiet,
+  expectSavedRule,
+  fillRulePattern,
+  openNewRuleDialog,
   openProbe,
   openSavedRuleEditor,
   prepareProviderPage,
   readControlDQueries,
   readDismissedHosts,
-  readProviderGuard,
-  renameSource,
-  type FeatureViewState,
-  type SourceRule,
+  restartExtensionWorker,
+  saveRuleDialog,
+  savedIdentity,
+  selectRuleProfile,
+  videoDecision,
+  type SavedIdentity,
 } from "./provider-feature.helpers";
 
 test.beforeEach(async ({ context, extensionId }) => {
   await ackReleaseNotices(context, extensionId, { reduceMotion: true });
 });
 
-const editorState = (
-  rule: SourceRule,
-  state: Omit<FeatureViewState, "variant" | "rulePattern">,
-): FeatureViewState => ({
-  ...state,
-  variant: "default",
-  rulePattern: rule.pattern,
-});
+const bindingFor = (
+  rulePattern: string,
+  featureId: string,
+  matchSource: "domain-test" | "manual",
+  rulePatterns?: readonly string[],
+) =>
+  expect.objectContaining({
+    rulePattern,
+    providerId: CONTROL_D_PROVIDER_ID,
+    featureId,
+    featureType: "service",
+    matchSource,
+    ...(rulePatterns ? { rulePatterns: [...rulePatterns] } : {}),
+  });
 
-test("confirms a cached service suggestion without calling Control D", async ({
+test("stages an automatic suggestion for an unsaved rule until save", async ({
   context,
   extensionId,
   serverUrl,
 }) => {
-  const { page, worker } = await prepareProviderPage(context, extensionId, {
-    rule: VIDEO_SOURCE,
-    suggestion: true,
-  });
-  await openSavedRuleEditor(page, extensionId, VIDEO_HOST);
-  await expectFeatureState(
-    page,
-    editorState(VIDEO_SOURCE, {
-      view: "suggested",
-      matchSource: "domain-test",
-      matchStatus: "matched",
-      sync: "none",
-    }),
+  const { page, worker, escapes, pageRequests } = await prepareProviderPage(
+    context,
+    extensionId,
+    { hosts: [VIDEO_HOST] },
   );
-
-  await clickFeatureAction(page, "confirm");
-  await expectFeatureState(
-    page,
-    editorState(VIDEO_SOURCE, {
-      view: "bound",
-      matchSource: "domain-test",
-      matchStatus: "matched",
-      sync: "queued",
-    }),
-  );
-  await expectSourceUnchanged(page, VIDEO_SOURCE, {
-    featureId: VIDEO_FEATURE,
-    matchSource: "domain-test",
-  });
-  await expectQuietProvider(page, worker);
-
   const probe = await openProbe(context, serverUrl);
-  await expectHostUnprotected(context, extensionId, probe, LOOPBACK_HOST);
+  await openNewRuleDialog(page, extensionId);
+  await fillRulePattern(page, "*");
+  await expectFeatureSlot(page, { state: "manual", variant: "default" });
+  expect(await readControlDQueries(worker)).toEqual([]);
+
+  await fillRulePattern(page, VIDEO_HOST);
+  await expectFeatureSlot(page, { state: "suggest", variant: "default" });
+  await expect(
+    page.locator("[data-provider-feature] [data-provider-initials]"),
+  ).toHaveAttribute("data-provider-initials", "CD");
+  const queried = await readControlDQueries(worker);
+  expect(queried).toEqual([
+    { origin: "https://dns.controld.com", pathname: "/e2eresolver", name: VIDEO_HOST },
+  ]);
+  await expectPageHasNoProvider(probe);
+
+  await clickFeatureAction(page, "accept");
+  await expectFeatureSlot(page, { state: "staged", variant: "default" });
+  await expect(page.locator("[data-provider-feature-chip]")).toHaveAttribute(
+    "data-provider-feature-chip",
+    "staged",
+  );
+  await expectFeatureDecision(page, videoDecision(VIDEO_FEATURE));
+  const staged = await exportSettings<ExportedSettings>(page);
+  expect(staged.rules).toEqual([]);
+  expect(staged.featureBindings ?? []).toEqual([]);
+  expectExportSealed(staged);
+
+  await cancelRuleDialog(page);
+  const cancelled = await exportSettings<ExportedSettings>(page);
+  expect(cancelled.rules).toEqual([]);
+  expect(cancelled.featureBindings ?? []).toEqual([]);
+
+  await openNewRuleDialog(page, extensionId);
+  await fillRulePattern(page, VIDEO_HOST);
+  await expectFeatureSlot(page, { state: "suggest", variant: "default" });
+  expect(await readControlDQueries(worker)).toEqual(queried);
+  await clickFeatureAction(page, "accept");
+  await selectRuleProfile(page, "Warsaw", WARSAW_LOCATION_ID);
+  await saveRuleDialog(page);
+
+  const saved = await exportSettings<ExportedSettings>(page);
+  expect(saved.rules).toHaveLength(1);
+  const identity = savedIdentity(saved, VIDEO_HOST);
+  expect(identity.locationId).toBe(WARSAW_LOCATION_ID);
+  expect(identity.enabled).toBe(true);
+  expect(saved.featureBindings).toEqual([
+    bindingFor(VIDEO_HOST, VIDEO_FEATURE, "domain-test"),
+  ]);
+  expect(saved.featureBindings?.[0]?.rulePatterns).toBeUndefined();
+  expectExportSealed(saved);
+
+  await openSavedRuleEditor(page, extensionId, VIDEO_HOST);
+  await expectFeatureSlot(page, { state: "linked", variant: "default" });
+  await expect(page.locator("[data-provider-feature]")).toHaveAttribute(
+    "data-provider-feature-group-size",
+    "1",
+  );
+  expect(await readControlDQueries(worker)).toEqual(queried);
+  await saveRuleDialog(page);
+  const resaved = await exportSettings<ExportedSettings>(page);
+  expectSavedRule(resaved, identity);
+  expect(resaved.featureBindings).toEqual(saved.featureBindings);
+  await expectProviderQuiet(page, worker, [VIDEO_HOST], escapes, pageRequests);
 });
 
-test("recognizes the open host from the popup through the controlled resolver", async ({
+test("keeps a declined domain unbound and commits reassignment or detach on save", async ({
+  context,
+  extensionId,
+}) => {
+  test.slow();
+  const { page, worker, escapes, pageRequests } = await prepareProviderPage(
+    context,
+    extensionId,
+    { hosts: [VIDEO_HOST, CLIPS_HOST] },
+  );
+  await openNewRuleDialog(page, extensionId);
+  await fillRulePattern(page, CLIPS_HOST);
+  await expectFeatureSlot(page, { state: "suggest", variant: "default" });
+  await clickFeatureAction(page, "decline");
+  await expectFeatureSlot(page, { state: "manual", variant: "default" });
+  await expect(page.locator("[data-provider-feature-chip]")).toHaveAttribute(
+    "data-provider-feature-chip",
+    "manual",
+  );
+  await expectFeatureDecision(page, videoDecision(null));
+  await selectRuleProfile(page, "Paris", PARIS_LOCATION_ID);
+  await saveRuleDialog(page);
+
+  const declined = await exportSettings<ExportedSettings>(page);
+  const clips = savedIdentity(declined, CLIPS_HOST);
+  expect(clips.locationId).toBe(PARIS_LOCATION_ID);
+  expect(declined.featureBindings ?? []).toEqual([]);
+  expect(await readDismissedHosts(page)).toEqual([CLIPS_HOST]);
+
+  await openSavedRuleEditor(page, extensionId, CLIPS_HOST);
+  await expectFeatureSlot(page, { state: "manual", variant: "default" });
+  await expectNoFeatureDecision(page);
+  await cancelRuleDialog(page);
+  expect(await readControlDQueries(worker)).toHaveLength(1);
+
+  await openNewRuleDialog(page, extensionId);
+  await fillRulePattern(page, VIDEO_HOST);
+  await expectFeatureSlot(page, { state: "suggest", variant: "default" });
+  await clickFeatureAction(page, "accept");
+  await selectRuleProfile(page, "Warsaw", WARSAW_LOCATION_ID);
+  await saveRuleDialog(page);
+  const video = savedIdentity(await exportSettings<ExportedSettings>(page), VIDEO_HOST);
+
+  await openSavedRuleEditor(page, extensionId, VIDEO_HOST);
+  await chooseCatalogueFeature(page, SOCIAL_FEATURE, "choose");
+  await expectFeatureSlot(page, { state: "staged", variant: "default" });
+  await expectFeatureDecision(page, videoDecision(SOCIAL_FEATURE));
+  const beforeReassign = await exportSettings<ExportedSettings>(page);
+  expect(beforeReassign.featureBindings).toEqual([
+    bindingFor(VIDEO_HOST, VIDEO_FEATURE, "domain-test"),
+  ]);
+  expectSavedRule(beforeReassign, video);
+  await saveRuleDialog(page);
+
+  const reassigned = await exportSettings<ExportedSettings>(page);
+  expectSavedRule(reassigned, video);
+  expectSavedRule(reassigned, clips);
+  expect(reassigned.featureBindings).toEqual([
+    bindingFor(VIDEO_HOST, SOCIAL_FEATURE, "manual"),
+  ]);
+
+  await openSavedRuleEditor(page, extensionId, VIDEO_HOST);
+  await clickFeatureAction(page, "open");
+  await clickFeatureAction(page, "detach");
+  await expect(page.locator("[data-provider-feature-pending]")).toBeVisible();
+  await expectFeatureDecision(page, videoDecision(null));
+  const beforeDetach = await exportSettings<ExportedSettings>(page);
+  expect(beforeDetach.featureBindings).toEqual(reassigned.featureBindings);
+  await saveRuleDialog(page);
+
+  const detached = await exportSettings<ExportedSettings>(page);
+  expect(detached.featureBindings ?? []).toEqual([]);
+  expect(detached.rules).toHaveLength(2);
+  expectSavedRule(detached, video);
+  expectSavedRule(detached, clips);
+  await expectProviderQuiet(
+    page,
+    worker,
+    [CLIPS_HOST, VIDEO_HOST],
+    escapes,
+    pageRequests,
+  );
+});
+
+test("shares one provider group and preserves it through edit, restart, and import", async ({
   context,
   extensionId,
   serverUrl,
   secondaryServerUrl,
 }) => {
   test.slow();
-  const { worker } = await prepareProviderPage(context, extensionId, {
-    rule: LOOPBACK_SOURCE,
-    recognition: true,
-    queryHost: LOOPBACK_HOST,
-  });
+  const { page, worker, escapes, pageRequests } = await prepareProviderPage(
+    context,
+    extensionId,
+    { hosts: [LOOPBACK_HOST, MEDIA_HOST] },
+  );
+  await openNewRuleDialog(page, extensionId);
+  await fillRulePattern(page, LOOPBACK_HOST);
+  await expectFeatureSlot(page, { state: "suggest", variant: "default" });
+  await clickFeatureAction(page, "accept");
+  await selectRuleProfile(page, "Warsaw", WARSAW_LOCATION_ID);
+  await saveRuleDialog(page);
+  const primary = savedIdentity(
+    await exportSettings<ExportedSettings>(page),
+    LOOPBACK_HOST,
+  );
+
+  await openNewRuleDialog(page, extensionId);
+  await fillRulePattern(page, MEDIA_HOST);
+  await expectFeatureSlot(page, { state: "join", variant: "default" });
+  await clickFeatureAction(page, "join");
+  await expectFeatureDecision(page, videoDecision(VIDEO_FEATURE, true));
+  await selectRuleProfile(page, "Paris", PARIS_LOCATION_ID);
+  await saveRuleDialog(page);
+
+  const grouped = await exportSettings<ExportedSettings>(page);
+  const shared: SavedIdentity = { ...primary, locationId: WARSAW_LOCATION_ID };
+  expectSavedRule(grouped, shared);
+  expectSavedRule(grouped, { ...shared, pattern: MEDIA_HOST });
+  expect(grouped.featureBindings).toEqual([
+    bindingFor(LOOPBACK_HOST, VIDEO_FEATURE, "domain-test", [
+      LOOPBACK_HOST,
+      MEDIA_HOST,
+    ]),
+  ]);
+  expectExportSealed(grouped);
+
+  const group = page.locator(`#rules-list tr[data-feature-group="${VIDEO_FEATURE}"]`);
+  await expect(group).toHaveCount(1);
+  await expect(group.locator("[data-provider-initials]")).toHaveAttribute(
+    "data-provider-initials",
+    "CD",
+  );
+  await expect(group.locator("[data-feature-group-hosts] span")).toHaveText([
+    LOOPBACK_HOST,
+    MEDIA_HOST,
+  ]);
+  await expect(
+    page.getByRole("button", { name: `Edit rule ${MEDIA_HOST}`, exact: true }),
+  ).toHaveCount(0);
+
+  await openSavedRuleEditor(page, extensionId, LOOPBACK_HOST);
+  await selectRuleProfile(page, "Paris", PARIS_LOCATION_ID);
+  await expectNoFeatureDecision(page);
+  await saveRuleDialog(page);
+  const edited = await exportSettings<ExportedSettings>(page);
+  const propagated: SavedIdentity = { ...shared, locationId: PARIS_LOCATION_ID };
+  expectSavedRule(edited, propagated);
+  expectSavedRule(edited, { ...propagated, pattern: MEDIA_HOST });
+  expect(edited.featureBindings).toEqual(grouped.featureBindings);
+
   const probe = await openProbe(context, serverUrl);
-  const popup = await openPopupRuleEditor(context, extensionId, probe);
-  await expectFeatureState(popup, {
-    view: "idle",
-    variant: "compact",
-    matchSource: "none",
-    matchStatus: "none",
-    sync: "none",
-    rulePattern: LOOPBACK_HOST,
-  });
-
-  await clickFeatureAction(popup, "recognize");
-  const domainQuery = expectedDomainQuery(LOOPBACK_HOST);
-  await expect.poll(() => readControlDQueries(worker)).toEqual([domainQuery]);
-  await expectFeatureState(popup, {
-    view: "suggested",
-    variant: "compact",
-    matchSource: "domain-test",
-    matchStatus: "matched",
-    sync: "none",
-    rulePattern: LOOPBACK_HOST,
-  });
-
-  await clickFeatureAction(popup, "confirm");
-  await expectFeatureState(popup, {
-    view: "bound",
-    variant: "compact",
-    matchSource: "domain-test",
-    matchStatus: "matched",
-    sync: "queued",
-    rulePattern: LOOPBACK_HOST,
-  });
-  await expectSourceUnchanged(popup, LOOPBACK_SOURCE, {
-    featureId: VIDEO_FEATURE,
-    matchSource: "domain-test",
-  });
-  expect(await readControlDQueries(worker)).toEqual([domainQuery]);
-  expect(await readProviderGuard(popup)).toEqual({
-    autoSyncEnabled: false,
-    lastSyncedHash: null,
-    managedServiceCount: 0,
-  });
-
-  const other = await openProbe(context, secondaryServerUrl);
-  await expectHostUnprotected(context, extensionId, other, "localhost");
-});
-
-test("dismisses a cached suggestion and restores it without another query", async ({
-  context,
-  extensionId,
-}) => {
-  const { page, worker } = await prepareProviderPage(context, extensionId, {
-    rule: VIDEO_SOURCE,
-    suggestion: true,
-  });
-  await openSavedRuleEditor(page, extensionId, VIDEO_HOST);
-  await clickFeatureAction(page, "dismiss");
-  await expectFeatureState(
-    page,
-    editorState(VIDEO_SOURCE, {
-      view: "dismissed",
-      matchSource: "domain-test",
-      matchStatus: "matched",
-      sync: "none",
-    }),
+  const popup = await openPopupWithDefaults(context, extensionId, probe);
+  await expect(popup.locator("#current-rule")).toHaveAttribute(
+    "data-presentation",
+    "rule-active",
   );
-  expect(await readDismissedHosts(page)).toEqual([VIDEO_HOST]);
-
-  await clickFeatureAction(page, "recognize");
-  await expectFeatureState(
-    page,
-    editorState(VIDEO_SOURCE, {
-      view: "suggested",
-      matchSource: "domain-test",
-      matchStatus: "matched",
-      sync: "none",
-    }),
-  );
-  expect(await readDismissedHosts(page)).toEqual([]);
-  await expectSourceUnchanged(page, VIDEO_SOURCE, null);
-  await expectQuietProvider(page, worker);
-});
-
-test("confirms a manually chosen service and detaches it from the source", async ({
-  context,
-  extensionId,
-}) => {
-  const { page, worker } = await prepareProviderPage(context, extensionId, {
-    rule: VIDEO_SOURCE,
-  });
-  await openSavedRuleEditor(page, extensionId, VIDEO_HOST);
-  await expectFeatureState(
-    page,
-    editorState(VIDEO_SOURCE, {
-      view: "idle",
-      matchSource: "none",
-      matchStatus: "none",
-      sync: "none",
-    }),
-  );
-
-  await confirmManualFeature(page, SOCIAL_FEATURE);
-  await expectFeatureState(
-    page,
-    editorState(VIDEO_SOURCE, {
-      view: "bound",
-      matchSource: "manual",
-      matchStatus: "matched",
-      sync: "queued",
-    }),
-  );
-  await expectSourceUnchanged(page, VIDEO_SOURCE, {
-    featureId: SOCIAL_FEATURE,
-    matchSource: "manual",
-  });
-
-  await clickFeatureAction(page, "detach");
-  await expectFeatureState(
-    page,
-    editorState(VIDEO_SOURCE, {
-      view: "idle",
-      matchSource: "none",
-      matchStatus: "none",
-      sync: "none",
-    }),
-  );
-  await expectSourceUnchanged(page, VIDEO_SOURCE, null);
-  await expectQuietProvider(page, worker);
-});
-
-test("round-trips the service binding and keeps it with the source identity", async ({
-  context,
-  extensionId,
-}) => {
-  test.slow();
-  const { page, worker } = await prepareProviderPage(context, extensionId, {
-    rule: VIDEO_SOURCE,
-    suggestion: true,
-  });
-  await openSavedRuleEditor(page, extensionId, VIDEO_HOST);
-  await clickFeatureAction(page, "confirm");
-  await expectFeatureState(
-    page,
-    editorState(VIDEO_SOURCE, {
-      view: "bound",
-      matchSource: "domain-test",
-      matchStatus: "matched",
-      sync: "queued",
-    }),
-  );
-  const backup = await expectSourceUnchanged(page, VIDEO_SOURCE, {
-    featureId: VIDEO_FEATURE,
-    matchSource: "domain-test",
-  });
-
-  await clickFeatureAction(page, "detach");
-  await expectFeatureState(
-    page,
-    editorState(VIDEO_SOURCE, {
-      view: "suggested",
-      matchSource: "domain-test",
-      matchStatus: "matched",
-      sync: "none",
-    }),
-  );
-  await expectSourceUnchanged(page, VIDEO_SOURCE, null);
-
-  await page.goto(`chrome-extension://${extensionId}/src/ui/options/index.html`);
-  await importSettings(page, { ...backup, onboardingCompleted: true });
-  await openSavedRuleEditor(page, extensionId, VIDEO_HOST);
-  await expectFeatureState(
-    page,
-    editorState(VIDEO_SOURCE, {
-      view: "bound",
-      matchSource: "domain-test",
-      matchStatus: "matched",
-      sync: "queued",
-    }),
-  );
-
-  const restored = await exportSettings<ExportedSettings>(page);
-  await page.goto(`chrome-extension://${extensionId}/src/ui/options/index.html`);
-  await renameSource(page, restored, VIDEO_HOST, LOOPBACK_HOST);
-  const renamed = await exportSettings<ExportedSettings>(page);
-  expect(renamed.rules).toEqual([
+  await expect(
+    popup.locator("[data-provider-decorators] [data-provider-initials]"),
+  ).toHaveAttribute("data-provider-initials", "CD");
+  await expect(popup.locator("[data-provider-feature-count]")).toHaveText("+1");
+  const popupState = await getPopupState<PopupState>(popup);
+  expect(popupState.decorators?.[0]).toEqual(
     expect.objectContaining({
-      pattern: LOOPBACK_HOST,
-      authKey: VIDEO_SOURCE.authKey,
-      ruleSeedKey: VIDEO_SOURCE.ruleSeedKey,
-      enabled: true,
-      locationId: VIDEO_SOURCE.locationId,
-    }),
-  ]);
-  expect(renamed.featureBindings).toEqual([
-    expect.objectContaining({
-      rulePattern: LOOPBACK_HOST,
       providerId: CONTROL_D_PROVIDER_ID,
+      initials: "CD",
       featureId: VIDEO_FEATURE,
-      featureType: "service",
     }),
-  ]);
+  );
+  expect(popupState.groupPatterns).toEqual([LOOPBACK_HOST, MEDIA_HOST]);
+  await popup.close();
+  await expectHostUnprotected(
+    context,
+    extensionId,
+    await openProbe(context, secondaryServerUrl),
+    LOCAL_HOST,
+  );
 
-  const renamedRule = renamed.rules[0];
-  if (!renamedRule) throw new Error("Renamed source is missing.");
-  await saveLocationModel(page, {
-    locations: renamed.locations,
-    rules: [{ ...renamedRule, enabled: false }],
-  });
+  await openSavedRuleEditor(page, extensionId, LOOPBACK_HOST);
+  await page.locator("#dialog-rule-enabled").click();
+  await expect(page.locator("#dialog-rule-enabled")).toHaveAttribute(
+    "data-state",
+    "unchecked",
+  );
+  await saveRuleDialog(page);
   const disabled = await exportSettings<ExportedSettings>(page);
-  expect(disabled.rules).toEqual([
-    expect.objectContaining({
-      pattern: LOOPBACK_HOST,
-      enabled: false,
-      authKey: VIDEO_SOURCE.authKey,
-      ruleSeedKey: VIDEO_SOURCE.ruleSeedKey,
-    }),
-  ]);
-  expect(disabled.featureBindings).toEqual([
-    expect.objectContaining({ rulePattern: LOOPBACK_HOST }),
-  ]);
+  const inactive: SavedIdentity = { ...propagated, enabled: false };
+  expectSavedRule(disabled, inactive);
+  expectSavedRule(disabled, { ...inactive, pattern: MEDIA_HOST });
+  expect(disabled.featureBindings).toEqual(grouped.featureBindings);
 
-  await saveLocationModel(page, { locations: disabled.locations, rules: [] });
-  const removed = await exportSettings<ExportedSettings>(page);
+  await page.reload();
+  const reloaded = await exportSettings<ExportedSettings>(page);
+  expect(reloaded.rules).toEqual(disabled.rules);
+  expect(reloaded.featureBindings).toEqual(disabled.featureBindings);
+  await expectProviderQuiet(
+    page,
+    worker,
+    [LOOPBACK_HOST, MEDIA_HOST],
+    escapes,
+    pageRequests,
+  );
+
+  const restarted = await restartExtensionWorker(context, extensionId);
+  const afterRestart = await exportSettings<ExportedSettings>(restarted);
+  expect(afterRestart.rules).toEqual(disabled.rules);
+  expect(afterRestart.featureBindings).toEqual(disabled.featureBindings);
+
+  await saveLocationModel(restarted, {
+    locations: afterRestart.locations,
+    rules: [],
+  });
+  expect(
+    (await exportSettings<ExportedSettings>(restarted)).featureBindings ?? [],
+  ).toEqual([]);
+  await importSettings(restarted, { ...disabled, onboardingCompleted: true });
+  const imported = await exportSettings<ExportedSettings>(restarted);
+  expect(imported.rules).toEqual(disabled.rules);
+  expect(imported.featureBindings).toEqual(disabled.featureBindings);
+  expectExportSealed(imported);
+
+  await restarted.goto(`chrome-extension://${extensionId}/src/ui/options/index.html`);
+  await openSettingsTab(restarted, "rules");
+  await restarted
+    .getByRole("button", { name: `Delete rule ${LOOPBACK_HOST}`, exact: true })
+    .click();
+  await expect(restarted.locator("#confirm-dialog")).toBeVisible();
+  await restarted.locator("#confirm-dialog-confirm").click();
+  await expect(restarted.locator("#confirm-dialog")).toHaveCount(0);
+  const removed = await exportSettings<ExportedSettings>(restarted);
   expect(removed.rules).toEqual([]);
   expect(removed.featureBindings ?? []).toEqual([]);
-  await expectQuietProvider(page, worker);
+  expect(escapes).toEqual([]);
+  expect(pageRequests).toEqual([]);
+});
+
+test("stages a popup draft until save and then shows the summary badge", async ({
+  context,
+  extensionId,
+  serverUrl,
+  secondaryServerUrl,
+}) => {
+  test.slow();
+  const { page, worker, escapes, pageRequests } = await prepareProviderPage(
+    context,
+    extensionId,
+    { hosts: [LOCAL_HOST] },
+  );
+  const probe = await openProbe(context, secondaryServerUrl);
+  const popup = await openPopupWithDefaults(context, extensionId, probe);
+  await expect(popup.locator("#current-rule")).toHaveAttribute(
+    "data-presentation",
+    "fallback-inactive",
+  );
+  await expect(popup.locator("[data-provider-decorators]")).toHaveCount(0);
+  await expect(popup.locator("#open-domain-rule-settings")).toBeEnabled();
+  await popup.locator("#open-domain-rule-settings").click();
+  await expect(popup.locator("#close-rule-settings")).toBeVisible();
+  await expectFeatureSlot(popup, { state: "suggest", variant: "compact" });
+  await clickFeatureAction(popup, "accept");
+  await expectFeatureDecision(popup, videoDecision(VIDEO_FEATURE));
+  const staged = await exportSettings<ExportedSettings>(page);
+  expect(staged.rules).toEqual([]);
+  expect(staged.featureBindings ?? []).toEqual([]);
+
+  await popup.locator("#close-rule-settings").click();
+  await expect(popup.locator("#close-rule-settings")).toBeHidden();
+  const cancelled = await exportSettings<ExportedSettings>(page);
+  expect(cancelled.rules).toEqual([]);
+  expect(cancelled.featureBindings ?? []).toEqual([]);
+
+  await popup.locator("#open-domain-rule-settings").click();
+  await expectFeatureSlot(popup, { state: "suggest", variant: "compact" });
+  expect(await readControlDQueries(worker)).toHaveLength(1);
+  await clickFeatureAction(popup, "accept");
+  await popup.locator("#apply-current-profile").click();
+  await expect(popup.locator("#close-rule-settings")).toBeHidden();
+
+  const saved = await exportSettings<ExportedSettings>(page);
+  const pattern = `*${LOCAL_HOST}`;
+  expect(saved.rules).toEqual([expect.objectContaining({ pattern, enabled: true })]);
+  expect(saved.featureBindings).toEqual([
+    bindingFor(pattern, VIDEO_FEATURE, "domain-test"),
+  ]);
+  expectExportSealed(saved);
+  await expect(popup.locator("#current-rule")).toHaveAttribute(
+    "data-presentation",
+    "rule-active",
+  );
+  await expect(
+    popup.locator("[data-provider-decorators] [data-provider-initials]"),
+  ).toHaveAttribute("data-provider-initials", "CD");
+  await expect(popup.locator("[data-provider-feature-count]")).toHaveCount(0);
+  await expectPageHasNoProvider(probe);
+  await expectHostUnprotected(
+    context,
+    extensionId,
+    await openProbe(context, serverUrl),
+    LOOPBACK_HOST,
+  );
+  await expectProviderQuiet(page, worker, [LOCAL_HOST], escapes, pageRequests);
 });

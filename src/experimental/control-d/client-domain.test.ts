@@ -51,6 +51,40 @@ describe("Control D domain queries", () => {
     expect(init.redirect).toBe("error");
   });
 
+  it("accepts a numeric RCODE when Status is absent", async () => {
+    const fetchImpl = vi.fn(async () =>
+      dnsResponse({
+        RCODE: 0,
+        controld: { verdict: { verdictSource: "svc", verdictMatch: "youtube" } },
+      }),
+    );
+    await expect(
+      new ControlDClient("stored-token", fetchImpl).queryDomain(
+        "resolver-1",
+        "youtu.be",
+      ),
+    ).resolves.toEqual({
+      hostname: "youtu.be",
+      status: "matched",
+      serviceId: "youtube",
+    });
+  });
+
+  it("does not send the token when the caller already aborted", async () => {
+    const fetchImpl = vi.fn();
+    await expect(
+      new ControlDClient("stored-token", fetchImpl).queryDomain(
+        "resolver-1",
+        "example.com",
+        AbortSignal.abort(),
+      ),
+    ).rejects.toMatchObject({
+      message: "Control D domain query failed.",
+      status: 0,
+    });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
   it("does not send the bearer token when the resolver id would leave the DoH origin", async () => {
     const fetchImpl = vi.fn();
     const client = new ControlDClient("stored-token", fetchImpl);

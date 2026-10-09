@@ -15,7 +15,6 @@ import {
 } from "./contracts";
 import { controlDText as t } from "./ui-copy";
 import { featureText } from "./ui-feature-copy";
-import { ControlDRecognitionPanel } from "./ui-recognition";
 import { ControlDRegionalRoute } from "./ui-regional-route";
 
 import { cn } from "@/ui/components/lib/utils";
@@ -940,7 +939,14 @@ export const ControlDSubpage = () => {
             </div>
             {content}
           </Card>
-          {state?.connected ? <ControlDRecognitionPanel /> : null}
+          {state?.connected ? (
+            <p
+              data-control-d-domain-matching
+              className="px-1 text-xs text-muted-foreground"
+            >
+              {featureText.automaticMatching}
+            </p>
+          ) : null}
         </div>
         <div className="col-span-12 lg:col-span-4">
           <SettingsHelpCard title={help.title} collapsible defaultOpen>

@@ -1,167 +1,348 @@
-import { useId, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { BUILD_CHANNEL } from "@/shared/build-flags";
-import { compileDomainPattern, getDomainPatternKind } from "@/shared/domain-match";
-import { FEATURE_COMMANDS } from "@/shared/provider-feature";
 import {
-  ProviderFeaturePanel,
+  bindingPatterns,
+  type FeatureDecision,
+  type ProviderFeature,
+  type ProviderFeatureState,
+} from "@/shared/provider-feature";
+import {
+  featureNotice,
+  initialsFromState,
+  joinInfo,
+  otherGroup,
+  recognitionHost,
+  resolveSlot,
+  type FeatureNotice,
+  type JoinInfo,
   type ProviderFeatureVariant,
 } from "@/ui/components/provider-feature";
-import { Input } from "@/ui/components/ui/input";
-import { t } from "@/ui/i18n";
 import {
-  toFeatureSyncStatus,
+  providerFeatureCopy,
+  type ProviderFeatureMessages,
+} from "@/ui/components/provider-feature/provider-feature-copy";
+import {
+  ProviderFeaturePending,
+  ProviderFeatureSlot,
+  type RequestPending,
+} from "@/ui/components/provider-feature/ProviderFeatureSlot";
+import { useUiLocale } from "@/ui/i18n/LocaleRefresh";
+import {
   useProviderFeature,
+  type ProviderFeaturePending as FeatureRead,
+  type ProviderFeatureQuery,
 } from "@/ui/shared/use-provider-feature";
 
+export type HostSchedule = (run: () => void) => () => void;
+
 export type ProviderFeatureHostProps = {
-  /** Pattern of the saved rule; drafts must not reach the provider. */
+  /** Current draft pattern, including an unsaved rule. */
   rulePattern: string;
+  /** Saved pattern. Keeps the existing group while the draft is edited. */
+  savedRulePattern?: string;
   /** Fixed representative host, such as the popup's current tab. */
-  hostname?: string | null | undefined;
+  hostname?: string | null;
   variant?: ProviderFeatureVariant;
+  onDecisionChange?: (decision: FeatureDecision | undefined) => void;
+  /** Trailing debounce for typed patterns. Tests inject a fake scheduler. */
+  schedule?: HostSchedule;
 };
 
-const normalizeHost = (value: string): string =>
-  value.trim().toLowerCase().replace(/\.$/, "");
+const DEBOUNCE_MS = 500;
 
-export const isRepresentativeHost = (pattern: string, hostname: string): boolean =>
-  /^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/.test(hostname) &&
-  compileDomainPattern(pattern).test(hostname);
-
-/** Broad patterns only get a host the user types; `*.x` and wildcards are never guessed. */
-const initialHost = (pattern: string, fixed: string | null): string => {
-  if (fixed !== null) return fixed;
-  const kind = getDomainPatternKind(pattern);
-  if (kind === "exact") return pattern;
-  if (kind === "apex-and-subdomains") return pattern.slice(1);
-  return "";
+const debounceHost: HostSchedule = (run) => {
+  const id = setTimeout(run, DEBOUNCE_MS);
+  return () => clearTimeout(id);
 };
 
-type HostFieldProps = {
-  value: string;
-  invalid: boolean;
-  disabled: boolean;
-  onChange: (value: string) => void;
-  onCommit: () => void;
-  inputRef: React.RefObject<HTMLInputElement | null>;
+type SettledDraft = { pattern: string; host: string };
+
+const useSettledDraft = (
+  pattern: string,
+  fixed: string | null,
+  schedule: HostSchedule | undefined,
+): SettledDraft => {
+  const host = recognitionHost(pattern, fixed);
+  const [settled, setSettled] = useState<SettledDraft>({ pattern, host });
+  const patternRef = useRef(pattern);
+  const scheduleRef = useRef(schedule);
+  scheduleRef.current = schedule;
+  useEffect(() => {
+    const apply = () => setSettled({ pattern, host });
+    if (fixed !== null || patternRef.current === pattern) {
+      patternRef.current = pattern;
+      apply();
+      return;
+    }
+    patternRef.current = pattern;
+    return (scheduleRef.current ?? debounceHost)(apply);
+  }, [fixed, host, pattern]);
+  return settled;
 };
 
-const RepresentativeHostField = ({
-  value,
-  invalid,
-  disabled,
-  onChange,
-  onCommit,
-  inputRef,
-}: HostFieldProps) => {
-  const inputId = useId();
-  const hintId = useId();
-  return (
-    <div data-provider-feature-host-field className="space-y-1.5">
-      <label htmlFor={inputId} className="block text-sm font-medium text-foreground">
-        {t.rules.inspector.hostnameLabel}
-      </label>
-      <Input
-        ref={inputRef}
-        id={inputId}
-        value={value}
-        inputMode="url"
-        autoComplete="off"
-        spellCheck={false}
-        placeholder={t.rules.inspector.hostnamePlaceholder}
-        aria-describedby={hintId}
-        aria-invalid={invalid}
-        disabled={disabled}
-        className="aria-invalid:border-destructive"
-        onChange={(event) => onChange(event.currentTarget.value)}
-        onBlur={onCommit}
-        onKeyDown={(event) => {
-          if (event.key !== "Enter") return;
-          event.preventDefault();
-          onCommit();
-        }}
-      />
-      <p id={hintId} className="text-xs text-muted-foreground">
-        {t.rules.inspector.hostnameHint}
-      </p>
-    </div>
-  );
+const useFeatureDecision = (
+  rulePattern: string,
+  onDecisionChange: ProviderFeatureHostProps["onDecisionChange"],
+) => {
+  const [seenPattern, setSeenPattern] = useState(rulePattern);
+  const [decision, setDecision] = useState<FeatureDecision | undefined>(undefined);
+  if (seenPattern !== rulePattern) {
+    setSeenPattern(rulePattern);
+    setDecision(undefined);
+  }
+  const notify = useRef(onDecisionChange);
+  notify.current = onDecisionChange;
+  const reported = useRef(rulePattern);
+  useEffect(() => {
+    if (reported.current === rulePattern) return;
+    reported.current = rulePattern;
+    notify.current?.(undefined);
+  }, [rulePattern]);
+  const stage = useCallback((next: FeatureDecision | undefined) => {
+    setDecision(next);
+    notify.current?.(next);
+  }, []);
+  return { decision, stage };
 };
+
+const identityOf = (rulePattern: string, saved: string | undefined): string => {
+  const trimmed = saved?.trim();
+  return trimmed ? trimmed : rulePattern;
+};
+
+const decisionFor = (
+  providerId: string,
+  feature: ProviderFeature,
+  join: boolean,
+): FeatureDecision =>
+  join
+    ? { providerId, featureId: feature.featureId, joinExisting: true }
+    : { providerId, featureId: feature.featureId };
+
+const requestKind = (
+  state: ProviderFeatureState,
+  busy: boolean,
+  pending: FeatureRead | null,
+  errorCode: string | null,
+): RequestPending | null => {
+  const status = state.recognitionStatus;
+  if (status === "unavailable" || status === "blocked") return busy ? "status" : null;
+  if (status === "preparing") return "preparing";
+  if (errorCode === "recognition-preparing") return "preparing";
+  if (!busy) return null;
+  return pending ?? "status";
+};
+
+const noticeText = (
+  copy: ProviderFeatureMessages,
+  kind: FeatureNotice,
+  provider: string,
+  service: string,
+): string => {
+  switch (kind) {
+    case "blocked":
+    case "paused":
+      return copy.errorBlocked(provider);
+    case "connect":
+      return copy.errorConnect(provider);
+    case "catalogue":
+      return copy.errorCatalogue(provider);
+    case "sync":
+      return copy.errorSync(provider, service);
+    case "generic":
+      return copy.errorGeneric;
+  }
+};
+
+const listedPatterns = (
+  state: ProviderFeatureState,
+  identity: string,
+  decision: FeatureDecision | undefined,
+): readonly string[] => {
+  const featureId = decision?.joinExisting ? decision.featureId : null;
+  if (featureId) {
+    const joined = otherGroup(
+      state.bindings ?? [],
+      state.providerId,
+      featureId,
+      identity,
+    );
+    if (joined) return bindingPatterns(joined);
+  }
+  if (state.groupPatterns && state.groupPatterns.length > 0) return state.groupPatterns;
+  if (state.binding) return bindingPatterns(state.binding);
+  return [];
+};
+
+const sharedHostsFor = (
+  state: ProviderFeatureState,
+  identity: string,
+  decision: FeatureDecision | undefined,
+): string[] =>
+  listedPatterns(state, identity, decision).filter((pattern) => pattern !== identity);
 
 const ProviderFeatureHostBody = ({
   rulePattern,
-  hostname: fixedHostname,
+  savedRulePattern,
+  hostname,
   variant = "default",
+  onDecisionChange,
+  schedule,
 }: ProviderFeatureHostProps) => {
-  const fixed = fixedHostname ? normalizeHost(fixedHostname) : null;
-  const [draft, setDraft] = useState(() => initialHost(rulePattern, fixed));
-  const [committed, setCommitted] = useState(() => {
-    const host = normalizeHost(initialHost(rulePattern, fixed));
-    return isRepresentativeHost(rulePattern, host) ? host : "";
-  });
-  const inputRef = useRef<HTMLInputElement | null>(null);
-  const hostname = fixed ?? committed;
-  const { state, busy, error, send } = useProviderFeature(rulePattern, hostname);
-  const draftHost = normalizeHost(draft);
-  const draftValid = isRepresentativeHost(rulePattern, draftHost);
-
-  if (state === null || (!state.available && state.binding === null)) return null;
-
-  const commit = () => {
-    if (draftValid) setCommitted(draftHost);
+  const locale = useUiLocale();
+  const copy = providerFeatureCopy[locale];
+  const fixed = hostname ? hostname : null;
+  const settled = useSettledDraft(rulePattern, fixed, schedule);
+  const { decision, stage } = useFeatureDecision(rulePattern, onDecisionChange);
+  const query: ProviderFeatureQuery = {
+    rulePattern: settled.pattern,
+    hostname: settled.host,
+    recognize: settled.host.length > 0,
+    ...(savedRulePattern ? { savedRulePattern } : {}),
   };
-  const showField = fixed === null && getDomainPatternKind(rulePattern) !== "exact";
-
+  const { state, busy, pending, failed, errorCode } = useProviderFeature(query);
+  if (!state) {
+    if (!busy) return null;
+    return (
+      <div data-provider-feature-host aria-busy="true">
+        <ProviderFeaturePending kind="status" copy={copy} />
+      </div>
+    );
+  }
+  if (!state.available) return null;
   return (
-    <div data-provider-feature-host className="space-y-2">
-      {showField ? (
-        <RepresentativeHostField
-          value={draft}
-          invalid={draft.trim() !== "" && !draftValid}
-          disabled={busy}
-          onChange={setDraft}
-          onCommit={commit}
-          inputRef={inputRef}
-        />
-      ) : null}
-      <ProviderFeaturePanel
+    <ReadyFeatureHost
+      rulePattern={rulePattern}
+      {...(savedRulePattern ? { savedRulePattern } : {})}
+      variant={variant}
+      settledHost={settled.host}
+      state={state}
+      busy={busy}
+      pending={pending}
+      failed={failed}
+      errorCode={errorCode}
+      decision={decision}
+      stage={stage}
+      copy={copy}
+    />
+  );
+};
+
+const ReadyFeatureHost = ({
+  rulePattern,
+  savedRulePattern,
+  variant,
+  settledHost,
+  state,
+  busy,
+  pending,
+  failed,
+  errorCode,
+  decision,
+  stage,
+  copy,
+}: {
+  rulePattern: string;
+  savedRulePattern?: string;
+  variant: ProviderFeatureVariant;
+  settledHost: string;
+  state: ProviderFeatureState;
+  busy: boolean;
+  pending: FeatureRead | null;
+  failed: boolean;
+  errorCode: string | null;
+  decision: FeatureDecision | undefined;
+  stage: (next: FeatureDecision | undefined) => void;
+  copy: ProviderFeatureMessages;
+}) => {
+  const identity = identityOf(rulePattern, savedRulePattern);
+  const kind = requestKind(state, busy, pending, errorCode);
+  const sharedHosts = sharedHostsFor(state, identity, decision);
+  const joinFor = (featureId: string): JoinInfo | null => {
+    const group = otherGroup(
+      state.bindings ?? [],
+      state.providerId,
+      featureId,
+      identity,
+    );
+    return group ? joinInfo(group) : null;
+  };
+  const model = resolveSlot({
+    available: state.available,
+    providerId: state.providerId,
+    providerName: state.providerName,
+    initials: initialsFromState(state),
+    ...(state.badgeColors ? { badgeColors: state.badgeColors } : {}),
+    features: state.features,
+    bindings: state.bindings ?? [],
+    binding: state.binding,
+    match: state.match,
+    dismissed: state.dismissed,
+    recognizing:
+      kind === "lookup" && !state.binding && !decision && settledHost.length > 0,
+    identityPattern: identity,
+    decision,
+    declinedId: null,
+  });
+  const noticeKind = featureNotice({
+    errorCode,
+    failed,
+    recognitionStatus: state.recognitionStatus,
+    syncStatus: state.syncStatus,
+    hasBinding: state.binding !== null,
+    featureCount: state.features.length,
+    hasStateError: state.error !== null && state.error.length > 0,
+  });
+  const serviceName = state.binding?.featureName ?? model.decorator?.label ?? "";
+  const accept = (feature: ProviderFeature, join: boolean) => {
+    stage(decisionFor(state.providerId, feature, join));
+  };
+  return (
+    <div data-provider-feature-host aria-busy={kind ? true : undefined}>
+      <ProviderFeatureSlot
         variant={variant}
-        providerName={state.providerName}
-        hostname={hostname || draftHost || rulePattern}
-        rulePattern={rulePattern}
+        model={model}
+        copy={copy}
         features={state.features}
-        match={state.match}
-        binding={state.binding}
-        busy={busy}
-        dismissed={state.dismissed}
-        syncStatus={toFeatureSyncStatus(state.syncStatus)}
-        onRecognize={() => {
-          if (!hostname) {
-            inputRef.current?.focus();
+        sharedHosts={sharedHosts}
+        removing={decision?.featureId === null && state.binding !== null}
+        groupRemoval={sharedHosts.length > 0}
+        {...(kind ? { pending: kind } : {})}
+        {...(state.binding ? { removalService: state.binding.featureName } : {})}
+        {...(noticeKind
+          ? { notice: noticeText(copy, noticeKind, state.providerName, serviceName) }
+          : {})}
+        joinFor={joinFor}
+        onAccept={() => {
+          if (model.feature) accept(model.feature, false);
+        }}
+        onDecline={() => {
+          if (model.feature) stage({ providerId: state.providerId, featureId: null });
+        }}
+        onJoin={() => {
+          if (model.feature) accept(model.feature, true);
+        }}
+        onChoose={(feature) => {
+          const same =
+            state.binding?.providerId === feature.providerId &&
+            state.binding.featureId === feature.featureId;
+          if (same) {
+            stage(undefined);
             return;
           }
-          send(FEATURE_COMMANDS.recognize);
+          accept(feature, joinFor(feature.featureId) !== null);
         }}
-        onConfirm={(feature) => send(FEATURE_COMMANDS.confirm, feature.featureId)}
-        onDismiss={() => send(FEATURE_COMMANDS.dismiss)}
-        onDetach={() => send(FEATURE_COMMANDS.detach)}
+        onDetach={() => stage({ providerId: state.providerId, featureId: null })}
+        onClear={() => stage(undefined)}
       />
-      {(error ?? state.error) ? (
-        <p
-          role="alert"
-          data-provider-feature-error
-          className="text-xs text-tone-error-text [overflow-wrap:anywhere]"
-        >
-          {error ?? state.error}
-        </p>
+      {decision ? (
+        <input type="hidden" name="featureDecision" value={JSON.stringify(decision)} />
       ) : null}
     </div>
   );
 };
 
-/** Provider feature panel for one saved rule source; absent from release builds. */
+/** Compact provider slot. Release builds and a disabled provider render nothing. */
 export const ProviderFeatureHost = (props: ProviderFeatureHostProps) =>
-  BUILD_CHANNEL === "release" ? null : (
-    <ProviderFeatureHostBody key={props.rulePattern} {...props} />
-  );
+  BUILD_CHANNEL === "release" ? null : <ProviderFeatureHostBody {...props} />;

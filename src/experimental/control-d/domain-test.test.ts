@@ -108,4 +108,61 @@ describe("Control D domain query recognition", () => {
       expect(interpretControlDQuery("example.com", body)).toBeNull();
     },
   );
+
+  it("accepts a live RFC 8427 RCODE and keeps an invalid Status in front of it", () => {
+    const live = (hostname: string, source?: string, match?: string): unknown => ({
+      RCODE: 0,
+      QDCOUNT: 1,
+      ANCOUNT: source ? 1 : 0,
+      Question: [{ NAME: `${hostname}.`, TYPE: 1 }],
+      ...(source
+        ? { controld: { verdict: { verdictSource: source, verdictMatch: match } } }
+        : {}),
+    });
+    expect(
+      interpretControlDQuery("youtube.com", live("youtube.com", "svc", "youtube")),
+    ).toEqual({
+      hostname: "youtube.com",
+      status: "matched",
+      serviceId: "youtube",
+    });
+    expect(
+      interpretControlDQuery("youtu.be", live("youtu.be", "svc", "youtube")),
+    ).toEqual({
+      hostname: "youtu.be",
+      status: "matched",
+      serviceId: "youtube",
+    });
+    expect(interpretControlDQuery("example.com", live("example.com"))).toEqual({
+      hostname: "example.com",
+      status: "unresolved",
+      serviceId: null,
+    });
+    expect(
+      interpretControlDQuery("example.com", {
+        RCODE: 3,
+        controld: { verdict: { verdictSource: "svc", verdictMatch: "youtube" } },
+      }),
+    ).toEqual({ hostname: "example.com", status: "unresolved", serviceId: null });
+    expect(
+      interpretControlDQuery("example.com", {
+        Status: 0,
+        RCODE: 3,
+        controld: { verdict: { verdictSource: "svc", verdictMatch: "youtube" } },
+      }),
+    ).toEqual({ hostname: "example.com", status: "matched", serviceId: "youtube" });
+    expect(
+      interpretControlDQuery("example.com", {
+        Status: 2,
+        RCODE: 0,
+        controld: { verdict: { verdictSource: "svc", verdictMatch: "youtube" } },
+      }),
+    ).toEqual({ hostname: "example.com", status: "unresolved", serviceId: null });
+    expect(
+      interpretControlDQuery("example.com", { Status: "NOERROR", RCODE: 0 }),
+    ).toBeNull();
+    expect(interpretControlDQuery("example.com", { RCODE: "0" })).toBeNull();
+    expect(interpretControlDQuery("example.com", { RCODE: 1.5 })).toBeNull();
+    expect(interpretControlDQuery("example.com", { RCODE: 16 })).toBeNull();
+  });
 });

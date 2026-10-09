@@ -129,6 +129,8 @@ const useSettingsPersistence = (state: SettingsStateComposition) =>
       setProfiles: state.locations.setProfiles,
       setRandomizeDefault: state.locations.setRandomizeDefault,
       setRules: state.rules.setRules,
+      setFeatureBindings: state.rules.setFeatureBindings,
+      setDecorators: state.rules.setDecorators,
       setSelectedRulePatterns: state.rules.setSelectedRulePatterns,
       setSharedSpoofing: state.preferences.setSharedSpoofing,
       setWorkerCompat: state.preferences.setWorkerCompat,
@@ -165,6 +167,7 @@ const useRuleRuntime = (
     state: state.rules,
   });
   const identityHandlers = createIdentityHandlers({
+    featureBindings: state.rules.featureBindings,
     containerAssignmentsRef: state.locations.containerAssignmentsRef,
     requestConfirmation: state.confirmation.requestConfirmation,
     rulesRef: state.rules.rulesRef,
@@ -391,6 +394,8 @@ const buildRuleContext = (state: SettingsStateComposition, runtime: RuleRuntime)
   ruleProfileOptions: runtime.derived.ruleProfileOptions,
   ruleRelaxCsp: state.rules.ruleRelaxCsp,
   rules: state.rules.rules,
+  featureBindings: state.rules.featureBindings,
+  decorators: state.rules.decorators,
   rulesFilter: state.rules.rulesFilter,
   selectedRulePatterns: state.rules.selectedRulePatterns,
   setGlobalFallbackRule: state.preferences.setGlobalFallbackRule,

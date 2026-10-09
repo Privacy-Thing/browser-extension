@@ -7,6 +7,7 @@ import {
   type ControlDConfig,
   type ControlDPreparedSnapshot,
 } from "./contracts";
+import { ensureControlDRecognition } from "./recognition-setup";
 import {
   hashControlDInputs,
   applyControlDSync,
@@ -17,6 +18,11 @@ import { CONTROL_D_STORE_KEYS, saveControlDConfig } from "./storage";
 import { logExtensionEvent } from "@/background/logger";
 import { LOCATIONS_STORAGE_KEY } from "@/background/storage/locations";
 import { RULES_STORAGE_KEY } from "@/background/storage/rules";
+
+vi.mock("./recognition-setup", async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  ensureControlDRecognition: vi.fn(async () => undefined),
+}));
 
 vi.mock("@/background/logger", () => ({
   logExtensionEvent: vi.fn(),
@@ -66,6 +72,7 @@ beforeEach(() => {
   vi.stubGlobal("chrome", {
     runtime: {
       id: "extension-id",
+      sendMessage: vi.fn(async () => undefined),
       getURL: (path: string) => `chrome-extension://extension-id${path}`,
       onMessage: {
         addListener: vi.fn((listener: MessageListener) => {
@@ -134,6 +141,28 @@ describe("Control D background entry", () => {
         (response) => resolve(response as Record<string, unknown>),
       );
     });
+
+  it("prepares matching automatically after setup and on worker restart", async () => {
+    await saveControlDConfig(fixtureConfig());
+    registerControlD({ getDebugMode: () => false });
+    for (let tick = 0; tick < 6; tick++) await Promise.resolve();
+    expect(ensureControlDRecognition).toHaveBeenCalledOnce();
+    vi.mocked(ensureControlDRecognition).mockClear();
+    storageListener(
+      { [CONTROL_D_STORE_KEYS[0]]: { newValue: fixtureConfig() } },
+      "local",
+    );
+    for (let tick = 0; tick < 6; tick++) await Promise.resolve();
+    expect(ensureControlDRecognition).toHaveBeenCalledOnce();
+    await saveControlDConfig({ ...fixtureConfig(), enabled: false });
+    vi.mocked(ensureControlDRecognition).mockClear();
+    storageListener(
+      { [CONTROL_D_STORE_KEYS[0]]: { newValue: { enabled: false } } },
+      "local",
+    );
+    for (let tick = 0; tick < 6; tick++) await Promise.resolve();
+    expect(ensureControlDRecognition).not.toHaveBeenCalled();
+  });
 
   it("rejects Control D commands from content scripts before reading credentials", () => {
     registerControlD({ getDebugMode: () => false });

@@ -1,412 +1,401 @@
-import type { FeatureSyncStatus, ProviderFeatureView } from "./model";
-
 import { BRAND_DISPLAY_NAME } from "@/shared/brand";
 import type { UiLocale } from "@/shared/ui-locale";
 
 type Text = (value: string) => string;
 type PairText = (first: string, second: string) => string;
-type ScopeText = (feature: string, provider: string, pattern: string) => string;
+type JoinHint = (pattern: string, extra: number) => string;
+type SharedWith = (hosts: readonly string[]) => string;
 
 export type ProviderFeatureMessages = {
-  heading: string;
-  status: Record<ProviderFeatureView, string>;
-  summary: {
-    idle: PairText;
-    checking: PairText;
-    suggested: PairText;
-    unresolved: PairText;
-    error: PairText;
-    dismissed: Text;
-    bound: PairText;
-  };
-  evidence: {
-    label: string;
-    domainTest: Text;
-    manual: string;
-    overridden: string;
-    notChecked: string;
-    checkedAt: Text;
-  };
-  local: { label: string; value: Text };
-  sync: { label: Text; none: string } & Record<FeatureSyncStatus, string>;
-  scope: { confirm: ScopeText; bound: ScopeText; recognize: PairText };
-  actions: {
-    recognize: Text;
-    retry: string;
-    confirm: string;
-    confirmChoice: Text;
-    chooseOther: string;
-    chooseManual: string;
-    change: string;
-    cancel: string;
-    dismiss: string;
-    dismissLabel: Text;
-    detach: string;
-    detachLabel: PairText;
-  };
-  picker: { label: Text; placeholder: string; search: string; empty: string };
-  busy: string;
+  suggestQuestion: Text;
+  yes: string;
+  no: string;
+  scope: PairText;
+  joinQuestion: Text;
+  joinHint: JoinHint;
+  joinReplaces: string;
+  join: string;
+  stagedLabel: Text;
+  addService: string;
+  change: string;
+  removeService: string;
+  dontUse: string;
+  back: string;
+  checking: string;
+  checkingLabel: Text;
+  checkingStatus: string;
+  preparing: string;
+  pendingRemoval: Text;
+  pendingRemovalGroup: Text;
+  pickerLabel: Text;
+  pickerPlaceholder: string;
+  pickerSearch: string;
+  pickerEmpty: string;
+  use: string;
+  chipLabel: PairText;
+  menuHeader: PairText;
+  sharedWith: SharedWith;
+  errorBlocked: Text;
+  errorConnect: Text;
+  errorCatalogue: Text;
+  errorGeneric: string;
+  errorSync: PairText;
+  errorJoinTaken: PairText;
+  errorPattern: string;
+  errorMissingService: string;
+  errorGroupChanged: Text;
+  errorGroupSettings: Text;
+  errorGroupIdentity: Text;
 };
 
+const fill =
+  (template: string) =>
+  (value: string): string =>
+    template.replaceAll("{value}", value);
+
+const pair =
+  (template: string) =>
+  (first: string, second: string): string =>
+    template.replaceAll("{first}", first).replaceAll("{second}", second);
+
+const hint =
+  (one: string, more: string): JoinHint =>
+  (pattern, extra) =>
+    (extra > 0 ? more : one)
+      .replaceAll("{pattern}", pattern)
+      .replaceAll("{extra}", String(extra));
+
+const sharedWith =
+  (one: string, two: string, more: string): SharedWith =>
+  (hosts) => {
+    const first = hosts[0];
+    if (!first) return "";
+    if (hosts.length === 1) return one.replaceAll("{a}", first);
+    const second = hosts[1];
+    if (hosts.length === 2 && second) {
+      return two.replaceAll("{a}", first).replaceAll("{b}", second);
+    }
+    return more
+      .replaceAll("{a}", first)
+      .replaceAll("{extra}", String(hosts.length - 1));
+  };
+
+const scope = (provider: string, service: string): string =>
+  `${BRAND_DISPLAY_NAME} protects only this rule's sites. A ${provider} service for ${service} may cover other sites.`;
+
 const en: ProviderFeatureMessages = {
-  heading: "DNS service",
-  status: {
-    idle: "Not checked",
-    checking: "Checking",
-    suggested: "Suggested",
-    unresolved: "No match",
-    error: "Check failed",
-    dismissed: "Dismissed",
-    bound: "Linked",
-  },
-  summary: {
-    idle: (provider, host) =>
-      `Ask ${provider} whether ${host} belongs to one of its services.`,
-    checking: (provider, host) => `Checking ${host} with ${provider}…`,
-    suggested: (feature, provider) => `Matched to ${feature} · ${provider}`,
-    unresolved: (provider, host) => `${provider} has no service for ${host}.`,
-    error: (provider, host) => `Couldn’t check ${host} with ${provider}.`,
-    dismissed: (provider) => `${provider} suggestion dismissed.`,
-    bound: (feature, provider) => `Linked to ${feature} · ${provider}`,
-  },
-  evidence: {
-    label: "Match evidence",
-    domainTest: (host) => `Domain test for ${host}`,
-    manual: "Chosen manually",
-    overridden: "A manual choice replaced the domain test",
-    notChecked: "Not checked yet",
-    checkedAt: (time) => `Checked ${time}`,
-  },
-  local: {
-    label: `${BRAND_DISPLAY_NAME} protection`,
-    value: (pattern) => `Stays on ${pattern}`,
-  },
-  sync: {
-    label: (provider) => `${provider} rule`,
-    none: "None — nothing changes until you confirm",
-    queued: "Waiting to sync",
-    syncing: "Syncing",
-    synced: "In sync",
-    error: "Sync failed",
-  },
-  scope: {
-    confirm: (feature, provider, pattern) =>
-      `Confirming turns on the ${feature} service rule in your ${provider} profile. ${provider} decides which domains it covers at the DNS level; ${BRAND_DISPLAY_NAME} protection still applies only to ${pattern}.`,
-    bound: (feature, provider, pattern) =>
-      `${provider} applies its ${feature} rule to the service’s own domains. ${BRAND_DISPLAY_NAME} protection applies only to ${pattern}.`,
-    recognize: (provider, host) =>
-      `Sends ${host} to ${provider}. Nothing changes until you confirm.`,
-  },
-  actions: {
-    recognize: (provider) => `Check with ${provider}`,
-    retry: "Check again",
-    confirm: "Add DNS service rule",
-    confirmChoice: (feature) => `Add DNS rule for ${feature}`,
-    chooseOther: "Choose another service",
-    chooseManual: "Choose a service",
-    change: "Change service",
-    cancel: "Cancel",
-    dismiss: "Dismiss",
-    dismissLabel: (feature) => `Dismiss the ${feature} suggestion`,
-    detach: "Remove DNS service rule",
-    detachLabel: (feature, provider) => `Remove the ${feature} rule from ${provider}`,
-  },
-  picker: {
-    label: (provider) => `${provider} service`,
-    placeholder: "Select a service",
-    search: "Search services",
-    empty: "No services found.",
-  },
-  busy: "Working…",
+  suggestQuestion: fill("Link {value} service?"),
+  yes: "Yes",
+  no: "No thanks",
+  scope,
+  joinQuestion: fill("Join {value}?"),
+  joinHint: hint(
+    "Uses the settings and identity of {pattern}.",
+    "Uses the settings and identity of {pattern} and {extra} more.",
+  ),
+  joinReplaces: "This rule's current settings will be replaced.",
+  join: "Join",
+  stagedLabel: fill("{value} · unsaved"),
+  addService: "Link a service",
+  change: "Change service",
+  removeService: "Unlink service",
+  dontUse: "Don't link",
+  back: "Back",
+  checking: "Checking…",
+  checkingLabel: fill("Looking for a {value} service"),
+  checkingStatus: "Checking status…",
+  preparing: "Getting ready…",
+  pendingRemoval: fill("{value} is unlinked when you save. The rule stays."),
+  pendingRemovalGroup: fill(
+    "{value} is unlinked from all these sites when you save. Their rules stay.",
+  ),
+  pickerLabel: fill("{value} service"),
+  pickerPlaceholder: "Choose a service",
+  pickerSearch: "Search services",
+  pickerEmpty: "No matching services",
+  use: "Link",
+  chipLabel: pair("{first}, {second}. Show options"),
+  menuHeader: pair("{first} · {second}"),
+  sharedWith: sharedWith(
+    "Shares settings with {a}",
+    "Shares settings with {a} and {b}",
+    "Shares settings with {a} and {extra} more",
+  ),
+  errorBlocked: fill(
+    "Suggestions are paused. Pick a service, or check {value} settings.",
+  ),
+  errorConnect: fill("Connect {value} to link a service."),
+  errorCatalogue: fill("{value} services couldn't load right now."),
+  errorGeneric: "Something went wrong. Try again.",
+  errorSync: pair("{first} couldn't apply {second}. See {first} settings."),
+  errorJoinTaken: pair(
+    "{first} is already linked to {second}. Choose Join to share its settings.",
+  ),
+  errorPattern: "Fix the rule's pattern before linking a service.",
+  errorMissingService: "That service is no longer available. Choose another.",
+  errorGroupChanged: fill(
+    "The sites using {value} changed. Reopen this rule and try again.",
+  ),
+  errorGroupSettings: fill(
+    "Sites using {value} have different settings. Save one of them to share its settings.",
+  ),
+  errorGroupIdentity: fill("Sites using {value} must share settings and identity."),
 };
 
 const es: ProviderFeatureMessages = {
-  heading: "Servicio DNS",
-  status: {
-    idle: "Sin comprobar",
-    checking: "Comprobando",
-    suggested: "Sugerido",
-    unresolved: "Sin coincidencia",
-    error: "Error al comprobar",
-    dismissed: "Descartado",
-    bound: "Vinculado",
-  },
-  summary: {
-    idle: (provider, host) =>
-      `Pregunta a ${provider} si ${host} pertenece a uno de sus servicios.`,
-    checking: (provider, host) => `Comprobando ${host} con ${provider}…`,
-    suggested: (feature, provider) => `Coincide con ${feature} · ${provider}`,
-    unresolved: (provider, host) =>
-      `${provider} no tiene ningún servicio para ${host}.`,
-    error: (provider, host) => `No se pudo comprobar ${host} con ${provider}.`,
-    dismissed: (provider) => `Sugerencia de ${provider} descartada.`,
-    bound: (feature, provider) => `Vinculado a ${feature} · ${provider}`,
-  },
-  evidence: {
-    label: "Evidencia de coincidencia",
-    domainTest: (host) => `Prueba de dominio para ${host}`,
-    manual: "Elegido manualmente",
-    overridden: "Una elección manual sustituyó a la prueba de dominio",
-    notChecked: "Aún sin comprobar",
-    checkedAt: (time) => `Comprobado: ${time}`,
-  },
-  local: {
-    label: `Protección de ${BRAND_DISPLAY_NAME}`,
-    value: (pattern) => `Sigue limitada a ${pattern}`,
-  },
-  sync: {
-    label: (provider) => `Regla en ${provider}`,
-    none: "Ninguna: nada cambia hasta que confirmes",
-    queued: "Pendiente de sincronizar",
-    syncing: "Sincronizando",
-    synced: "Sincronizada",
-    error: "Error de sincronización",
-  },
-  scope: {
-    confirm: (feature, provider, pattern) =>
-      `Al confirmar se activa la regla del servicio ${feature} en tu perfil de ${provider}. ${provider} decide qué dominios abarca a nivel de DNS; la protección de ${BRAND_DISPLAY_NAME} sigue aplicándose solo a ${pattern}.`,
-    bound: (feature, provider, pattern) =>
-      `${provider} aplica su regla de ${feature} a los dominios propios del servicio. La protección de ${BRAND_DISPLAY_NAME} se aplica solo a ${pattern}.`,
-    recognize: (provider, host) =>
-      `Envía ${host} a ${provider}. Nada cambia hasta que confirmes.`,
-  },
-  actions: {
-    recognize: (provider) => `Comprobar con ${provider}`,
-    retry: "Volver a comprobar",
-    confirm: "Añadir regla de servicio DNS",
-    confirmChoice: (feature) => `Añadir regla DNS para ${feature}`,
-    chooseOther: "Elegir otro servicio",
-    chooseManual: "Elegir un servicio",
-    change: "Cambiar servicio",
-    cancel: "Cancelar",
-    dismiss: "Descartar",
-    dismissLabel: (feature) => `Descartar la sugerencia ${feature}`,
-    detach: "Quitar regla de servicio DNS",
-    detachLabel: (feature, provider) => `Quitar la regla de ${feature} de ${provider}`,
-  },
-  picker: {
-    label: (provider) => `Servicio de ${provider}`,
-    placeholder: "Selecciona un servicio",
-    search: "Buscar servicios",
-    empty: "No se encontraron servicios.",
-  },
-  busy: "Procesando…",
+  suggestQuestion: fill("¿Vincular el servicio {value}?"),
+  yes: "Sí",
+  no: "No, gracias",
+  scope: (provider, service) =>
+    `${BRAND_DISPLAY_NAME} protege solo los sitios de esta regla. Un servicio de ${provider} para ${service} puede cubrir otros.`,
+  joinQuestion: fill("¿Unirse a {value}?"),
+  joinHint: hint(
+    "Usa la configuración y la identidad de {pattern}.",
+    "Usa la configuración y la identidad de {pattern} y {extra} más.",
+  ),
+  joinReplaces: "Se reemplazará la configuración actual de esta regla.",
+  join: "Unirse",
+  stagedLabel: fill("{value} · sin guardar"),
+  addService: "Vincular un servicio",
+  change: "Cambiar servicio",
+  removeService: "Desvincular servicio",
+  dontUse: "No vincular",
+  back: "Volver",
+  checking: "Comprobando…",
+  checkingLabel: fill("Buscando un servicio de {value}"),
+  checkingStatus: "Comprobando el estado…",
+  preparing: "Preparando…",
+  pendingRemoval: fill("{value} se desvincula al guardar. La regla se mantiene."),
+  pendingRemovalGroup: fill(
+    "{value} se desvincula de todos estos sitios al guardar. Sus reglas se mantienen.",
+  ),
+  pickerLabel: fill("Servicio de {value}"),
+  pickerPlaceholder: "Elige un servicio",
+  pickerSearch: "Buscar servicios",
+  pickerEmpty: "No hay servicios que coincidan",
+  use: "Vincular",
+  chipLabel: pair("{first}, {second}. Mostrar opciones"),
+  menuHeader: pair("{first} · {second}"),
+  sharedWith: sharedWith(
+    "Comparte configuración con {a}",
+    "Comparte configuración con {a} y {b}",
+    "Comparte configuración con {a} y {extra} más",
+  ),
+  errorBlocked: fill(
+    "Las sugerencias están en pausa. Elige un servicio o revisa los ajustes de {value}.",
+  ),
+  errorConnect: fill("Conecta {value} para vincular un servicio."),
+  errorCatalogue: fill("No se pudieron cargar los servicios de {value}."),
+  errorGeneric: "Algo salió mal. Inténtalo de nuevo.",
+  errorSync: pair("{first} no pudo aplicar {second}. Revisa los ajustes de {first}."),
+  errorJoinTaken: pair(
+    "{first} ya está vinculado a {second}. Elige Unirse para compartir su configuración.",
+  ),
+  errorPattern: "Corrige el patrón de la regla antes de vincular un servicio.",
+  errorMissingService: "Ese servicio ya no está disponible. Elige otro.",
+  errorGroupChanged: fill(
+    "Los sitios que usan {value} cambiaron. Vuelve a abrir esta regla e inténtalo de nuevo.",
+  ),
+  errorGroupSettings: fill(
+    "Los sitios que usan {value} tienen configuraciones distintas. Guarda uno de ellos para compartir su configuración.",
+  ),
+  errorGroupIdentity: fill(
+    "Los sitios que usan {value} deben compartir configuración e identidad.",
+  ),
 };
 
 const pt: ProviderFeatureMessages = {
-  heading: "Serviço DNS",
-  status: {
-    idle: "Não verificado",
-    checking: "Verificando",
-    suggested: "Sugerido",
-    unresolved: "Sem correspondência",
-    error: "Falha na verificação",
-    dismissed: "Dispensado",
-    bound: "Vinculado",
-  },
-  summary: {
-    idle: (provider, host) =>
-      `Consulte ${provider} para saber se ${host} pertence a um de seus serviços.`,
-    checking: (provider, host) => `Verificando ${host} em ${provider}…`,
-    suggested: (feature, provider) => `Corresponde a ${feature} · ${provider}`,
-    unresolved: (provider, host) => `${provider} não tem nenhum serviço para ${host}.`,
-    error: (provider, host) => `Não foi possível verificar ${host} em ${provider}.`,
-    dismissed: (provider) => `Sugestão de ${provider} dispensada.`,
-    bound: (feature, provider) => `Vinculado a ${feature} · ${provider}`,
-  },
-  evidence: {
-    label: "Evidência da correspondência",
-    domainTest: (host) => `Teste de domínio para ${host}`,
-    manual: "Escolhido manualmente",
-    overridden: "Uma escolha manual substituiu o teste de domínio",
-    notChecked: "Ainda não verificado",
-    checkedAt: (time) => `Verificado: ${time}`,
-  },
-  local: {
-    label: `Proteção do ${BRAND_DISPLAY_NAME}`,
-    value: (pattern) => `Continua limitada a ${pattern}`,
-  },
-  sync: {
-    label: (provider) => `Regra em ${provider}`,
-    none: "Nenhuma: nada muda até você confirmar",
-    queued: "Aguardando sincronização",
-    syncing: "Sincronizando",
-    synced: "Sincronizada",
-    error: "Falha na sincronização",
-  },
-  scope: {
-    confirm: (feature, provider, pattern) =>
-      `Ao confirmar, a regra do serviço ${feature} é ativada no seu perfil de ${provider}. ${provider} decide quais domínios ela abrange no nível do DNS; a proteção do ${BRAND_DISPLAY_NAME} continua valendo apenas para ${pattern}.`,
-    bound: (feature, provider, pattern) =>
-      `${provider} aplica sua regra de ${feature} aos domínios do próprio serviço. A proteção do ${BRAND_DISPLAY_NAME} vale apenas para ${pattern}.`,
-    recognize: (provider, host) =>
-      `Envia ${host} para ${provider}. Nada muda até você confirmar.`,
-  },
-  actions: {
-    recognize: (provider) => `Verificar em ${provider}`,
-    retry: "Verificar novamente",
-    confirm: "Adicionar regra de serviço DNS",
-    confirmChoice: (feature) => `Adicionar regra DNS para ${feature}`,
-    chooseOther: "Escolher outro serviço",
-    chooseManual: "Escolher um serviço",
-    change: "Alterar serviço",
-    cancel: "Cancelar",
-    dismiss: "Dispensar",
-    dismissLabel: (feature) => `Dispensar a sugestão ${feature}`,
-    detach: "Remover regra de serviço DNS",
-    detachLabel: (feature, provider) => `Remover a regra de ${feature} de ${provider}`,
-  },
-  picker: {
-    label: (provider) => `Serviço de ${provider}`,
-    placeholder: "Selecione um serviço",
-    search: "Pesquisar serviços",
-    empty: "Nenhum serviço encontrado.",
-  },
-  busy: "Processando…",
+  suggestQuestion: fill("Vincular o serviço {value}?"),
+  yes: "Sim",
+  no: "Agora não",
+  scope: (provider, service) =>
+    `O ${BRAND_DISPLAY_NAME} protege só os sites desta regra. Um serviço do ${provider} para ${service} pode abranger outros.`,
+  joinQuestion: fill("Entrar em {value}?"),
+  joinHint: hint(
+    "Usa as configurações e a identidade de {pattern}.",
+    "Usa as configurações e a identidade de {pattern} e mais {extra}.",
+  ),
+  joinReplaces: "As configurações atuais desta regra serão substituídas.",
+  join: "Entrar",
+  stagedLabel: fill("{value} · não salvo"),
+  addService: "Vincular um serviço",
+  change: "Trocar serviço",
+  removeService: "Desvincular serviço",
+  dontUse: "Não vincular",
+  back: "Voltar",
+  checking: "Verificando…",
+  checkingLabel: fill("Procurando um serviço de {value}"),
+  checkingStatus: "Verificando o status…",
+  preparing: "Preparando…",
+  pendingRemoval: fill("{value} será desvinculado ao salvar. A regra continua."),
+  pendingRemovalGroup: fill(
+    "{value} será desvinculado de todos estes sites ao salvar. As regras continuam.",
+  ),
+  pickerLabel: fill("Serviço de {value}"),
+  pickerPlaceholder: "Escolha um serviço",
+  pickerSearch: "Buscar serviços",
+  pickerEmpty: "Nenhum serviço corresponde",
+  use: "Vincular",
+  chipLabel: pair("{first}, {second}. Mostrar opções"),
+  menuHeader: pair("{first} · {second}"),
+  sharedWith: sharedWith(
+    "Compartilha configurações com {a}",
+    "Compartilha configurações com {a} e {b}",
+    "Compartilha configurações com {a} e mais {extra}",
+  ),
+  errorBlocked: fill(
+    "As sugestões estão pausadas. Escolha um serviço ou confira as configurações do {value}.",
+  ),
+  errorConnect: fill("Conecte o {value} para vincular um serviço."),
+  errorCatalogue: fill("Não foi possível carregar os serviços do {value}."),
+  errorGeneric: "Algo deu errado. Tente novamente.",
+  errorSync: pair(
+    "O {first} não conseguiu aplicar {second}. Confira as configurações do {first}.",
+  ),
+  errorJoinTaken: pair(
+    "{first} já está vinculado a {second}. Escolha Entrar para compartilhar as configurações.",
+  ),
+  errorPattern: "Corrija o padrão da regra antes de vincular um serviço.",
+  errorMissingService: "Esse serviço não está mais disponível. Escolha outro.",
+  errorGroupChanged: fill(
+    "Os sites que usam {value} mudaram. Reabra esta regra e tente novamente.",
+  ),
+  errorGroupSettings: fill(
+    "Os sites que usam {value} têm configurações diferentes. Salve um deles para compartilhar as configurações.",
+  ),
+  errorGroupIdentity: fill(
+    "Os sites que usam {value} devem compartilhar configurações e identidade.",
+  ),
 };
 
 const ru: ProviderFeatureMessages = {
-  heading: "DNS-сервис",
-  status: {
-    idle: "Не проверено",
-    checking: "Проверка",
-    suggested: "Предложено",
-    unresolved: "Нет совпадения",
-    error: "Ошибка проверки",
-    dismissed: "Скрыто",
-    bound: "Привязано",
-  },
-  summary: {
-    idle: (provider, host) =>
-      `Узнать у ${provider}, относится ли ${host} к одному из его сервисов.`,
-    checking: (provider, host) => `Проверяем ${host} в ${provider}…`,
-    suggested: (feature, provider) => `Совпадение: ${feature} · ${provider}`,
-    unresolved: (provider, host) => `В ${provider} нет сервиса для ${host}.`,
-    error: (provider, host) => `Не удалось проверить ${host} в ${provider}.`,
-    dismissed: (provider) => `Предложение ${provider} скрыто.`,
-    bound: (feature, provider) => `Привязано: ${feature} · ${provider}`,
-  },
-  evidence: {
-    label: "Основание совпадения",
-    domainTest: (host) => `Проверка домена ${host}`,
-    manual: "Выбрано вручную",
-    overridden: "Ручной выбор заменил проверку домена",
-    notChecked: "Ещё не проверялось",
-    checkedAt: (time) => `Проверено: ${time}`,
-  },
-  local: {
-    label: `Защита ${BRAND_DISPLAY_NAME}`,
-    value: (pattern) => `Действует только для ${pattern}`,
-  },
-  sync: {
-    label: (provider) => `Правило в ${provider}`,
-    none: "Нет — ничего не изменится до подтверждения",
-    queued: "Ожидает синхронизации",
-    syncing: "Синхронизация",
-    synced: "Синхронизировано",
-    error: "Ошибка синхронизации",
-  },
-  scope: {
-    confirm: (feature, provider, pattern) =>
-      `После подтверждения в профиле ${provider} включится правило сервиса ${feature}. Какие домены оно охватывает на уровне DNS, решает ${provider}; защита ${BRAND_DISPLAY_NAME} по-прежнему действует только для ${pattern}.`,
-    bound: (feature, provider, pattern) =>
-      `${provider} применяет правило ${feature} к собственным доменам сервиса. Защита ${BRAND_DISPLAY_NAME} действует только для ${pattern}.`,
-    recognize: (provider, host) =>
-      `${host} будет отправлен в ${provider}. Ничего не изменится до подтверждения.`,
-  },
-  actions: {
-    recognize: (provider) => `Проверить в ${provider}`,
-    retry: "Проверить снова",
-    confirm: "Добавить DNS-правило сервиса",
-    confirmChoice: (feature) => `Добавить DNS-правило для ${feature}`,
-    chooseOther: "Выбрать другой сервис",
-    chooseManual: "Выбрать сервис",
-    change: "Изменить сервис",
-    cancel: "Отмена",
-    dismiss: "Скрыть",
-    dismissLabel: (feature) => `Скрыть предложение ${feature}`,
-    detach: "Удалить DNS-правило сервиса",
-    detachLabel: (feature, provider) => `Удалить правило ${feature} из ${provider}`,
-  },
-  picker: {
-    label: (provider) => `Сервис ${provider}`,
-    placeholder: "Выберите сервис",
-    search: "Поиск сервисов",
-    empty: "Сервисы не найдены.",
-  },
-  busy: "Выполняется…",
+  suggestQuestion: fill("Связать с сервисом {value}?"),
+  yes: "Да",
+  no: "Не нужно",
+  scope: (provider, service) =>
+    `${BRAND_DISPLAY_NAME} защищает только сайты этого правила. Сервис ${provider} для ${service} может охватывать и другие.`,
+  joinQuestion: fill("Присоединить к {value}?"),
+  joinHint: hint(
+    "Использует настройки и идентичность {pattern}.",
+    "Использует настройки и идентичность {pattern} и ещё {extra}.",
+  ),
+  joinReplaces: "Текущие настройки этого правила будут заменены.",
+  join: "Присоединить",
+  stagedLabel: fill("{value} · не сохранено"),
+  addService: "Связать с сервисом",
+  change: "Сменить сервис",
+  removeService: "Отвязать сервис",
+  dontUse: "Не связывать",
+  back: "Назад",
+  checking: "Проверка…",
+  checkingLabel: fill("Поиск сервиса {value}"),
+  checkingStatus: "Проверка состояния…",
+  preparing: "Подготовка…",
+  pendingRemoval: fill("{value} будет отвязан при сохранении. Правило останется."),
+  pendingRemovalGroup: fill(
+    "{value} будет отвязан от всех этих сайтов при сохранении. Их правила останутся.",
+  ),
+  pickerLabel: fill("Сервис {value}"),
+  pickerPlaceholder: "Выберите сервис",
+  pickerSearch: "Поиск сервисов",
+  pickerEmpty: "Нет подходящих сервисов",
+  use: "Связать",
+  chipLabel: pair("{first}, {second}. Показать действия"),
+  menuHeader: pair("{first} · {second}"),
+  sharedWith: sharedWith(
+    "Общие настройки с {a}",
+    "Общие настройки с {a} и {b}",
+    "Общие настройки с {a} и ещё {extra}",
+  ),
+  errorBlocked: fill(
+    "Подсказки приостановлены. Выберите сервис или проверьте настройки {value}.",
+  ),
+  errorConnect: fill("Подключите {value}, чтобы связать сервис."),
+  errorCatalogue: fill("Не удалось загрузить сервисы {value}."),
+  errorGeneric: "Что-то пошло не так. Попробуйте ещё раз.",
+  errorSync: pair(
+    "{first} не удалось применить {second}. Проверьте настройки {first}.",
+  ),
+  errorJoinTaken: pair(
+    "{first} уже связан с {second}. Выберите «Присоединить», чтобы использовать общие настройки.",
+  ),
+  errorPattern: "Исправьте шаблон правила, прежде чем связывать сервис.",
+  errorMissingService: "Этот сервис больше недоступен. Выберите другой.",
+  errorGroupChanged: fill(
+    "Сайты, связанные с {value}, изменились. Откройте правило заново и повторите.",
+  ),
+  errorGroupSettings: fill(
+    "У сайтов, связанных с {value}, разные настройки. Сохраните один из них, чтобы настройки стали общими.",
+  ),
+  errorGroupIdentity: fill(
+    "Сайты, связанные с {value}, должны иметь общие настройки и идентичность.",
+  ),
 };
 
 const uk: ProviderFeatureMessages = {
-  heading: "DNS-сервіс",
-  status: {
-    idle: "Не перевірено",
-    checking: "Перевірка",
-    suggested: "Запропоновано",
-    unresolved: "Немає збігу",
-    error: "Помилка перевірки",
-    dismissed: "Приховано",
-    bound: "Прив’язано",
-  },
-  summary: {
-    idle: (provider, host) =>
-      `Дізнатися в ${provider}, чи належить ${host} до одного з його сервісів.`,
-    checking: (provider, host) => `Перевіряємо ${host} у ${provider}…`,
-    suggested: (feature, provider) => `Збіг: ${feature} · ${provider}`,
-    unresolved: (provider, host) => `У ${provider} немає сервісу для ${host}.`,
-    error: (provider, host) => `Не вдалося перевірити ${host} у ${provider}.`,
-    dismissed: (provider) => `Пропозицію ${provider} приховано.`,
-    bound: (feature, provider) => `Прив’язано: ${feature} · ${provider}`,
-  },
-  evidence: {
-    label: "Підстава збігу",
-    domainTest: (host) => `Перевірка домену ${host}`,
-    manual: "Вибрано вручну",
-    overridden: "Ручний вибір замінив перевірку домену",
-    notChecked: "Ще не перевірялося",
-    checkedAt: (time) => `Перевірено: ${time}`,
-  },
-  local: {
-    label: `Захист ${BRAND_DISPLAY_NAME}`,
-    value: (pattern) => `Діє лише для ${pattern}`,
-  },
-  sync: {
-    label: (provider) => `Правило в ${provider}`,
-    none: "Немає — нічого не зміниться до підтвердження",
-    queued: "Очікує синхронізації",
-    syncing: "Синхронізація",
-    synced: "Синхронізовано",
-    error: "Помилка синхронізації",
-  },
-  scope: {
-    confirm: (feature, provider, pattern) =>
-      `Після підтвердження в профілі ${provider} увімкнеться правило сервісу ${feature}. Які домени воно охоплює на рівні DNS, вирішує ${provider}; захист ${BRAND_DISPLAY_NAME} і далі діє лише для ${pattern}.`,
-    bound: (feature, provider, pattern) =>
-      `${provider} застосовує правило ${feature} до власних доменів сервісу. Захист ${BRAND_DISPLAY_NAME} діє лише для ${pattern}.`,
-    recognize: (provider, host) =>
-      `${host} буде надіслано в ${provider}. Нічого не зміниться до підтвердження.`,
-  },
-  actions: {
-    recognize: (provider) => `Перевірити в ${provider}`,
-    retry: "Перевірити знову",
-    confirm: "Додати DNS-правило сервісу",
-    confirmChoice: (feature) => `Додати DNS-правило для ${feature}`,
-    chooseOther: "Вибрати інший сервіс",
-    chooseManual: "Вибрати сервіс",
-    change: "Змінити сервіс",
-    cancel: "Скасувати",
-    dismiss: "Приховати",
-    dismissLabel: (feature) => `Приховати пропозицію ${feature}`,
-    detach: "Видалити DNS-правило сервісу",
-    detachLabel: (feature, provider) => `Видалити правило ${feature} з ${provider}`,
-  },
-  picker: {
-    label: (provider) => `Сервіс ${provider}`,
-    placeholder: "Виберіть сервіс",
-    search: "Пошук сервісів",
-    empty: "Сервісів не знайдено.",
-  },
-  busy: "Виконується…",
+  suggestQuestion: fill("Пов'язати із сервісом {value}?"),
+  yes: "Так",
+  no: "Не треба",
+  scope: (provider, service) =>
+    `${BRAND_DISPLAY_NAME} захищає лише сайти цього правила. Сервіс ${provider} для ${service} може охоплювати й інші.`,
+  joinQuestion: fill("Приєднати до {value}?"),
+  joinHint: hint(
+    "Використовує налаштування та ідентичність {pattern}.",
+    "Використовує налаштування та ідентичність {pattern} і ще {extra}.",
+  ),
+  joinReplaces: "Поточні налаштування цього правила буде замінено.",
+  join: "Приєднати",
+  stagedLabel: fill("{value} · не збережено"),
+  addService: "Пов'язати із сервісом",
+  change: "Змінити сервіс",
+  removeService: "Відв'язати сервіс",
+  dontUse: "Не пов'язувати",
+  back: "Назад",
+  checking: "Перевірка…",
+  checkingLabel: fill("Пошук сервісу {value}"),
+  checkingStatus: "Перевірка стану…",
+  preparing: "Підготовка…",
+  pendingRemoval: fill(
+    "{value} буде відв'язано під час збереження. Правило залишиться.",
+  ),
+  pendingRemovalGroup: fill(
+    "{value} буде відв'язано від усіх цих сайтів під час збереження. Їхні правила залишаться.",
+  ),
+  pickerLabel: fill("Сервіс {value}"),
+  pickerPlaceholder: "Виберіть сервіс",
+  pickerSearch: "Пошук сервісів",
+  pickerEmpty: "Немає відповідних сервісів",
+  use: "Пов'язати",
+  chipLabel: pair("{first}, {second}. Показати дії"),
+  menuHeader: pair("{first} · {second}"),
+  sharedWith: sharedWith(
+    "Спільні налаштування з {a}",
+    "Спільні налаштування з {a} і {b}",
+    "Спільні налаштування з {a} і ще {extra}",
+  ),
+  errorBlocked: fill(
+    "Підказки призупинено. Виберіть сервіс або перевірте налаштування {value}.",
+  ),
+  errorConnect: fill("Підключіть {value}, щоб пов'язати сервіс."),
+  errorCatalogue: fill("Не вдалося завантажити сервіси {value}."),
+  errorGeneric: "Щось пішло не так. Спробуйте ще раз.",
+  errorSync: pair(
+    "{first} не вдалося застосувати {second}. Перевірте налаштування {first}.",
+  ),
+  errorJoinTaken: pair(
+    "{first} уже пов'язано з {second}. Виберіть «Приєднати», щоб використати спільні налаштування.",
+  ),
+  errorPattern: "Виправте шаблон правила, перш ніж пов'язувати сервіс.",
+  errorMissingService: "Цей сервіс більше недоступний. Виберіть інший.",
+  errorGroupChanged: fill(
+    "Сайти, пов'язані з {value}, змінилися. Відкрийте правило знову й повторіть.",
+  ),
+  errorGroupSettings: fill(
+    "Сайти, пов'язані з {value}, мають різні налаштування. Збережіть один із них, щоб налаштування стали спільними.",
+  ),
+  errorGroupIdentity: fill(
+    "Сайти, пов'язані з {value}, мають мати спільні налаштування та ідентичність.",
+  ),
 };
 
 export const providerFeatureCopy: Record<UiLocale, ProviderFeatureMessages> = {
