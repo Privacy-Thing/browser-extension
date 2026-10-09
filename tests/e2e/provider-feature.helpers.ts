@@ -169,7 +169,7 @@ export const installControlledFetch = async (
   hosts: readonly string[],
 ): Promise<{ worker: Worker; escapes: string[] }> => {
   const escapes: string[] = [];
-  await context.route(/https:\/\/(?:[a-z0-9-]+\.)?controld\.com\//, async (route) => {
+  await context.route(/^https:\/\/(?:[a-z0-9-]+\.)?controld\.com\//, async (route) => {
     escapes.push(route.request().url());
     await route.abort("blockedbyclient");
   });
