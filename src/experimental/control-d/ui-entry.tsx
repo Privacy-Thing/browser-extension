@@ -14,6 +14,8 @@ import {
   type ControlDRecoveryCandidate,
 } from "./contracts";
 import { controlDText as t } from "./ui-copy";
+import { featureText } from "./ui-feature-copy";
+import { ControlDRecognitionPanel } from "./ui-recognition";
 import { ControlDRegionalRoute } from "./ui-regional-route";
 
 import { cn } from "@/ui/components/lib/utils";
@@ -250,6 +252,37 @@ const ChangeSummary = ({ diff }: { diff: ControlDDiff }) => {
         </div>
       ))}
     </dl>
+  );
+};
+
+const ServiceChangeSummary = ({ diff }: { diff: ControlDDiff }) => {
+  if (diff.addServices === undefined) return null;
+  const values = [
+    [featureText.add, diff.addServices],
+    [featureText.update, diff.updateServices],
+    [featureText.remove, diff.deleteServices],
+  ] as const;
+  return (
+    <section data-control-d-service-diff className="space-y-2">
+      <h4 className="text-sm font-medium">{featureText.serviceChanges}</h4>
+      <dl className="grid grid-cols-3 gap-2">
+        {values.map(([label, value]) => (
+          <div key={label} className="rounded-lg border bg-background/70 px-3 py-2">
+            <dt className="text-xs text-muted-foreground">{label}</dt>
+            <dd className="mt-0.5 text-lg font-semibold tabular-nums">{value}</dd>
+          </div>
+        ))}
+      </dl>
+      {diff.serviceErrors?.map((conflict) => (
+        <p
+          key={`${conflict.code}:${conflict.servicePk}`}
+          role="alert"
+          className="text-xs text-tone-error-text"
+        >
+          {conflict.message}
+        </p>
+      ))}
+    </section>
   );
 };
 
@@ -631,9 +664,14 @@ export const ControlDSubpage = () => {
           {diff ? (
             <div className="space-y-4">
               <ChangeSummary diff={diff} />
+              <ServiceChangeSummary diff={diff} />
               {diff.addRules + diff.updateRules + diff.deleteRules === 0 &&
               !diff.createProfile &&
-              !diff.createEndpoint ? (
+              !diff.createEndpoint &&
+              (diff.addServices ?? 0) +
+                (diff.updateServices ?? 0) +
+                (diff.deleteServices ?? 0) ===
+                0 ? (
                 <p className="text-sm text-tone-success-text">{t.rules.upToDate}</p>
               ) : null}
               {diff.warnings.length > 0 ? (
@@ -670,6 +708,10 @@ export const ControlDSubpage = () => {
                   disabled={
                     syncing ||
                     blockingWarnings.length > 0 ||
+                    (diff.serviceErrors?.some(
+                      (conflict) => conflict.code !== "remote-service-changed",
+                    ) ??
+                      false) ||
                     (diff.requiresApproximationConfirmation && !confirmApproximate)
                   }
                   onClick={() => void apply()}
@@ -898,6 +940,7 @@ export const ControlDSubpage = () => {
             </div>
             {content}
           </Card>
+          {state?.connected ? <ControlDRecognitionPanel /> : null}
         </div>
         <div className="col-span-12 lg:col-span-4">
           <SettingsHelpCard title={help.title} collapsible defaultOpen>

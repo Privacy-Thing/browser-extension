@@ -17,6 +17,8 @@ export default defineConfig({
   define: {
     __PT_BROWSER_TARGET__: JSON.stringify("chromium"),
     ...sharedDefine,
+    // Storybook includes local experiments; release exclusion has separate build tests.
+    __PT_BUILD_CHANNEL__: JSON.stringify("local"),
   },
   esbuild: {
     jsx: "automatic",

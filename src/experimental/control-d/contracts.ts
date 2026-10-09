@@ -44,6 +44,42 @@ export type ControlDManagedFolder = {
   remoteHash: string;
 };
 
+export const CONTROL_D_PROVIDER_ID = "control-d";
+
+// Last applied native action. `viaV6` stays null because service routing is v4-only.
+export type ControlDServiceAction = {
+  do: 3;
+  status: 1;
+  via: string;
+  viaV6: null;
+};
+
+export type ControlDManagedService = {
+  rulePattern: string;
+  proxyPk: string;
+  action: ControlDServiceAction;
+};
+
+export type ControlDCompiledService = {
+  servicePk: string;
+  featureName: string;
+  rulePattern: string;
+  locationId: string;
+  proxyPk: string;
+  action: ControlDServiceAction;
+};
+
+export type ControlDServiceConflict = {
+  code:
+    | "duplicate-source"
+    | "duplicate-feature"
+    | "unowned-service"
+    | "remote-service-changed";
+  message: string;
+  rulePattern?: string;
+  servicePk?: string;
+};
+
 export type ControlDConfigV2 = {
   version: 2;
   enabled: boolean;
@@ -56,6 +92,7 @@ export type ControlDConfigV2 = {
   resolverDoh: string | null;
   dnsVerification: ControlDDnsVerification | null;
   managedFolders: Record<string, ControlDManagedFolder>;
+  managedServices?: Record<string, ControlDManagedService> | undefined;
   locationMappings: Record<string, ControlDMapping>;
   lastSyncedHash: string | null;
   lastAttemptAt: string | null;
@@ -114,6 +151,11 @@ export type ControlDDiff = {
   updateRules: number;
   deleteRules: number;
   unchangedRules: number;
+  addServices?: number;
+  updateServices?: number;
+  deleteServices?: number;
+  unchangedServices?: number;
+  serviceErrors?: ControlDServiceConflict[];
   warnings: ControlDCompileWarning[];
   mappings: ControlDMapping[];
   requiresApproximationConfirmation: boolean;
@@ -163,6 +205,19 @@ const managedFolderSchema = z.object({
   remoteHash: z.string(),
 });
 
+const serviceActionSchema = z.object({
+  do: z.literal(3),
+  status: z.literal(1),
+  via: z.string().min(1),
+  viaV6: z.null(),
+});
+
+const managedServiceSchema = z.object({
+  rulePattern: z.string().min(1),
+  proxyPk: z.string().min(1),
+  action: serviceActionSchema,
+});
+
 export const controlDConfigSchema = z.object({
   version: z.literal(2),
   enabled: z.boolean(),
@@ -184,6 +239,7 @@ export const controlDConfigSchema = z.object({
     .object({ endpointId: z.string().min(1), verifiedAt: z.string().min(1) })
     .nullable(),
   managedFolders: z.record(z.string(), managedFolderSchema),
+  managedServices: z.record(z.string(), managedServiceSchema).optional(),
   locationMappings: z.record(z.string(), mappingSchema),
   lastSyncedHash: z.string().nullable(),
   lastAttemptAt: z.string().nullable(),

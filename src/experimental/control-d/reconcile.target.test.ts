@@ -17,6 +17,9 @@ import { loadLocations } from "@/background/storage/locations";
 import { loadRules } from "@/background/storage/rules";
 
 vi.mock("@/background/storage/locations", () => ({ loadLocations: vi.fn() }));
+vi.mock("@/background/storage/provider-features", () => ({
+  loadFeatureBindings: vi.fn(async () => []),
+}));
 vi.mock("@/background/storage/rules", () => ({ loadRules: vi.fn() }));
 
 const proxy: ControlDProxyLocation = {

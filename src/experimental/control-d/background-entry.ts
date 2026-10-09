@@ -1,8 +1,8 @@
 /* eslint-disable max-params -- Logging keeps redaction context explicit. */
+import { registerControllers } from "./background-registration";
 import { ControlDApiError, ControlDClient } from "./client";
 import {
   CONTROL_D_COMMANDS,
-  isControlDCommand,
   type ControlDCommand,
   type ControlDConfig,
   type ControlDMapping,
@@ -30,8 +30,9 @@ import {
 import { createControlDSyncQueue } from "./sync-queue";
 
 import { logExtensionEvent } from "@/background/logger";
-import { loadLocations, LOCATIONS_STORAGE_KEY } from "@/background/storage/locations";
-import { loadRules, RULES_STORAGE_KEY } from "@/background/storage/rules";
+import { loadLocations } from "@/background/storage/locations";
+import { loadFeatureBindings } from "@/background/storage/provider-features";
+import { loadRules } from "@/background/storage/rules";
 import { fireAndForget } from "@/shared/async";
 import { ExtensionLogLevel, LogCategory } from "@/shared/types";
 
@@ -154,7 +155,12 @@ const createController = (deps: BackgroundEntryDeps) => {
     prepared: ControlDPreparedSync;
   } | null = null;
   const inputHash = async (config: ControlDConfig) =>
-    hashControlDInputs(config, await loadRules(), await loadLocations());
+    hashControlDInputs(
+      config,
+      await loadRules(),
+      await loadLocations(),
+      await loadFeatureBindings(),
+    );
   const createClient = (apiKey: string): ControlDClient =>
     new ControlDClient(apiKey, fetch, 12_000, (retry) =>
       log(deps, "control-d.api.retry", retry, undefined, apiKey),
@@ -433,6 +439,7 @@ const createController = (deps: BackgroundEntryDeps) => {
         resolverDoh: null,
         dnsVerification: null,
         managedFolders: {},
+        managedServices: {},
         locationMappings: {},
         autoSyncEnabled: false,
         status: "ready",
@@ -596,40 +603,5 @@ const createController = (deps: BackgroundEntryDeps) => {
 };
 
 export const registerControlD = (deps: BackgroundEntryDeps): void => {
-  const controller = createController(deps);
-
-  fireAndForget(
-    loadControlDConfig().then((config) => {
-      if (
-        config.enabled &&
-        config.connected &&
-        config.autoSyncEnabled &&
-        config.lastSyncedHash
-      ) {
-        controller.scheduleAutomatic();
-      }
-    }),
-  );
-
-  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (
-      !isControlDCommand(message) ||
-      sender.id !== chrome.runtime.id ||
-      !sender.url?.startsWith(chrome.runtime.getURL("/"))
-    )
-      return false;
-    fireAndForget(controller.respond(message).then(sendResponse), (error) =>
-      sendResponse({ ok: false, error: errorMessage(error) }),
-    );
-    return true;
-  });
-
-  chrome.storage.onChanged.addListener((changes, areaName) => {
-    if (
-      areaName === "local" &&
-      (RULES_STORAGE_KEY in changes || LOCATIONS_STORAGE_KEY in changes)
-    ) {
-      controller.scheduleAutomatic();
-    }
-  });
+  registerControllers(createController(deps));
 };

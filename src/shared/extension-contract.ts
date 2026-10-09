@@ -140,6 +140,8 @@ export const buildFxSeedScriptId = (index: number): string =>
 export const EXTENSION_STORAGE_KEYS = {
   locations: createStorageKey("locations"),
   rules: createStorageKey("rules"),
+  providerFeatures: createStorageKey("provider-features"),
+  providerFeatureMatches: createStorageKey("provider-feature-matches"),
   trustedSites: createStorageKey("trustedSites"),
   workerTestSessions: createStorageKey("worker-test-sessions"),
   hostProtectionPauses: createStorageKey("host-protection-pauses"),

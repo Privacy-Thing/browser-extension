@@ -19,6 +19,7 @@ import { RuleSettingsDialog } from "@/ui/options/components/modals/RuleAdvancedS
 import { SurfaceOverridesControls } from "@/ui/options/components/modals/surface-overrides-controls";
 import { SECTION_ANCHORS, getRuleModalAnchor } from "@/ui/options/navigation";
 import { useSettings } from "@/ui/options/state/SettingsContext";
+import { ProviderFeatureHost } from "@/ui/shared/ProviderFeatureHost";
 
 const useAdvancedDialog = (parentOpen: boolean) => {
   const [open, setOpen] = useState(false);
@@ -222,8 +223,14 @@ const RuleFields = () => {
 };
 
 const RuleDialogBody = () => {
-  const { rulePattern, ruleSurfaceOverrides, setRuleSurfaceOverrides, trustedSites } =
-    useSettings();
+  const {
+    editingRulePattern,
+    ruleDialogMode,
+    rulePattern,
+    ruleSurfaceOverrides,
+    setRuleSurfaceOverrides,
+    trustedSites,
+  } = useSettings();
   const trustedPattern = useMemo(() => {
     const raw = rulePattern.trim();
     if (!raw) return null;
@@ -260,6 +267,9 @@ const RuleDialogBody = () => {
       <div className="grid gap-4 md:grid-cols-[minmax(0,1.15fr)_minmax(19rem,0.95fr)] md:items-start">
         <div className="space-y-4">
           <RuleFields />
+          {ruleDialogMode === "edit" && editingRulePattern ? (
+            <ProviderFeatureHost rulePattern={editingRulePattern} />
+          ) : null}
         </div>
         <section className="rounded-xl border border-border/70 bg-card/35 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
           <div>

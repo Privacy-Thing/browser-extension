@@ -1,64 +1,94 @@
-# Control D service scope feasibility
+# Provider feature matching verification
 
-Checked on 2026-10-09 against `origin/main` at `50f9fc5`.
+Implemented from `origin/main` at `50f9fc5`, with the corrected per-domain design.
+The earlier requirement for a complete service domain catalogue no longer gates
+this feature. Privacy Thing neither downloads nor invents such a catalogue.
 
-## Acceptance gate
+## Behavior under review
 
-Service expansion requires a complete, provider-supplied domain/pattern scope.
-Privacy Thing must prepare the source rule's protection for two distinct domains of
-one service before navigation. The scope must remain available when a Custom Rule
-overrides the service's DNS verdict. Service names, sampled lookups and activity logs
-do not satisfy this requirement.
+A saved domain rule can query its representative hostname and suggest a
+`ProviderFeature` with `type: "service"`. The user explicitly confirms the
+suggestion, chooses a different feature, dismisses it or detaches the binding.
+A broad pattern remains a broad pattern: checking one hostname never proves that
+all its matches belong to the service.
 
-**Result: the complete-scope gate has not been met.** Do not activate expansion,
-change rule resolution or offer service confirmation until the scope is verified.
+Control D maps a confirmed binding to its native service redirect using the
+source rule's regional proxy mapping. Control D controls DNS membership and can
+route further service domains. Privacy Thing's local spoofing still resolves
+its existing domain rules, Trusted Sites, Firefox containers and fallback.
+A binding does not add implicit local rules or change `ruleSeedKey` / `authKey`.
+No provider query runs in a page, worker or injected bootstrap.
 
-## Evidence
+`ProviderFeature`, `ProviderFeatureMatch`, `RuleFeatureBinding`, `featureBindings`
+and messaging/storage names are generic. Adapter-only `Service`/profile/endpoint
+and native action details remain under `src/experimental/control-d`.
+Bindings are persisted separately from `DomainRule` and from recognition cache.
+Backups preserve generic bindings without credentials, resolvers or query history.
+Old backups normalize missing bindings to an empty collection. Import selection
+keeps bindings with their source rule; deletion removes them and stable-identity
+pattern changes move them. Disabling a source keeps its local binding but removes
+an unchanged, owned native service action.
 
-- Public [service catalogue](https://api.controld.com/services/categories/all) returned HTTP 200
-  with 1,012 services. The union of entry fields was `PK`, `id`, `label`, `name`,
-  `category`, `unlock_location`, `locations`, `warning`. No domain/pattern scope was
-  present. `locations` contains proxy location identifiers, not hostnames.
-- The [official profile service list API](https://docs.controld.com/reference/get_profiles-profile-id-services)
-  returns services with configured rules. The public dashboard consumes
-  `body.services` and each entry's `PK`, `name`, `category`, `action.status`.
-  This is action configuration, not evidence of service membership.
-- The [official service modification API](https://docs.controld.com/reference/put_profiles-profile-id-services-service)
-  accepts the service key plus action/status/proxy parameters. A native DNS service
-  rule does not give the extension the domains needed for its local bootstrap.
-- The public dashboard's [Domain Test](https://controld.com/dashboard/domain-test) performs a DNS lookup with `controld=1` and
-  reads `controld.verdict.verdictSource` / `verdictMatch`. `svc` identifies a winning
-  service rule; `rules` identifies a winning Custom Rule. This is not an enumeration
-  API or proof of all services containing a hostname. A Custom Rule result cannot
-  establish underlying service membership.
-- [Profile export exists](https://controld.com/blog/updates-january-2025/), but its
-  announcement does not promise domain definitions for built-in services.
+## API evidence and limits
 
-No account token was used for this verification. Authenticated profile responses,
-profile exports and Custom Rule masking were not tested against a live account.
-The documented and publicly observed interfaces do not establish that a complete
-scope is available; this is not a claim that no private interface exists.
+- The public [service catalogue](https://api.controld.com/services/categories/all)
+  supplies IDs and names. Its 1,012 observed entries do not supply domain scope.
+- The [profile service API](https://docs.controld.com/reference/get_profiles-profile-id-services)
+  supplies configured service actions; the
+  [service modification API](https://docs.controld.com/reference/put_profiles-profile-id-services-service)
+  accepts native service actions.
+- The dashboard's [Domain Test](https://controld.com/dashboard/domain-test) queries
+  `https://dns.controld.com/{resolverId}` with `controld=1` and `no_log=1`.
+  Only `controld.verdict.verdictSource === "svc"` with a known `verdictMatch`
+  counts as a positive suggestion. Winning `rules` / `grules` are overridden;
+  other results are unresolved. Names and domain-name resemblance are not evidence.
+- [Matching order](https://docs.controld.com/docs/org-profiles) places Custom Rules
+  above service rules. Recognition therefore needs a separate lookup profile and
+  endpoint with enabled Bypass service rules; the lookup resolver is not the
+  browser's regional resolver. A global override can still leave the domain
+  unresolved/overridden, so manual selection remains available.
 
-An independent research task run through Cursor with Grok 4.7 checked the published
-OpenAPI operations, live dashboard and Control D's public repositories. It reached
-the same conclusion: none of those sources supplied a complete service scope.
+Lookup setup uses the dashboard's bulk JSON `PUT /profiles/{id}/services`
+with enabled Bypass actions. This route is frontend-derived and is not listed
+in the published singular service API; live account compatibility remains unverified.
 
-## Implemented boundary
+API contracts were verified against official documentation and the public
+frontend. Automated API evidence uses controlled responses. No live authenticated
+Control D account or production profile was modified or represented as tested.
+Positive lookups establish individual results, not exhaustive membership or
+first-inline protection on previously unknown service domains.
 
-The experimental adapter now supports read-only service catalogue and profile
-service configuration requests. It uses the service `PK` (not the catalogue UUID),
-normalizes numeric catalogue names/keys and rejects malformed or partial collections.
-Focused tests use controlled responses and do not contain credentials.
+## Safety and lifecycle evidence
 
-These reads expose metadata and configured actions only. They are not wired into
-UI, storage, the compiler or the resolver and do not represent an approved domain
-scope. No substitute domain catalogue was created. No main model, export schema,
-page runtime or generated worker source changed. There are no UI changes to capture.
+Client tests confine the bearer token to the Control D DoH origin, validate the
+resolver ID and hostname, bound request time, redact failures and distinguish
+service verdicts from overrides. Catalogue metadata survives restart and failed
+refresh. Recognition cache is bounded and has separate positive/negative TTLs;
+failures preserve the last good result. UI sends a hostname only after Check.
 
-## Reopening the gate
+Compiler/reconcile tests cover native add, update and unchanged actions, source
+location changes, disabling/deleting/detaching, duplicate source/feature conflicts,
+unowned services, remote drift, stale previews and explicit repair. Fresh remote
+preflight happens before custom-rule writes. Unrelated service actions are kept,
+and remotely changed removals are refused.
 
-Obtain a provider-supported scope endpoint/export with an explicit completeness
-contract. Verify two distinct domains, an excluded domain, scope freshness and
-availability despite overriding Custom Rules. Then implement the generic provider
-contracts and the remaining UI, resolver and synchronization plan. DNS activity
-samples must not be promoted to complete scopes.
+The four runtime paths (Chromium main, early-inline, Firefox pre-bootstrap and
+workers) have no semantic change: their resolver inputs and generated worker
+source are unchanged. Header/preload/bootstrap identity remains the domain rule's.
+Both compile targets have matching lifecycle/import/reconcile tests; release
+build contracts prove exclusion of the experimental adapter/UI.
+
+## Rendered UI evidence
+
+All images show rendered Storybook views with controlled data. Existing editor,
+popup and Control D views were captured before changes; new states were captured
+after integration. There are no account credentials in these images.
+
+| Surface            | Before                                     | After / representative state                                                                                                     |
+| ------------------ | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| Rule editor        | [Before](screenshots/options-before.png)   | [Suggestion](screenshots/options-after.png), [bound](screenshots/options-bound.png), [error](screenshots/options-error.png)      |
+| Popup rule sheet   | [Before](screenshots/popup-before.png)     | [Suggestion](screenshots/popup-after.png), [actions and scope](screenshots/popup-after-lower.png)                                                                                        |
+| Control D settings | [Before](screenshots/control-d-before.png) | [Lookup setup](screenshots/control-d-recognition-setup.png), [native service preview](screenshots/control-d-service-preview.png), [conflict](screenshots/control-d-service-conflict.png) |
+| New shared panel   | —                                          | [Service picker](screenshots/service-picker.png), [dark/manual](screenshots/service-dark.png)                                    |
+
+Validation commands and final counts are recorded in PR #59.

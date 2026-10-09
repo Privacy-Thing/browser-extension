@@ -21,6 +21,10 @@ import {
   savePreferences,
   saveSharedSpoofing,
 } from "@/background/storage/preferences";
+import {
+  loadFeatureBindings,
+  saveFeatureState,
+} from "@/background/storage/provider-features";
 import { DEFAULT_RULES, loadRules, saveRules } from "@/background/storage/rules";
 import { clearSiteSuggestions } from "@/background/storage/site-suggestions";
 import {
@@ -81,6 +85,7 @@ const exportSettings = async (
       exportedAt: new Date().toISOString(),
       locations: profiles,
       rules,
+      featureBindings: await loadFeatureBindings(),
       trustedSites,
       ...preferences,
       ...(sharedSpoofing ? { sharedSpoofing } : {}),
@@ -143,6 +148,11 @@ const resetSettings = async (
     saveGlobalFallbackRule(undefined),
   ]);
   await clearLegacyBehavior();
+  await saveFeatureState({
+    featureBindings: [],
+    featureMatches: [],
+    dismissedMatches: [],
+  });
   deps.setCachedValues({
     profiles: DEFAULT_LOCATIONS,
     rules: DEFAULT_RULES,

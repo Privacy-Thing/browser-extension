@@ -9,6 +9,7 @@ import { DEFAULT_LOCATIONS } from "@/background/storage/locations";
 import { DEFAULT_RULES } from "@/background/storage/rules";
 import { DEFAULT_TRUSTED_SITES } from "@/background/storage/trusted-sites";
 import { EXTENSION_STORAGE_KEYS } from "@/shared/extension-contract";
+import { featureStateSchema } from "@/shared/provider-feature";
 import { normalizePreferences } from "@/shared/settings-defaults";
 import type { ExportedSettings } from "@/shared/types";
 
@@ -24,6 +25,7 @@ export const IMPORT_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 export const IMPORT_CONFIG_KEYS = [
   EXTENSION_STORAGE_KEYS.locations,
   EXTENSION_STORAGE_KEYS.rules,
+  EXTENSION_STORAGE_KEYS.providerFeatures,
   EXTENSION_STORAGE_KEYS.trustedSites,
   EXTENSION_STORAGE_KEYS.containerAssignments,
   EXTENSION_STORAGE_KEYS.preferences,
@@ -76,6 +78,9 @@ export const configurationToExport = (raw: ConfigurationSnapshot): ExportedSetti
     locations: locations as ExportedSettings["locations"],
     rules: (raw[EXTENSION_STORAGE_KEYS.rules] ??
       DEFAULT_RULES) as ExportedSettings["rules"],
+    featureBindings: featureStateSchema.parse(
+      raw[EXTENSION_STORAGE_KEYS.providerFeatures] ?? {},
+    ).featureBindings,
     trustedSites: (raw[EXTENSION_STORAGE_KEYS.trustedSites] ??
       DEFAULT_TRUSTED_SITES) as NonNullable<ExportedSettings["trustedSites"]>,
     containerAssignments: (raw[EXTENSION_STORAGE_KEYS.containerAssignments] ??
@@ -111,6 +116,9 @@ export const importedConfiguration = (
       return behaviorProfileId ? { ...location, behaviorProfileId } : location;
     }),
     [EXTENSION_STORAGE_KEYS.rules]: settings.rules,
+    [EXTENSION_STORAGE_KEYS.providerFeatures]: {
+      featureBindings: settings.featureBindings,
+    },
     [EXTENSION_STORAGE_KEYS.trustedSites]: settings.trustedSites,
     [EXTENSION_STORAGE_KEYS.containerAssignments]: settings.containerAssignments ?? [],
     [EXTENSION_STORAGE_KEYS.preferences]: {

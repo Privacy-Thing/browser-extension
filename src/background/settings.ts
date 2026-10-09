@@ -15,6 +15,10 @@ import {
   trustedSitesSchema,
   locationProfilesSchema,
 } from "@/shared/profile-schema";
+import {
+  validateFeatureBindings,
+  type RuleFeatureBinding,
+} from "@/shared/provider-feature";
 import { withAuthKey, withContainerSeed, withRuleSeedKey } from "@/shared/rule-seed";
 import {
   MAX_RANDOM_RADIUS_KM,
@@ -270,6 +274,7 @@ export const validateImportedSettings = (
 ): {
   locations: Location[];
   rules: DomainRule[];
+  featureBindings: RuleFeatureBinding[];
   trustedSites: TrustedSite[];
   globalFallbackRule?: GlobalFallbackRule | undefined;
   uiLocale: UiLocalePreference;
@@ -346,6 +351,7 @@ export const validateImportedSettings = (
 
   return {
     ...validated,
+    featureBindings: validateFeatureBindings(settings.featureBindings, validated.rules),
     trustedSites,
     uiLocale: preferences.uiLocale,
     themeMode: sanitizeThemeMode(settings.themeMode),

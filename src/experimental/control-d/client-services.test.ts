@@ -169,4 +169,108 @@ describe("Control D service reads", () => {
     );
     expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
+
+  it("redirects one native service through the encoded profile action", async () => {
+    const fetchImpl = vi.fn(async () => new Response("{}", { status: 200 }));
+
+    await new ControlDClient("test-token", fetchImpl).redirectProfileService(
+      "profile/a",
+      "svc/netflix",
+      "WAW",
+    );
+
+    const [url, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe(
+      "https://api.controld.com/profiles/profile%2Fa/services/svc%2Fnetflix",
+    );
+    expect(init.method).toBe("PUT");
+    expect(init.body?.toString()).toBe("do=3&status=1&via=WAW");
+    expect(init.headers).toMatchObject({
+      Accept: "application/json",
+      Authorization: "Bearer test-token",
+      "Content-Type": "application/x-www-form-urlencoded",
+    });
+  });
+
+  it("deletes one native service without a request body", async () => {
+    const fetchImpl = vi.fn(async () => new Response(null, { status: 204 }));
+
+    await new ControlDClient("test-token", fetchImpl).deleteProfileService(
+      "profile/a",
+      "1688",
+    );
+
+    const [url, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe("https://api.controld.com/profiles/profile%2Fa/services/1688");
+    expect(init.method).toBe("DELETE");
+    expect(init.body).toBeUndefined();
+    expect(init.headers).toMatchObject({ Authorization: "Bearer test-token" });
+    expect(init.headers).not.toMatchObject({
+      "Content-Type": expect.any(String),
+    });
+  });
+
+  it("bypasses catalogue services with the dashboard bulk JSON shape", async () => {
+    const fetchImpl = vi.fn(async () => new Response("{}", { status: 200 }));
+
+    await new ControlDClient("test-token", fetchImpl).bypassProfileServices(
+      "profile/a",
+      ["netflix", "1688"],
+    );
+
+    const [url, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe("https://api.controld.com/profiles/profile%2Fa/services");
+    expect(init.method).toBe("PUT");
+    expect(init.body).toBe(
+      JSON.stringify({
+        services: [
+          { PK: "netflix", do: 1, status: 1 },
+          { PK: "1688", do: 1, status: 1 },
+        ],
+      }),
+    );
+    expect(init.headers).toMatchObject({
+      Accept: "application/json",
+      Authorization: "Bearer test-token",
+      "Content-Type": "application/json",
+    });
+  });
+
+  it("does not write when there are no services to bypass", async () => {
+    const fetchImpl = vi.fn();
+    await new ControlDClient("test-token", fetchImpl).bypassProfileServices(
+      "profile",
+      [],
+    );
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("reads every custom rule before a lookup profile can be trusted", async () => {
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            success: true,
+            body: { rules: [{ PK: "ads.example", action: { do: 0, status: 1 } }] },
+          }),
+        ),
+    );
+
+    await expect(
+      new ControlDClient("test-token", fetchImpl).listCustomRules("profile/a"),
+    ).resolves.toEqual([
+      {
+        hostname: "ads.example",
+        groupId: null,
+        action: 0,
+        via: null,
+        status: 1,
+        comment: null,
+      },
+    ]);
+    expect(fetchImpl).toHaveBeenCalledWith(
+      "https://api.controld.com/profiles/profile%2Fa/rules/all",
+      expect.not.objectContaining({ method: "POST" }),
+    );
+  });
 });

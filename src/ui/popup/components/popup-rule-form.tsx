@@ -399,7 +399,6 @@ const PopupRuleFields = ({ props }: { props: PopupRuleFormBodyProps }) => {
         onValueChange={handleLocationChange}
         options={locationOptions}
       />
-      {props.formExtra}
       <PopupSheetSelectField
         id="current-rule-mode"
         label={props.ruleTypeLabel}
@@ -412,6 +411,7 @@ const PopupRuleFields = ({ props }: { props: PopupRuleFormBodyProps }) => {
           { value: "suffix", label: props.suffixLabel },
         ]}
       />
+      {props.formExtra}
     </div>
   );
 };
