@@ -80,15 +80,11 @@ build contracts prove exclusion of the experimental adapter/UI.
 
 ## Rendered UI evidence
 
-All images show rendered Storybook views with controlled data. Existing editor,
-popup and Control D views were captured before changes; new states were captured
-after integration. There are no account credentials in these images.
-
-| Surface            | Before                                     | After / representative state                                                                                                     |
-| ------------------ | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
-| Rule editor        | [Before](screenshots/options-before.png)   | [Suggestion](screenshots/options-after.png), [bound](screenshots/options-bound.png), [error](screenshots/options-error.png)      |
-| Popup rule sheet   | [Before](screenshots/popup-before.png)     | [Suggestion](screenshots/popup-after.png), [actions and scope](screenshots/popup-after-lower.png)                                                                                        |
-| Control D settings | [Before](screenshots/control-d-before.png) | [Lookup setup](screenshots/control-d-recognition-setup.png), [native service preview](screenshots/control-d-service-preview.png), [conflict](screenshots/control-d-service-conflict.png) |
-| New shared panel   | —                                          | [Service picker](screenshots/service-picker.png), [dark/manual](screenshots/service-dark.png)                                    |
+Screenshots are attached directly in the before/after table of
+[PR #59](https://github.com/Privacy-Thing/browser-extension/pull/59), rather than
+stored in the source repository. They show actual Storybook views with controlled
+data: the rule editor, popup, Control D lookup setup and native service preview,
+plus bound, error, conflict, manual-picker and dark states. No account credentials
+appear in these images.
 
 Validation commands and final counts are recorded in PR #59.
