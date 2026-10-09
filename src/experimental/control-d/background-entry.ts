@@ -221,7 +221,7 @@ const createController = (deps: BackgroundEntryDeps) => {
       );
       return { ok: true, next, prepared };
     } catch (error) {
-      const failed = await saveFailure(config, error);
+      const failed = await saveFailure(await loadControlDConfig(), error);
       log(
         deps,
         "control-d.sync.failure",

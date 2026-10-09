@@ -34,6 +34,18 @@ export const saveFeatureState = async (state: StoredFeatureState): Promise<void>
   });
 };
 
+export const saveFeatureCache = async (
+  state: Pick<StoredFeatureState, "featureMatches" | "dismissedMatches">,
+): Promise<void> => {
+  const parsed = featureStateSchema.parse(state);
+  await chrome.storage.local.set({
+    [FEATURE_CACHE_KEY]: {
+      featureMatches: parsed.featureMatches,
+      dismissedMatches: parsed.dismissedMatches,
+    },
+  });
+};
+
 export const loadFeatureBindings = async (): Promise<RuleFeatureBinding[]> =>
   (await loadFeatureState()).featureBindings;
 

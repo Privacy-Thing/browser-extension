@@ -519,6 +519,7 @@ export const finishServiceSync = async ({
   services,
   config,
   rules,
+  persistIntent,
 }: {
   client: ControlDClient;
   profileId: string;
@@ -526,10 +527,19 @@ export const finishServiceSync = async ({
   services: readonly ControlDCompiledService[];
   config: ControlDConfig;
   rules: readonly unknown[];
+  persistIntent: (managed: Record<string, ControlDManagedService>) => Promise<void>;
 }): Promise<{
   managedPatch: { managedServices?: Record<string, ControlDManagedService> };
   lastSyncedHash: string;
 }> => {
+  if (plan.add.length > 0 || plan.update.length > 0 || plan.remove.length > 0) {
+    // Native services have no ownership marker. Record intent before a remote
+    // write can succeed without an acknowledgement or before a later write fails.
+    await persistIntent({
+      ...config.managedServices,
+      ...managedFromDesired([...plan.update, ...plan.add]),
+    });
+  }
   const managedServices = await commitServiceOps(client, profileId, plan, services);
   const managedPatch =
     config.managedServices !== undefined || Object.keys(managedServices).length > 0

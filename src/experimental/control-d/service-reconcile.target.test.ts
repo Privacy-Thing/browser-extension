@@ -14,12 +14,15 @@ import {
 } from "./reconcile";
 import { planServiceOps, servicePlanError } from "./service-reconcile";
 import type { ControlDProfileService } from "./services";
+import { saveControlDConfig } from "./storage";
 
 import { loadLocations } from "@/background/storage/locations";
 import { loadFeatureBindings } from "@/background/storage/provider-features";
 import { loadRules } from "@/background/storage/rules";
 import type { RuleFeatureBinding } from "@/shared/provider-feature";
 import type { DomainRule, Location } from "@/shared/types";
+
+vi.mock("./storage", () => ({ saveControlDConfig: vi.fn() }));
 
 vi.mock("@/background/storage/locations", () => ({ loadLocations: vi.fn() }));
 vi.mock("@/background/storage/provider-features", () => ({
@@ -276,6 +279,7 @@ const sync = async (fake: FakeClient, current: ControlDConfig, repair = false) =
 };
 
 beforeEach(() => {
+  vi.mocked(saveControlDConfig).mockReset().mockResolvedValue(undefined);
   vi.mocked(loadLocations).mockResolvedValue([warsaw, berlin]);
   vi.mocked(loadRules).mockResolvedValue([domainRule("*example.com")]);
   vi.mocked(loadFeatureBindings).mockResolvedValue([]);
@@ -343,6 +347,68 @@ describe("Control D native service reconcile", () => {
       "manual-hulu",
       "zoom",
     ]);
+  });
+
+  it.each([false, true])(
+    "preserves ownership after a partial write (failed write accepted remotely: %s)",
+    async (accepted) => {
+      const fake = new FakeClient();
+      vi.mocked(loadRules).mockResolvedValue([
+        domainRule("*example.com"),
+        domainRule("other.example.com"),
+      ]);
+      vi.mocked(loadFeatureBindings).mockResolvedValue([
+        binding("*example.com", "service-a"),
+        binding("other.example.com", "service-b"),
+      ]);
+      const redirect = fake.redirectProfileService.bind(fake);
+      vi.spyOn(fake, "redirectProfileService").mockImplementation(
+        async (profileId, serviceId, proxyPk) => {
+          expect(saveControlDConfig).toHaveBeenCalledOnce();
+          if (serviceId === "service-b") {
+            if (accepted) await redirect(profileId, serviceId, proxyPk);
+            throw new Error("Service write timed out");
+          }
+          await redirect(profileId, serviceId, proxyPk);
+        },
+      );
+      const initial = config();
+      await expect(sync(fake, initial)).rejects.toThrow("Service write timed out");
+      const journal = vi.mocked(saveControlDConfig).mock.calls[0]?.[0];
+      expect(journal).toMatchObject({
+        status: "syncing",
+        profileId: "profile-1",
+        endpointId: "device-1",
+        managedFolders: { WAW: expect.any(Object) },
+        managedServices: {
+          "service-a": { rulePattern: "*example.com", proxyPk: "WAW" },
+          "service-b": { rulePattern: "other.example.com", proxyPk: "WAW" },
+        },
+        lastSyncedHash: initial.lastSyncedHash,
+        lastSuccessAt: initial.lastSuccessAt,
+      });
+      if (!journal) throw new Error("Missing ownership journal");
+      vi.mocked(fake.redirectProfileService).mockImplementation(redirect);
+      const recovered = await sync(fake, journal, true);
+      expect(recovered.prepared.diff.unchangedServices).toBe(accepted ? 2 : 1);
+      expect(recovered.applied.managedServices).toEqual(journal.managedServices);
+      expect(
+        fake.setCalls.filter((call) => call.serviceId === "service-a"),
+      ).toHaveLength(1);
+    },
+  );
+
+  it("does not write native services when ownership cannot be persisted", async () => {
+    const fake = new FakeClient();
+    vi.mocked(loadFeatureBindings).mockResolvedValue([
+      binding("*example.com", "service-a"),
+    ]);
+    vi.mocked(saveControlDConfig).mockRejectedValueOnce(
+      new Error("Storage unavailable"),
+    );
+    await expect(sync(fake, config())).rejects.toThrow("Storage unavailable");
+    expect(fake.setCalls).toEqual([]);
+    expect(fake.deleteCalls).toEqual([]);
   });
 
   it.each([

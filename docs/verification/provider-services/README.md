@@ -70,7 +70,11 @@ Compiler/reconcile tests cover native add, update and unchanged actions, source
 location changes, disabling/deleting/detaching, duplicate source/feature conflicts,
 unowned services, remote drift, stale previews and explicit repair. Fresh remote
 preflight happens before custom-rule writes. Unrelated service actions are kept,
-and remotely changed removals are refused.
+and remotely changed removals are refused. Before native writes, a persisted intent
+journal records planned add/update ownership and the current profile/endpoint.
+A partial API failure preserves that journal, allowing reviewed repair without
+adopting independently configured services. Cache-only recognition/dismissal
+writes cannot restore a binding removed by a concurrent rule deletion.
 
 The four runtime paths (Chromium main, early-inline, Firefox pre-bootstrap and
 workers) have no semantic change: their resolver inputs and generated worker

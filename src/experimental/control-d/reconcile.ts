@@ -27,6 +27,7 @@ import {
   remoteSnapshot,
   validateServiceApply,
 } from "./service-reconcile";
+import { saveControlDConfig } from "./storage";
 
 import { loadLocations } from "@/background/storage/locations";
 import { loadFeatureBindings } from "@/background/storage/provider-features";
@@ -583,6 +584,21 @@ export const applyControlDSync = async ({
     services: compiledServices,
     config: nextConfig,
     rules: prepared.compilation.rules,
+    persistIntent: async (managedServices) => {
+      await saveControlDConfig({
+        ...nextConfig,
+        status: "syncing",
+        profileId,
+        endpointId: endpoint.id,
+        resolverDoh: endpoint.resolverDoh ?? nextConfig.resolverDoh,
+        dnsVerification:
+          nextConfig.dnsVerification?.endpointId === endpoint.id
+            ? nextConfig.dnsVerification
+            : null,
+        managedFolders,
+        managedServices,
+      });
+    },
   });
   return {
     ...nextConfig,

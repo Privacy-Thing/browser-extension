@@ -28,14 +28,14 @@ const serviceText = (value: unknown): string | null =>
 
 const numberValue = (value: unknown): number | null => {
   if (typeof value !== "number" && typeof value !== "string") return null;
-  if (value === "") return null;
+  if (typeof value === "string" && value.trim() === "") return null;
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
 };
 
 const serviceRecords = (payload: unknown): Record<string, unknown>[] | null => {
   const response = recordValue(payload);
-  if (!response || response.success === false) return null;
+  if (!response || response.success !== true) return null;
   const services = recordValue(response.body)?.services;
   if (!Array.isArray(services)) return null;
   const records = services.map(recordValue);

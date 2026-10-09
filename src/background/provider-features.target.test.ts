@@ -3,11 +3,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createFeatureController, type FeatureProvider } from "./provider-features";
 
 import {
+  FEATURE_STORAGE_KEY,
   loadFeatureState,
   reconcileFeatureRefs,
   saveFeatureState,
 } from "@/background/storage/provider-features";
 import { RULES_STORAGE_KEY, saveRules } from "@/background/storage/rules";
+import { EXTENSION_STORAGE_KEYS } from "@/shared/extension-contract";
 import {
   FEATURE_COMMANDS,
   type ProviderFeatureReply,
@@ -103,6 +105,37 @@ describe("provider feature lifecycle", () => {
     expect(adapter.recognizeDomain).toHaveBeenCalledOnce();
     expect((await loadFeatureState()).featureBindings).toEqual([]);
   });
+
+  it.each(["fresh", "cached", "dismiss"] as const)(
+    "does not restore a concurrently deleted binding during %s cache writes",
+    async (mode) => {
+      const match = await provider().recognizeDomain("video.example.com");
+      await saveFeatureState({
+        featureBindings: [binding],
+        featureMatches: mode === "fresh" ? [] : [match],
+        dismissedMatches: [],
+      });
+      let interrupted = false;
+      vi.mocked(chrome.storage.local.set).mockImplementation(async (values) => {
+        if (!interrupted && EXTENSION_STORAGE_KEYS.providerFeatureMatches in values) {
+          interrupted = true;
+          await saveRules([]);
+          expect(values).not.toHaveProperty(FEATURE_STORAGE_KEY);
+        }
+        Object.assign(data, values);
+      });
+      const controller = createFeatureController([provider()]);
+      const reply = await controller.respond(
+        request(
+          mode === "dismiss" ? FEATURE_COMMANDS.dismiss : FEATURE_COMMANDS.recognize,
+        ),
+      );
+      expect(reply.ok).toBe(true);
+      expect(interrupted).toBe(true);
+      expect((await loadFeatureState()).featureBindings).toEqual([]);
+      expect(data[RULES_STORAGE_KEY]).toEqual([]);
+    },
+  );
 
   it("confirms a manual selection, rejects duplicate ownership, and detaches without changing PT rules", async () => {
     const controller = createFeatureController([provider()]);

@@ -296,7 +296,9 @@ describe("Control D diagnostic recognition setup", () => {
     expect(calls.some((call) => call.method === "DELETE")).toBe(false);
     expect(calls.some((call) => call.url.includes("/default"))).toBe(false);
     expect(calls.some((call) => call.url.includes("main-profile"))).toBe(false);
-    expect(calls.some((call) => call.url.includes("dns.controld.com"))).toBe(false);
+    expect(
+      calls.some((call) => new URL(call.url).origin === "https://dns.controld.com"),
+    ).toBe(false);
     expect(await loadRecognitionState()).toMatchObject({
       phase: "ready",
       resolverDoh: SECRET,

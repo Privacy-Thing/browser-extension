@@ -108,16 +108,33 @@ describe("Control D service reads", () => {
     );
   });
 
-  it.each([undefined, { do: 3, status: null }, { do: 3, status: 2 }])(
-    "rejects incomplete or unknown profile status: %j",
-    async (action) => {
-      const fetchImpl = vi.fn(async () =>
-        response([{ PK: "netflix", name: "Netflix", category: "video", action }]),
-      );
+  it.each([
+    undefined,
+    { do: 3, status: null },
+    { do: 3, status: 2 },
+    { do: " ", status: 1 },
+    { do: 3, status: " \t" },
+  ])("rejects incomplete or unknown profile status: %j", async (action) => {
+    const fetchImpl = vi.fn(async () =>
+      response([{ PK: "netflix", name: "Netflix", category: "video", action }]),
+    );
 
-      await expect(
-        new ControlDClient("test-token", fetchImpl).listProfileServices("profile"),
-      ).rejects.toBeInstanceOf(ControlDApiError);
+    await expect(
+      new ControlDClient("test-token", fetchImpl).listProfileServices("profile"),
+    ).rejects.toBeInstanceOf(ControlDApiError);
+  });
+
+  it.each([undefined, false, 1, "true"])(
+    "rejects service collections without an explicit successful envelope: %j",
+    async (success) => {
+      const fetchImpl = vi.fn(
+        async () => new Response(JSON.stringify({ success, body: { services: [] } })),
+      );
+      const client = new ControlDClient("test-token", fetchImpl);
+      await expect(client.listServices()).rejects.toBeInstanceOf(ControlDApiError);
+      await expect(client.listProfileServices("profile")).rejects.toBeInstanceOf(
+        ControlDApiError,
+      );
     },
   );
 

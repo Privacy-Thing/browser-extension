@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { useEffect, useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import { expect, fn, userEvent, within } from "storybook/test";
 
 import type {
@@ -142,9 +142,13 @@ const LocalizedPanel = ({
   locale,
   ...props
 }: ProviderFeatureProps & { locale: UiLocale }) => {
-  applyUiLocalePreference(locale);
-  useEffect(() => () => applyUiLocalePreference("en"), []);
-  return <ProviderFeaturePanel {...props} />;
+  const [appliedLocale, setAppliedLocale] = useState<UiLocale | null>(null);
+  useLayoutEffect(() => {
+    applyUiLocalePreference(locale);
+    setAppliedLocale(locale);
+    return () => applyUiLocalePreference("en");
+  }, [locale]);
+  return appliedLocale === locale ? <ProviderFeaturePanel {...props} /> : null;
 };
 
 export const RussianCompact: Story = {

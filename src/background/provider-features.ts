@@ -6,6 +6,7 @@ import {
 } from "@/background/settings-import-transaction";
 import {
   loadFeatureState,
+  saveFeatureCache,
   saveFeatureState,
 } from "@/background/storage/provider-features";
 import { loadRules } from "@/background/storage/rules";
@@ -164,8 +165,8 @@ class FeatureController {
     ) {
       await withConfigurationLock(async () => {
         const latest = await loadFeatureState();
-        await saveFeatureState({
-          ...latest,
+        await saveFeatureCache({
+          featureMatches: latest.featureMatches,
           dismissedMatches: latest.dismissedMatches.filter(
             (item) => !sameMatch(item, cached),
           ),
@@ -185,8 +186,7 @@ class FeatureController {
       const match = await request;
       await withConfigurationLock(async () => {
         const latest = await loadFeatureState();
-        await saveFeatureState({
-          ...latest,
+        await saveFeatureCache({
           featureMatches: [
             ...latest.featureMatches.filter(
               (item) => item.providerId !== provider.id || item.hostname !== hostname,
@@ -229,8 +229,8 @@ class FeatureController {
             item.hostname === normalizeFeatureHost(command.hostname),
         );
         if (match)
-          await saveFeatureState({
-            ...stored,
+          await saveFeatureCache({
+            featureMatches: stored.featureMatches,
             dismissedMatches: [
               ...stored.dismissedMatches.filter((item) => !sameMatch(item, match)),
               match,
