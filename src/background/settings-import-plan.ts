@@ -291,6 +291,27 @@ export const planSettingsImport = (input: {
     locations: locations.locations,
     rules,
     containerAssignments: assignments,
+    featureBindings: merge
+      ? [
+          ...(current.featureBindings ?? []).filter(
+            (binding) =>
+              !source.rules.some(
+                (rule) =>
+                  rule.pattern === binding.rulePattern &&
+                  selection.rules[rule.pattern] !== "keep" &&
+                  selection.rules[rule.pattern] !== "skip",
+              ),
+          ),
+          ...(source.featureBindings ?? []).filter((binding) =>
+            source.rules.some(
+              (rule) =>
+                rule.pattern === binding.rulePattern &&
+                selection.rules[rule.pattern] !== "keep" &&
+                selection.rules[rule.pattern] !== "skip",
+            ),
+          ),
+        ]
+      : (source.featureBindings ?? []),
   };
   if (locations.problems.length === 0) validateImportedSettings(settings);
   return { settings, problems: locations.problems };

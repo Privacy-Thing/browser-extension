@@ -18,10 +18,22 @@ import {
   controlDProfileName,
   controlDRuleComment,
 } from "./resource-names";
+import {
+  canonicalRules,
+  finishServiceSync,
+  hashControlDInputs,
+  hashControlDValue,
+  openServiceSync,
+  remoteSnapshot,
+  validateServiceApply,
+} from "./service-reconcile";
+import { saveControlDConfig } from "./storage";
 
 import { loadLocations } from "@/background/storage/locations";
+import { loadFeatureBindings } from "@/background/storage/provider-features";
 import { loadRules } from "@/background/storage/rules";
-import type { DomainRule, Location } from "@/shared/types";
+
+export { hashControlDInputs, hashControlDValue };
 
 export class ControlDConflictError extends Error {
   constructor(message: string) {
@@ -59,62 +71,6 @@ const resourceNameMatches = (actual: string, expected: string): boolean =>
   actual === expected ||
   normalizedResourceName(actual) === normalizedResourceName(expected);
 
-const canonicalRules = (rules: readonly ControlDRule[]): unknown[] =>
-  [...rules]
-    .sort((left, right) => left.hostname.localeCompare(right.hostname))
-    .map((rule) => ({
-      hostname: rule.hostname,
-      groupId: rule.groupId,
-      action: rule.action,
-      via: rule.via,
-      status: rule.status,
-      comment: rule.comment,
-    }));
-
-export const hashControlDValue = async (value: unknown): Promise<string> => {
-  const encoded = new TextEncoder().encode(JSON.stringify(value));
-  const digest = await crypto.subtle.digest("SHA-256", encoded);
-  return [...new Uint8Array(digest)]
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-};
-
-export const hashControlDInputs = (
-  config: ControlDConfig,
-  rules: readonly DomainRule[],
-  locations: readonly Location[],
-) =>
-  hashControlDValue({
-    rules,
-    locations,
-    enabled: config.enabled,
-    connected: config.connected,
-    resourceIdentity: config.resourceIdentity,
-    profileId: config.profileId,
-    endpointId: config.endpointId,
-    managedFolders: config.managedFolders,
-    locationMappings: config.locationMappings,
-    lastSyncedHash: config.lastSyncedHash,
-  });
-const remoteSnapshot = async (client: ControlDClient, config: ControlDConfig) => {
-  const profiles = await client.listProfiles();
-  const profile = config.profileId
-    ? profiles.find((profile) => profile.id === config.profileId)
-    : null;
-  const groups = profile ? await client.listGroups(profile.id) : [];
-  const rules = profile
-    ? await Promise.all(
-        Object.values(config.managedFolders).map(async (folder) => ({
-          id: folder.folderId,
-          rules: canonicalRules(await client.listRules(profile.id, folder.folderId)),
-        })),
-      )
-    : [];
-  const device = config.endpointId
-    ? (await client.listDevices()).find((device) => device.id === config.endpointId)
-    : null;
-  return hashControlDValue({ profiles, groups, rules, device });
-};
 const desiredByProxy = (compilation: ControlDCompilation): Map<string, string[]> => {
   const result = new Map<string, string[]>();
   for (const rule of compilation.rules) {
@@ -181,7 +137,8 @@ export const prepareControlDSync = async (
   config: ControlDConfig,
 ): Promise<ControlDPreparedSync> => {
   resourceCode(config);
-  const remoteHash = await remoteSnapshot(client, config);
+  const bindings = await loadFeatureBindings();
+  const remote = await remoteSnapshot(client, config, bindings);
   const [rules, locations, proxies, profiles] = await Promise.all([
     loadRules(),
     loadLocations(),
@@ -198,6 +155,18 @@ export const prepareControlDSync = async (
     proxies,
     storedMappings: config.locationMappings,
   });
+  const opened = openServiceSync({
+    rules,
+    bindings,
+    mappings: compilation.mappings,
+    remote: remote.services,
+    config,
+  });
+  if (opened.conflict) throw new ControlDConflictError(opened.conflict);
+  const fullCompilation: ControlDCompilation =
+    opened.services.length > 0
+      ? { ...compilation, services: opened.services }
+      : compilation;
   const desired = desiredByProxy(compilation);
   const counts = emptyCounts();
   let createFolders = desired.size;
@@ -292,14 +261,15 @@ export const prepareControlDSync = async (
     );
   }
 
-  if (remoteHash !== (await remoteSnapshot(client, config)))
+  if (remote.hash !== (await remoteSnapshot(client, config, bindings)).hash)
     throw new ControlDConflictError(
       "Remote setup changed while preparing the preview. Refresh it.",
     );
+  if (opened.blocking) throw new ControlDConflictError(opened.blocking);
   return {
-    inputHash: await hashControlDInputs(config, rules, locations),
-    remoteHash,
-    compilation,
+    inputHash: await hashControlDInputs(config, rules, locations, bindings),
+    remoteHash: remote.hash,
+    compilation: fullCompilation,
     proxies,
     diff: {
       createProfile: !knownProfile,
@@ -311,6 +281,7 @@ export const prepareControlDSync = async (
       requiresApproximationConfirmation: Object.values(compilation.mappings).some(
         (mapping) => mapping.status === "approximate" && !mapping.confirmed,
       ),
+      ...opened.fields,
     },
   };
 };
@@ -433,7 +404,18 @@ export const applyControlDSync = async ({
     throw new Error("Confirm every approximate location mapping before applying.");
   }
 
-  if (prepared.remoteHash !== (await remoteSnapshot(client, config)))
+  const bindings = await loadFeatureBindings();
+  const [rules, locations] = await Promise.all([loadRules(), loadLocations()]);
+  if (
+    (await hashControlDInputs(config, rules, locations, bindings)) !==
+    prepared.inputHash
+  ) {
+    throw new ControlDConflictError(
+      "Preview changed. Refresh and review before applying.",
+    );
+  }
+  const remote = await remoteSnapshot(client, config, bindings);
+  if (prepared.remoteHash !== remote.hash)
     throw new ControlDConflictError(
       "Remote setup changed. Refresh and review the preview.",
     );
@@ -450,6 +432,20 @@ export const applyControlDSync = async ({
     locationMappings: { ...config.locationMappings, ...confirmedMappings },
   };
   const profileId = await ensureProfile(client, nextConfig);
+  const serviceSync = await validateServiceApply({
+    client,
+    config: nextConfig,
+    bindings,
+    rules,
+    mappings: prepared.compilation.mappings,
+    preparedServices: prepared.compilation.services ?? [],
+    openedServices: remote.services,
+    profileId,
+    repair,
+  });
+  if (serviceSync.error !== null) throw new ControlDConflictError(serviceSync.error);
+  const servicePlan = serviceSync.plan;
+  const compiledServices = serviceSync.services;
   const desired = desiredByProxy(prepared.compilation);
   const groups = await client.listGroups(profileId);
   const preflightRules = new Map<number, ControlDRule[]>();
@@ -581,8 +577,32 @@ export const applyControlDSync = async ({
     };
   }
 
+  const serviceState = await finishServiceSync({
+    client,
+    profileId,
+    plan: servicePlan,
+    services: compiledServices,
+    config: nextConfig,
+    rules: prepared.compilation.rules,
+    persistIntent: async (managedServices) => {
+      await saveControlDConfig({
+        ...nextConfig,
+        status: "syncing",
+        profileId,
+        endpointId: endpoint.id,
+        resolverDoh: endpoint.resolverDoh ?? nextConfig.resolverDoh,
+        dnsVerification:
+          nextConfig.dnsVerification?.endpointId === endpoint.id
+            ? nextConfig.dnsVerification
+            : null,
+        managedFolders,
+        managedServices,
+      });
+    },
+  });
   return {
     ...nextConfig,
+    ...serviceState.managedPatch,
     connected: true,
     autoSyncEnabled: true,
     status: "ready",
@@ -594,7 +614,7 @@ export const applyControlDSync = async ({
         ? nextConfig.dnsVerification
         : null,
     managedFolders,
-    lastSyncedHash: await hashControlDValue(prepared.compilation.rules),
+    lastSyncedHash: serviceState.lastSyncedHash,
     lastAttemptAt: new Date().toISOString(),
     lastSuccessAt: new Date().toISOString(),
     lastError: null,

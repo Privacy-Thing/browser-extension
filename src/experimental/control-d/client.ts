@@ -1,5 +1,18 @@
 import type { ControlDProxyLocation } from "./contracts";
+import {
+  controlDQueryMessage,
+  executeControlDQuery,
+  type ControlDDomainResult,
+} from "./domain-test";
 import { redactControlDLogValue } from "./redaction";
+import {
+  parseProfileServices,
+  parseControlDServices,
+  type ControlDProfileService,
+  type ControlDService,
+} from "./services";
+
+export type { ControlDDomainResult };
 
 const API_BASE = "https://api.controld.com";
 const MAX_ATTEMPTS = 3;
@@ -123,6 +136,25 @@ export const deviceUsesAnotherProfile = (
   const ids = deviceProfileIds(device);
   return !ids.includes(managedProfileId);
 };
+
+const parseRules = (payload: unknown): ControlDRule[] =>
+  extractCollection(payload, "rules").flatMap((entry) => {
+    const record = asRecord(entry);
+    const action = asRecord(record.action);
+    const hostname = asString(record.hostname ?? record.host ?? record.PK);
+    if (!hostname) return [];
+    return [
+      {
+        hostname,
+        groupId: asNumber(record.group ?? record.group_id),
+        action: asNumber(record.do ?? action.do),
+        via: asString(record.via ?? action.via),
+        status: asNumber(record.status ?? action.status),
+        comment: asString(record.comment),
+      },
+    ];
+  });
+
 export type ControlDRetryEvent = {
   attempt: number;
   delayMs: number;
@@ -243,6 +275,111 @@ export class ControlDClient {
     });
   }
 
+  async listServices(): Promise<ControlDService[]> {
+    const payload = await this.request(
+      "/services/categories/all",
+      {},
+      true,
+      "list service catalogue",
+    );
+    const services = parseControlDServices(payload);
+    if (!services) {
+      throw new ControlDApiError(
+        "Control D returned an invalid service catalogue.",
+        200,
+        null,
+        null,
+      );
+    }
+    return services;
+  }
+
+  async listProfileServices(profileId: string): Promise<ControlDProfileService[]> {
+    const payload = await this.request(
+      `/profiles/${encodeURIComponent(profileId)}/services`,
+      {},
+      true,
+      "list profile services",
+    );
+    const services = parseProfileServices(payload);
+    if (!services) {
+      throw new ControlDApiError(
+        "Control D returned invalid profile services.",
+        200,
+        null,
+        null,
+      );
+    }
+    return services;
+  }
+
+  async redirectProfileService(
+    profileId: string,
+    serviceId: string,
+    via: string,
+  ): Promise<void> {
+    await this.request(
+      `/profiles/${encodeURIComponent(profileId)}/services/${encodeURIComponent(serviceId)}`,
+      { method: "PUT", body: formBody({ do: 3, status: 1, via }) },
+      true,
+      "redirect profile service",
+    );
+  }
+
+  async deleteProfileService(profileId: string, serviceId: string): Promise<void> {
+    await this.request(
+      `/profiles/${encodeURIComponent(profileId)}/services/${encodeURIComponent(serviceId)}`,
+      { method: "DELETE" },
+      true,
+      "delete profile service",
+    );
+  }
+
+  // Dashboard putServices sends JSON { services: [{ PK, do, status, via? }] }.
+  // The published API only documents the singular form-urlencoded route.
+  async bypassProfileServices(
+    profileId: string,
+    servicePks: readonly string[],
+  ): Promise<void> {
+    if (servicePks.length === 0) return;
+    await this.request(
+      `/profiles/${encodeURIComponent(profileId)}/services`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          services: servicePks.map((pk) => ({ PK: pk, do: 1, status: 1 })),
+        }),
+      },
+      true,
+      "bypass profile services",
+    );
+  }
+
+  // The bearer token is attached only after the DoH URL is confined to
+  // https://dns.controld.com. Other origins never receive it.
+  async queryDomain(
+    resolverId: string,
+    hostname: string,
+  ): Promise<ControlDDomainResult> {
+    const outcome = await executeControlDQuery({
+      fetchImpl: this.fetchImpl,
+      token: this.token,
+      resolverId,
+      hostname,
+      timeoutMs: this.timeoutMs,
+    });
+    if (outcome.ok) return outcome.result;
+    throw new ControlDApiError(
+      controlDQueryMessage(outcome.failure, outcome.status),
+      outcome.status,
+      outcome.requestId,
+      null,
+      outcome.causeMessage,
+      "query domain",
+    );
+  }
+
   async createProfile(name: string): Promise<void> {
     await this.request(
       "/profiles",
@@ -304,22 +441,17 @@ export class ControlDClient {
       true,
       "list managed rules",
     );
-    return extractCollection(payload, "rules").flatMap((entry) => {
-      const record = asRecord(entry);
-      const action = asRecord(record.action);
-      const hostname = asString(record.hostname ?? record.host ?? record.PK);
-      if (!hostname) return [];
-      return [
-        {
-          hostname,
-          groupId: asNumber(record.group ?? record.group_id),
-          action: asNumber(record.do ?? action.do),
-          via: asString(record.via ?? action.via),
-          status: asNumber(record.status ?? action.status),
-          comment: asString(record.comment),
-        },
-      ];
-    });
+    return parseRules(payload);
+  }
+
+  async listCustomRules(profileId: string): Promise<ControlDRule[]> {
+    const payload = await this.request(
+      `/profiles/${encodeURIComponent(profileId)}/rules/all`,
+      {},
+      true,
+      "list custom rules",
+    );
+    return parseRules(payload);
   }
 
   // eslint-disable-next-line max-params -- Mirrors the public API form contract.

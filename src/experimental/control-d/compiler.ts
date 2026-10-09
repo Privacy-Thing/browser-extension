@@ -1,19 +1,35 @@
 /* eslint-disable sonarjs/cognitive-complexity -- Fail-closed compilation keeps rule decisions explicit. */
 
-import type {
-  ControlDCompiledRule,
-  ControlDCompileWarning,
-  ControlDMapping,
-  ControlDProxyLocation,
+import {
+  CONTROL_D_PROVIDER_ID,
+  type ControlDCompiledRule,
+  type ControlDCompiledService,
+  type ControlDCompileWarning,
+  type ControlDMapping,
+  type ControlDProxyLocation,
+  type ControlDServiceAction,
+  type ControlDServiceConflict,
 } from "./contracts";
 
+import type { RuleFeatureBinding } from "@/shared/provider-feature";
 import type { DomainRule, Location } from "@/shared/types";
 
 export type ControlDCompilation = {
   rules: ControlDCompiledRule[];
   warnings: ControlDCompileWarning[];
   mappings: Record<string, ControlDMapping>;
+  services?: ControlDCompiledService[];
 };
+
+export const controlDServiceAction = (proxyPk: string): ControlDServiceAction => ({
+  do: 3,
+  status: 1,
+  via: proxyPk,
+  viaV6: null,
+});
+
+export const isControlDBinding = (binding: RuleFeatureBinding): boolean =>
+  binding.providerId === CONTROL_D_PROVIDER_ID && binding.featureType === "service";
 
 const toRadians = (degrees: number): number => (degrees * Math.PI) / 180;
 
@@ -253,5 +269,109 @@ export const compileControlDState = ({
     ),
     warnings,
     mappings: summarizedMappings,
+  };
+};
+
+const bindingIdentity = (binding: RuleFeatureBinding): string =>
+  `${binding.rulePattern}\0${binding.featureId}`;
+
+const serviceConflict = (
+  code: ControlDServiceConflict["code"],
+  message: string,
+  rulePattern?: string,
+  servicePk?: string,
+): ControlDServiceConflict => ({
+  code,
+  message,
+  ...(rulePattern === undefined ? {} : { rulePattern }),
+  ...(servicePk === undefined ? {} : { servicePk }),
+});
+
+// Native services already own their domain lists. A confirmed binding selects one
+// service for one source rule; Privacy Thing does not expand or copy that pattern.
+export const compileControlDServices = ({
+  rules,
+  bindings,
+  mappings,
+}: {
+  rules: readonly DomainRule[];
+  bindings: readonly RuleFeatureBinding[];
+  mappings: Readonly<Record<string, ControlDMapping>>;
+}): { services: ControlDCompiledService[]; conflicts: ControlDServiceConflict[] } => {
+  const selected = [
+    ...new Map(
+      bindings
+        .filter(isControlDBinding)
+        .map((binding) => [bindingIdentity(binding), binding]),
+    ).values(),
+  ];
+  const conflicts: ControlDServiceConflict[] = [];
+  const featuresByPattern = new Map<string, Set<string>>();
+  const patternsByFeature = new Map<string, Set<string>>();
+  for (const binding of selected) {
+    const features = featuresByPattern.get(binding.rulePattern) ?? new Set<string>();
+    features.add(binding.featureId);
+    featuresByPattern.set(binding.rulePattern, features);
+    const patterns = patternsByFeature.get(binding.featureId) ?? new Set<string>();
+    patterns.add(binding.rulePattern);
+    patternsByFeature.set(binding.featureId, patterns);
+  }
+  for (const [rulePattern, features] of featuresByPattern) {
+    if (features.size < 2) continue;
+    conflicts.push(
+      serviceConflict(
+        "duplicate-source",
+        `${rulePattern} has more than one confirmed Control D service.`,
+        rulePattern,
+      ),
+    );
+  }
+  for (const [servicePk, patterns] of patternsByFeature) {
+    if (patterns.size < 2) continue;
+    conflicts.push(
+      serviceConflict(
+        "duplicate-feature",
+        `Control D service ${servicePk} is confirmed for more than one source rule.`,
+        undefined,
+        servicePk,
+      ),
+    );
+  }
+  if (conflicts.length > 0) return { services: [], conflicts };
+
+  const services: ControlDCompiledService[] = [];
+  for (const binding of selected) {
+    const matches = rules.filter((rule) => rule.pattern === binding.rulePattern);
+    const enabled = matches.filter((rule) => rule.enabled && rule.locationId);
+    const locationIds = new Set(enabled.map((rule) => rule.locationId));
+    if (locationIds.size > 1) {
+      conflicts.push(
+        serviceConflict(
+          "duplicate-source",
+          `${binding.rulePattern} resolves to more than one regional preset.`,
+          binding.rulePattern,
+        ),
+      );
+      continue;
+    }
+    const rule = enabled[0];
+    if (!rule?.locationId) continue;
+    const mapping = mappings[rule.locationId];
+    if (!mapping?.proxyPk || mapping.status === "skipped") continue;
+    services.push({
+      servicePk: binding.featureId,
+      featureName: binding.featureName,
+      rulePattern: binding.rulePattern,
+      locationId: rule.locationId,
+      proxyPk: mapping.proxyPk,
+      action: controlDServiceAction(mapping.proxyPk),
+    });
+  }
+  if (conflicts.length > 0) return { services: [], conflicts };
+  return {
+    services: services.sort((left, right) =>
+      left.servicePk.localeCompare(right.servicePk),
+    ),
+    conflicts,
   };
 };

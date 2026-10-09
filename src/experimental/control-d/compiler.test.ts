@@ -1,8 +1,18 @@
 import { describe, expect, it } from "vitest";
 
-import { compileControlDPattern, compileControlDState } from "./compiler";
-import type { ControlDProxyLocation } from "./contracts";
+import {
+  compileControlDPattern,
+  compileControlDServices,
+  compileControlDState,
+} from "./compiler";
+import {
+  controlDConfigSchema,
+  type ControlDConfig,
+  type ControlDDiff,
+  type ControlDProxyLocation,
+} from "./contracts";
 
+import type { RuleFeatureBinding } from "@/shared/provider-feature";
 import type { DomainRule, Location } from "@/shared/types";
 
 const warsaw: Location = {
@@ -223,5 +233,204 @@ describe("compileControlDState", () => {
     expect(result.warnings).toContainEqual(
       expect.objectContaining({ code: "skipped-location" }),
     );
+  });
+});
+
+const binding = (
+  rulePattern: string,
+  featureId: string,
+  featureName = featureId,
+): RuleFeatureBinding => ({
+  rulePattern,
+  providerId: "control-d",
+  featureId,
+  featureName,
+  featureType: "service",
+});
+
+const compileServices = (
+  rules: readonly DomainRule[],
+  bindings: readonly RuleFeatureBinding[],
+  locations: readonly Location[] = [warsaw],
+  storedMappings: Parameters<typeof compileControlDState>[0]["storedMappings"] = {},
+) => {
+  const compiled = compileControlDState({ rules, locations, proxies, storedMappings });
+  return {
+    compiled,
+    services: compileControlDServices({
+      rules,
+      bindings,
+      mappings: compiled.mappings,
+    }),
+  };
+};
+
+describe("compileControlDServices", () => {
+  it("routes one confirmed service through the source location proxy", () => {
+    const { compiled, services } = compileServices(
+      [
+        rule("*example.com"),
+        { ...rule("www.example.com"), pattern: "www.example.com" },
+      ],
+      [binding("*example.com", "manual-hulu", "Hulu")],
+    );
+
+    expect(compiled.rules.map((entry) => entry.hostname)).toEqual([
+      "*example.com",
+      "www.example.com",
+    ]);
+    expect(services.conflicts).toEqual([]);
+    expect(services.services).toEqual([
+      {
+        servicePk: "manual-hulu",
+        featureName: "Hulu",
+        rulePattern: "*example.com",
+        locationId: "warsaw",
+        proxyPk: "WAW",
+        action: { do: 3, status: 1, via: "WAW", viaV6: null },
+      },
+    ]);
+  });
+
+  it("ignores disabled, missing, overlapping, and non-control-d bindings", () => {
+    const { services } = compileServices(
+      [{ ...rule("*example.com"), enabled: false }, rule("*other.test")],
+      [
+        binding("*example.com", "netflix", "Netflix"),
+        binding("example.com", "hulu", "Hulu"),
+        {
+          ...binding("*other.test", "zoom", "Zoom"),
+          providerId: "other",
+        },
+      ],
+    );
+
+    expect(services.services).toEqual([]);
+    expect(services.conflicts).toEqual([]);
+  });
+
+  it("skips a source whose location has no usable proxy", () => {
+    const { services } = compileServices(
+      [rule("*example.com")],
+      [binding("*example.com", "netflix", "Netflix")],
+      [warsaw],
+      {
+        warsaw: {
+          locationId: "warsaw",
+          proxyPk: null,
+          status: "skipped",
+          confirmed: true,
+        },
+      },
+    );
+
+    expect(services.services).toEqual([]);
+  });
+
+  it("collapses duplicate confirmations and reports conflicting ones", () => {
+    const duplicate = compileServices(
+      [rule("*example.com")],
+      [
+        binding("*example.com", "netflix", "Netflix"),
+        binding("*example.com", "netflix", "Netflix"),
+      ],
+    );
+    expect(duplicate.services.services).toHaveLength(1);
+
+    const sameSource = compileServices(
+      [rule("*example.com")],
+      [
+        binding("*example.com", "netflix", "Netflix"),
+        binding("*example.com", "hulu", "Hulu"),
+      ],
+    );
+    expect(sameSource.services.services).toEqual([]);
+    expect(sameSource.services.conflicts).toEqual([
+      expect.objectContaining({
+        code: "duplicate-source",
+        rulePattern: "*example.com",
+      }),
+    ]);
+
+    const sameFeature = compileServices(
+      [rule("*example.com"), { ...rule("other.test"), pattern: "other.test" }],
+      [
+        binding("*example.com", "netflix", "Netflix"),
+        binding("other.test", "netflix", "Netflix"),
+      ],
+    );
+    expect(sameFeature.services.services).toEqual([]);
+    expect(sameFeature.services.conflicts).toEqual([
+      expect.objectContaining({ code: "duplicate-feature", servicePk: "netflix" }),
+    ]);
+  });
+});
+
+describe("controlDConfigSchema service ownership", () => {
+  const stored = {
+    version: 2,
+    enabled: false,
+    connected: false,
+    autoSyncEnabled: false,
+    status: "disconnected",
+    resourceIdentity: null,
+    profileId: null,
+    endpointId: null,
+    resolverDoh: null,
+    dnsVerification: null,
+    managedFolders: {},
+    locationMappings: {},
+    lastSyncedHash: null,
+    lastAttemptAt: null,
+    lastSuccessAt: null,
+    lastError: null,
+  } satisfies ControlDConfig;
+
+  it("keeps configs that predate managed services", () => {
+    const parsed = controlDConfigSchema.parse(stored);
+    expect(parsed.managedServices).toBeUndefined();
+    const legacyDiff: ControlDDiff = {
+      createProfile: false,
+      createEndpoint: false,
+      createFolders: 0,
+      addRules: 0,
+      updateRules: 0,
+      deleteRules: 0,
+      unchangedRules: 0,
+      warnings: [],
+      mappings: [],
+      requiresApproximationConfirmation: false,
+    };
+    expect(legacyDiff.addServices).toBeUndefined();
+  });
+
+  it("stores the applied native action identity", () => {
+    const parsed = controlDConfigSchema.parse({
+      ...stored,
+      managedServices: {
+        netflix: {
+          rulePattern: "*example.com",
+          proxyPk: "WAW",
+          action: { do: 3, status: 1, via: "WAW", viaV6: null },
+        },
+      },
+    });
+    expect(parsed.managedServices?.netflix).toEqual({
+      rulePattern: "*example.com",
+      proxyPk: "WAW",
+      action: { do: 3, status: 1, via: "WAW", viaV6: null },
+    });
+    expect(
+      controlDConfigSchema.safeParse({
+        ...stored,
+        managedServices: {
+          netflix: {
+            rulePattern: "*example.com",
+            proxyPk: "WAW",
+            action: { do: 2, status: 1, via: "WAW", viaV6: null },
+          },
+        },
+      }).success,
+    ).toBe(false);
   });
 });

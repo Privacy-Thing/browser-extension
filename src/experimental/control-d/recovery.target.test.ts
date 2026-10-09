@@ -148,4 +148,26 @@ describe("Control D recovery", () => {
     });
     expect(client.writes).toBe(0);
   });
+  it("does not transfer service ownership from another recovered profile", async () => {
+    const client = new FakeClient();
+    const adopted = await adoptRecoverySet({
+      client: asClient(client),
+      config: {
+        ...config(),
+        profileId: "other-profile",
+        managedServices: {
+          video: {
+            rulePattern: "video.example.com",
+            proxyPk: "WAW",
+            action: { do: 3, status: 1, via: "WAW", viaV6: null },
+          },
+        },
+      },
+      profileId: "managed",
+      endpointId: "endpoint",
+      code: "ABCDE-FGHJK",
+    });
+    expect(adopted.managedServices).toEqual({});
+    expect(client.writes).toBe(0);
+  });
 });

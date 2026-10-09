@@ -150,6 +150,9 @@ export const adoptRecoverySet = async ({
     resolverDoh: endpoint?.resolverDoh ?? null,
     dnsVerification: null,
     managedFolders,
+    ...(config.profileId !== profileId && config.managedServices
+      ? { managedServices: {} }
+      : {}),
     locationMappings: {},
     autoSyncEnabled: false,
     status: "ready",

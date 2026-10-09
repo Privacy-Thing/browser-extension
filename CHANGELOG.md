@@ -8,6 +8,14 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ### Added
 
+- Experimental local and beta builds can recognize a rule hostname as a provider
+  feature and explicitly link a Control D service rule. Rule editor and popup
+  support confirmation, manual selection, dismissal and detach. Generic bindings
+  survive backups and pattern changes; local Privacy Thing protection keeps its
+  domain scope. Native service sync preserves unrelated provider rules.
+  A separately reviewed lookup profile avoids Custom Rule overrides without
+  changing the browser's regional DNS endpoint.
+
 - Added an experimental, one-way Control D regional DNS integration to local
   and beta builds. It previews managed rule changes, requires confirmation
   before the first sync, preserves unrelated Control D resources, and guides

@@ -13,6 +13,10 @@ import {
   ControlDSubpage,
 } from "../../../experimental/control-d/ui-entry";
 
+import {
+  DIAGNOSTIC_COMMANDS,
+  type RecognitionPhase,
+} from "@/experimental/control-d/recognition-setup";
 import { EXTENSION_STORAGE_KEYS } from "@/shared/extension-contract";
 import { DEFAULT_PREFERENCES } from "@/shared/settings-defaults";
 import type { ThemeMode } from "@/shared/types";
@@ -179,11 +183,38 @@ const installBoundary = (
   preparedSnapshot: ControlDPreparedSnapshot,
   recoveryCandidates: ControlDRecoveryCandidate[],
   themeMode: ThemeMode,
+  recognitionPhase: RecognitionPhase = "not-setup",
 ): void => {
+  let phase = recognitionPhase;
   Reflect.set(globalThis, "chrome", {
     runtime: {
       id: "storybook-control-d",
       sendMessage: async (message: { type?: string }) => {
+        if (Object.values(DIAGNOSTIC_COMMANDS).includes(message.type as never)) {
+          if (message.type === DIAGNOSTIC_COMMANDS.apply) phase = "ready";
+          return {
+            ok: true,
+            summary: {
+              phase,
+              code: null,
+              profileId: null,
+              endpointId: null,
+              hasResolver: phase === "ready",
+              serviceCount: phase === "ready" ? 1012 : 0,
+              lastError: null,
+            },
+            ...(message.type === DIAGNOSTIC_COMMANDS.preview
+              ? {
+                  preview: {
+                    token: "lookup-preview",
+                    profileCreateCount: phase === "ready" ? 0 : 1,
+                    endpointCreateCount: phase === "ready" ? 0 : 1,
+                    serviceCount: 1012,
+                  },
+                }
+              : {}),
+          };
+        }
         if (
           message.type === CONTROL_D_COMMANDS.discover ||
           message.type === CONTROL_D_COMMANDS.connect
@@ -227,13 +258,21 @@ const Surface = ({
   preparedSnapshot = snapshot,
   recoveryCandidates = [],
   themeMode = "light",
+  recognitionPhase = "not-setup",
 }: {
   state: ControlDPublicState;
   preparedSnapshot?: ControlDPreparedSnapshot;
   recoveryCandidates?: ControlDRecoveryCandidate[];
   themeMode?: ThemeMode;
+  recognitionPhase?: RecognitionPhase;
 }) => {
-  installBoundary(state, preparedSnapshot, recoveryCandidates, themeMode);
+  installBoundary(
+    state,
+    preparedSnapshot,
+    recoveryCandidates,
+    themeMode,
+    recognitionPhase,
+  );
   return (
     <ThemeProvider>
       <AppPageFrame
@@ -407,4 +446,69 @@ export const ConflictStatus: Story = {
 export const DnsPendingStatus: Story = {
   render: () => <StatusSurface state={dnsPending} locale="es" />,
   play: checkStatusTone("warning", "es"),
+};
+
+export const NativeServicePreview: Story = {
+  render: () => (
+    <Surface
+      state={firstSync}
+      preparedSnapshot={{
+        ...firstSnapshot,
+        diff: {
+          ...firstSnapshot.diff,
+          addServices: 1,
+          updateServices: 1,
+          deleteServices: 0,
+          unchangedServices: 2,
+        },
+      }}
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    const section = canvasElement.querySelector("[data-control-d-service-diff]");
+    await expect(section).not.toBeNull();
+  },
+};
+
+export const NativeServiceConflict: Story = {
+  render: () => (
+    <Surface
+      state={firstSync}
+      preparedSnapshot={{
+        ...firstSnapshot,
+        diff: {
+          ...firstSnapshot.diff,
+          addServices: 1,
+          updateServices: 0,
+          deleteServices: 0,
+          unchangedServices: 0,
+          serviceErrors: [
+            {
+              code: "unowned-service",
+              servicePk: "video",
+              rulePattern: "video.example.com",
+              message: "This service is configured independently of Privacy Thing.",
+            },
+          ],
+        },
+      }}
+    />
+  ),
+};
+
+export const RecognitionSetup: Story = {
+  render: () => <Surface state={baseState} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(
+      await canvas.findByRole("button", { name: "Preview lookup setup" }),
+    );
+    await expect(
+      canvasElement.querySelector("[data-control-d-recognition-preview]"),
+    ).not.toBeNull();
+  },
+};
+
+export const RecognitionReady: Story = {
+  render: () => <Surface state={baseState} recognitionPhase="ready" />,
 };

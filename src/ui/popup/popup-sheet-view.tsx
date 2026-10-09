@@ -11,6 +11,7 @@ import { fireAndForget } from "@/shared/async";
 import type { CleanupPlan, CleanupResult } from "@/shared/types";
 import { t } from "@/ui/i18n";
 import { icon } from "@/ui/options/utils";
+import { ProviderFeatureHost } from "@/ui/shared/ProviderFeatureHost";
 
 const getCleanupSurfaceLabel = (key: CleanupPlan["surfaces"][number]["key"]): string =>
   ({
@@ -212,11 +213,22 @@ const updateRegionalPreset = (controller: PopupController, enabled: boolean): vo
   controller.state.setRegionalPresetOn(enabled);
 };
 
+const getSavedRulePattern = ({ state }: PopupController): string | null => {
+  const pattern = state.popupState?.currentRule.pattern;
+  return pattern &&
+    state.sheetView === "rule-form" &&
+    !state.creatingExactOverride &&
+    state.sheetTargetPattern === pattern
+    ? pattern
+    : null;
+};
+
 export const PopupSheetPane = ({ controller }: { controller: PopupController }) => {
   const { state, viewModel } = controller;
   if (!state.popupState) return null;
   const copy = getSheetTitle(controller);
   const inheritedProfileLabel = getInheritedProfileLabel(state.popupState);
+  const savedRulePattern = getSavedRulePattern(controller);
   const titleTooltip =
     state.sheetView === "rule-form"
       ? controller.sheets.getRuleSheetPatternLabel()
@@ -230,6 +242,17 @@ export const PopupSheetPane = ({ controller }: { controller: PopupController }) 
       {...(titleTooltip ? { titleTooltip } : {})}
       description={copy.description}
       body={renderSheetBody(controller)}
+      {...(savedRulePattern
+        ? {
+            formExtra: (
+              <ProviderFeatureHost
+                variant="compact"
+                rulePattern={savedRulePattern}
+                hostname={state.popupState.currentTab.hostname}
+              />
+            ),
+          }
+        : {})}
       selectedLocationId={state.selectedLocationId}
       allowInheritedLocation={state.allowInheritedLocation}
       {...(inheritedProfileLabel

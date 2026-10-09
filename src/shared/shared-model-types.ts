@@ -58,6 +58,7 @@ import { DEFAULT_ACCENT_PRESET, THEME_ACCENT_PRESETS } from "./theme-types.js";
 import type { ThemeAccentPreset, ThemeMode } from "./theme-types.js";
 import type { UiLocalePreference } from "./ui-locale.js";
 
+import type { RuleFeatureBinding } from "@/shared/provider-feature";
 import type { WorkerPolicyExceptions } from "@/shared/worker-policy-exceptions";
 
 export type {
@@ -335,6 +336,7 @@ export type ExportedSettings = {
   exportedAt: string;
   locations: Array<Location & { behaviorProfileId?: string }>;
   rules: DomainRule[];
+  featureBindings?: RuleFeatureBinding[];
   trustedSites?: TrustedSite[];
   globalFallbackRule?: GlobalFallbackRule | undefined;
   uiLocale?: UiLocalePreference;

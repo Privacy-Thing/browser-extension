@@ -11,6 +11,7 @@ export const E2E_OWNERSHIP_LANES = {
     "extension-options-navigation.spec.ts",
     "extension-options-rules.spec.ts",
     "extension-popup.spec.ts",
+    "extension-provider-features.spec.ts",
     "extension-xray-report.spec.ts",
     "extension-state.spec.ts",
     "extension-storage-migration.spec.ts",

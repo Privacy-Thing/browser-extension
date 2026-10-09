@@ -12,7 +12,7 @@ import {
   applyControlDSync,
   prepareControlDSync,
 } from "./reconcile";
-import { CONTROL_D_STORE_KEYS } from "./storage";
+import { CONTROL_D_STORE_KEYS, saveControlDConfig } from "./storage";
 
 import { logExtensionEvent } from "@/background/logger";
 import { LOCATIONS_STORAGE_KEY } from "@/background/storage/locations";
@@ -242,6 +242,62 @@ describe("Control D background entry", () => {
 
     expect(syncResponse).toMatchObject({ ok: true, snapshot: expectedSnapshot });
     expect(syncResponse).not.toHaveProperty("diff");
+  });
+
+  it("preserves persisted service ownership when reporting a failed sync", async () => {
+    const config = fixtureConfig();
+    const journal: ControlDConfig = {
+      ...config,
+      profileId: "new-profile",
+      endpointId: "new-endpoint",
+      managedServices: {
+        video: {
+          rulePattern: "video.example.com",
+          proxyPk: "WAW",
+          action: { do: 3, status: 1, via: "WAW", viaV6: null },
+        },
+      },
+    };
+    storageState[CONTROL_D_STORE_KEYS[0]] = config;
+    storageState[CONTROL_D_STORE_KEYS[1]] = "api-key";
+    vi.mocked(prepareControlDSync).mockResolvedValueOnce({
+      inputHash: await hashControlDInputs(config, [], []),
+      remoteHash: "remote-state",
+      compilation: { rules: [], warnings: [], mappings: {} },
+      proxies: [],
+      diff: {
+        createProfile: false,
+        createEndpoint: false,
+        createFolders: 0,
+        addRules: 0,
+        updateRules: 0,
+        deleteRules: 0,
+        unchangedRules: 0,
+        warnings: [],
+        mappings: [],
+        requiresApproximationConfirmation: false,
+      },
+    });
+    vi.mocked(applyControlDSync).mockImplementationOnce(async () => {
+      await saveControlDConfig(journal);
+      throw new Error("Second service write timed out");
+    });
+    registerControlD({ getDebugMode: async () => false });
+    const preview = await request({ type: CONTROL_D_COMMANDS.preview });
+    const response = await request({
+      type: CONTROL_D_COMMANDS.apply,
+      confirmApproximate: false,
+      previewToken: (preview.snapshot as ControlDPreparedSnapshot).token,
+    });
+    expect(response).toMatchObject({ ok: false });
+    expect(storageState[CONTROL_D_STORE_KEYS[0]]).toMatchObject({
+      profileId: journal.profileId,
+      endpointId: journal.endpointId,
+      managedServices: journal.managedServices,
+      status: "error",
+      lastSyncedHash: config.lastSyncedHash,
+      lastError: "Second service write timed out",
+    });
   });
 
   it("clears a stale profile conflict after a successful preview", async () => {

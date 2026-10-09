@@ -105,6 +105,11 @@ vi.mock("@/background/storage/rules", () => ({
   saveRules: vi.fn(async () => undefined),
 }));
 
+vi.mock("@/background/storage/provider-features", () => ({
+  loadFeatureBindings: vi.fn(async () => []),
+  saveFeatureState: vi.fn(async () => undefined),
+}));
+
 vi.mock("@/background/storage/site-suggestions", () => ({
   clearSiteSuggestions: vi.fn(async () => undefined),
 }));

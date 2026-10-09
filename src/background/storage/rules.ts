@@ -1,3 +1,8 @@
+import {
+  FEATURE_STORAGE_KEY,
+  loadFeatureState,
+  reconcileFeatureRefs,
+} from "@/background/storage/provider-features";
 import { CONFORMANCE_LOCATION_ID, FX_RUNTIME_TEST_HOST } from "@/shared/build-flags";
 import { EXTENSION_STORAGE_KEYS } from "@/shared/extension-contract";
 import { normalizeRuleSeedKey, withAuthKey, withRuleSeedKey } from "@/shared/rule-seed";
@@ -80,7 +85,12 @@ export const loadRules = async (): Promise<DomainRule[]> => {
 };
 
 export const saveRules = async (rules: readonly DomainRule[]): Promise<void> => {
+  const [previous, state] = await Promise.all([loadRules(), loadFeatureState()]);
+  const next = rules.map((rule) => withAuthKey(withRuleSeedKey(rule)));
   await chrome.storage.local.set({
-    [RULES_STORAGE_KEY]: rules.map((rule) => withAuthKey(withRuleSeedKey(rule))),
+    [RULES_STORAGE_KEY]: next,
+    [FEATURE_STORAGE_KEY]: {
+      featureBindings: reconcileFeatureRefs(state, previous, next).featureBindings,
+    },
   });
 };
