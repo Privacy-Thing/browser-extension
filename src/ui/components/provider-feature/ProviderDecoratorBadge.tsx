@@ -1,12 +1,17 @@
+import { providerFeatureCopy } from "./provider-feature-copy";
+
 import type { ProviderDecorator } from "@/shared/provider-feature";
 import { cn } from "@/ui/components/lib/utils";
+import { useUiLocale } from "@/ui/i18n/LocaleRefresh";
 
 export type DecoratorBadgeProps = {
   decorator: ProviderDecorator;
-  /** Sites in the group. Renders +N for the other sites when greater than 1. */
+  /** Sites in this service binding. The total is shown when greater than 1. */
   groupSize?: number;
   label?: string;
   className?: string;
+  /** When set, the label wraps beside the mark. */
+  wrap?: boolean;
 };
 
 export const ProviderDecoratorBadge = ({
@@ -14,15 +19,21 @@ export const ProviderDecoratorBadge = ({
   groupSize,
   label,
   className,
+  wrap,
 }: DecoratorBadgeProps) => {
+  const locale = useUiLocale();
   const text = label ?? decorator.label;
-  const extra = groupSize !== undefined && groupSize > 1 ? groupSize - 1 : 0;
+  const siteCount = groupSize !== undefined && groupSize > 1 ? groupSize : 0;
   const initials = decorator.initials.slice(0, 2);
   const colors = decorator.badgeColors;
   return (
     <span
       data-provider-decorator-badge
-      className={cn("inline-flex min-w-0 items-center gap-1.5", className)}
+      className={cn(
+        "inline-flex min-w-0 gap-1.5",
+        wrap ? "items-start" : "items-center",
+        className,
+      )}
     >
       {initials ? (
         <span
@@ -39,20 +50,27 @@ export const ProviderDecoratorBadge = ({
               : undefined
           }
           className={cn(
-            "inline-flex size-[18px] shrink-0 items-center justify-center rounded-full border text-[10px] font-semibold uppercase leading-none",
+            "inline-flex size-[24px] shrink-0 items-center justify-center rounded-full border text-[10px] font-semibold uppercase leading-none",
             colors ? "" : "border-border bg-secondary text-secondary-foreground",
           )}
         >
           {initials}
         </span>
       ) : null}
-      <span className="min-w-0 truncate text-sm text-foreground">{text}</span>
-      {extra > 0 ? (
+      <span
+        className={cn(
+          "min-w-0 text-sm text-foreground",
+          wrap ? "whitespace-normal" : "truncate",
+        )}
+      >
+        {text}
+      </span>
+      {siteCount > 0 ? (
         <span
-          data-provider-feature-count={extra}
+          data-provider-feature-site-count={siteCount}
           className="shrink-0 text-xs text-muted-foreground"
         >
-          +{extra}
+          {providerFeatureCopy[locale].siteCount(siteCount)}
         </span>
       ) : null}
     </span>

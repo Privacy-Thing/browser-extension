@@ -11,6 +11,7 @@ import {
 } from "./ProviderFeatureSlot";
 
 import { BRAND_DISPLAY_NAME } from "@/shared/brand";
+import { applyUiLocalePreference, type UiLocale } from "@/ui/i18n";
 
 const youtube: ProviderFeature = {
   providerId: "provider",
@@ -74,6 +75,8 @@ describe("ProviderFeatureSlot", () => {
     expect(markup).toContain('data-provider-feature-state="suggest"');
     expect(markup).toContain('data-provider-initials="ED"');
     expect(markup).toContain("Link YouTube service?");
+    expect(markup).toContain("items-start");
+    expect(markup).toContain("whitespace-normal");
     expect(markup).toContain('data-provider-feature-action="accept"');
     expect(markup).toContain('data-provider-feature-action="decline"');
     expect(markup).toContain("bg-secondary");
@@ -129,8 +132,10 @@ describe("ProviderFeatureSlot", () => {
     });
     expect(linked).toContain('data-provider-feature-state="linked"');
     expect(linked).toContain('data-provider-feature-group-size="3"');
-    expect(linked).toContain('data-provider-feature-count="2"');
-    expect(linked).toContain(">+2<");
+    expect(linked).toContain('data-provider-feature-site-count="3"');
+    expect(linked).toContain(">3 sites<");
+    expect(linked).not.toContain("data-provider-feature-count");
+    expect(linked).not.toContain(">+");
     expect(linked).not.toContain("Match evidence");
     expect(linked).not.toContain('data-provider-feature-action="recognize"');
   });
@@ -188,47 +193,95 @@ describe("providerFeatureCopy", () => {
     expect(providerFeatureCopy.en.scope("Example DNS", "YouTube")).toContain(
       BRAND_DISPLAY_NAME,
     );
+    expect(providerFeatureCopy.en.siteCount(3)).toBe("3 sites");
+    expect(providerFeatureCopy.es.siteCount(3)).toBe("3 sitios");
+    expect(providerFeatureCopy.pt.siteCount(3)).toBe("3 sites");
+    expect(providerFeatureCopy.ru.siteCount(3)).toBe("3 сайта");
+    expect(providerFeatureCopy.ru.siteCount(5)).toBe("5 сайтов");
+    expect(providerFeatureCopy.uk.siteCount(3)).toBe("3 сайти");
+    expect(providerFeatureCopy.uk.siteCount(5)).toBe("5 сайтів");
   });
 });
+
+const exampleDecorator = {
+  providerId: "provider",
+  providerName: "Example DNS",
+  initials: "ED",
+  featureId: "youtube",
+  label: "YouTube",
+  type: "service" as const,
+};
 
 describe("ProviderDecoratorBadge", () => {
   it("omits the count for a single site", () => {
     const markup = renderToStaticMarkup(
       createElement(ProviderDecoratorBadge, {
-        decorator: {
-          providerId: "provider",
-          providerName: "Example DNS",
-          initials: "ED",
-          featureId: "youtube",
-          label: "YouTube",
-          type: "service",
-        },
+        decorator: exampleDecorator,
         groupSize: 1,
       }),
     );
     expect(markup).toContain("YouTube");
     expect(markup).toContain("border-border");
+    expect(markup).toContain("size-[24px]");
+    expect(markup).toContain("text-[10px]");
+    expect(markup).toContain("items-center");
+    expect(markup).toContain("truncate");
     expect(markup).toContain('title="Example DNS"');
+    expect(markup).not.toContain("data-provider-feature-site-count");
     expect(markup).not.toContain("data-provider-feature-count");
     expect(markup).not.toContain("#1BE3AD");
+  });
+
+  it("states the binding total for several sites", () => {
+    const markup = renderToStaticMarkup(
+      createElement(ProviderDecoratorBadge, {
+        decorator: exampleDecorator,
+        groupSize: 3,
+      }),
+    );
+    expect(markup).toContain('data-provider-feature-site-count="3"');
+    expect(markup).toContain(">3 sites<");
+    expect(markup).not.toContain("+2");
+    expect(markup).not.toContain("data-provider-feature-count");
+  });
+
+  it("localizes that total from the active locale", () => {
+    const totals: readonly (readonly [UiLocale, string])[] = [
+      ["es", "3 sitios"],
+      ["pt", "3 sites"],
+      ["ru", "3 сайта"],
+      ["uk", "3 сайти"],
+    ];
+    try {
+      for (const [locale, label] of totals) {
+        applyUiLocalePreference(locale);
+        const markup = renderToStaticMarkup(
+          createElement(ProviderDecoratorBadge, {
+            decorator: exampleDecorator,
+            groupSize: 3,
+          }),
+        );
+        expect(markup).toContain(`>${label}<`);
+        expect(markup).toContain('data-provider-feature-site-count="3"');
+      }
+    } finally {
+      applyUiLocalePreference("en");
+    }
   });
 
   it("fills the circle from provider badge colors", () => {
     const markup = renderToStaticMarkup(
       createElement(ProviderDecoratorBadge, {
         decorator: {
-          providerId: "provider",
-          providerName: "Example DNS",
-          initials: "ED",
+          ...exampleDecorator,
           badgeColors: { background: "#1BE3AD", foreground: "#010818" },
-          featureId: "youtube",
-          label: "YouTube",
-          type: "service",
         },
       }),
     );
     expect(markup).toContain("background-color:#1BE3AD");
     expect(markup).toContain("color:#010818");
-    expect(markup).toContain("size-[18px]");
+    expect(markup).toContain("size-[24px]");
+    expect(markup).toContain("text-[10px]");
+    expect(markup).not.toContain("bg-secondary");
   });
 });

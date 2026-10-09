@@ -1,10 +1,12 @@
 import { BRAND_DISPLAY_NAME } from "@/shared/brand";
 import type { UiLocale } from "@/shared/ui-locale";
+import { slavicCount } from "@/ui/shared/slavic-plural";
 
 type Text = (value: string) => string;
 type PairText = (first: string, second: string) => string;
 type JoinHint = (pattern: string, extra: number) => string;
 type SharedWith = (hosts: readonly string[]) => string;
+type CountText = (count: number) => string;
 
 export type ProviderFeatureMessages = {
   suggestQuestion: Text;
@@ -35,6 +37,7 @@ export type ProviderFeatureMessages = {
   chipLabel: PairText;
   menuHeader: PairText;
   sharedWith: SharedWith;
+  siteCount: CountText;
   errorBlocked: Text;
   errorConnect: Text;
   errorCatalogue: Text;
@@ -80,6 +83,11 @@ const sharedWith =
       .replaceAll("{extra}", String(hosts.length - 1));
   };
 
+const countLabel =
+  (one: string, many: string): CountText =>
+  (count) =>
+    `${count} ${count === 1 ? one : many}`;
+
 const scope = (provider: string, service: string): string =>
   `${BRAND_DISPLAY_NAME} protects only this rule's sites. A ${provider} service for ${service} may cover other sites.`;
 
@@ -121,6 +129,7 @@ const en: ProviderFeatureMessages = {
     "Shares settings with {a} and {b}",
     "Shares settings with {a} and {extra} more",
   ),
+  siteCount: countLabel("site", "sites"),
   errorBlocked: fill(
     "Suggestions are paused. Pick a service, or check {value} settings.",
   ),
@@ -181,6 +190,7 @@ const es: ProviderFeatureMessages = {
     "Comparte configuración con {a} y {b}",
     "Comparte configuración con {a} y {extra} más",
   ),
+  siteCount: countLabel("sitio", "sitios"),
   errorBlocked: fill(
     "Las sugerencias están en pausa. Elige un servicio o revisa los ajustes de {value}.",
   ),
@@ -243,6 +253,7 @@ const pt: ProviderFeatureMessages = {
     "Compartilha configurações com {a} e {b}",
     "Compartilha configurações com {a} e mais {extra}",
   ),
+  siteCount: countLabel("site", "sites"),
   errorBlocked: fill(
     "As sugestões estão pausadas. Escolha um serviço ou confira as configurações do {value}.",
   ),
@@ -307,6 +318,7 @@ const ru: ProviderFeatureMessages = {
     "Общие настройки с {a} и {b}",
     "Общие настройки с {a} и ещё {extra}",
   ),
+  siteCount: (count) => slavicCount(count, ["сайт", "сайта", "сайтов"]),
   errorBlocked: fill(
     "Подсказки приостановлены. Выберите сервис или проверьте настройки {value}.",
   ),
@@ -373,6 +385,7 @@ const uk: ProviderFeatureMessages = {
     "Спільні налаштування з {a} і {b}",
     "Спільні налаштування з {a} і ще {extra}",
   ),
+  siteCount: (count) => slavicCount(count, ["сайт", "сайти", "сайтів"]),
   errorBlocked: fill(
     "Підказки призупинено. Виберіть сервіс або перевірте налаштування {value}.",
   ),

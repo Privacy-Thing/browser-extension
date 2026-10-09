@@ -302,7 +302,10 @@ test("shares one provider group and preserves it through edit, restart, and impo
   await expect(
     popup.locator("[data-provider-decorators] [data-provider-initials]"),
   ).toHaveAttribute("data-provider-initials", "CD");
-  await expect(popup.locator("[data-provider-feature-count]")).toHaveText("+1");
+  await expect(popup.locator("[data-provider-feature-site-count]")).toHaveAttribute(
+    "data-provider-feature-site-count",
+    "2",
+  );
   const popupState = await getPopupState<PopupState>(popup);
   expect(popupState.decorators?.[0]).toEqual(
     expect.objectContaining({
@@ -434,7 +437,7 @@ test("stages a popup draft until save and then shows the summary badge", async (
   await expect(
     popup.locator("[data-provider-decorators] [data-provider-initials]"),
   ).toHaveAttribute("data-provider-initials", "CD");
-  await expect(popup.locator("[data-provider-feature-count]")).toHaveCount(0);
+  await expect(popup.locator("[data-provider-feature-site-count]")).toHaveCount(0);
   await expectPageHasNoProvider(probe);
   await expectHostUnprotected(
     context,

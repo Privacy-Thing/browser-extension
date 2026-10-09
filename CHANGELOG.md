@@ -12,7 +12,9 @@ The format is based on Keep a Changelog and the project follows Semantic Version
   rule, with compact service badges in the editor, rule list and popup. Choices
   are applied on Save. Hosts linked to the same service share one configuration
   and identity; removing the service keeps their domain rules. Control D prepares
-  its recognition resources automatically without a separate setup panel.
+  its recognition resources automatically without a separate setup panel. Service
+  badges show the total number of linked sites, and the integration help explains
+  the difference between Privacy Thing's domain scope and Control D's service scope.
 
 ### Added
 

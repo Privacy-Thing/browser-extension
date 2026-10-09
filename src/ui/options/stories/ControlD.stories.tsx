@@ -461,7 +461,9 @@ export const AutomaticDomainMatching: Story = {
   render: () => <Surface state={baseState} />,
   play: async ({ canvasElement }) => {
     await expect(
-      canvasElement.querySelector("[data-control-d-domain-matching]"),
+      canvasElement.querySelector(
+        "[data-control-d-help] [data-control-d-domain-matching]",
+      ),
     ).not.toBeNull();
     await expect(
       within(canvasElement).queryByRole("button", { name: "Preview lookup setup" }),

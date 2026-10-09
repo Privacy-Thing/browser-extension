@@ -203,7 +203,9 @@ export const Chooser: Story = {
   ...Linked,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole("button", { name: /YouTube, Example DNS/ }));
+    await userEvent.click(
+      canvas.getByRole("button", { name: /YouTube, 3 sites, Example DNS/ }),
+    );
     await userEvent.click(
       await within(document.body).findByRole("menuitem", { name: "Change service" }),
     );
@@ -237,6 +239,13 @@ export const Badge: Story = {
       groupSize={3}
     />
   ),
+  play: async ({ canvasElement }) => {
+    const count = canvasElement.querySelector("[data-provider-feature-site-count]");
+    const mark = canvasElement.querySelector("[data-provider-initials]");
+    await expect(count).toHaveAttribute("data-provider-feature-site-count", "3");
+    await expect(count).toHaveTextContent("3 sites");
+    await expect(mark).toHaveClass("size-[24px]", "text-[10px]");
+  },
 };
 
 export const RussianSuggest: Story = {
@@ -284,7 +293,7 @@ export const LinkedBusy: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(
-      canvas.getByRole("button", { name: /YouTube, Example DNS/ }),
+      canvas.getByRole("button", { name: /YouTube, 3 sites, Example DNS/ }),
     ).toBeVisible();
     await expect(
       canvasElement.querySelector("[data-provider-request-pending]"),

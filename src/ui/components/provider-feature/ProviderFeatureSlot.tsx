@@ -120,9 +120,9 @@ const SuggestionRow = ({
   if (!decorator) return null;
   return (
     <div className="space-y-1">
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-        <ProviderDecoratorBadge decorator={decorator} label={question} />
-        <span className="ml-auto flex gap-1.5">
+      <div className="space-y-1">
+        <ProviderDecoratorBadge decorator={decorator} label={question} wrap />
+        <span className="flex gap-1.5 pl-[30px]">
           <Button
             type="button"
             size="sm"
@@ -180,7 +180,12 @@ const FeatureChip = ({
           type="button"
           data-provider-feature-action="open"
           data-provider-feature-chip={mode}
-          aria-label={copy.chipLabel(label, decorator.providerName)}
+          aria-label={copy.chipLabel(
+            mode === "linked" && model.groupSize > 1
+              ? `${label}, ${copy.siteCount(model.groupSize)}`
+              : label,
+            decorator.providerName,
+          )}
           className={cn(
             "inline-flex max-w-full items-center gap-1 rounded-full border border-border bg-transparent px-2 py-0.5 text-left hover:bg-accent",
             mode === "staged" && "border-dashed",

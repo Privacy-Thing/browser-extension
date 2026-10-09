@@ -145,9 +145,20 @@ const findPanel = async (canvasElement: HTMLElement) =>
 
 export const SavedRuleSuggested: Story = {
   play: async ({ canvasElement }) => {
-    await expect(await findPanel(canvasElement)).toHaveAttribute(
-      "data-provider-feature-state",
-      "suggest",
+    const panel = await findPanel(canvasElement);
+    await expect(panel).toHaveAttribute("data-provider-feature-state", "suggest");
+    const badge = panel.querySelector<HTMLElement>("[data-provider-decorator-badge]");
+    const label = badge?.children[1];
+    const accept = panel.querySelector<HTMLElement>(
+      '[data-provider-feature-action="accept"]',
+    );
+    if (!badge || !label || !accept) throw new Error("Missing suggestion layout.");
+    await expect(accept.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+      badge.getBoundingClientRect().bottom,
+    );
+    await expect(accept.getBoundingClientRect().left).toBeCloseTo(
+      label.getBoundingClientRect().left,
+      0,
     );
   },
 };
