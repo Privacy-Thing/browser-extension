@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import { ruleGroupCopy } from "./rule-group-copy";
 
@@ -30,9 +30,11 @@ export const RuleHostList = ({ patterns }: { patterns: readonly string[] }) => {
 export const RuleAdditionalHosts = ({
   rules,
   sourcePattern,
+  renderPrimary,
 }: {
   rules: readonly DomainRule[];
   sourcePattern: string | null;
+  renderPrimary: (addControl: ReactNode) => ReactNode;
 }) => {
   const copy = ruleGroupCopy[useUiLocale()];
   const [entries, setEntries] = useState(() =>
@@ -40,17 +42,37 @@ export const RuleAdditionalHosts = ({
       .filter((pattern) => pattern !== sourcePattern)
       .map((pattern) => ({ id: crypto.randomUUID(), pattern })),
   );
+  const addControl = (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      className="shrink-0"
+      data-rule-host-action="add"
+      onClick={() =>
+        setEntries((current) => [...current, { id: crypto.randomUUID(), pattern: "" }])
+      }
+    >
+      {copy.addPattern}
+    </Button>
+  );
   return (
     <div data-rule-additional-hosts className="space-y-2">
+      {renderPrimary(entries.length === 0 ? addControl : null)}
       {entries.length > 0 ? (
         <>
-          <p className="text-sm font-medium text-foreground">
+          <p className="pt-3 text-sm font-medium text-foreground">
             {copy.additionalPatterns}
           </p>
           <p className="text-xs text-muted-foreground">{copy.hint}</p>
           {entries.map((entry, index) => (
-            <div key={entry.id} className="flex items-center gap-2">
+            <div
+              key={entry.id}
+              data-rule-pattern-row
+              className="flex min-w-0 items-center gap-2"
+            >
               <Input
+                className="min-w-0 flex-1"
                 name="additionalRulePatterns"
                 data-rule-host-input
                 aria-label={copy.patternLabel(index + 2)}
@@ -68,6 +90,7 @@ export const RuleAdditionalHosts = ({
                 type="button"
                 variant="ghost"
                 size="icon"
+                className="shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
                 data-rule-host-action="remove"
                 aria-label={`${copy.removePattern}: ${entry.pattern || copy.patternLabel(index + 2)}`}
                 onClick={() =>
@@ -78,24 +101,11 @@ export const RuleAdditionalHosts = ({
               >
                 <span aria-hidden="true">×</span>
               </Button>
+              {index === entries.length - 1 ? addControl : null}
             </div>
           ))}
         </>
       ) : null}
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        data-rule-host-action="add"
-        onClick={() =>
-          setEntries((current) => [
-            ...current,
-            { id: crypto.randomUUID(), pattern: "" },
-          ])
-        }
-      >
-        {copy.addPattern}
-      </Button>
     </div>
   );
 };

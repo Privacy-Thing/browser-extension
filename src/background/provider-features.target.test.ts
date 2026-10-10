@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createFeatureController, type FeatureProvider } from "./provider-features";
 
+import { LOCATIONS_STORAGE_KEY } from "@/background/storage/locations";
 import {
   FEATURE_STORAGE_KEY,
   loadFeatureState,
@@ -10,11 +11,13 @@ import {
 } from "@/background/storage/provider-features";
 import { RULES_STORAGE_KEY, saveRules } from "@/background/storage/rules";
 import { EXTENSION_STORAGE_KEYS } from "@/shared/extension-contract";
+import type { FeatureRuleContext } from "@/shared/plugin";
 import {
   FEATURE_COMMANDS,
   type ProviderFeatureReply,
   type RuleFeatureBinding,
 } from "@/shared/provider-feature";
+import type { Location } from "@/shared/types";
 
 const data: Record<string, unknown> = {};
 const binding: RuleFeatureBinding = {
@@ -24,6 +27,24 @@ const binding: RuleFeatureBinding = {
   featureName: "Video",
   featureType: "service",
 };
+const streamBinding: RuleFeatureBinding = {
+  rulePattern: "stream.example.com",
+  providerId: "provider",
+  featureId: "stream",
+  featureName: "Stream",
+  featureType: "service",
+};
+const place = (id: string, label: string): Location => ({
+  id,
+  label,
+  latitude: 0,
+  longitude: 0,
+  accuracy: 25,
+  noiseRadius: 50,
+  language: "en",
+  languages: ["en"],
+  timeZone: "UTC",
+});
 const request = (type: string, extra: Record<string, unknown> = {}) => ({
   type,
   providerId: "provider",
@@ -310,6 +331,86 @@ describe("provider feature lifecycle", () => {
       ).binding,
     ).toBeNull();
     expect(data[RULES_STORAGE_KEY]).toHaveLength(1);
+  });
+
+  it("passes saved, cleared, changed, and join-target context to getStatus", async () => {
+    data[LOCATIONS_STORAGE_KEY] = [
+      place("warsaw", "Warsaw"),
+      place("paris", "Paris"),
+      place("ottawa", "Ottawa"),
+    ];
+    data[RULES_STORAGE_KEY] = [
+      {
+        pattern: "video.example.com",
+        locationId: "warsaw",
+        enabled: false,
+        ruleSeedKey: "abc123",
+        authKey: "abcdefgh",
+      },
+      {
+        pattern: "stream.example.com",
+        locationId: "ottawa",
+        enabled: true,
+        ruleSeedKey: "strm01",
+        authKey: "stuvwxyz",
+      },
+    ];
+    await saveFeatureState({
+      featureBindings: [binding, streamBinding],
+      featureMatches: [],
+      dismissedMatches: [],
+    });
+    const adapter = provider();
+    const controller = createFeatureController([adapter]);
+    const expectContext = async (
+      extra: Record<string, unknown>,
+      context: FeatureRuleContext,
+    ) => {
+      vi.mocked(adapter.getStatus).mockClear();
+      expect(
+        (await controller.respond(request(FEATURE_COMMANDS.getState, extra))).ok,
+      ).toBe(true);
+      expect(vi.mocked(adapter.getStatus).mock.calls).toEqual([
+        [],
+        [binding, context],
+        [binding, context],
+      ]);
+    };
+    await expectContext(
+      {},
+      {
+        rulePattern: "video.example.com",
+        locationId: "warsaw",
+        locationName: "Warsaw",
+        enabled: false,
+      },
+    );
+    await expectContext(
+      { locationId: null },
+      {
+        rulePattern: "video.example.com",
+        locationId: null,
+        enabled: false,
+      },
+    );
+    await expectContext(
+      { locationId: "paris", ruleEnabled: true },
+      {
+        rulePattern: "video.example.com",
+        locationId: "paris",
+        locationName: "Paris",
+        enabled: true,
+      },
+    );
+    await expectContext(
+      { locationId: "paris", ruleEnabled: false, contextFeatureId: "stream" },
+      {
+        rulePattern: "video.example.com",
+        locationId: "ottawa",
+        locationName: "Ottawa",
+        enabled: true,
+      },
+    );
   });
 
   it("normalizes missing collections and preserves bindings when only a rule is disabled", () => {

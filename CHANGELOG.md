@@ -9,8 +9,11 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 ### Changed
 
 - Rule scopes use Domain and Pattern terminology. Control D is a PT plugin whose
-  brand metadata is rendered through the shared decorator. It subscribes to PT
-  configuration hooks for synchronization.
+  brand metadata is rendered through the shared decorator (CD in the popup,
+  Control D in settings). Plugin-owned rule explanations distinguish Service Rules
+  from Custom Rules, show excluded or paused presets and link to their sync settings.
+  It subscribes to PT configuration hooks for synchronization. Pattern editors keep
+  Add pattern beside the final input, distinguish remove actions and separate sections.
 
 - Provider services are suggested automatically while creating or editing a domain
   rule, with compact service badges in the editor, rule list and popup. The service
@@ -18,14 +21,14 @@ The format is based on Keep a Changelog and the project follows Semantic Version
   one configuration and identity; removing the service keeps their domain rules.
   Control D prepares
   its recognition resources automatically without a separate setup panel. Service
-  badges show only the external service name; the rule editor lists its sites. The
+  badges show only the external service name; the rule editor lists its patterns. The
   integration help explains the difference between Privacy Thing's domain scope
   and Control D's service scope.
 
 ### Added
 
-- Domain rules can include several explicit sites sharing one configuration and
-  identity. The rule editor lists and edits the sites; the popup lists the complete
+- Domain rules can include several explicit patterns sharing one configuration and
+  identity. The rule editor lists and edits the patterns; the popup lists the complete
   scope. This is a Privacy Thing feature that works without a provider and survives
   unlinking a service, restart and backups. Runtime matching keeps flat rules.
 

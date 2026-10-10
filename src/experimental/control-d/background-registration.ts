@@ -1,12 +1,7 @@
 import { isControlDCommand, type ControlDCommand } from "./contracts";
-import { createControlDProvider } from "./feature-provider";
 import { ensureControlDRecognition } from "./recognition-setup";
 import { loadControlDConfig, CONTROL_D_STORE_KEYS } from "./storage";
 
-import {
-  createFeatureController,
-  isFeatureCommand,
-} from "@/background/provider-features";
 import { fireAndForget } from "@/shared/async";
 import type { PluginHooks } from "@/shared/plugin-hooks";
 import { FEATURE_EVENTS } from "@/shared/provider-feature";
@@ -22,7 +17,6 @@ export const registerControllers = (
     const config = await loadControlDConfig();
     if (config.enabled && config.connected) await ensureControlDRecognition();
   };
-  const features = createFeatureController([createControlDProvider()]);
   fireAndForget(prepareMatching());
   fireAndForget(
     loadControlDConfig().then((config) => {
@@ -45,11 +39,8 @@ export const registerControllers = (
       !sender.url?.startsWith(chrome.runtime.getURL("/"))
     )
       return false;
-    let result: Promise<unknown> | null = null;
-    if (isFeatureCommand(message)) result = features.respond(message);
-    else if (isControlDCommand(message)) result = controller.respond(message);
-    if (!result) return false;
-    fireAndForget(result.then(sendResponse), (error) =>
+    if (!isControlDCommand(message)) return false;
+    fireAndForget(controller.respond(message).then(sendResponse), (error) =>
       sendResponse({
         ok: false,
         error: error instanceof Error ? error.message : "Plugin operation failed.",

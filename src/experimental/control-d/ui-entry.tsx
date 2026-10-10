@@ -37,7 +37,10 @@ import { Separator } from "@/ui/components/ui/separator";
 import { Switch } from "@/ui/components/ui/switch";
 import { SetupProgress } from "@/ui/options/components/onboarding/setup-progress";
 import { SETTINGS_SUBPAGE_ANCHORS, PAGE_ANCHORS } from "@/ui/options/navigation";
+import type { PluginUiContribution } from "@/ui/plugins/contracts";
 import { AppSubpageHeader } from "@/ui/shared/AppSubpageHeader";
+
+export { controlDFeatureUi } from "./ui-rule-feature-presentation";
 
 type UiResponse =
   | {
@@ -336,7 +339,27 @@ export const ControlDSubpage = () => {
   useEffect(() => {
     void (async () => {
       const response = await run({ type: CONTROL_D_COMMANDS.getState });
+      const routeLink = new URLSearchParams(window.location.hash.split("?")[1] ?? "");
       if (
+        response?.ok &&
+        response.state.connected &&
+        response.state.setupStatus === "selected" &&
+        routeLink.get("section") === "routes"
+      ) {
+        const prepared = await run({ type: CONTROL_D_COMMANDS.preview });
+        if (prepared?.ok) {
+          setShowRoutes(true);
+          setStepOverride(2);
+          const preset = routeLink.get("preset");
+          if (
+            preset &&
+            prepared.snapshot?.diff.mappings.some(
+              (mapping) => mapping.locationId === preset,
+            )
+          )
+            setEditingLocationId(preset);
+        }
+      } else if (
         response?.ok &&
         response.state.connected &&
         response.state.setupStatus === "unselected"
@@ -1000,3 +1023,13 @@ export const ControlDSubpage = () => {
 };
 
 export const ControlDPanel = ControlDSubpage;
+
+/** Plugin-owned settings presentation, consumed by the PT composition root. */
+export const controlDPluginUi: PluginUiContribution = {
+  id: "control-d",
+  name: "Control D",
+  route: "experimentalIntegration",
+  supported: isIntegrationAvailable,
+  Toggle: ControlDFeatureToggle,
+  Subpage: ControlDSubpage,
+};

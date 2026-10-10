@@ -4,13 +4,13 @@ import { expect, userEvent, within } from "storybook/test";
 
 import type { ProviderFeature, SlotInput } from "./model";
 import { resolveSlot } from "./model";
-import { providerFeatureCopy } from "./provider-feature-copy";
 import { ProviderDecoratorBadge } from "./ProviderDecoratorBadge";
 import {
   ProviderFeatureSlot,
   type ProviderFeatureSlotProps,
 } from "./ProviderFeatureSlot";
 
+import { controlDRuleFeatureCopy as providerFeatureCopy } from "@/experimental/control-d/ui-rule-feature-copy";
 import { applyUiLocalePreference, type UiLocale } from "@/ui/i18n";
 
 const service = (featureId: string, name: string): ProviderFeature => ({

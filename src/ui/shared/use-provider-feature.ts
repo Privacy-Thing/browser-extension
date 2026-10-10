@@ -22,6 +22,9 @@ export type ProviderFeatureQuery = {
   hostname: string;
   /** Recognize a host that has no cached match. Never set from injected worlds. */
   recognize: boolean;
+  locationId?: string | null;
+  ruleEnabled?: boolean;
+  contextFeatureId?: string;
 };
 
 export type ProviderFeaturePending = "status" | "lookup";
@@ -175,6 +178,13 @@ const useFeatureLookup = ({
       rulePattern: current.rulePattern,
       hostname: current.hostname,
       ...(state?.providerId ? { providerId: state.providerId } : {}),
+      ...(current.locationId !== undefined ? { locationId: current.locationId } : {}),
+      ...(current.ruleEnabled !== undefined
+        ? { ruleEnabled: current.ruleEnabled }
+        : {}),
+      ...(current.contextFeatureId
+        ? { contextFeatureId: current.contextFeatureId }
+        : {}),
     };
     setBusy(true);
     setPending("lookup");
@@ -205,20 +215,31 @@ const useFeatureLookup = ({
   ]);
 };
 
+const queryKey = (query: ProviderFeatureQuery): string =>
+  JSON.stringify([
+    patternForRead(query),
+    query.hostname,
+    query.locationId,
+    query.ruleEnabled,
+    query.contextFeatureId,
+  ]);
+
+type FeatureSnapshot = { key: string; value: ProviderFeatureState };
+const stateFor = (
+  snapshot: FeatureSnapshot | null,
+  key: string,
+): ProviderFeatureState | null => {
+  if (!snapshot) return null;
+  if (snapshot.key === key) return snapshot.value;
+  return { ...snapshot.value, match: null, dismissed: false };
+};
+
 export const useProviderFeature = (
   query: ProviderFeatureQuery,
 ): ProviderFeatureHandle => {
-  const readPattern = patternForRead(query);
-  const key = JSON.stringify([readPattern, query.hostname]);
-  const [snapshot, setSnapshot] = useState<{
-    key: string;
-    value: ProviderFeatureState;
-  } | null>(null);
-  const state = useMemo(() => {
-    if (!snapshot) return null;
-    if (snapshot.key === key) return snapshot.value;
-    return { ...snapshot.value, match: null, dismissed: false };
-  }, [key, snapshot]);
+  const key = queryKey(query);
+  const [snapshot, setSnapshot] = useState<FeatureSnapshot | null>(null);
+  const state = useMemo(() => stateFor(snapshot, key), [key, snapshot]);
   const live = messagingReady();
   const [busy, setBusy] = useState(live);
   const [pending, setPending] = useState<ProviderFeaturePending | null>(
@@ -277,6 +298,13 @@ export const useProviderFeature = (
         type: FEATURE_COMMANDS.getState,
         rulePattern: patternForRead(current),
         hostname: current.hostname,
+        ...(current.locationId !== undefined ? { locationId: current.locationId } : {}),
+        ...(current.ruleEnabled !== undefined
+          ? { ruleEnabled: current.ruleEnabled }
+          : {}),
+        ...(current.contextFeatureId
+          ? { contextFeatureId: current.contextFeatureId }
+          : {}),
       };
       setBusy(true);
       setPending("status");

@@ -3,13 +3,13 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { resolveSlot, type ProviderFeature, type SlotInput } from "./model";
-import { providerFeatureCopy } from "./provider-feature-copy";
 import { ProviderDecoratorBadge } from "./ProviderDecoratorBadge";
 import {
   ProviderFeatureSlot,
   type ProviderFeatureSlotProps,
 } from "./ProviderFeatureSlot";
 
+import { controlDRuleFeatureCopy as providerFeatureCopy } from "@/experimental/control-d/ui-rule-feature-copy";
 import { BRAND_DISPLAY_NAME } from "@/shared/brand";
 
 const youtube: ProviderFeature = {
@@ -77,7 +77,7 @@ describe("ProviderFeatureSlot", () => {
     expect(markup).toContain('role="switch"');
     expect(markup).toContain('aria-checked="false"');
     expect(markup).not.toContain(">Yes<");
-    expect(markup).toContain("Saved with this rule.");
+    expect(markup).toContain("Applies when you save this rule.");
     expect(markup).toContain(BRAND_DISPLAY_NAME);
     expect(markup).toContain("protects only domains matching this rule");
     expect(markup).not.toContain(">CD<");
@@ -105,7 +105,7 @@ describe("ProviderFeatureSlot", () => {
     expect(markup).toContain('data-provider-feature-state="join"');
     expect(markup).toContain("Setup YouTube service?");
     expect(markup).toContain("Uses the settings and identity of www.youtube.com.");
-    expect(markup).toContain("current settings will be replaced");
+    expect(markup).toContain("current settings and identity will be replaced");
     expect(markup).toContain('data-provider-feature-action="join"');
   });
 

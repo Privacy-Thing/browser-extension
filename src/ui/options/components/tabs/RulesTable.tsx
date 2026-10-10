@@ -305,7 +305,7 @@ const RuleNameCell = ({
         </span>
         {decorator ? (
           <Badge variant="outline" title={decorator.providerName}>
-            <ProviderDecoratorBadge decorator={decorator} />
+            <ProviderDecoratorBadge decorator={decorator} providerLabel="name" />
           </Badge>
         ) : null}
         {!rule.enabled ? (

@@ -77,6 +77,7 @@ const PopupRuleFeatureSurface = ({
                 rulePattern={savedPattern ?? hostname}
                 {...(savedPattern ? { savedRulePattern: savedPattern } : {})}
                 hostname={hostname}
+                locationId={locationId}
               />
             </>
           }
@@ -219,5 +220,16 @@ export const DraftStaged: Story = {
     if (!accept) throw new Error("Missing accept action.");
     await userEvent.click(accept);
     await expect(panel).toHaveAttribute("data-provider-feature-state", "staged");
+  },
+};
+
+export const ExcludedPreset: Story = {
+  args: { scenario: "excluded", savedPattern: null, hostname: "www.youtube.com" },
+};
+export const LinkedExcludedPreset: Story = {
+  args: {
+    scenario: "linked-excluded",
+    savedPattern: "www.youtube.com",
+    hostname: "www.youtube.com",
   },
 };

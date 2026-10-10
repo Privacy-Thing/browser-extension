@@ -470,3 +470,29 @@ export const AutomaticDomainMatching: Story = {
     ).toBeNull();
   },
 };
+
+export const PresetSyncDeepLink: Story = {
+  beforeEach: () => {
+    const old = window.location.hash;
+    window.history.replaceState(
+      null,
+      "",
+      window.location.pathname +
+        window.location.search +
+        "#page-experimental-integration?section=routes&preset=warsaw",
+    );
+    return () =>
+      window.history.replaceState(
+        null,
+        "",
+        window.location.pathname + window.location.search + old,
+      );
+  },
+  render: () => <Surface state={baseState} />,
+  play: async ({ canvasElement }) => {
+    const route = await within(canvasElement).findByRole("combobox", {
+      name: "Exit for Warsaw",
+    });
+    await expect(route).toBeVisible();
+  },
+};

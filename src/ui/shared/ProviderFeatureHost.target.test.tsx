@@ -4,6 +4,7 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { controlDRuleFeatureCopy } from "@/experimental/control-d/ui-rule-feature-copy";
 import type * as BuildFlags from "@/shared/build-flags";
 import {
   FEATURE_COMMANDS,
@@ -13,6 +14,7 @@ import {
   type ProviderFeatureState,
 } from "@/shared/provider-feature";
 import { flushReactEffects } from "@/test-utils/react";
+import { registerFeatureUi } from "@/ui/plugins/feature-presentations";
 import {
   ProviderFeatureHost,
   type HostSchedule,
@@ -154,6 +156,10 @@ describe("ProviderFeatureHost", () => {
   beforeEach(() => {
     (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT =
       true;
+    registerFeatureUi("dns", {
+      messages: controlDRuleFeatureCopy,
+      renderExplanation: () => null,
+    });
     channel.value = "local";
     pending = [];
     listeners = [];
@@ -336,7 +342,7 @@ describe("ProviderFeatureHost", () => {
     await click("join");
     expect(
       document.querySelector("[data-provider-feature-scope]")?.textContent,
-    ).toContain("current settings will be replaced");
+    ).toContain("current settings and identity will be replaced");
     expect(JSON.parse(decisionInput()?.value ?? "{}")).toEqual({
       providerId: "dns",
       featureId: "youtube",
@@ -345,7 +351,9 @@ describe("ProviderFeatureHost", () => {
     expect(commands().map(({ type }) => type)).toEqual([
       FEATURE_COMMANDS.getState,
       FEATURE_COMMANDS.recognize,
+      FEATURE_COMMANDS.getState,
     ]);
+    expect(commands().at(-1)).toMatchObject({ contextFeatureId: "youtube" });
     expect(commands().map(({ type }) => type)).not.toContain(FEATURE_COMMANDS.confirm);
   });
 
@@ -382,7 +390,9 @@ describe("ProviderFeatureHost", () => {
       },
     });
     expect(stateOf()).toBe("linked");
-    expect(document.querySelector("[data-provider-initials]")?.textContent).toBe("QX");
+    expect(document.querySelector("[data-provider-name]")?.textContent).toBe(
+      "Example DNS",
+    );
     expect(commands()[1]).toMatchObject({
       type: FEATURE_COMMANDS.recognize,
       rulePattern: "music.example.com",
@@ -701,7 +711,9 @@ describe("ProviderFeatureHost", () => {
     expect(decisionInput()?.value).toBe(staged);
     expect(stateOf()).toBe("staged");
     expect(document.body.textContent).not.toContain("Use Netflix?");
-    expect(document.querySelector("[data-provider-initials]")?.textContent).toBe("ZZ");
+    expect(document.querySelector("[data-provider-name]")?.textContent).toBe(
+      "Example DNS",
+    );
     expect(document.querySelector("[data-provider-feature-error]")?.textContent).toBe(
       "Something went wrong. Try again.",
     );
@@ -736,7 +748,7 @@ describe("ProviderFeatureHost", () => {
     expect(stateOf()).toBe("linked");
     expect(document.querySelector("[data-provider-request-pending]")).toBeNull();
     expect(
-      document.querySelector("[data-provider-initials]")?.getAttribute("style"),
+      document.querySelector("[data-provider-name]")?.getAttribute("style"),
     ).toContain("rgb(27, 227, 173)");
     listeners.forEach((listener) => listener({ type: FEATURE_EVENTS.stateChanged }));
     await flushReactEffects();

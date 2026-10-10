@@ -5,6 +5,7 @@ import {
   withConfigMutation,
   withConfigurationLock,
 } from "@/background/settings-import-transaction";
+import { loadLocations } from "@/background/storage/locations";
 import {
   loadFeatureState,
   saveFeatureCache,
@@ -21,8 +22,10 @@ import {
   type ProviderFeatureMatch,
   type ProviderFeatureReply,
   type ProviderFeatureState,
+  type RuleFeatureBinding,
 } from "@/shared/provider-feature";
 import { getRuleGroupPatterns, projectFeatureBindings } from "@/shared/rule-groups";
+import type { DomainRule } from "@/shared/types";
 
 /** Compatibility name for existing generic provider registrations. */
 export type FeatureProvider = FeaturePlugin;
@@ -42,6 +45,9 @@ const commandSchema = z.object({
     .transform((value) => value.trim().toLowerCase()),
   hostname: z.string().max(253),
   featureId: z.string().min(1).max(200).optional(),
+  locationId: z.string().min(1).max(200).nullable().optional(),
+  ruleEnabled: z.boolean().optional(),
+  contextFeatureId: z.string().min(1).max(200).optional(),
 });
 
 export const isFeatureCommand = (value: unknown): boolean =>
@@ -94,12 +100,66 @@ const operationErrorCode = (failure: unknown): { errorCode?: string } =>
     ? { errorCode: failure.code }
     : {};
 
+const normalizeCommand = (
+  parsed: z.infer<typeof commandSchema>,
+): ProviderFeatureCommand => {
+  const { locationId, ruleEnabled, contextFeatureId, ...base } = parsed;
+  return {
+    ...base,
+    ...(locationId !== undefined ? { locationId } : {}),
+    ...(ruleEnabled !== undefined ? { ruleEnabled } : {}),
+    ...(contextFeatureId !== undefined ? { contextFeatureId } : {}),
+  };
+};
+
 class FeatureController {
   private readonly pending = new Map<string, Promise<ProviderFeatureMatch>>();
   private readonly lastQueryAt = new Map<string, number>();
 
   constructor(private readonly providers: readonly FeatureProvider[]) {
     registerFeatureProviders(providers);
+  }
+
+  private async ruleContext(
+    provider: FeatureProvider,
+    command: ProviderFeatureCommand,
+    {
+      binding,
+      featureBindings,
+      rules,
+    }: {
+      binding: RuleFeatureBinding | null;
+      featureBindings: RuleFeatureBinding[];
+      rules: DomainRule[];
+    },
+  ) {
+    const contextBinding = command.contextFeatureId
+      ? featureBindings.find(
+          (item) =>
+            item.providerId === provider.id &&
+            item.featureId === command.contextFeatureId,
+        )
+      : binding;
+    const sourceRule = rules.find(
+      (rule) => rule.pattern === (contextBinding?.rulePattern ?? command.rulePattern),
+    );
+    const joining =
+      command.contextFeatureId !== undefined && contextBinding !== undefined;
+    const locationId =
+      !joining && command.locationId !== undefined
+        ? command.locationId
+        : (sourceRule?.locationId ?? null);
+    const location = locationId
+      ? (await loadLocations()).find((item) => item.id === locationId)
+      : undefined;
+    return {
+      rulePattern: command.rulePattern,
+      locationId,
+      enabled: joining
+        ? (sourceRule?.enabled ?? true)
+        : (command.ruleEnabled ?? sourceRule?.enabled ?? true),
+      ...(location ? { locationName: location.label } : {}),
+    };
   }
 
   private async readState(
@@ -115,13 +175,18 @@ class FeatureController {
           bindingPatterns(item).includes(command.rulePattern) &&
           item.providerId === provider.id,
       ) ?? null;
-    let status = await provider.getStatus(binding);
+    const context = await this.ruleContext(provider, command, {
+      binding,
+      featureBindings,
+      rules,
+    });
+    let status = await provider.getStatus(binding, context);
     let features: ProviderFeature[] = [];
     let error = status.error;
     if (status.available && provider.capabilities.catalogue) {
       try {
         features = await provider.getFeatures();
-        status = await provider.getStatus(binding);
+        status = await provider.getStatus(binding, context);
         error = status.error;
       } catch (failure) {
         error =
@@ -347,7 +412,7 @@ class FeatureController {
     const parsed = commandSchema.safeParse(input);
     if (!parsed.success)
       return { ok: false, error: "Invalid provider feature command." };
-    const command = parsed.data;
+    const command = normalizeCommand(parsed.data);
     const provider = command.providerId
       ? this.providers.find((item) => item.id === command.providerId)
       : this.providers[0];

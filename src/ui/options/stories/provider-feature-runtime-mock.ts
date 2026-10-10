@@ -20,6 +20,12 @@ export const FEATURE_STORY_SCENARIOS = [
   "checking",
   "join",
   "group-linked",
+  "excluded",
+  "paused",
+  "no-preset",
+  "pending",
+  "disabled",
+  "linked-excluded",
 ] as const;
 
 export type FeatureStoryScenario = (typeof FEATURE_STORY_SCENARIOS)[number];
@@ -67,6 +73,15 @@ type MockState = Omit<ProviderFeatureState, "match"> & {
   matches: Map<string, ProviderFeatureMatch>;
 };
 
+const syncContextFor = (
+  scenario: FeatureStoryScenario,
+): NonNullable<ProviderFeatureState["syncContext"]>["state"] => {
+  if (scenario === "linked-excluded") return "excluded";
+  if (["excluded", "paused", "no-preset", "pending", "disabled"].includes(scenario))
+    return scenario as "excluded" | "paused" | "no-preset" | "pending" | "disabled";
+  return "ready";
+};
+
 const seed = (
   scenario: FeatureStoryScenario,
   rulePattern: string,
@@ -78,6 +93,12 @@ const seed = (
     providerName: "Control D",
     providerInitials: "CD",
     badgeColors: { background: "#1BE3AD", foreground: "#010818" },
+    syncContext: {
+      state: syncContextFor(scenario),
+      presetName: "Warsaw",
+      settingsPath:
+        "src/ui/options/index.html#page-experimental-integration?section=routes&preset=warsaw",
+    },
     features: FEATURES,
     matches: new Map(),
     binding: null,
@@ -88,7 +109,20 @@ const seed = (
         ? "Example DNS changed this service rule outside Privacy Thing."
         : null,
   };
-  if (["suggested", "dismissed", "linked", "sync-failed"].includes(scenario)) {
+  if (
+    [
+      "suggested",
+      "dismissed",
+      "linked",
+      "sync-failed",
+      "excluded",
+      "paused",
+      "no-preset",
+      "pending",
+      "disabled",
+      "linked-excluded",
+    ].includes(scenario)
+  ) {
     state.matches.set(hostname, recognizeHost(hostname));
   }
   if (scenario === "unresolved") {
@@ -100,6 +134,7 @@ const seed = (
   }
   if (
     scenario === "linked" ||
+    scenario === "linked-excluded" ||
     scenario === "sync-failed" ||
     scenario === "group-linked"
   ) {

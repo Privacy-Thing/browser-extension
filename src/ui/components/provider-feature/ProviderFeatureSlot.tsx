@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useId, useState, type ReactNode } from "react";
 
 import type {
   JoinInfo,
@@ -27,6 +27,8 @@ export type ProviderFeatureSlotProps = {
   removalService?: string;
   pending?: RequestPending;
   notice?: string | null;
+  explanation?: ReactNode;
+  contextNotice?: ReactNode;
   joinFor: (featureId: string) => JoinInfo | null;
   onAccept: () => void;
   onDecline: () => void;
@@ -52,7 +54,10 @@ const ChevronDown = () => (
   </svg>
 );
 
-const pendingLabel = (kind: RequestPending, copy: ProviderFeatureMessages): string => {
+const pendingLabel = (
+  kind: RequestPending,
+  copy: Pick<ProviderFeatureMessages, "checking" | "checkingStatus" | "preparing">,
+): string => {
   if (kind === "preparing") return copy.preparing;
   if (kind === "lookup") return copy.checking;
   return copy.checkingStatus;
@@ -64,7 +69,10 @@ export const ProviderFeaturePending = ({
   providerName,
 }: {
   kind: RequestPending;
-  copy: ProviderFeatureMessages;
+  copy: Pick<
+    ProviderFeatureMessages,
+    "checking" | "checkingLabel" | "checkingStatus" | "preparing"
+  >;
   providerName?: string;
 }) => {
   const label = pendingLabel(kind, copy);
@@ -100,18 +108,12 @@ const ServiceChoice = ({ props }: { props: ProviderFeatureSlotProps }) => {
   const { model, copy } = props;
   const titleId = useId();
   const noteId = useId();
+  const labelId = useId();
   const switchId = useId();
   const decorator = model.decorator;
   if (!decorator) return null;
   const checked = model.view === "staged";
   const join = model.join;
-  const note = [
-    copy.scope(decorator.providerName, decorator.label),
-    join ? `${copy.joinHint(join.pattern, join.extra)} ${copy.joinReplaces}` : "",
-    copy.saveWithRule,
-  ]
-    .filter(Boolean)
-    .join(" ");
   return (
     <div data-provider-feature-choice className="space-y-2">
       <p
@@ -121,18 +123,26 @@ const ServiceChoice = ({ props }: { props: ProviderFeatureSlotProps }) => {
       >
         {decorator.providerName}: {copy.suggestQuestion(decorator.label)}
       </p>
-      <p
+      <div
         id={noteId}
         data-provider-feature-scope
-        className="text-xs text-muted-foreground"
+        className="space-y-2 text-xs text-muted-foreground"
       >
-        {note}
-      </p>
+        {props.explanation ?? (
+          <p>{copy.scope(decorator.providerName, decorator.label)}</p>
+        )}
+        {join ? (
+          <p className="text-tone-warning-text">
+            {copy.joinHint(join.pattern, join.extra)} {copy.joinReplaces}
+          </p>
+        ) : null}
+        <p>{copy.saveWithRule}</p>
+      </div>
       <div className="flex items-center justify-between gap-3">
         {checked ? (
           <FeatureChip props={props} label={decorator.label} mode="staged" />
         ) : (
-          <label htmlFor={switchId} className="text-sm text-foreground">
+          <label id={labelId} htmlFor={switchId} className="text-sm text-foreground">
             {copy.includeService}
           </label>
         )}
@@ -140,7 +150,7 @@ const ServiceChoice = ({ props }: { props: ProviderFeatureSlotProps }) => {
           id={switchId}
           checked={checked}
           data-provider-feature-action={join ? "join" : "accept"}
-          aria-labelledby={titleId}
+          aria-labelledby={`${labelId} ${titleId}`}
           aria-describedby={noteId}
           onCheckedChange={(enabled) => {
             if (!enabled) props.onDecline();
@@ -184,7 +194,11 @@ const FeatureChip = ({
             mode === "staged" && "border-dashed",
           )}
         >
-          <ProviderDecoratorBadge decorator={decorator} label={label} />
+          <ProviderDecoratorBadge
+            decorator={decorator}
+            label={label}
+            providerLabel={props.variant === "compact" ? "initials" : "name"}
+          />
           <ChevronDown />
         </button>
       </PopoverTrigger>
@@ -258,6 +272,9 @@ const SlotNotes = (props: ProviderFeatureSlotProps) => {
       {showPending && pendingProps ? (
         <ProviderFeaturePending {...pendingProps} />
       ) : null}
+      {model.view !== "suggest" && model.view !== "join" && model.view !== "staged"
+        ? props.contextNotice
+        : null}
       {props.removing ? (
         <p data-provider-feature-pending className="text-xs text-muted-foreground">
           {removal}

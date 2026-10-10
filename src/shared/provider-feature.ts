@@ -107,6 +107,13 @@ export const featureStateSchema = z.object({
 
 export type StoredFeatureState = z.infer<typeof featureStateSchema>;
 
+/** Plugin synchronization state for the current rule draft, separate from matching. */
+export type FeatureSyncContext = {
+  state: "ready" | "excluded" | "paused" | "pending" | "no-preset" | "disabled";
+  presetName?: string;
+  settingsPath?: string;
+};
+
 export type ProviderFeatureState = {
   available: boolean;
   providerId: string;
@@ -116,6 +123,7 @@ export type ProviderFeatureState = {
   binding: RuleFeatureBinding | null;
   dismissed: boolean;
   syncStatus: string;
+  syncContext?: FeatureSyncContext;
   recognitionStatus?: "ready" | "preparing" | "blocked" | "unavailable";
   error: string | null;
   decorator?: ProviderDecorator;
@@ -143,6 +151,11 @@ export type ProviderFeatureCommand = {
   rulePattern: string;
   hostname: string;
   featureId?: string | undefined;
+  /** Optional draft overrides; null explicitly means no assigned preset. */
+  locationId?: string | null;
+  ruleEnabled?: boolean;
+  /** Existing configuration selected by a staged join; used only for status. */
+  contextFeatureId?: string;
 };
 
 export type ProviderFeatureReply =

@@ -1,4 +1,7 @@
+import "@/ui/plugins/feature-registration";
+
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
 
 import { BUILD_CHANNEL } from "@/shared/build-flags";
 import {
@@ -19,7 +22,7 @@ import {
   type ProviderFeatureVariant,
 } from "@/ui/components/provider-feature";
 import {
-  providerFeatureCopy,
+  featurePendingCopy,
   type ProviderFeatureMessages,
 } from "@/ui/components/provider-feature/provider-feature-copy";
 import {
@@ -28,6 +31,8 @@ import {
   type RequestPending,
 } from "@/ui/components/provider-feature/ProviderFeatureSlot";
 import { useUiLocale } from "@/ui/i18n/LocaleRefresh";
+import { featureUiFor } from "@/ui/plugins/feature-presentations";
+import { openInBackground } from "@/ui/plugins/navigation";
 import {
   useProviderFeature,
   type ProviderFeaturePending as FeatureRead,
@@ -47,6 +52,8 @@ export type ProviderFeatureHostProps = {
   onDecisionChange?: (decision: FeatureDecision | undefined) => void;
   /** Trailing debounce for typed patterns. Tests inject a fake scheduler. */
   schedule?: HostSchedule;
+  locationId?: string | null;
+  ruleEnabled?: boolean;
 };
 
 const DEBOUNCE_MS = 500;
@@ -189,9 +196,11 @@ const ProviderFeatureHostBody = ({
   variant = "default",
   onDecisionChange,
   schedule,
+  locationId,
+  ruleEnabled,
 }: ProviderFeatureHostProps) => {
   const locale = useUiLocale();
-  const copy = providerFeatureCopy[locale];
+  const pendingCopy = featurePendingCopy[locale];
   const fixed = hostname ? hostname : null;
   const settled = useSettledDraft(rulePattern, fixed, schedule);
   const { decision, stage } = useFeatureDecision(rulePattern, onDecisionChange);
@@ -200,17 +209,25 @@ const ProviderFeatureHostBody = ({
     hostname: settled.host,
     recognize: settled.host.length > 0,
     ...(savedRulePattern ? { savedRulePattern } : {}),
+    ...(locationId !== undefined ? { locationId } : {}),
+    ...(ruleEnabled !== undefined ? { ruleEnabled } : {}),
+    ...(decision?.joinExisting && decision.featureId
+      ? { contextFeatureId: decision.featureId }
+      : {}),
   };
   const { state, busy, pending, failed, errorCode } = useProviderFeature(query);
   if (!state) {
     if (!busy) return null;
     return (
       <div data-provider-feature-host aria-busy="true">
-        <ProviderFeaturePending kind="status" copy={copy} />
+        <ProviderFeaturePending kind="status" copy={pendingCopy} />
       </div>
     );
   }
   if (!state.available) return null;
+  const presentation = featureUiFor(state.providerId);
+  if (!presentation) return null;
+  const copy = presentation.messages[locale];
   return (
     <ReadyFeatureHost
       rulePattern={rulePattern}
@@ -225,6 +242,19 @@ const ProviderFeatureHostBody = ({
       decision={decision}
       stage={stage}
       copy={copy}
+      contextNotice={presentation.renderStatus?.({
+        state,
+        locale,
+        ...(variant === "compact" ? { openSettings: openInBackground } : {}),
+      })}
+      renderExplanation={(feature) =>
+        presentation.renderExplanation({
+          feature,
+          state,
+          locale,
+          ...(variant === "compact" ? { openSettings: openInBackground } : {}),
+        })
+      }
     />
   );
 };
@@ -242,6 +272,8 @@ const ReadyFeatureHost = ({
   decision,
   stage,
   copy,
+  renderExplanation,
+  contextNotice,
 }: {
   rulePattern: string;
   savedRulePattern?: string;
@@ -255,6 +287,8 @@ const ReadyFeatureHost = ({
   decision: FeatureDecision | undefined;
   stage: (next: FeatureDecision | undefined) => void;
   copy: ProviderFeatureMessages;
+  renderExplanation: (feature: ProviderFeature) => ReactNode;
+  contextNotice?: ReactNode;
 }) => {
   const identity = identityOf(rulePattern, savedRulePattern);
   const kind = requestKind(state, busy, pending, errorCode);
@@ -304,6 +338,8 @@ const ReadyFeatureHost = ({
         variant={variant}
         model={model}
         copy={copy}
+        {...(model.feature ? { explanation: renderExplanation(model.feature) } : {})}
+        contextNotice={contextNotice}
         features={state.features}
         sharedHosts={sharedHosts}
         removing={decision?.featureId === null && state.binding !== null}

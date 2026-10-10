@@ -29,6 +29,6 @@ export {
   type ProviderFeatureSlotProps,
 } from "./ProviderFeatureSlot";
 export {
-  providerFeatureCopy,
+  featurePendingCopy,
   type ProviderFeatureMessages,
 } from "./provider-feature-copy";

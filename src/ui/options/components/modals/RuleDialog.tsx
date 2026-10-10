@@ -113,6 +113,54 @@ const RuleDialogFooter = ({ openAdvanced }: { openAdvanced: () => void }) => {
   );
 };
 
+const RuleScopeFeatures = () => {
+  const {
+    editingRulePattern,
+    rules,
+    rulePattern,
+    setRulePattern,
+    ruleProfileId,
+    ruleEnabled,
+  } = useSettings();
+  return (
+    <>
+      <RuleAdditionalHosts
+        key={editingRulePattern ?? "new"}
+        rules={rules}
+        sourcePattern={editingRulePattern}
+        renderPrimary={(addControl) => (
+          <DialogFieldRow
+            htmlFor="dialog-rule-pattern"
+            label={t.rules.dialog.patternLabel}
+            labelInfo={
+              <span dangerouslySetInnerHTML={{ __html: t.rules.dialog.patternInfo }} />
+            }
+            labelInfoAriaLabel={t.rules.dialog.patternInfoAriaLabel}
+          >
+            <div data-rule-pattern-row className="flex min-w-0 items-center gap-2">
+              <Input
+                className="min-w-0 flex-1"
+                id="dialog-rule-pattern"
+                name="pattern"
+                placeholder={t.rules.dialog.patternPlaceholder}
+                value={rulePattern}
+                onChange={(event) => setRulePattern(event.currentTarget.value)}
+              />
+              {addControl}
+            </div>
+          </DialogFieldRow>
+        )}
+      />
+      <ProviderFeatureHost
+        rulePattern={rulePattern}
+        locationId={ruleProfileId || null}
+        ruleEnabled={ruleEnabled}
+        {...(editingRulePattern ? { savedRulePattern: editingRulePattern } : {})}
+      />
+    </>
+  );
+};
+
 const RuleFields = () => {
   const {
     closeRuleDialog,
@@ -122,11 +170,9 @@ const RuleFields = () => {
     ruleDialogMode,
     ruleEnabled,
     rulePattern,
-    rules,
     ruleProfileId,
     ruleProfileOptions,
     setRuleEnabled,
-    setRulePattern,
     setRuleProfileId,
   } = useSettings();
   const limitationsHref = `${chrome.runtime.getURL("src/ui/options/index.html")}#${SECTION_ANCHORS.about.limitations}`;
@@ -161,57 +207,35 @@ const RuleFields = () => {
             <div className="border-t border-border/70" />
           </>
         ) : null}
-        <DialogFieldRow
-          htmlFor="dialog-rule-pattern"
-          label={t.rules.dialog.patternLabel}
-          labelInfo={
-            <span dangerouslySetInnerHTML={{ __html: t.rules.dialog.patternInfo }} />
-          }
-          labelInfoAriaLabel={t.rules.dialog.patternInfoAriaLabel}
-        >
-          <Input
-            id="dialog-rule-pattern"
-            name="pattern"
-            placeholder={t.rules.dialog.patternPlaceholder}
-            value={rulePattern}
-            onChange={(event) => setRulePattern(event.currentTarget.value)}
+        <RuleScopeFeatures />
+        <div data-rule-preset className="space-y-3 pt-3">
+          <LocationFormFields
+            sectionLabel={t.rules.dialog.locationProfileLabel}
+            sectionHint={t.rules.dialog.locationProfileHint}
+            warning={
+              <>
+                {t.rules.globalFallback.dialog.locationProfileWarningPrefix}
+                <a
+                  href={limitationsHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-foreground underline underline-offset-4"
+                >
+                  {t.rules.globalFallback.dialog.locationProfileWarningLinkLabel}
+                </a>
+                {t.rules.globalFallback.dialog.locationProfileWarningSuffix}
+              </>
+            }
+            selectId="dialog-rule-profile"
+            selectLabel={t.rules.dialog.locationLabel}
+            selectPlaceholder={t.rules.globalFallback.noPresetLabel}
+            selectValue={ruleProfileId || UNASSIGNED_VALUE}
+            selectOptions={options}
+            onSelectValueChange={(value) =>
+              setRuleProfileId(value === UNASSIGNED_VALUE ? "" : value)
+            }
           />
-        </DialogFieldRow>
-        <RuleAdditionalHosts
-          key={editingRulePattern ?? "new"}
-          rules={rules}
-          sourcePattern={editingRulePattern}
-        />
-        <ProviderFeatureHost
-          rulePattern={rulePattern}
-          {...(editingRulePattern ? { savedRulePattern: editingRulePattern } : {})}
-        />
-        <LocationFormFields
-          sectionLabel={t.rules.dialog.locationProfileLabel}
-          sectionHint={t.rules.dialog.locationProfileHint}
-          warning={
-            <>
-              {t.rules.globalFallback.dialog.locationProfileWarningPrefix}
-              <a
-                href={limitationsHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-medium text-foreground underline underline-offset-4"
-              >
-                {t.rules.globalFallback.dialog.locationProfileWarningLinkLabel}
-              </a>
-              {t.rules.globalFallback.dialog.locationProfileWarningSuffix}
-            </>
-          }
-          selectId="dialog-rule-profile"
-          selectLabel={t.rules.dialog.locationLabel}
-          selectPlaceholder={t.rules.globalFallback.noPresetLabel}
-          selectValue={ruleProfileId || UNASSIGNED_VALUE}
-          selectOptions={options}
-          onSelectValueChange={(value) =>
-            setRuleProfileId(value === UNASSIGNED_VALUE ? "" : value)
-          }
-        />
+        </div>
         {ruleDialogMode === "edit" && editingRulePattern && editingRuleSeedKey ? (
           <>
             <div className="border-t border-border/70" />

@@ -215,3 +215,90 @@ export const MultiSiteRule: Story = {
     await expect(document.querySelector("[data-provider-decorator-badge]")).toBeNull();
   },
 };
+
+export const ExcludedPreset: Story = {
+  args: { scenario: "excluded", savedPattern: "youtube.com", draft: true },
+  play: async ({ canvasElement }) => {
+    const panel = await findPanel(canvasElement);
+    await waitFor(() =>
+      expect(panel.querySelector("[data-plugin-sync-context]")).toHaveAttribute(
+        "data-plugin-sync-context",
+        "excluded",
+      ),
+    );
+    await expect(panel.querySelector("[data-plugin-settings-link]")).toHaveAttribute(
+      "href",
+      "chrome-extension://storybook/src/ui/options/index.html#page-experimental-integration?section=routes&preset=warsaw",
+    );
+  },
+};
+export const PausedSync: Story = {
+  args: { scenario: "paused", savedPattern: "youtube.com", draft: true },
+};
+export const NoPreset: Story = {
+  args: { scenario: "no-preset", savedPattern: "youtube.com", draft: true },
+};
+export const UnconfirmedRoute: Story = {
+  args: { scenario: "pending", savedPattern: "youtube.com", draft: true },
+};
+export const DisabledRule: Story = {
+  args: { scenario: "disabled", savedPattern: "youtube.com" },
+};
+export const LinkedExcludedPreset: Story = {
+  args: { scenario: "linked-excluded", savedPattern: "youtube.com" },
+};
+export const ServiceTooltip: Story = {
+  args: { scenario: "suggested", savedPattern: "youtube.com", draft: true },
+  play: async ({ canvasElement }) => {
+    const panel = await findPanel(canvasElement);
+    const trigger = panel.querySelector<HTMLElement>("[data-plugin-feature-term]");
+    if (!trigger) throw new Error("Missing service term");
+    await userEvent.hover(trigger);
+    await body(canvasElement).findByRole("tooltip");
+  },
+};
+
+export const PatternActionRow: Story = {
+  args: { savedPattern: "www.youtube.com", multipleSites: true },
+  play: async ({ canvasElement }) => {
+    const doc = canvasElement.ownerDocument;
+    const add = () =>
+      doc.querySelector<HTMLButtonElement>("[data-rule-host-action=add]");
+    const last = () =>
+      Array.from(
+        doc.querySelectorAll<HTMLInputElement>("[data-rule-pattern-row] input"),
+      ).at(-1);
+    const sameRow = () => {
+      const button = add(),
+        input = last();
+      if (!button || !input) throw new Error("Missing pattern controls");
+      expect(button.closest("[data-rule-pattern-row]")).toBe(
+        input.closest("[data-rule-pattern-row]"),
+      );
+      expect(
+        Math.abs(
+          button.getBoundingClientRect().y +
+            button.getBoundingClientRect().height / 2 -
+            input.getBoundingClientRect().y -
+            input.getBoundingClientRect().height / 2,
+        ),
+      ).toBeLessThan(2);
+    };
+    sameRow();
+    const before = doc.querySelectorAll("[data-rule-host-input]").length;
+    await userEvent.click(add()!);
+    await waitFor(() =>
+      expect(doc.querySelectorAll("[data-rule-host-input]")).toHaveLength(before + 1),
+    );
+    sameRow();
+    const remove = last()
+      ?.closest("[data-rule-pattern-row]")
+      ?.querySelector<HTMLElement>("[data-rule-host-action=remove]");
+    if (!remove) throw new Error("Missing remove pattern action");
+    await userEvent.click(remove);
+    await waitFor(() =>
+      expect(doc.querySelectorAll("[data-rule-host-input]")).toHaveLength(before),
+    );
+    sameRow();
+  },
+};

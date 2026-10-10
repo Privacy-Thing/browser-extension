@@ -2,6 +2,7 @@ import {
   CONTROL_D_COMMANDS,
   CONTROL_D_PROVIDER_ID,
 } from "../../src/experimental/control-d/contracts";
+import { CONTROL_D_STORE_KEYS } from "../../src/experimental/control-d/storage";
 import type { ExportedSettings, PopupState } from "../../src/shared/types";
 
 import {
@@ -274,9 +275,9 @@ test("shares one product rule with a service through edit, restart, and import",
 
   const group = page.locator(`#rules-list tr[data-feature-group="${VIDEO_FEATURE}"]`);
   await expect(group).toHaveCount(1);
-  await expect(group.locator("[data-provider-initials]")).toHaveAttribute(
-    "data-provider-initials",
-    "CD",
+  await expect(group.locator("[data-provider-name]")).toHaveAttribute(
+    "data-provider-name",
+    "Control D",
   );
   await expect(group.locator("[data-rule-hosts] span")).toHaveText([
     LOOPBACK_HOST,
@@ -506,7 +507,7 @@ test("owns a three-site rule independently of provider assignments", async ({
   const row = page.locator("#rules-list tr[data-rule-group]");
   await expect(row).toHaveCount(1);
   await expect(row.locator("[data-rule-host]")).toHaveText(hosts);
-  await expect(row.locator("[data-provider-initials]")).toHaveCount(0);
+  await expect(row.locator("[data-provider-name]")).toHaveCount(0);
   await openSavedRuleEditor(page, extensionId, hosts[0]!);
   await expect(page.locator("[data-rule-host-input]")).toHaveCount(2);
   await expect(page.locator("[data-rule-host-input]").nth(0)).toHaveValue(hosts[1]!);
@@ -536,6 +537,79 @@ test("owns a three-site rule independently of provider assignments", async ({
   const imported = await exportSettings<ExportedSettings>(restarted);
   expect(imported.rules).toEqual(edited.rules);
   expect(imported.featureBindings ?? []).toEqual([]);
+  expect(escapes).toEqual([]);
+  expect(pageRequests).toEqual([]);
+});
+
+test("updates plugin sync guidance for a draft preset without contacting the provider again", async ({
+  context,
+  extensionId,
+}) => {
+  const { page, worker, escapes, pageRequests } = await prepareProviderPage(
+    context,
+    extensionId,
+    { hosts: [VIDEO_HOST] },
+  );
+  const configKey = CONTROL_D_STORE_KEYS[0];
+  await page.evaluate(
+    async ({ configKey, locationId }) => {
+      const config = (await chrome.storage.local.get(configKey))[configKey] as {
+        locationMappings: Record<string, unknown>;
+      };
+      config.locationMappings[locationId] = {
+        locationId,
+        proxyPk: null,
+        status: "skipped",
+        confirmed: true,
+      };
+      await chrome.storage.local.set({ [configKey]: config });
+    },
+    { configKey, locationId: WARSAW_LOCATION_ID },
+  );
+  await openNewRuleDialog(page, extensionId);
+  await fillRulePattern(page, VIDEO_HOST);
+  await expectFeatureSlot(page, { state: "suggest", variant: "default" });
+  await expect(page.locator("[data-plugin-sync-context]")).toHaveAttribute(
+    "data-plugin-sync-context",
+    "no-preset",
+  );
+  await selectRuleProfile(page, "Warsaw", WARSAW_LOCATION_ID);
+  await expect(page.locator("[data-plugin-sync-context]")).toHaveAttribute(
+    "data-plugin-sync-context",
+    "excluded",
+  );
+  await expect(page.locator("[data-plugin-settings-link]")).toHaveAttribute(
+    "href",
+    `chrome-extension://${extensionId}/src/ui/options/index.html#page-experimental-integration?section=routes&preset=${WARSAW_LOCATION_ID}`,
+  );
+  await selectRuleProfile(page, "Paris", PARIS_LOCATION_ID);
+  await expect(page.locator("[data-plugin-sync-context]")).toHaveAttribute(
+    "data-plugin-sync-context",
+    "paused",
+  );
+  await clickFeatureAction(page, "accept");
+  await expectFeatureDecision(page, videoDecision(VIDEO_FEATURE));
+  await expect(page.locator("[data-plugin-sync-context]")).toHaveAttribute(
+    "data-plugin-sync-context",
+    "paused",
+  );
+  await saveRuleDialog(page);
+  const stored = await exportSettings<ExportedSettings>(page);
+  expect(stored.featureBindings).toEqual([
+    bindingFor(VIDEO_HOST, VIDEO_FEATURE, "domain-test"),
+  ]);
+  await openSavedRuleEditor(page, extensionId, VIDEO_HOST);
+  await expectFeatureSlot(page, { state: "linked", variant: "default" });
+  await expect(
+    page.getByRole("dialog").locator("[data-provider-name]"),
+  ).toHaveAttribute("data-provider-name", "Control D");
+  await expect(page.locator("[data-plugin-sync-context]")).toHaveAttribute(
+    "data-plugin-sync-context",
+    "paused",
+  );
+  expect(await readControlDQueries(worker)).toEqual([
+    { origin: "https://dns.controld.com", pathname: "/e2eresolver", name: VIDEO_HOST },
+  ]);
   expect(escapes).toEqual([]);
   expect(pageRequests).toEqual([]);
 });

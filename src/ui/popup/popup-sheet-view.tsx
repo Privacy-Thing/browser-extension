@@ -242,6 +242,7 @@ export const PopupSheetPane = ({ controller }: { controller: PopupController }) 
       rulePattern={savedRulePattern ?? controller.sheets.getRuleSheetPatternLabel()}
       {...savedFeatureProps}
       hostname={featureHost}
+      locationId={state.isRegionalPresetOn ? state.selectedLocationId : null}
       onDecisionChange={state.setFeatureDecision}
     />
   ) : null;
