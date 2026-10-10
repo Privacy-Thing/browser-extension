@@ -90,7 +90,7 @@ const PopupRuleFeatureSurface = ({
           locationLabel={t.popup.currentProfileLabel}
           ruleTypeLabel={
             scenario === "group-linked"
-              ? groupCopy.matchThisSite
+              ? groupCopy.matchThisDomain
               : t.popup.ruleTypeLabel
           }
           exactLabel={t.popup.ruleTypeExact}

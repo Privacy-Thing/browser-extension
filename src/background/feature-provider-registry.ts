@@ -1,4 +1,4 @@
-import type { FeatureProvider } from "@/background/provider-features";
+import type { FeaturePlugin } from "@/shared/plugin";
 import {
   featureDecisionSchema,
   type FeatureDecision,
@@ -7,9 +7,9 @@ import {
   type ProviderDecorator,
 } from "@/shared/provider-feature";
 
-let providers: readonly FeatureProvider[] = [];
+let providers: readonly FeaturePlugin[] = [];
 
-export const registerFeatureProviders = (next: readonly FeatureProvider[]): void => {
+export const registerFeatureProviders = (next: readonly FeaturePlugin[]): void => {
   providers = next;
 };
 

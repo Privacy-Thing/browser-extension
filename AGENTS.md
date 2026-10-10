@@ -14,6 +14,24 @@ cross-browser behavior and low overhead. `CLAUDE.md` links to this file.
   bootstraps and synchronizes it, `src/injection` runs in page/worker worlds, `src/ui`
   owns product UI, and `src/shared` owns cross-layer schemas and utilities.
 
+## Plugins
+
+- External integrations are Privacy Thing plugins (extensions). Control D is the
+  first plugin. Keep its API, credentials, service types and brand metadata inside
+  its plugin implementation.
+- PT owns a shared, universal plugin interface. Main models, messages, backups and
+  UI slots use generic contracts such as `providerId`, `featureId`, `type`,
+  `groupId` and decorators; they must not depend on a particular plugin.
+- Expose typed hooks for plugins to subscribe to PT lifecycle and configuration
+  changes. PT owns event delivery; subscriptions return an unsubscribe function.
+  Plugin code consumes these hooks instead of observing PT storage keys or reaching
+  into core internals. A plugin may manage its own private storage and API state.
+- PT owns rule editing, pattern groups, settings, identity and the reusable badge
+  component. Plugins supply feature labels, initials and brand colors through
+  decorator metadata; do not introduce plugin-specific branches in product UI.
+- Keep network work and plugin hooks outside page/worker runtime hot paths. Preserve
+  the experimental/release boundary for plugins that are not released yet.
+
 ## Repository skills
 
 Read the matching skill before acting when a task fits its trigger:
@@ -119,6 +137,9 @@ An explicit “not applicable” is valid; silently checking only one path is no
 
 ## UI conventions
 
+- Use **Domain** for a hostname and **Pattern** for a rule's matching expression
+  (including wildcards). Do not call either a “Site”; that word is reserved for the
+  product feature name **Trusted Sites**. Apply the same distinction in translations.
 - `AppPageFrame` owns the shared shell and `BrandLogo` owns link semantics.
 - Use active skin tokens; do not hard-code light/dark colors where tokens exist.
 - Give each popup visual property one owner: a semantic `gw-popup-*` class or a utility,

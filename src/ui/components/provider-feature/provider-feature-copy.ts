@@ -83,7 +83,7 @@ const sharedWith =
   };
 
 const scope = (provider: string, service: string): string =>
-  `${BRAND_DISPLAY_NAME} protects only the sites added here. ${provider}'s ${service} service may cover different sites.`;
+  `${BRAND_DISPLAY_NAME} protects only domains matching this rule. ${provider}'s ${service} service may cover different domains.`;
 
 const en: ProviderFeatureMessages = {
   suggestQuestion: fill("Setup {value} service?"),
@@ -111,7 +111,7 @@ const en: ProviderFeatureMessages = {
   preparing: "Getting ready…",
   pendingRemoval: fill("{value} is unlinked when you save. The rule stays."),
   pendingRemovalGroup: fill(
-    "{value} is unlinked from all these sites when you save. The rule and its sites stay.",
+    "{value} is unlinked from all these domains when you save. The rule and its domains stay.",
   ),
   pickerLabel: fill("{value} service"),
   pickerPlaceholder: "Choose a service",
@@ -138,12 +138,12 @@ const en: ProviderFeatureMessages = {
   errorPattern: "Fix the rule's pattern before linking a service.",
   errorMissingService: "That service is no longer available. Choose another.",
   errorGroupChanged: fill(
-    "The sites using {value} changed. Reopen this rule and try again.",
+    "The domains using {value} changed. Reopen this rule and try again.",
   ),
   errorGroupSettings: fill(
-    "Sites using {value} have different settings. Save one of them to share its settings.",
+    "Domains using {value} have different settings. Save one of them to share its settings.",
   ),
-  errorGroupIdentity: fill("Sites using {value} must share settings and identity."),
+  errorGroupIdentity: fill("Domains using {value} must share settings and identity."),
 };
 
 const es: ProviderFeatureMessages = {
@@ -153,7 +153,7 @@ const es: ProviderFeatureMessages = {
   yes: "Sí",
   no: "No, gracias",
   scope: (provider, service) =>
-    `${BRAND_DISPLAY_NAME} protege solo los sitios de esta regla. Un servicio de ${provider} para ${service} puede cubrir otros.`,
+    `${BRAND_DISPLAY_NAME} protege solo los dominios de esta regla. Un servicio de ${provider} para ${service} puede cubrir otros.`,
   joinQuestion: fill("¿Unirse a {value}?"),
   joinHint: hint(
     "Usa la configuración y la identidad de {pattern}.",
@@ -173,7 +173,7 @@ const es: ProviderFeatureMessages = {
   preparing: "Preparando…",
   pendingRemoval: fill("{value} se desvincula al guardar. La regla se mantiene."),
   pendingRemovalGroup: fill(
-    "{value} se desvincula de todos estos sitios al guardar. La regla y sus sitios se mantienen.",
+    "{value} se desvincula de todos estos dominios al guardar. La regla y sus dominios se mantienen.",
   ),
   pickerLabel: fill("Servicio de {value}"),
   pickerPlaceholder: "Elige un servicio",
@@ -200,13 +200,13 @@ const es: ProviderFeatureMessages = {
   errorPattern: "Corrige el patrón de la regla antes de vincular un servicio.",
   errorMissingService: "Ese servicio ya no está disponible. Elige otro.",
   errorGroupChanged: fill(
-    "Los sitios que usan {value} cambiaron. Vuelve a abrir esta regla e inténtalo de nuevo.",
+    "Los dominios que usan {value} cambiaron. Vuelve a abrir esta regla e inténtalo de nuevo.",
   ),
   errorGroupSettings: fill(
-    "Los sitios que usan {value} tienen configuraciones distintas. Guarda uno de ellos para compartir su configuración.",
+    "Los dominios que usan {value} tienen configuraciones distintas. Guarda uno de ellos para compartir su configuración.",
   ),
   errorGroupIdentity: fill(
-    "Los sitios que usan {value} deben compartir configuración e identidad.",
+    "Los dominios que usan {value} deben compartir configuración e identidad.",
   ),
 };
 
@@ -217,7 +217,7 @@ const pt: ProviderFeatureMessages = {
   yes: "Sim",
   no: "Agora não",
   scope: (provider, service) =>
-    `O ${BRAND_DISPLAY_NAME} protege só os sites desta regra. Um serviço do ${provider} para ${service} pode abranger outros.`,
+    `O ${BRAND_DISPLAY_NAME} protege só os domínios desta regra. Um serviço do ${provider} para ${service} pode abranger outros.`,
   joinQuestion: fill("Entrar em {value}?"),
   joinHint: hint(
     "Usa as configurações e a identidade de {pattern}.",
@@ -237,7 +237,7 @@ const pt: ProviderFeatureMessages = {
   preparing: "Preparando…",
   pendingRemoval: fill("{value} será desvinculado ao salvar. A regra continua."),
   pendingRemovalGroup: fill(
-    "{value} será desvinculado de todos estes sites ao salvar. A regra e seus sites continuam.",
+    "{value} será desvinculado de todos estes domínios ao salvar. A regra e seus domínios continuam.",
   ),
   pickerLabel: fill("Serviço de {value}"),
   pickerPlaceholder: "Escolha um serviço",
@@ -266,13 +266,13 @@ const pt: ProviderFeatureMessages = {
   errorPattern: "Corrija o padrão da regra antes de vincular um serviço.",
   errorMissingService: "Esse serviço não está mais disponível. Escolha outro.",
   errorGroupChanged: fill(
-    "Os sites que usam {value} mudaram. Reabra esta regra e tente novamente.",
+    "Os domínios que usam {value} mudaram. Reabra esta regra e tente novamente.",
   ),
   errorGroupSettings: fill(
-    "Os sites que usam {value} têm configurações diferentes. Salve um deles para compartilhar as configurações.",
+    "Os domínios que usam {value} têm configurações diferentes. Salve um deles para compartilhar as configurações.",
   ),
   errorGroupIdentity: fill(
-    "Os sites que usam {value} devem compartilhar configurações e identidade.",
+    "Os domínios que usam {value} devem compartilhar configurações e identidade.",
   ),
 };
 
@@ -283,7 +283,7 @@ const ru: ProviderFeatureMessages = {
   yes: "Да",
   no: "Не нужно",
   scope: (provider, service) =>
-    `${BRAND_DISPLAY_NAME} защищает только сайты этого правила. Сервис ${provider} для ${service} может охватывать и другие.`,
+    `${BRAND_DISPLAY_NAME} защищает только домены этого правила. Сервис ${provider} для ${service} может охватывать и другие.`,
   joinQuestion: fill("Присоединить к {value}?"),
   joinHint: hint(
     "Использует настройки и идентичность {pattern}.",
@@ -303,7 +303,7 @@ const ru: ProviderFeatureMessages = {
   preparing: "Подготовка…",
   pendingRemoval: fill("{value} будет отвязан при сохранении. Правило останется."),
   pendingRemovalGroup: fill(
-    "{value} будет отвязан от всех этих сайтов при сохранении. Правило и его сайты останутся.",
+    "{value} будет отвязан от всех этих доменов при сохранении. Правило и его домены останутся.",
   ),
   pickerLabel: fill("Сервис {value}"),
   pickerPlaceholder: "Выберите сервис",
@@ -332,13 +332,13 @@ const ru: ProviderFeatureMessages = {
   errorPattern: "Исправьте шаблон правила, прежде чем связывать сервис.",
   errorMissingService: "Этот сервис больше недоступен. Выберите другой.",
   errorGroupChanged: fill(
-    "Сайты, связанные с {value}, изменились. Откройте правило заново и повторите.",
+    "Домены, связанные с {value}, изменились. Откройте правило заново и повторите.",
   ),
   errorGroupSettings: fill(
-    "У сайтов, связанных с {value}, разные настройки. Сохраните один из них, чтобы настройки стали общими.",
+    "У доменов, связанных с {value}, разные настройки. Сохраните один из них, чтобы настройки стали общими.",
   ),
   errorGroupIdentity: fill(
-    "Сайты, связанные с {value}, должны иметь общие настройки и идентичность.",
+    "Домены, связанные с {value}, должны иметь общие настройки и идентичность.",
   ),
 };
 
@@ -349,7 +349,7 @@ const uk: ProviderFeatureMessages = {
   yes: "Так",
   no: "Не треба",
   scope: (provider, service) =>
-    `${BRAND_DISPLAY_NAME} захищає лише сайти цього правила. Сервіс ${provider} для ${service} може охоплювати й інші.`,
+    `${BRAND_DISPLAY_NAME} захищає лише домени цього правила. Сервіс ${provider} для ${service} може охоплювати й інші.`,
   joinQuestion: fill("Приєднати до {value}?"),
   joinHint: hint(
     "Використовує налаштування та ідентичність {pattern}.",
@@ -371,7 +371,7 @@ const uk: ProviderFeatureMessages = {
     "{value} буде відв'язано під час збереження. Правило залишиться.",
   ),
   pendingRemovalGroup: fill(
-    "{value} буде відв'язано від усіх цих сайтів під час збереження. Правило та його сайти залишаться.",
+    "{value} буде відв'язано від усіх цих доменів під час збереження. Правило та його домени залишаться.",
   ),
   pickerLabel: fill("Сервіс {value}"),
   pickerPlaceholder: "Виберіть сервіс",
@@ -400,13 +400,13 @@ const uk: ProviderFeatureMessages = {
   errorPattern: "Виправте шаблон правила, перш ніж пов'язувати сервіс.",
   errorMissingService: "Цей сервіс більше недоступний. Виберіть інший.",
   errorGroupChanged: fill(
-    "Сайти, пов'язані з {value}, змінилися. Відкрийте правило знову й повторіть.",
+    "Домени, пов'язані з {value}, змінилися. Відкрийте правило знову й повторіть.",
   ),
   errorGroupSettings: fill(
-    "Сайти, пов'язані з {value}, мають різні налаштування. Збережіть один із них, щоб налаштування стали спільними.",
+    "Домени, пов'язані з {value}, мають різні налаштування. Збережіть один із них, щоб налаштування стали спільними.",
   ),
   errorGroupIdentity: fill(
-    "Сайти, пов'язані з {value}, мають мати спільні налаштування та ідентичність.",
+    "Домени, пов'язані з {value}, мають мати спільні налаштування та ідентичність.",
   ),
 };
 

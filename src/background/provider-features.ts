@@ -12,34 +12,20 @@ import {
 } from "@/background/storage/provider-features";
 import { loadRules } from "@/background/storage/rules";
 import { compileDomainPattern } from "@/shared/domain-match";
+import type { FeaturePlugin } from "@/shared/plugin";
 import {
   FEATURE_COMMANDS,
   bindingPatterns,
   type ProviderFeature,
-  type ProviderBadgeColors,
   type ProviderFeatureCommand,
   type ProviderFeatureMatch,
   type ProviderFeatureReply,
   type ProviderFeatureState,
-  type RuleFeatureBinding,
 } from "@/shared/provider-feature";
 import { getRuleGroupPatterns, projectFeatureBindings } from "@/shared/rule-groups";
 
-export type FeatureProvider = {
-  id: string;
-  name: string;
-  initials?: string;
-  badgeColors?: ProviderBadgeColors;
-  capabilities: { catalogue: boolean; domainRecognition: boolean; ruleSync: boolean };
-  getStatus: (binding?: RuleFeatureBinding | null) => Promise<{
-    available: boolean;
-    syncStatus: string;
-    error: string | null;
-    recognitionStatus?: "ready" | "preparing" | "blocked" | "unavailable";
-  }>;
-  getFeatures: () => Promise<ProviderFeature[]>;
-  recognizeDomain: (hostname: string) => Promise<ProviderFeatureMatch>;
-};
+/** Compatibility name for existing generic provider registrations. */
+export type FeatureProvider = FeaturePlugin;
 
 const commandSchema = z.object({
   type: z.enum([

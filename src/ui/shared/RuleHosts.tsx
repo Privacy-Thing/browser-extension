@@ -14,7 +14,7 @@ export const RuleHostList = ({ patterns }: { patterns: readonly string[] }) => {
   if (patterns.length < 2) return null;
   return (
     <section data-rule-hosts className="space-y-1.5">
-      <p className="text-sm font-medium text-foreground">{copy.sites}</p>
+      <p className="text-sm font-medium text-foreground">{copy.patterns}</p>
       <ul className="space-y-1 text-xs text-muted-foreground">
         {patterns.map((pattern) => (
           <li key={pattern} data-rule-host={pattern} className="break-all">
@@ -44,14 +44,16 @@ export const RuleAdditionalHosts = ({
     <div data-rule-additional-hosts className="space-y-2">
       {entries.length > 0 ? (
         <>
-          <p className="text-sm font-medium text-foreground">{copy.additionalSites}</p>
+          <p className="text-sm font-medium text-foreground">
+            {copy.additionalPatterns}
+          </p>
           <p className="text-xs text-muted-foreground">{copy.hint}</p>
           {entries.map((entry, index) => (
             <div key={entry.id} className="flex items-center gap-2">
               <Input
                 name="additionalRulePatterns"
                 data-rule-host-input
-                aria-label={copy.siteLabel(index + 2)}
+                aria-label={copy.patternLabel(index + 2)}
                 value={entry.pattern}
                 onChange={(event) => {
                   const pattern = event.currentTarget.value;
@@ -67,7 +69,7 @@ export const RuleAdditionalHosts = ({
                 variant="ghost"
                 size="icon"
                 data-rule-host-action="remove"
-                aria-label={`${copy.removeSite}: ${entry.pattern || copy.siteLabel(index + 2)}`}
+                aria-label={`${copy.removePattern}: ${entry.pattern || copy.patternLabel(index + 2)}`}
                 onClick={() =>
                   setEntries((current) =>
                     current.filter((item) => item.id !== entry.id),
@@ -92,7 +94,7 @@ export const RuleAdditionalHosts = ({
           ])
         }
       >
-        {copy.addSite}
+        {copy.addPattern}
       </Button>
     </div>
   );

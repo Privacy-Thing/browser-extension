@@ -79,7 +79,7 @@ describe("ProviderFeatureSlot", () => {
     expect(markup).not.toContain(">Yes<");
     expect(markup).toContain("Saved with this rule.");
     expect(markup).toContain(BRAND_DISPLAY_NAME);
-    expect(markup).toContain("protects only the sites added here");
+    expect(markup).toContain("protects only domains matching this rule");
     expect(markup).not.toContain(">CD<");
     expect(markup).not.toContain("Control D");
   });
@@ -173,7 +173,7 @@ describe("ProviderFeatureSlot", () => {
 });
 
 describe("providerFeatureCopy", () => {
-  it("describes shared sites and whole-group removal in every language", () => {
+  it("describes shared domains and whole-group removal in every language", () => {
     expect(providerFeatureCopy.en.sharedWith(["music.youtube.com"])).toBe(
       "Shares settings with music.youtube.com",
     );
@@ -182,7 +182,7 @@ describe("providerFeatureCopy", () => {
     ).toBe("Shares settings with a.example and 2 more");
     expect(providerFeatureCopy.en.removeService).toBe("Unlink service");
     expect(providerFeatureCopy.en.pendingRemovalGroup("YouTube")).toContain(
-      "rule and its sites stay",
+      "rule and its domains stay",
     );
     expect(providerFeatureCopy.es.sharedWith(["a.example", "b.example"])).toContain(
       " y ",
@@ -214,7 +214,7 @@ const exampleDecorator = {
 };
 
 describe("ProviderDecoratorBadge", () => {
-  it("omits the count for a single site", () => {
+  it("omits the count for a single domain", () => {
     const markup = renderToStaticMarkup(
       createElement(ProviderDecoratorBadge, {
         decorator: exampleDecorator,

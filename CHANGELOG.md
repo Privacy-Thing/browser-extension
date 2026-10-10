@@ -8,6 +8,10 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ### Changed
 
+- Rule scopes use Domain and Pattern terminology. Control D is a PT plugin whose
+  brand metadata is rendered through the shared decorator. It subscribes to PT
+  configuration hooks for synchronization.
+
 - Provider services are suggested automatically while creating or editing a domain
   rule, with compact service badges in the editor, rule list and popup. The service
   switch is applied with the rule on Save. Hosts linked to the same service share

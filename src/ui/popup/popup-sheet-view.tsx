@@ -287,7 +287,7 @@ export const PopupSheetPane = ({ controller }: { controller: PopupController }) 
       locationLabel={t.popup.currentProfileLabel}
       ruleTypeLabel={
         savedRulePattern && (state.popupState.groupPatterns?.length ?? 0) > 1
-          ? groupCopy.matchThisSite
+          ? groupCopy.matchThisDomain
           : t.popup.ruleTypeLabel
       }
       exactLabel={t.popup.ruleTypeExact}

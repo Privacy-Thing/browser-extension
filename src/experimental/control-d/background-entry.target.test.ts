@@ -16,6 +16,7 @@ import {
 import { CONTROL_D_STORE_KEYS, saveControlDConfig } from "./storage";
 
 import { logExtensionEvent } from "@/background/logger";
+import { createPluginHooks } from "@/background/plugin-hooks";
 import { LOCATIONS_STORAGE_KEY } from "@/background/storage/locations";
 import { RULES_STORAGE_KEY } from "@/background/storage/rules";
 
@@ -69,6 +70,10 @@ beforeEach(() => {
   for (const key of Object.keys(storageState))
     Reflect.deleteProperty(storageState, key);
 
+  const storageListeners: StorageListener[] = [];
+  storageListener = (changes, area) => {
+    for (const listener of storageListeners) listener(changes, area);
+  };
   vi.stubGlobal("chrome", {
     runtime: {
       id: "extension-id",
@@ -78,6 +83,7 @@ beforeEach(() => {
         addListener: vi.fn((listener: MessageListener) => {
           messageListener = listener;
         }),
+        removeListener: vi.fn(),
       },
     },
     storage: {
@@ -92,8 +98,9 @@ beforeEach(() => {
       },
       onChanged: {
         addListener: vi.fn((listener: StorageListener) => {
-          storageListener = listener;
+          storageListeners.push(listener);
         }),
+        removeListener: vi.fn(),
       },
     },
   });
@@ -144,7 +151,7 @@ describe("Control D background entry", () => {
 
   it("prepares matching automatically after setup and on worker restart", async () => {
     await saveControlDConfig(fixtureConfig());
-    registerControlD({ getDebugMode: () => false });
+    registerControlD({ hooks: createPluginHooks(), getDebugMode: () => false });
     for (let tick = 0; tick < 6; tick++) await Promise.resolve();
     expect(ensureControlDRecognition).toHaveBeenCalledOnce();
     vi.mocked(ensureControlDRecognition).mockClear();
@@ -165,7 +172,7 @@ describe("Control D background entry", () => {
   });
 
   it("rejects Control D commands from content scripts before reading credentials", () => {
-    registerControlD({ getDebugMode: () => false });
+    registerControlD({ hooks: createPluginHooks(), getDebugMode: () => false });
     const respond = vi.fn();
     expect(
       messageListener(
@@ -244,7 +251,7 @@ describe("Control D background entry", () => {
       .mockResolvedValueOnce(prepared)
       .mockResolvedValueOnce(prepared);
     vi.mocked(applyControlDSync).mockResolvedValueOnce(config);
-    registerControlD({ getDebugMode: async () => false });
+    registerControlD({ hooks: createPluginHooks(), getDebugMode: async () => false });
 
     const previewResponse = await request({ type: CONTROL_D_COMMANDS.preview });
     expect(previewResponse).toMatchObject({ ok: true, snapshot: expectedSnapshot });
@@ -311,7 +318,7 @@ describe("Control D background entry", () => {
       await saveControlDConfig(journal);
       throw new Error("Second service write timed out");
     });
-    registerControlD({ getDebugMode: async () => false });
+    registerControlD({ hooks: createPluginHooks(), getDebugMode: async () => false });
     const preview = await request({ type: CONTROL_D_COMMANDS.preview });
     const response = await request({
       type: CONTROL_D_COMMANDS.apply,
@@ -371,7 +378,7 @@ describe("Control D background entry", () => {
         requiresApproximationConfirmation: false,
       },
     });
-    registerControlD({ getDebugMode: async () => false });
+    registerControlD({ hooks: createPluginHooks(), getDebugMode: async () => false });
 
     const response = await request({ type: CONTROL_D_COMMANDS.preview });
 
@@ -387,7 +394,7 @@ describe("Control D background entry", () => {
 
   it("creates a new resource identity without running synchronization", async () => {
     storageState[CONTROL_D_STORE_KEYS[1]] = "api-key";
-    registerControlD({ getDebugMode: async () => false });
+    registerControlD({ hooks: createPluginHooks(), getDebugMode: async () => false });
 
     const response = await request({ type: CONTROL_D_COMMANDS.selectNew });
 
@@ -427,7 +434,7 @@ describe("Control D background entry", () => {
       lastError: null,
     };
     storageState[CONTROL_D_STORE_KEYS[1]] = "api-key";
-    registerControlD({ getDebugMode: async () => false });
+    registerControlD({ hooks: createPluginHooks(), getDebugMode: async () => false });
 
     const confirmed = await request({
       type: CONTROL_D_COMMANDS.confirmDns,
@@ -449,7 +456,7 @@ describe("Control D background entry", () => {
   });
 
   it("persists a toggle action in extension logs when debug mode comes from storage", async () => {
-    registerControlD({ getDebugMode: async () => true });
+    registerControlD({ hooks: createPluginHooks(), getDebugMode: async () => true });
 
     const response = await new Promise<unknown>((resolve) => {
       expect(
@@ -476,7 +483,7 @@ describe("Control D background entry", () => {
   });
 
   it("logs regional mapping changes for View Logs in debug mode", async () => {
-    registerControlD({ getDebugMode: async () => true });
+    registerControlD({ hooks: createPluginHooks(), getDebugMode: async () => true });
 
     const response = await new Promise<unknown>((resolve) => {
       messageListener(
@@ -536,7 +543,7 @@ describe("Control D background entry", () => {
     };
     const timeoutSpy = vi.spyOn(globalThis, "setTimeout");
 
-    registerControlD({ getDebugMode: async () => true });
+    registerControlD({ hooks: createPluginHooks(), getDebugMode: async () => true });
 
     await vi.waitFor(() => {
       expect(timeoutSpy).toHaveBeenCalledWith(expect.any(Function), 1_500);
@@ -544,10 +551,10 @@ describe("Control D background entry", () => {
     timeoutSpy.mockRestore();
   });
 
-  it("debounces every saved rule or location mutation into automatic reconciliation", () => {
+  it("debounces every saved rule or location mutation into automatic reconciliation", async () => {
     const timeoutSpy = vi.spyOn(globalThis, "setTimeout");
     const clearTimeoutSpy = vi.spyOn(globalThis, "clearTimeout");
-    registerControlD({ getDebugMode: async () => false });
+    registerControlD({ hooks: createPluginHooks(), getDebugMode: async () => false });
 
     const ruleSnapshots = [
       [{ pattern: "added.example", enabled: true }],
@@ -561,6 +568,7 @@ describe("Control D background entry", () => {
       { [LOCATIONS_STORAGE_KEY]: { newValue: [{ id: "warsaw" }] } },
       "local",
     );
+    await Promise.resolve();
 
     expect(timeoutSpy).toHaveBeenCalledTimes(4);
     expect(timeoutSpy).toHaveBeenLastCalledWith(expect.any(Function), 1_500);
@@ -579,7 +587,7 @@ describe("Control D background entry", () => {
       return pending.promise;
     });
     vi.mocked(applyControlDSync).mockResolvedValueOnce(config);
-    registerControlD({ getDebugMode: async () => false });
+    registerControlD({ hooks: createPluginHooks(), getDebugMode: async () => false });
     const sync = request({ type: CONTROL_D_COMMANDS.syncNow });
     await started.promise;
     let disconnected = false;
@@ -641,7 +649,7 @@ describe("Control D background entry", () => {
         requiresApproximationConfirmation: false,
       },
     });
-    registerControlD({ getDebugMode: async () => false });
+    registerControlD({ hooks: createPluginHooks(), getDebugMode: async () => false });
     const preview = await request({ type: CONTROL_D_COMMANDS.preview });
     storageState[RULES_STORAGE_KEY] = [
       {

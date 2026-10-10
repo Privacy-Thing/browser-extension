@@ -94,8 +94,11 @@ afterEach(() => {
 });
 
 describe("Control D feature provider", () => {
-  it("uses Control D initials", () => {
-    expect(createControlDProvider().initials).toBe("CD");
+  it("supplies Control D brand metadata through the generic decorator contract", () => {
+    expect(createControlDProvider()).toMatchObject({
+      initials: "CD",
+      badgeColors: { background: "#1BE3AD", foreground: "#010818" },
+    });
   });
 
   it("recognizes each individual domain through the resolver without constructing a domain catalogue", async () => {

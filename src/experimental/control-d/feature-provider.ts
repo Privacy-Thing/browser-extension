@@ -7,8 +7,8 @@ import {
 } from "./recognition-setup";
 import { loadControlDApiKey, loadControlDConfig } from "./storage";
 
-import type { FeatureProvider } from "@/background/provider-features";
 import { loadRules } from "@/background/storage/rules";
+import type { FeaturePlugin } from "@/shared/plugin";
 import {
   providerFeatureSchema,
   type ProviderFeature,
@@ -92,7 +92,7 @@ const syncState = async (binding: RuleFeatureBinding | null | undefined) => {
   return { available, syncStatus, error: config.lastError };
 };
 
-export const createControlDProvider = (): FeatureProvider => {
+export const createControlDProvider = (): FeaturePlugin => {
   let catalogue: ProviderFeature[] | null = null;
   let catalogueAt = 0;
   let catalogueError: string | null = null;

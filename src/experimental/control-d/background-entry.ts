@@ -34,10 +34,12 @@ import { loadLocations } from "@/background/storage/locations";
 import { loadFeatureBindings } from "@/background/storage/provider-features";
 import { loadRules } from "@/background/storage/rules";
 import { fireAndForget } from "@/shared/async";
+import type { PluginHooks } from "@/shared/plugin-hooks";
 import { ExtensionLogLevel, LogCategory } from "@/shared/types";
 
 type BackgroundEntryDeps = {
   getDebugMode: () => boolean | Promise<boolean>;
+  hooks: PluginHooks;
 };
 
 type SyncResult =
@@ -602,6 +604,5 @@ const createController = (deps: BackgroundEntryDeps) => {
   };
 };
 
-export const registerControlD = (deps: BackgroundEntryDeps): void => {
-  registerControllers(createController(deps));
-};
+export const registerControlD = (deps: BackgroundEntryDeps): (() => void) =>
+  registerControllers(createController(deps), deps.hooks);

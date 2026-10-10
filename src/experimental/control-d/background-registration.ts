@@ -7,16 +7,17 @@ import {
   createFeatureController,
   isFeatureCommand,
 } from "@/background/provider-features";
-import { LOCATIONS_STORAGE_KEY } from "@/background/storage/locations";
-import { FEATURE_STORAGE_KEY } from "@/background/storage/provider-features";
-import { RULES_STORAGE_KEY } from "@/background/storage/rules";
 import { fireAndForget } from "@/shared/async";
+import type { PluginHooks } from "@/shared/plugin-hooks";
 import { FEATURE_EVENTS } from "@/shared/provider-feature";
 
-export const registerControllers = (controller: {
-  respond: (command: ControlDCommand) => Promise<unknown>;
-  scheduleAutomatic: () => void;
-}): void => {
+export const registerControllers = (
+  controller: {
+    respond: (command: ControlDCommand) => Promise<unknown>;
+    scheduleAutomatic: () => void;
+  },
+  hooks: PluginHooks,
+): (() => void) => {
   const prepareMatching = async () => {
     const config = await loadControlDConfig();
     if (config.enabled && config.connected) await ensureControlDRecognition();
@@ -34,7 +35,11 @@ export const registerControllers = (controller: {
         controller.scheduleAutomatic();
     }),
   );
-  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  const onMessage: Parameters<typeof chrome.runtime.onMessage.addListener>[0] = (
+    message,
+    sender,
+    sendResponse,
+  ) => {
     if (
       sender.id !== chrome.runtime.id ||
       !sender.url?.startsWith(chrome.runtime.getURL("/"))
@@ -47,12 +52,16 @@ export const registerControllers = (controller: {
     fireAndForget(result.then(sendResponse), (error) =>
       sendResponse({
         ok: false,
-        error: error instanceof Error ? error.message : "Provider operation failed.",
+        error: error instanceof Error ? error.message : "Plugin operation failed.",
       }),
     );
     return true;
-  });
-  chrome.storage.onChanged.addListener((changes, areaName) => {
+  };
+  chrome.runtime.onMessage.addListener(onMessage);
+  const onPluginStorageChanged = (
+    changes: Record<string, chrome.storage.StorageChange>,
+    areaName: string,
+  ): void => {
     if (areaName === "local" && CONTROL_D_STORE_KEYS[0] in changes) {
       fireAndForget(prepareMatching());
       fireAndForget(
@@ -62,14 +71,15 @@ export const registerControllers = (controller: {
         }),
       );
     }
-    if (
-      areaName === "local" &&
-      (RULES_STORAGE_KEY in changes ||
-        LOCATIONS_STORAGE_KEY in changes ||
-        (FEATURE_STORAGE_KEY in changes &&
-          JSON.stringify(changes[FEATURE_STORAGE_KEY]?.oldValue) !==
-            JSON.stringify(changes[FEATURE_STORAGE_KEY]?.newValue)))
-    )
-      controller.scheduleAutomatic();
-  });
+  };
+  chrome.storage.onChanged.addListener(onPluginStorageChanged);
+  const unsubscribe = hooks.onConfigurationChanged(
+    ["rules", "locations", "featureBindings"],
+    () => controller.scheduleAutomatic(),
+  );
+  return () => {
+    unsubscribe();
+    chrome.runtime.onMessage.removeListener(onMessage);
+    chrome.storage.onChanged.removeListener(onPluginStorageChanged);
+  };
 };

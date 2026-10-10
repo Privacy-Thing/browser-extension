@@ -15,11 +15,11 @@ describe("RuleHostList", () => {
     );
     for (const host of ["*example.com", "api.example.net", "third.example.org"])
       expect(markup).toContain(`data-rule-host="${host}"`);
-    expect(markup).toContain("Sites in this rule");
+    expect(markup).toContain("Patterns in this rule");
     expect(markup).toContain("same settings and identity");
     expect(markup).not.toContain("data-provider");
   });
-  it("omits a redundant list for a single site", () => {
+  it("omits a redundant list for a single domain", () => {
     expect(
       renderToStaticMarkup(createElement(RuleHostList, { patterns: ["example.com"] })),
     ).toBe("");
@@ -30,7 +30,7 @@ describe("RuleHostList", () => {
       const markup = renderToStaticMarkup(
         createElement(RuleHostList, { patterns: ["first.example", "second.example"] }),
       );
-      expect(markup).toContain("Sitios de esta regla");
+      expect(markup).toContain("Patrones de esta regla");
       expect(markup).toContain("misma configuración");
     } finally {
       applyUiLocalePreference("en");
