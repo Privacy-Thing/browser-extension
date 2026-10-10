@@ -179,3 +179,26 @@ live in `docs/code-style.md`.
   artifacts rather than building them.
 - Never cut a version, create or push a release tag, or trigger a release workflow
   without explicit approval.
+
+## Changelog entries on a development branch
+
+- Keep task-owned entries in `## [Unreleased]` as a concise summary of the branch's
+  final user-visible outcome. Review the complete branch diff (`git diff <target>...HEAD`)
+  and the related existing Unreleased entries when writing or updating that summary.
+- As development proceeds, rewrite or consolidate the entry for the feature. Fold
+  implementation corrections, review feedback, UI iterations and changed approaches
+  into its final description. Remove duplicates and descriptions of abandoned behavior.
+  Keep commit-by-commit development history in commits and PR discussions.
+- Choose `Added`, `Changed` or `Fixed` against the behavior users already received in
+  a release. Use `Fixed` for a bug in released behavior. Corrections to a feature still
+  under development belong in that feature's `Added` or `Changed` entry, including
+  when an earlier part of the feature has already merged into main but is unreleased.
+- Describe what users can do and any important scope or limits. Omit internal debugging,
+  temporary defects and implementation details that do not affect the user-facing result.
+- Before publishing or updating the PR, reread its changelog diff as release notes:
+  it must cover the net result of all development on the branch without requiring the
+  reader to know its intermediate versions. Preserve unrelated entries and released
+  sections; do not create a version or release date without explicit approval.
+- Example: adding multi-pattern rules and correcting their editor during development
+  yields one `Added` entry describing rules with several editable patterns sharing
+  settings and identity. The editor corrections are incorporated into that description.
