@@ -13,6 +13,7 @@ export type PluginFeatureUi = {
   }) => ReactNode;
   renderExplanation: (context: {
     feature: ProviderFeature;
+    isJoin: boolean;
     state: ProviderFeatureState;
     locale: UiLocale;
     openSettings?: MouseEventHandler<HTMLAnchorElement>;

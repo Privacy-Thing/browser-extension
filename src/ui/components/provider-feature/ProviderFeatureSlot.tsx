@@ -121,7 +121,10 @@ const ServiceChoice = ({ props }: { props: ProviderFeatureSlotProps }) => {
         data-provider-feature-choice-title
         className="text-sm font-medium text-foreground"
       >
-        {decorator.providerName}: {copy.suggestQuestion(decorator.label)}
+        {decorator.providerName}:{" "}
+        {join
+          ? copy.joinQuestion(decorator.label)
+          : copy.suggestQuestion(decorator.label)}
       </p>
       <div
         id={noteId}
@@ -143,7 +146,7 @@ const ServiceChoice = ({ props }: { props: ProviderFeatureSlotProps }) => {
           <FeatureChip props={props} label={decorator.label} mode="staged" />
         ) : (
           <label id={labelId} htmlFor={switchId} className="text-sm text-foreground">
-            {copy.includeService}
+            {join ? copy.join : copy.includeService}
           </label>
         )}
         <Switch

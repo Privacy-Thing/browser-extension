@@ -342,7 +342,7 @@ describe("ProviderFeatureHost", () => {
     await click("join");
     expect(
       document.querySelector("[data-provider-feature-scope]")?.textContent,
-    ).toContain("current settings and identity will be replaced");
+    ).toContain("Regional Preset, protection settings and identity will be replaced");
     expect(JSON.parse(decisionInput()?.value ?? "{}")).toEqual({
       providerId: "dns",
       featureId: "youtube",

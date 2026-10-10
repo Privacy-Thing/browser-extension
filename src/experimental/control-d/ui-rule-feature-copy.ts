@@ -44,13 +44,14 @@ const en: ProviderFeatureMessages = {
   yes: "Yes",
   no: "No thanks",
   scope,
-  joinQuestion: fill("Join {value}?"),
+  joinQuestion: fill("Add this pattern to the existing {value} rule?"),
   joinHint: hint(
     "Uses the settings and identity of {pattern}.",
     "Uses the settings and identity of {pattern} and {extra} more.",
   ),
-  joinReplaces: "This rule's current settings and identity will be replaced.",
-  join: "Join",
+  joinReplaces:
+    "This rule's Regional Preset, protection settings and identity will be replaced.",
+  join: "Add to existing rule",
   stagedLabel: fill("{value} · unsaved"),
   addService: "Link a service",
   change: "Change service",
@@ -106,14 +107,14 @@ const es: ProviderFeatureMessages = {
   no: "No, gracias",
   scope: (provider, service) =>
     `${BRAND_DISPLAY_NAME} protege solo los dominios de esta regla. Un servicio de ${provider} para ${service} puede cubrir otros.`,
-  joinQuestion: fill("¿Unirse a {value}?"),
+  joinQuestion: fill("¿Añadir este patrón a la regla existente de {value}?"),
   joinHint: hint(
     "Usa la configuración y la identidad de {pattern}.",
     "Usa la configuración y la identidad de {pattern} y {extra} más.",
   ),
   joinReplaces:
-    "Se reemplazarán la configuración y la identidad actuales de esta regla.",
-  join: "Unirse",
+    "Se sustituirán el preset regional, los ajustes de protección y la identidad de esta regla.",
+  join: "Añadir a la regla existente",
   stagedLabel: fill("{value} · sin guardar"),
   addService: "Vincular un servicio",
   change: "Cambiar servicio",
@@ -171,14 +172,14 @@ const pt: ProviderFeatureMessages = {
   no: "Agora não",
   scope: (provider, service) =>
     `O ${BRAND_DISPLAY_NAME} protege só os domínios desta regra. Um serviço do ${provider} para ${service} pode abranger outros.`,
-  joinQuestion: fill("Entrar em {value}?"),
+  joinQuestion: fill("Adicionar este padrão à regra existente de {value}?"),
   joinHint: hint(
     "Usa as configurações e a identidade de {pattern}.",
     "Usa as configurações e a identidade de {pattern} e mais {extra}.",
   ),
   joinReplaces:
-    "As configurações e a identidade atuais desta regra serão substituídas.",
-  join: "Entrar",
+    "O preset regional, as configurações de proteção e a identidade desta regra serão substituídos.",
+  join: "Adicionar à regra existente",
   stagedLabel: fill("{value} · não salvo"),
   addService: "Vincular um serviço",
   change: "Trocar serviço",
@@ -238,13 +239,14 @@ const ru: ProviderFeatureMessages = {
   no: "Не нужно",
   scope: (provider, service) =>
     `${BRAND_DISPLAY_NAME} защищает только домены этого правила. Сервис ${provider} для ${service} может охватывать и другие.`,
-  joinQuestion: fill("Присоединить к {value}?"),
+  joinQuestion: fill("Добавить этот шаблон в существующее правило {value}?"),
   joinHint: hint(
     "Использует настройки и идентичность {pattern}.",
     "Использует настройки и идентичность {pattern} и ещё {extra}.",
   ),
-  joinReplaces: "Текущие настройки и идентичность этого правила будут заменены.",
-  join: "Присоединить",
+  joinReplaces:
+    "Региональный пресет, настройки защиты и идентичность этого правила будут заменены.",
+  join: "Добавить в существующее правило",
   stagedLabel: fill("{value} · не сохранено"),
   addService: "Связать с сервисом",
   change: "Сменить сервис",
@@ -304,13 +306,14 @@ const uk: ProviderFeatureMessages = {
   no: "Не треба",
   scope: (provider, service) =>
     `${BRAND_DISPLAY_NAME} захищає лише домени цього правила. Сервіс ${provider} для ${service} може охоплювати й інші.`,
-  joinQuestion: fill("Приєднати до {value}?"),
+  joinQuestion: fill("Додати цей шаблон до наявного правила {value}?"),
   joinHint: hint(
     "Використовує налаштування та ідентичність {pattern}.",
     "Використовує налаштування та ідентичність {pattern} і ще {extra}.",
   ),
-  joinReplaces: "Поточні налаштування та ідентичність цього правила буде замінено.",
-  join: "Приєднати",
+  joinReplaces:
+    "Регіональний пресет, налаштування захисту та ідентичність цього правила буде замінено.",
+  join: "Додати до наявного правила",
   stagedLabel: fill("{value} · не збережено"),
   addService: "Пов'язати із сервісом",
   change: "Змінити сервіс",

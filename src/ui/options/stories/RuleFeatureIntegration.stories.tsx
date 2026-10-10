@@ -182,6 +182,14 @@ export const GroupLinked: Story = {
 };
 export const JoinExisting: Story = {
   args: { savedPattern: "music.youtube.com", draft: true, scenario: "join" },
+  play: async ({ canvasElement }) => {
+    const panel = await findPanel(canvasElement);
+    await expect(panel).toHaveAttribute("data-provider-feature-state", "join");
+    await expect(panel.querySelector("[data-plugin-feature-join]")).toHaveTextContent(
+      "YouTube",
+    );
+    await expect(panel.querySelector("[data-plugin-feature-term]")).toBeNull();
+  },
 };
 export const FeatureSyncFailed: Story = {
   args: { savedPattern: "www.youtube.com", scenario: "sync-failed" },
@@ -272,6 +280,8 @@ export const PatternActionRow: Story = {
       const button = add(),
         input = last();
       if (!button || !input) throw new Error("Missing pattern controls");
+      expect(button).toHaveAccessibleName("Add pattern");
+      expect(button.textContent?.trim()).toBe("+");
       expect(button.closest("[data-rule-pattern-row]")).toBe(
         input.closest("[data-rule-pattern-row]"),
       );

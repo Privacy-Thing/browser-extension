@@ -247,9 +247,10 @@ const ProviderFeatureHostBody = ({
         locale,
         ...(variant === "compact" ? { openSettings: openInBackground } : {}),
       })}
-      renderExplanation={(feature) =>
+      renderExplanation={(feature, isJoin) =>
         presentation.renderExplanation({
           feature,
+          isJoin,
           state,
           locale,
           ...(variant === "compact" ? { openSettings: openInBackground } : {}),
@@ -258,6 +259,12 @@ const ProviderFeatureHostBody = ({
     />
   );
 };
+
+const explainFeature = (
+  model: ReturnType<typeof resolveSlot>,
+  render: (feature: ProviderFeature, isJoin: boolean) => ReactNode,
+): ReactNode =>
+  model.feature ? render(model.feature, model.join !== null) : undefined;
 
 const ReadyFeatureHost = ({
   rulePattern,
@@ -287,7 +294,7 @@ const ReadyFeatureHost = ({
   decision: FeatureDecision | undefined;
   stage: (next: FeatureDecision | undefined) => void;
   copy: ProviderFeatureMessages;
-  renderExplanation: (feature: ProviderFeature) => ReactNode;
+  renderExplanation: (feature: ProviderFeature, isJoin: boolean) => ReactNode;
   contextNotice?: ReactNode;
 }) => {
   const identity = identityOf(rulePattern, savedRulePattern);
@@ -338,7 +345,7 @@ const ReadyFeatureHost = ({
         variant={variant}
         model={model}
         copy={copy}
-        {...(model.feature ? { explanation: renderExplanation(model.feature) } : {})}
+        explanation={explainFeature(model, renderExplanation)}
         contextNotice={contextNotice}
         features={state.features}
         sharedHosts={sharedHosts}

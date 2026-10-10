@@ -45,15 +45,19 @@ export const RuleAdditionalHosts = ({
   const addControl = (
     <Button
       type="button"
-      variant="outline"
-      size="sm"
+      variant="ghost"
+      size="icon"
       className="shrink-0"
       data-rule-host-action="add"
+      aria-label={copy.addPattern}
+      title={copy.addPattern}
       onClick={() =>
         setEntries((current) => [...current, { id: crypto.randomUUID(), pattern: "" }])
       }
     >
-      {copy.addPattern}
+      <span aria-hidden="true" className="text-xl leading-none">
+        +
+      </span>
     </Button>
   );
   return (

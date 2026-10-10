@@ -74,6 +74,9 @@ describe("atomic feature rule save", () => {
       saveRules([primary, other], { ...decision, rulePattern: other.pattern }),
     ).rejects.toThrow("Choose Add");
     expect(data[RULES_STORAGE_KEY]).toEqual([primary]);
+    expect((await loadFeatureState()).featureBindings).toEqual([
+      expect.objectContaining({ rulePattern: primary.pattern, featureId: "video" }),
+    ]);
     const joined = await saveRules([primary, other], {
       ...decision,
       rulePattern: other.pattern,
@@ -89,6 +92,7 @@ describe("atomic feature rule save", () => {
       primary.pattern,
       other.pattern,
     ]);
+    expect((await loadFeatureState()).featureBindings).toHaveLength(1);
   });
   it("keeps the existing canonical host first when the new host is stored first", async () => {
     await saveRules([primary], { ...decision, rulePattern: primary.pattern });

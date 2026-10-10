@@ -103,9 +103,13 @@ describe("ProviderFeatureSlot", () => {
       },
     );
     expect(markup).toContain('data-provider-feature-state="join"');
-    expect(markup).toContain("Setup YouTube service?");
+    expect(markup).toContain("Add this pattern to the existing YouTube rule?");
+    expect(markup).toContain("Add to existing rule");
+    expect(markup).not.toContain("Setup YouTube service?");
     expect(markup).toContain("Uses the settings and identity of www.youtube.com.");
-    expect(markup).toContain("current settings and identity will be replaced");
+    expect(markup).toContain(
+      "Regional Preset, protection settings and identity will be replaced",
+    );
     expect(markup).toContain('data-provider-feature-action="join"');
   });
 

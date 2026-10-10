@@ -6,6 +6,7 @@ type ExplanationMessages = {
   customRules: string;
   service: string;
   scope: string;
+  joining: string;
   tooltip: string;
   fallback: string;
   ready: string;
@@ -25,6 +26,8 @@ export const explanationCopy: Record<UiLocale, ExplanationMessages> = {
     customRules: "Custom Rules",
     service: "service",
     scope: `{term} in Control D usually cover more domains than this rule. ${BRAND_DISPLAY_NAME} can set up a {feature} {service} redirect in Control D.`,
+    joining:
+      "{feature} already has a linked rule. Adding this pattern reuses its Control D service redirect.",
     tooltip: `A Service Rule covers a group of domains maintained by Control D. A Custom Rule applies to a specified domain or pattern and takes priority over a Service Rule. Linking a service does not extend ${BRAND_DISPLAY_NAME} protection beyond this rule's patterns.`,
     fallback: `Saving creates {term} for these patterns. Include the service to add a Service Rule.`,
     ready: "Skip sync for {preset} in ",
@@ -43,6 +46,8 @@ export const explanationCopy: Record<UiLocale, ExplanationMessages> = {
     customRules: "Custom Rules",
     service: "servicio",
     scope: `Las {term} de Control D suelen cubrir más dominios que esta regla. ${BRAND_DISPLAY_NAME} puede configurar una redirección del {service} {feature} en Control D.`,
+    joining:
+      "{feature} ya tiene una regla vinculada. Añadir este patrón reutiliza su redirección de servicio en Control D.",
     tooltip: `Una regla de servicio cubre un grupo de dominios mantenido por Control D. Una Custom Rule se aplica a un dominio o patrón y tiene prioridad sobre la regla de servicio. Vincular un servicio no amplía la protección de ${BRAND_DISPLAY_NAME} más allá de los patrones de esta regla.`,
     fallback: `Al guardar se crean {term} para estos patrones. Incluir el servicio añade una regla de servicio.`,
     ready: "Excluye de la sincronización {preset} en ",
@@ -62,6 +67,8 @@ export const explanationCopy: Record<UiLocale, ExplanationMessages> = {
     customRules: "Custom Rules",
     service: "serviço",
     scope: `As {term} do Control D costumam abranger mais domínios que esta regra. O ${BRAND_DISPLAY_NAME} pode configurar um redirecionamento do {service} {feature} no Control D.`,
+    joining:
+      "{feature} já tem uma regra vinculada. Adicionar este padrão reutiliza seu redirecionamento de serviço no Control D.",
     tooltip: `Uma regra de serviço abrange um grupo de domínios mantido pelo Control D. Uma Custom Rule se aplica a um domínio ou padrão e tem prioridade sobre a regra de serviço. Vincular um serviço não estende a proteção do ${BRAND_DISPLAY_NAME} além dos padrões desta regra.`,
     fallback: `Salvar cria {term} para estes padrões. Incluir o serviço adiciona uma regra de serviço.`,
     ready: "Exclua {preset} da sincronização em ",
@@ -81,6 +88,8 @@ export const explanationCopy: Record<UiLocale, ExplanationMessages> = {
     customRules: "Custom Rules",
     service: "сервиса",
     scope: `{term} Control D обычно охватывают больше доменов, чем это правило. ${BRAND_DISPLAY_NAME} может настроить перенаправление {service} {feature} в Control D.`,
+    joining:
+      "Для {feature} уже есть связанное правило. Этот шаблон будет использовать его перенаправление сервиса в Control D.",
     tooltip: `Правило сервиса охватывает группу доменов, которую поддерживает Control D. Custom Rule применяется к указанному домену или шаблону и имеет приоритет над правилом сервиса. Привязка сервиса не расширяет защиту ${BRAND_DISPLAY_NAME} за пределы шаблонов этого правила.`,
     fallback: `Сохранение создаёт {term} для этих шаблонов. Подключение сервиса добавляет правило сервиса.`,
     ready: "Исключить {preset} из синхронизации можно в ",
@@ -99,6 +108,8 @@ export const explanationCopy: Record<UiLocale, ExplanationMessages> = {
     customRules: "Custom Rules",
     service: "сервісу",
     scope: `{term} Control D зазвичай охоплюють більше доменів, ніж це правило. ${BRAND_DISPLAY_NAME} може налаштувати перенаправлення {service} {feature} у Control D.`,
+    joining:
+      "Для {feature} уже є пов’язане правило. Цей шаблон використовуватиме його перенаправлення сервісу в Control D.",
     tooltip: `Правило сервісу охоплює групу доменів, яку підтримує Control D. Custom Rule застосовується до вказаного домену або шаблону та має пріоритет над правилом сервісу. Прив'язка сервісу не розширює захист ${BRAND_DISPLAY_NAME} за межі шаблонів цього правила.`,
     fallback: `Збереження створює {term} для цих шаблонів. Підключення сервісу додає правило сервісу.`,
     ready: "Виключити {preset} із синхронізації можна в ",

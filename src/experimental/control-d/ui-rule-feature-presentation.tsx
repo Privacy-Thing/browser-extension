@@ -26,7 +26,10 @@ const SyncNotice = ({
   state,
   locale,
   openSettings,
-}: Pick<PresentationContext, "state" | "locale" | "openSettings">) => {
+  joining,
+}: Pick<PresentationContext, "state" | "locale" | "openSettings"> & {
+  joining?: boolean;
+}) => {
   const copy = explanationCopy[locale];
   const sync = state.syncContext;
   const status = sync?.state ?? "ready";
@@ -39,7 +42,7 @@ const SyncNotice = ({
       : `/${path}`;
   return (
     <p data-plugin-sync-context={status} className="text-xs text-muted-foreground">
-      {status === "ready" ? (
+      {status === "ready" && !joining ? (
         <>{interpolate(copy.fallback, { term: <em>{copy.customRules}</em> })} </>
       ) : null}
       {interpolate(message, { preset: sync?.presetName ?? copy.preset })}
@@ -70,8 +73,22 @@ export const controlDFeatureUi: PluginFeatureUi = {
       />
     );
   },
-  renderExplanation: ({ feature, state, locale, openSettings }) => {
+  renderExplanation: ({ feature, isJoin, state, locale, openSettings }) => {
     const copy = explanationCopy[locale];
+    if (isJoin)
+      return (
+        <>
+          <p data-plugin-feature-join>
+            {interpolate(copy.joining, { feature: feature.name })}
+          </p>
+          <SyncNotice
+            state={state}
+            locale={locale}
+            joining
+            {...(openSettings ? { openSettings } : {})}
+          />
+        </>
+      );
     const term = (
       <TooltipProvider>
         <Tooltip>

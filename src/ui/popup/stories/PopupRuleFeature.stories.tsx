@@ -206,6 +206,14 @@ export const GroupLinked: Story = {
 };
 export const JoinExisting: Story = {
   args: { savedPattern: null, hostname: "music.youtube.com", scenario: "join" },
+  play: async ({ canvasElement }) => {
+    const panel = await findPanel(canvasElement);
+    await expect(panel).toHaveAttribute("data-provider-feature-state", "join");
+    await expect(panel.querySelector("[data-plugin-feature-join]")).toHaveTextContent(
+      "YouTube",
+    );
+    await expect(panel.querySelector("[data-plugin-feature-term]")).toBeNull();
+  },
 };
 export const UnsavedDraft: Story = {
   args: { savedPattern: null, scenario: "not-checked" },

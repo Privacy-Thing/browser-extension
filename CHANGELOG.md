@@ -13,7 +13,9 @@ The format is based on Keep a Changelog and the project follows Semantic Version
   Control D in settings). Plugin-owned rule explanations distinguish Service Rules
   from Custom Rules, show excluded or paused presets and link to their sync settings.
   It subscribes to PT configuration hooks for synchronization. Pattern editors keep
-  Add pattern beside the final input, distinguish remove actions and separate sections.
+  a ghost + button beside the final input, distinguish remove actions and separate
+  sections. A service already linked to another rule offers adding the pattern to
+  that existing rule instead of setting up another service.
 
 - Provider services are suggested automatically while creating or editing a domain
   rule, with compact service badges in the editor, rule list and popup. The service
