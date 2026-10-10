@@ -40,23 +40,24 @@ const SyncNotice = ({
     typeof chrome !== "undefined" && chrome.runtime?.getURL
       ? chrome.runtime.getURL(path)
       : `/${path}`;
+  const link = (
+    <a
+      onClick={openSettings}
+      data-plugin-settings-link
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="underline underline-offset-2"
+    >
+      {status === "paused" ? copy.settings : copy.routes}
+    </a>
+  );
   return (
     <p data-plugin-sync-context={status} className="text-xs text-muted-foreground">
       {status === "ready" && !joining ? (
         <>{interpolate(copy.fallback, { term: <em>{copy.customRules}</em> })} </>
       ) : null}
-      {interpolate(message, { preset: sync?.presetName ?? copy.preset })}
-      <a
-        onClick={openSettings}
-        data-plugin-settings-link
-        href={href}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="underline underline-offset-2"
-      >
-        {status === "paused" ? copy.settings : copy.routes}
-      </a>
-      .
+      {interpolate(message, { preset: sync?.presetName ?? copy.preset, link })}
     </p>
   );
 };
@@ -73,22 +74,22 @@ export const controlDFeatureUi: PluginFeatureUi = {
       />
     );
   },
-  renderExplanation: ({ feature, isJoin, state, locale, openSettings }) => {
+  renderExplanation: ({ feature, isJoin, isStaged, state, locale, openSettings }) => {
     const copy = explanationCopy[locale];
-    if (isJoin)
+    const navigationProps = openSettings ? { openSettings } : {};
+    if (isJoin) {
+      const syncNotice = isStaged ? (
+        <SyncNotice state={state} locale={locale} joining {...navigationProps} />
+      ) : null;
       return (
         <>
           <p data-plugin-feature-join>
             {interpolate(copy.joining, { feature: feature.name })}
           </p>
-          <SyncNotice
-            state={state}
-            locale={locale}
-            joining
-            {...(openSettings ? { openSettings } : {})}
-          />
+          {syncNotice}
         </>
       );
+    }
     const term = (
       <TooltipProvider>
         <Tooltip>
@@ -116,11 +117,7 @@ export const controlDFeatureUi: PluginFeatureUi = {
             service: <em>{copy.service}</em>,
           })}
         </p>
-        <SyncNotice
-          state={state}
-          locale={locale}
-          {...(openSettings ? { openSettings } : {})}
-        />
+        <SyncNotice state={state} locale={locale} {...navigationProps} />
       </>
     );
   },

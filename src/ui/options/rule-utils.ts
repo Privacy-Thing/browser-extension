@@ -389,6 +389,23 @@ export const upsertRule = (
   ];
 };
 
+export const assertPatternReplacement = (
+  rules: readonly DomainRule[],
+  pattern: string,
+  editingRulePattern?: string | null,
+): void => {
+  const normalized = normalizePattern(pattern);
+  const editing = editingRulePattern ? normalizePattern(editingRulePattern) : null;
+  const previous = rules.find((rule) => normalizePattern(rule.pattern) === editing);
+  const collision = rules.find(
+    (rule) =>
+      normalizePattern(rule.pattern) === normalized &&
+      normalizePattern(rule.pattern) !== editing,
+  );
+  if (collision && (previous?.groupId || collision.groupId))
+    throw new Error(ruleGroupCopy[getActiveUiLocale()].duplicate(normalized));
+};
+
 /** One product rule is stored as flat members for the existing runtime resolver. */
 export const upsertRuleGroup = (
   rules: readonly DomainRule[],
@@ -396,18 +413,21 @@ export const upsertRuleGroup = (
   additionalPatterns: readonly string[],
   editingRulePattern?: string | null,
 ): DomainRule[] => {
-  const patterns = [
-    ...new Set(
-      [nextRule.pattern, ...additionalPatterns].map(normalizePattern).filter(Boolean),
-    ),
-  ];
+  const patterns = [nextRule.pattern, ...additionalPatterns].map(normalizePattern);
+  const copy = ruleGroupCopy[getActiveUiLocale()];
+  if (patterns.some((pattern) => pattern.length === 0)) throw new Error(copy.empty);
+  const repeated = patterns.find(
+    (pattern, index) => patterns.indexOf(pattern) !== index,
+  );
+  if (repeated) throw new Error(copy.repeated(repeated));
+  assertPatternReplacement(rules, nextRule.pattern, editingRulePattern);
   const oldPatterns = editingRulePattern
     ? getRuleGroupPatterns(rules, editingRulePattern)
     : [];
   for (const pattern of patterns.slice(1)) {
     if (
       !oldPatterns.includes(pattern) &&
-      rules.some((rule) => rule.pattern === pattern)
+      rules.some((rule) => normalizePattern(rule.pattern) === pattern)
     )
       throw new Error(ruleGroupCopy[getActiveUiLocale()].duplicate(pattern));
   }

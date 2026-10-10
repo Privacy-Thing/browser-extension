@@ -357,6 +357,65 @@ describe("ProviderFeatureHost", () => {
     expect(commands().map(({ type }) => type)).not.toContain(FEATURE_COMMANDS.confirm);
   });
 
+  it("reports the canonical rule when a join is staged", async () => {
+    const canonical = {
+      pattern: "www.example.com",
+      enabled: false,
+      locationId: "warsaw",
+      relaxCspForWorkers: true,
+      fingerprintSurfaceOverrides: { serviceWorker: true as const },
+    };
+    const onDecisionChange = vi.fn();
+    await renderHost({ rulePattern: "music.example.com", onDecisionChange });
+    await reply(0, {
+      ok: true,
+      state: {
+        ...matched("music.example.com"),
+        bindings: [
+          {
+            rulePattern: "www.example.com",
+            providerId: "dns",
+            featureId: "youtube",
+            featureName: "YouTube",
+            featureType: "service",
+          },
+        ],
+        ruleConfigurations: [canonical],
+      },
+    });
+    await click("join");
+    expect(onDecisionChange).toHaveBeenLastCalledWith(
+      { providerId: "dns", featureId: "youtube", joinExisting: true },
+      canonical,
+    );
+  });
+
+  it("reports a join without a canonical rule when that rule is missing", async () => {
+    const onDecisionChange = vi.fn();
+    await renderHost({ rulePattern: "music.example.com", onDecisionChange });
+    await reply(0, {
+      ok: true,
+      state: {
+        ...matched("music.example.com"),
+        bindings: [
+          {
+            rulePattern: "www.example.com",
+            providerId: "dns",
+            featureId: "youtube",
+            featureName: "YouTube",
+            featureType: "service",
+          },
+        ],
+      },
+    });
+    await click("join");
+    expect(onDecisionChange).toHaveBeenLastCalledWith(
+      { providerId: "dns", featureId: "youtube", joinExisting: true },
+      undefined,
+    );
+    expect(decisionInput()?.value).toContain('"joinExisting":true');
+  });
+
   it("reads the saved pattern so an edit keeps the existing group", async () => {
     await renderHost({
       rulePattern: "music.example.com",
@@ -477,7 +536,8 @@ describe("ProviderFeatureHost", () => {
     expect(hold.run).not.toBeNull();
     expect(commands().map(({ hostname }) => hostname)).toEqual(["a.example.com"]);
     await reply(0, { ok: true, state: matched("a.example.com") });
-    expect(stateOf()).toBe("suggest");
+    expect(document.querySelector("[data-provider-feature-action]")).toBeNull();
+    expect(document.querySelector("[data-provider-request-pending]")).not.toBeNull();
     await act(async () => {
       hold.run?.();
     });
@@ -491,6 +551,73 @@ describe("ProviderFeatureHost", () => {
     await reply(fresh, { ok: true, state: matched("b.example.com") });
     expect(stateOf()).toBe("suggest");
     expect(document.body.textContent).toContain("Setup YouTube service?");
+  });
+
+  it("cannot stage an old join after editing the pattern during debounce", async () => {
+    const onDecisionChange = vi.fn();
+    await renderHost({ rulePattern: "music.example.com", onDecisionChange, schedule });
+    const state: ProviderFeatureState = {
+      ...matched("music.example.com"),
+      dismissed: true,
+      bindings: [
+        {
+          rulePattern: "video.example.com",
+          providerId: "dns",
+          featureId: "youtube",
+          featureType: "service",
+          featureName: "YouTube",
+        },
+      ],
+    };
+    await reply(0, { ok: true, state });
+    expect(stateOf()).toBe("join");
+    await click("join");
+    expect(decisionInput()).not.toBeNull();
+    await renderHost({
+      rulePattern: "different.example.com",
+      onDecisionChange,
+      schedule,
+    });
+    expect(decisionInput()).toBeNull();
+    expect(document.querySelector("[data-provider-feature-action='join']")).toBeNull();
+    expect(onDecisionChange).toHaveBeenLastCalledWith(undefined);
+    expect(commands().every(({ hostname }) => hostname === "music.example.com")).toBe(
+      true,
+    );
+    await act(async () => {
+      hold.run?.();
+    });
+    await reply(lastCommand(FEATURE_COMMANDS.getState, "different.example.com"), {
+      ok: true,
+      state: { ...baseState, dismissed: true },
+    });
+    expect(stateOf()).toBe("manual");
+    expect(decisionInput()).toBeNull();
+  });
+
+  it("clears approval when an additional pattern changes without another domain query", async () => {
+    const onDecisionChange = vi.fn();
+    await renderHost({
+      rulePattern: "video.example.com",
+      scopeKey: "one",
+      onDecisionChange,
+      schedule,
+    });
+    await reply(0, {
+      ok: true,
+      state: { ...matched("video.example.com"), dismissed: true },
+    });
+    await click("accept");
+    expect(decisionInput()).not.toBeNull();
+    await renderHost({
+      rulePattern: "video.example.com",
+      scopeKey: "two",
+      onDecisionChange,
+      schedule,
+    });
+    expect(decisionInput()).toBeNull();
+    expect(onDecisionChange).toHaveBeenLastCalledWith(undefined);
+    expect(commands()).toHaveLength(1);
   });
 
   it("recognizes the apex of *host and www of *.host and skips other wildcards", async () => {
@@ -780,7 +907,7 @@ describe("ProviderFeatureHost", () => {
     );
   });
 
-  it("does not show checking while a draft is still being typed", async () => {
+  it("hides stale actions while a draft is still being typed without querying each edit", async () => {
     await renderHost({ rulePattern: "video.example.com", schedule });
     await reply(0, {
       ok: true,
@@ -792,7 +919,8 @@ describe("ProviderFeatureHost", () => {
     });
     expect(stateOf()).toBe("suggest");
     await renderHost({ rulePattern: "other.example.com", schedule });
-    expect(document.body.textContent).not.toContain("Checking");
+    expect(document.querySelector("[data-provider-feature-action]")).toBeNull();
+    expect(document.querySelector("[data-provider-request-pending]")).not.toBeNull();
     expect(commands().some((command) => command.hostname === "other.example.com")).toBe(
       false,
     );

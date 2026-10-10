@@ -14,6 +14,7 @@ import {
   type FeatureStoryScenario,
 } from "./provider-feature-runtime-mock";
 
+import type { SurfaceOverrides } from "@/shared/types";
 import { RuleDialog } from "@/ui/options/components/modals/RuleDialog";
 
 installChromeBoundary();
@@ -33,6 +34,10 @@ const RuleEditorSurface = ({
   multipleSites,
 }: RuleEditorSurfaceProps) => {
   const [pattern, setPattern] = useState(savedPattern);
+  const [profileId, setProfileId] = useState("warsaw");
+  const [enabled, setEnabled] = useState(true);
+  const [surfaces, setSurfaces] = useState<SurfaceOverrides | undefined>({});
+  const [relax, setRelax] = useState(false);
   return (
     <StorySettingsProvider
       value={{
@@ -71,19 +76,19 @@ const RuleEditorSurface = ({
           : {}),
         editingRuleSeedKey: "story-rule-identity",
         rotateRuleIdentity: fn(async () => true),
-        ruleEnabled: true,
-        setRuleEnabled: fn(),
-        ruleProfileId: "warsaw",
-        setRuleProfileId: fn(),
+        ruleEnabled: enabled,
+        setRuleEnabled: setEnabled,
+        ruleProfileId: profileId,
+        setRuleProfileId: setProfileId,
         ruleProfileOptions: STORY_LOCATIONS.map(({ id, label }) => ({
           value: id,
           label,
         })),
-        ruleSurfaceOverrides: {},
-        setRuleSurfaceOverrides: fn(),
+        ruleSurfaceOverrides: surfaces,
+        setRuleSurfaceOverrides: setSurfaces,
         trustedSites: [],
-        ruleRelaxCsp: false,
-        setRuleRelaxCsp: fn(),
+        ruleRelaxCsp: relax,
+        setRuleRelaxCsp: setRelax,
         handleDeleteRule: fn(async () => true),
       }}
     >
@@ -180,19 +185,108 @@ export const FeatureLinked: Story = {
 export const GroupLinked: Story = {
   args: { savedPattern: "www.youtube.com", scenario: "group-linked" },
 };
+const selectProfile = async (canvasElement: HTMLElement, label: string) => {
+  const root = canvasElement.ownerDocument;
+  const trigger = root.getElementById("dialog-rule-profile");
+  if (!trigger) throw new Error("Missing regional preset.");
+  await userEvent.click(trigger);
+  await userEvent.click(
+    await body(canvasElement).findByRole("option", { name: label }),
+  );
+};
+
 export const JoinExisting: Story = {
-  args: { savedPattern: "music.youtube.com", draft: true, scenario: "join" },
+  args: { savedPattern: "music.youtube.com", scenario: "join" },
   play: async ({ canvasElement }) => {
+    const root = canvasElement.ownerDocument;
     const panel = await findPanel(canvasElement);
     await expect(panel).toHaveAttribute("data-provider-feature-state", "join");
     await expect(panel.querySelector("[data-plugin-feature-join]")).toHaveTextContent(
       "YouTube",
     );
     await expect(panel.querySelector("[data-plugin-feature-term]")).toBeNull();
+    const form = () => root.querySelector("[data-join-lock]");
+    const preset = () => root.getElementById("dialog-rule-profile");
+    await selectProfile(canvasElement, "New York");
+    await expect(preset()).toHaveAttribute("data-selected-value", "new-york");
+    await expect(preset()).toBeEnabled();
+    await clickAction(panel, "join");
+    await expect(form()).toHaveAttribute("data-join-lock", "locked");
+    await expect(form()).toHaveAttribute("data-join-source", "canonical");
+    await expect(preset()).toHaveAttribute("data-selected-value", "warsaw");
+    await expect(preset()).toBeDisabled();
+    await expect(root.getElementById("dialog-rule-enabled")).toBeDisabled();
+    await expect(root.getElementById("dialog-rule-enabled")).toHaveAttribute(
+      "aria-checked",
+      "false",
+    );
+    await expect(root.getElementById("open-rule-advanced-dialog")).toBeDisabled();
+    await expect(
+      root.querySelector("[data-dialog-section='identity'] button"),
+    ).toBeDisabled();
+    const block = root.querySelector("button[aria-label='Block']");
+    await expect(block).toHaveAttribute("aria-pressed", "true");
+    await expect(block).toBeDisabled();
+    await expect(root.getElementById("dialog-rule-pattern")).toBeEnabled();
+    await expect(root.getElementById("save-rule-dialog")).toBeEnabled();
+    await clickAction(panel, "join");
+    await expect(form()).toHaveAttribute("data-join-source", "open");
+    await expect(preset()).toHaveAttribute("data-selected-value", "new-york");
+    await expect(preset()).toBeEnabled();
+    await expect(root.getElementById("dialog-rule-enabled")).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    await clickAction(panel, "join");
+    const add = root.querySelector<HTMLElement>('[data-rule-host-action="add"]');
+    if (!add) throw new Error("Missing add pattern.");
+    await userEvent.click(add);
+    const extra = root.querySelector<HTMLInputElement>("[data-rule-host-input]");
+    await expect(extra).not.toBeNull();
+    await expect(extra).toBeRequired();
+    await expect(root.querySelector('input[name="featureDecision"]')).toBeNull();
+    await expect(preset()).toHaveAttribute("data-selected-value", "new-york");
+    await expect(preset()).toBeEnabled();
+    await clickAction(await findPanel(canvasElement), "join");
+    const pattern = root.getElementById("dialog-rule-pattern");
+    if (!(pattern instanceof HTMLInputElement)) throw new Error("Missing pattern.");
+    await userEvent.type(pattern, ".edited");
+    await expect(root.querySelector('input[name="featureDecision"]')).toBeNull();
+    await expect(preset()).toHaveAttribute("data-selected-value", "new-york");
+    await expect(form()).toHaveAttribute("data-join-lock", "open");
   },
 };
 export const FeatureSyncFailed: Story = {
   args: { savedPattern: "www.youtube.com", scenario: "sync-failed" },
+};
+export const JoinSelected: Story = {
+  args: { ...JoinExisting.args },
+  play: async ({ canvasElement }) => {
+    await clickAction(await findPanel(canvasElement), "join");
+    await expect(
+      canvasElement.ownerDocument.querySelector("[data-join-lock]"),
+    ).toHaveAttribute("data-join-lock", "locked");
+  },
+};
+export const JoinCollision: Story = {
+  args: { ...JoinExisting.args, draft: true },
+  play: async ({ canvasElement }) => {
+    const root = canvasElement.ownerDocument;
+    const panel = await findPanel(canvasElement);
+    await expect(root.getElementById("dialog-rule-profile")).toBeDisabled();
+    await expect(root.getElementById("open-rule-advanced-dialog")).toBeDisabled();
+    await expect(root.getElementById("save-rule-dialog")).toBeDisabled();
+    await expect(root.querySelector('input[name="featureDecision"]')).toBeNull();
+    await expect(root.getElementById("dialog-rule-pattern")).toBeEnabled();
+    const form = root.getElementById("rule-dialog-form");
+    const EventType = root.defaultView?.Event;
+    if (!form || !EventType) throw new Error("Missing rule form.");
+    await expect(
+      form.dispatchEvent(new EventType("submit", { bubbles: true, cancelable: true })),
+    ).toBe(false);
+    await clickAction(panel, "join");
+    await expect(root.getElementById("save-rule-dialog")).toBeEnabled();
+  },
 };
 export const FeatureChecking: Story = {
   args: { savedPattern: "www.youtube.com", scenario: "checking" },

@@ -26,19 +26,20 @@ export const explanationCopy: Record<UiLocale, ExplanationMessages> = {
     customRules: "Custom Rules",
     service: "service",
     scope: `{term} in Control D usually cover more domains than this rule. ${BRAND_DISPLAY_NAME} can set up a {feature} {service} redirect in Control D.`,
-    joining:
-      "{feature} already has a linked rule. Adding this pattern reuses its Control D service redirect.",
+    joining: `{feature} is already linked to another ${BRAND_DISPLAY_NAME} rule. Adding this pattern shares its Control D configuration.`,
     tooltip: `A Service Rule covers a group of domains maintained by Control D. A Custom Rule applies to a specified domain or pattern and takes priority over a Service Rule. Linking a service does not extend ${BRAND_DISPLAY_NAME} protection beyond this rule's patterns.`,
     fallback: `Saving creates {term} for these patterns. Include the service to add a Service Rule.`,
-    ready: "Skip sync for {preset} in ",
-    excluded: `{preset} is excluded from Control D sync. ${BRAND_DISPLAY_NAME} will not create domain or service redirects for this preset. Change this in `,
-    paused: `Automatic sync is off. Saving keeps the link in ${BRAND_DISPLAY_NAME} without updating Control D. Change this in `,
-    pending: "Review the Control D exit for {preset} before syncing this rule in ",
+    ready: "To change the redirect location or skip sync for {preset}, open {link}.",
+    excluded:
+      "{preset} is excluded from Control D sync. No domain or service redirects will be created for this preset. To include it, choose a redirect location in {link}.",
+    paused: `Automatic sync is off. Saving keeps the link in ${BRAND_DISPLAY_NAME} without updating Control D. Turn on automatic sync in {link}.`,
+    pending:
+      "Choose or confirm the Control D proxy location (city/country) for {preset} in {link} before this rule can sync.",
     noPreset:
-      "Choose a Regional Preset to sync redirects with Control D. Manage sync in ",
-    disabled: `This rule is disabled. Its ${BRAND_DISPLAY_NAME}-managed redirects will be removed on the next sync. Manage sync in `,
+      "Assign a Regional Preset to this rule before syncing redirects with Control D. Configure its redirect location in {link}.",
+    disabled: `This rule is off. On the next sync, ${BRAND_DISPLAY_NAME} removes its managed redirects for this rule from the Control D profile. Manage syncing in {link}.`,
     preset: "Regional preset",
-    routes: "Route overrides",
+    routes: "Control D settings → Route overrides",
     settings: "Control D settings",
   },
   es: {
@@ -46,20 +47,21 @@ export const explanationCopy: Record<UiLocale, ExplanationMessages> = {
     customRules: "Custom Rules",
     service: "servicio",
     scope: `Las {term} de Control D suelen cubrir más dominios que esta regla. ${BRAND_DISPLAY_NAME} puede configurar una redirección del {service} {feature} en Control D.`,
-    joining:
-      "{feature} ya tiene una regla vinculada. Añadir este patrón reutiliza su redirección de servicio en Control D.",
+    joining: `{feature} ya está vinculado a otra regla de ${BRAND_DISPLAY_NAME}. Añadir este patrón comparte su configuración de Control D.`,
     tooltip: `Una regla de servicio cubre un grupo de dominios mantenido por Control D. Una Custom Rule se aplica a un dominio o patrón y tiene prioridad sobre la regla de servicio. Vincular un servicio no amplía la protección de ${BRAND_DISPLAY_NAME} más allá de los patrones de esta regla.`,
     fallback: `Al guardar se crean {term} para estos patrones. Incluir el servicio añade una regla de servicio.`,
-    ready: "Excluye de la sincronización {preset} en ",
-    excluded: `{preset} está excluido de la sincronización con Control D. ${BRAND_DISPLAY_NAME} no creará redirecciones de dominios ni servicios para este preset. Cámbialo en `,
-    paused: `La sincronización automática está desactivada. Guardar mantiene el vínculo en ${BRAND_DISPLAY_NAME} sin actualizar Control D. Cámbialo en `,
+    ready:
+      "Para cambiar el destino de redirección o excluir {preset} de la sincronización, abre {link}.",
+    excluded:
+      "{preset} está excluido de la sincronización con Control D. No se crearán redirecciones de dominios ni servicios para este preset. Para incluirlo, elige un destino de redirección en {link}.",
+    paused: `La sincronización automática está desactivada. Guardar mantiene el vínculo en ${BRAND_DISPLAY_NAME} sin actualizar Control D. Activa la sincronización automática en {link}.`,
     pending:
-      "Revisa la salida de Control D para {preset} antes de sincronizar esta regla en ",
+      "Elige o confirma la ubicación del proxy de Control D (ciudad/país) para {preset} en {link} antes de sincronizar esta regla.",
     noPreset:
-      "Elige un preset regional para sincronizar redirecciones con Control D. Gestiona la sincronización en ",
-    disabled: `Esta regla está desactivada. Sus redirecciones gestionadas por ${BRAND_DISPLAY_NAME} se eliminarán en la próxima sincronización. Gestiona la sincronización en `,
+      "Asigna un preset regional a esta regla antes de sincronizar redirecciones con Control D. Configura su destino de redirección en {link}.",
+    disabled: `Esta regla está desactivada. En la próxima sincronización, ${BRAND_DISPLAY_NAME} eliminará del perfil de Control D las redirecciones que gestiona para esta regla. Gestiona la sincronización en {link}.`,
     preset: "Preset regional",
-    routes: "Rutas personalizadas",
+    routes: "Ajustes de Control D → Rutas personalizadas",
     settings: "Ajustes de Control D",
   },
   pt: {
@@ -67,20 +69,21 @@ export const explanationCopy: Record<UiLocale, ExplanationMessages> = {
     customRules: "Custom Rules",
     service: "serviço",
     scope: `As {term} do Control D costumam abranger mais domínios que esta regra. O ${BRAND_DISPLAY_NAME} pode configurar um redirecionamento do {service} {feature} no Control D.`,
-    joining:
-      "{feature} já tem uma regra vinculada. Adicionar este padrão reutiliza seu redirecionamento de serviço no Control D.",
+    joining: `{feature} já está vinculado a outra regra do ${BRAND_DISPLAY_NAME}. Adicionar este padrão compartilha sua configuração do Control D.`,
     tooltip: `Uma regra de serviço abrange um grupo de domínios mantido pelo Control D. Uma Custom Rule se aplica a um domínio ou padrão e tem prioridade sobre a regra de serviço. Vincular um serviço não estende a proteção do ${BRAND_DISPLAY_NAME} além dos padrões desta regra.`,
     fallback: `Salvar cria {term} para estes padrões. Incluir o serviço adiciona uma regra de serviço.`,
-    ready: "Exclua {preset} da sincronização em ",
-    excluded: `{preset} está excluído da sincronização com o Control D. O ${BRAND_DISPLAY_NAME} não criará redirecionamentos de domínios ou serviços para este preset. Altere em `,
-    paused: `A sincronização automática está desligada. Salvar mantém o vínculo no ${BRAND_DISPLAY_NAME} sem atualizar o Control D. Altere em `,
+    ready:
+      "Para alterar o destino do redirecionamento ou excluir {preset} da sincronização, abra {link}.",
+    excluded:
+      "{preset} está excluído da sincronização com o Control D. Não serão criados redirecionamentos de domínios ou serviços para este preset. Para incluí-lo, escolha um destino de redirecionamento em {link}.",
+    paused: `A sincronização automática está desligada. Salvar mantém o vínculo no ${BRAND_DISPLAY_NAME} sem atualizar o Control D. Ative a sincronização automática em {link}.`,
     pending:
-      "Revise a saída do Control D para {preset} antes de sincronizar esta regra em ",
+      "Escolha ou confirme a localização do proxy do Control D (cidade/país) para {preset} em {link} antes de sincronizar esta regra.",
     noPreset:
-      "Escolha um preset regional para sincronizar redirecionamentos com o Control D. Gerencie a sincronização em ",
-    disabled: `Esta regra está desligada. Seus redirecionamentos gerenciados pelo ${BRAND_DISPLAY_NAME} serão removidos na próxima sincronização. Gerencie a sincronização em `,
+      "Atribua um preset regional a esta regra antes de sincronizar redirecionamentos com o Control D. Configure seu destino de redirecionamento em {link}.",
+    disabled: `Esta regra está desligada. Na próxima sincronização, o ${BRAND_DISPLAY_NAME} removerá do perfil do Control D os redirecionamentos que gerencia para esta regra. Gerencie a sincronização em {link}.`,
     preset: "Preset regional",
-    routes: "Rotas personalizadas",
+    routes: "Configurações do Control D → Rotas personalizadas",
     settings: "Configurações do Control D",
   },
   ru: {
@@ -88,19 +91,21 @@ export const explanationCopy: Record<UiLocale, ExplanationMessages> = {
     customRules: "Custom Rules",
     service: "сервиса",
     scope: `{term} Control D обычно охватывают больше доменов, чем это правило. ${BRAND_DISPLAY_NAME} может настроить перенаправление {service} {feature} в Control D.`,
-    joining:
-      "Для {feature} уже есть связанное правило. Этот шаблон будет использовать его перенаправление сервиса в Control D.",
+    joining: `{feature} уже связан с другим правилом ${BRAND_DISPLAY_NAME}. Этот шаблон будет использовать его конфигурацию Control D.`,
     tooltip: `Правило сервиса охватывает группу доменов, которую поддерживает Control D. Custom Rule применяется к указанному домену или шаблону и имеет приоритет над правилом сервиса. Привязка сервиса не расширяет защиту ${BRAND_DISPLAY_NAME} за пределы шаблонов этого правила.`,
     fallback: `Сохранение создаёт {term} для этих шаблонов. Подключение сервиса добавляет правило сервиса.`,
-    ready: "Исключить {preset} из синхронизации можно в ",
-    excluded: `{preset} исключён из синхронизации с Control D. ${BRAND_DISPLAY_NAME} не создаст перенаправления доменов или сервисов для этого пресета. Измените это в `,
-    paused: `Автоматическая синхронизация отключена. Сохранение оставит привязку в ${BRAND_DISPLAY_NAME} без обновления Control D. Измените это в `,
-    pending: "Проверьте выход Control D для {preset} перед синхронизацией правила в ",
+    ready:
+      "Чтобы изменить место перенаправления или исключить {preset} из синхронизации, откройте {link}.",
+    excluded:
+      "{preset} исключён из синхронизации с Control D. Перенаправления доменов и сервисов для этого пресета не будут созданы. Чтобы включить его, выберите место перенаправления в {link}.",
+    paused: `Автоматическая синхронизация отключена. Сохранение оставит привязку в ${BRAND_DISPLAY_NAME} без обновления Control D. Включите автоматическую синхронизацию в {link}.`,
+    pending:
+      "Выберите или подтвердите расположение прокси Control D (город/страну) для {preset} в {link} перед синхронизацией правила.",
     noPreset:
-      "Выберите региональный пресет для синхронизации перенаправлений с Control D. Управление синхронизацией — в ",
-    disabled: `Правило отключено. Его перенаправления, управляемые ${BRAND_DISPLAY_NAME}, будут удалены при следующей синхронизации. Управление синхронизацией — в `,
+      "Назначьте правилу региональный пресет перед синхронизацией перенаправлений с Control D. Настройте место перенаправления в {link}.",
+    disabled: `Правило отключено. При следующей синхронизации ${BRAND_DISPLAY_NAME} удалит из профиля Control D перенаправления этого правила, которыми он управляет. Управление синхронизацией — в {link}.`,
     preset: "Региональный пресет",
-    routes: "Настройки маршрутов",
+    routes: "Настройки Control D → Настройки маршрутов",
     settings: "Настройки Control D",
   },
   uk: {
@@ -108,19 +113,21 @@ export const explanationCopy: Record<UiLocale, ExplanationMessages> = {
     customRules: "Custom Rules",
     service: "сервісу",
     scope: `{term} Control D зазвичай охоплюють більше доменів, ніж це правило. ${BRAND_DISPLAY_NAME} може налаштувати перенаправлення {service} {feature} у Control D.`,
-    joining:
-      "Для {feature} уже є пов’язане правило. Цей шаблон використовуватиме його перенаправлення сервісу в Control D.",
+    joining: `{feature} уже пов’язаний з іншим правилом ${BRAND_DISPLAY_NAME}. Цей шаблон використовуватиме його конфігурацію Control D.`,
     tooltip: `Правило сервісу охоплює групу доменів, яку підтримує Control D. Custom Rule застосовується до вказаного домену або шаблону та має пріоритет над правилом сервісу. Прив'язка сервісу не розширює захист ${BRAND_DISPLAY_NAME} за межі шаблонів цього правила.`,
     fallback: `Збереження створює {term} для цих шаблонів. Підключення сервісу додає правило сервісу.`,
-    ready: "Виключити {preset} із синхронізації можна в ",
-    excluded: `{preset} виключено із синхронізації з Control D. ${BRAND_DISPLAY_NAME} не створить перенаправлення доменів чи сервісів для цього пресета. Змініть це в `,
-    paused: `Автоматичну синхронізацію вимкнено. Збереження залишить прив'язку в ${BRAND_DISPLAY_NAME} без оновлення Control D. Змініть це в `,
-    pending: "Перевірте вихід Control D для {preset} перед синхронізацією правила в ",
+    ready:
+      "Щоб змінити місце перенаправлення або виключити {preset} із синхронізації, відкрийте {link}.",
+    excluded:
+      "{preset} виключено із синхронізації з Control D. Перенаправлення доменів і сервісів для цього пресета не будуть створені. Щоб увімкнути його, виберіть місце перенаправлення в {link}.",
+    paused: `Автоматичну синхронізацію вимкнено. Збереження залишить прив’язку в ${BRAND_DISPLAY_NAME} без оновлення Control D. Увімкніть автоматичну синхронізацію в {link}.`,
+    pending:
+      "Виберіть або підтвердьте розташування проксі Control D (місто/країну) для {preset} у {link} перед синхронізацією правила.",
     noPreset:
-      "Виберіть регіональний пресет для синхронізації перенаправлень із Control D. Керування синхронізацією — у ",
-    disabled: `Правило вимкнено. Його перенаправлення, керовані ${BRAND_DISPLAY_NAME}, буде видалено під час наступної синхронізації. Керування синхронізацією — у `,
+      "Призначте правилу регіональний пресет перед синхронізацією перенаправлень із Control D. Налаштуйте місце перенаправлення в {link}.",
+    disabled: `Правило вимкнено. Під час наступної синхронізації ${BRAND_DISPLAY_NAME} видалить із профілю Control D перенаправлення цього правила, якими він керує. Керування синхронізацією — у {link}.`,
     preset: "Регіональний пресет",
-    routes: "Налаштування маршрутів",
+    routes: "Налаштування Control D → Налаштування маршрутів",
     settings: "Налаштування Control D",
   },
 };

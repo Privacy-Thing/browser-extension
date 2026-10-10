@@ -25,6 +25,7 @@ import {
 import { getVisibleSelectionState } from "@/ui/options/rule-selection";
 import {
   buildRuleViewModels,
+  assertPatternReplacement,
   deleteRulesByIndex,
   reassignRulesToLocation,
   resolveRulePreview,
@@ -296,13 +297,8 @@ const closeFallbackDialog = (options: RuleHandlerOptions): void => {
   }
 };
 
-const handleRuleSubmit = async (
-  options: RuleHandlerOptions,
-  event: React.FormEvent<HTMLFormElement>,
-): Promise<void> => {
-  event.preventDefault();
-  const { state } = options;
-  const formData = event.currentTarget ? new FormData(event.currentTarget) : null;
+const readRuleForm = (form: HTMLFormElement | null) => {
+  const formData = form ? new FormData(form) : null;
   const rawDecision = formData?.get("featureDecision") ?? null;
   const additionalPatterns =
     formData?.getAll("additionalRulePatterns").map(String) ?? [];
@@ -310,6 +306,16 @@ const handleRuleSubmit = async (
     typeof rawDecision === "string" && rawDecision
       ? featureDecisionSchema.parse(JSON.parse(rawDecision) as unknown)
       : undefined;
+  return { decision, additionalPatterns };
+};
+
+const handleRuleSubmit = async (
+  options: RuleHandlerOptions,
+  event: React.FormEvent<HTMLFormElement>,
+): Promise<void> => {
+  event.preventDefault();
+  const { state } = options;
+  const { decision, additionalPatterns } = readRuleForm(event.currentTarget);
   const pattern = state.rulePattern.trim();
   if (!pattern) {
     notify.warning("Enter a domain pattern.");
@@ -317,6 +323,12 @@ const handleRuleSubmit = async (
   }
 
   const normalizedPattern = normalizeRulePattern(pattern);
+  try {
+    assertPatternReplacement(state.rules, pattern, state.editingRulePattern);
+  } catch (error) {
+    notify.warning(error instanceof Error ? error.message : String(error));
+    return;
+  }
   const hadExistingRule = state.rules.some(
     (rule) =>
       normalizeRulePattern(rule.pattern) === normalizedPattern &&

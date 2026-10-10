@@ -28,7 +28,129 @@ const validAuthKey = (value: string | undefined): string | undefined => {
 
 export const RULE_GROUP_ID_MAX = 128;
 
-const patternKey = (pattern: string): string => pattern.trim().toLowerCase();
+export const rulePatternKey = (pattern: string): string => pattern.trim().toLowerCase();
+
+const patternKey = rulePatternKey;
+
+const INVALID_RULE_PATTERN = /[\s:/\\?#]/;
+
+/** Trim and lowercase a new pattern. Reject empty values and URL fragments. */
+export const normalizeRulePattern = (pattern: string): string => {
+  const normalized = rulePatternKey(pattern);
+  if (!normalized || INVALID_RULE_PATTERN.test(normalized)) {
+    throw new Error("Enter a valid domain pattern.");
+  }
+  return normalized;
+};
+
+/** Canonicalize a save payload and reject two hosts that normalize to one pattern. */
+export const normalizeSavedRules = (rules: readonly DomainRule[]): DomainRule[] => {
+  const seen = new Set<string>();
+  return rules.map((rule) => {
+    const pattern = normalizeRulePattern(rule.pattern);
+    if (seen.has(pattern)) throw new Error(`Duplicate rule pattern: ${pattern}.`);
+    seen.add(pattern);
+    return { ...rule, pattern };
+  });
+};
+
+const GROUP_CLAIM_ERROR =
+  "A pattern list cannot claim a host that already belongs to another rule.";
+
+const rulesByPattern = (rules: readonly DomainRule[]): Map<string, DomainRule> =>
+  new Map(rules.map((rule) => [patternKey(rule.pattern), rule]));
+
+const groupMembers = (rules: readonly DomainRule[]): Map<string, DomainRule[]> => {
+  const groups = new Map<string, DomainRule[]>();
+  for (const rule of rules) {
+    if (!rule.groupId) continue;
+    const members = groups.get(rule.groupId) ?? [];
+    members.push(rule);
+    groups.set(rule.groupId, members);
+  }
+  return groups;
+};
+
+const assertStablePatternGroup = (
+  previousByPattern: ReadonlyMap<string, DomainRule>,
+  previousGroupIds: ReadonlySet<string>,
+  next: readonly DomainRule[],
+): void => {
+  for (const rule of next) {
+    const prior = previousByPattern.get(patternKey(rule.pattern));
+    if (!prior || prior.groupId === rule.groupId) continue;
+    if (!prior.groupId && rule.groupId && !previousGroupIds.has(rule.groupId)) continue;
+    throw new Error(GROUP_CLAIM_ERROR);
+  }
+};
+
+const memberContinuity = (
+  members: readonly DomainRule[],
+  previousByPattern: ReadonlyMap<string, DomainRule>,
+  groupId: string,
+): { unboundExisting: number; continuing: number } => {
+  let unboundExisting = 0;
+  let continuing = 0;
+  for (const rule of members) {
+    const prior = previousByPattern.get(patternKey(rule.pattern));
+    if (!prior) continue;
+    if (!prior.groupId) unboundExisting += 1;
+    else if (prior.groupId === groupId) continuing += 1;
+  }
+  return { unboundExisting, continuing };
+};
+
+const keepsRemovedAuth = (
+  members: readonly DomainRule[],
+  removed: readonly DomainRule[],
+): boolean =>
+  members.some((rule) =>
+    removed.some((prior) =>
+      Boolean(prior.authKey && rule.authKey && prior.authKey === rule.authKey),
+    ),
+  );
+
+const assertNextGroupClaim = (
+  previous: readonly DomainRule[],
+  next: readonly DomainRule[],
+  previousByPattern: ReadonlyMap<string, DomainRule>,
+  previousGroupIds: ReadonlySet<string>,
+): void => {
+  const nextByPattern = rulesByPattern(next);
+  for (const [groupId, members] of groupMembers(next)) {
+    const { unboundExisting, continuing } = memberContinuity(
+      members,
+      previousByPattern,
+      groupId,
+    );
+    if (unboundExisting > 1 || (unboundExisting === 1 && continuing > 0)) {
+      throw new Error(GROUP_CLAIM_ERROR);
+    }
+    if (continuing > 0 || !previousGroupIds.has(groupId)) continue;
+    const removed = previous.filter(
+      (rule) =>
+        rule.groupId === groupId && !nextByPattern.has(patternKey(rule.pattern)),
+    );
+    if (!keepsRemovedAuth(members, removed)) throw new Error(GROUP_CLAIM_ERROR);
+  }
+};
+
+/**
+ * Reject pattern-list edits that would absorb or retarget another group.
+ * A new custom group may start from one unbound rule. Explicit service joins
+ * happen after this check and are the only merge.
+ */
+export const assertRuleGroupEdit = (
+  previous: readonly DomainRule[],
+  next: readonly DomainRule[],
+): void => {
+  const previousByPattern = rulesByPattern(previous);
+  const previousGroupIds = new Set(
+    previous.flatMap((rule) => (rule.groupId ? [rule.groupId] : [])),
+  );
+  assertStablePatternGroup(previousByPattern, previousGroupIds, next);
+  assertNextGroupClaim(previous, next, previousByPattern, previousGroupIds);
+};
 
 const findRule = (
   rules: readonly DomainRule[],
@@ -171,12 +293,47 @@ export const synchronizeRuleGroups = (
         "The linked hosts have conflicting settings or identity. Edit their shared configuration.",
       );
     }
-    const source = changed[0] ?? members[0];
+    const source =
+      changed[0] ??
+      members.find((rule) => previousRule(previous, next, rule)) ??
+      members[0];
     if (!source) continue;
     const memberPatterns = new Set(members.map((rule) => rule.pattern));
     rules = rules.map((rule) =>
       memberPatterns.has(rule.pattern) ? copyGroupSettings(source, rule) : rule,
     );
+    const priorMembers = previous.filter((rule) => rule.groupId === groupId);
+    const priorSource = priorMembers[0];
+    const currentSource = priorSource
+      ? rules.find(
+          (rule) =>
+            rule.groupId === groupId &&
+            patternKey(rule.pattern) === patternKey(priorSource.pattern),
+        )
+      : undefined;
+    if (!currentSource) continue;
+    const currentByKey = new Map(
+      rules
+        .filter((rule) => rule.groupId === groupId)
+        .map((rule) => [patternKey(rule.pattern), rule.pattern]),
+    );
+    const priorKeys = priorMembers.map((rule) => patternKey(rule.pattern));
+    const sourceKey = patternKey(currentSource.pattern);
+    const existing = priorKeys.flatMap((key) => {
+      if (key === sourceKey || !currentByKey.has(key)) return [];
+      const pattern = currentByKey.get(key);
+      return pattern ? [pattern] : [];
+    });
+    const added = [...currentByKey.keys()].flatMap((key) => {
+      if (priorKeys.includes(key)) return [];
+      const pattern = currentByKey.get(key);
+      return pattern ? [pattern] : [];
+    });
+    rules = orderGroupAroundSource(rules, currentSource.pattern, [
+      currentSource.pattern,
+      ...existing,
+      ...added,
+    ]);
   }
   return rules;
 };

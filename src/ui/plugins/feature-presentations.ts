@@ -14,6 +14,7 @@ export type PluginFeatureUi = {
   renderExplanation: (context: {
     feature: ProviderFeature;
     isJoin: boolean;
+    isStaged?: boolean;
     state: ProviderFeatureState;
     locale: UiLocale;
     openSettings?: MouseEventHandler<HTMLAnchorElement>;

@@ -1,5 +1,6 @@
 import {
   applyFeatureDecision,
+  assertJoinTargetStable,
   type RuleFeatureDecision,
 } from "@/background/storage/feature-rule-update";
 import {
@@ -12,8 +13,10 @@ import { CONFORMANCE_LOCATION_ID, FX_RUNTIME_TEST_HOST } from "@/shared/build-fl
 import { EXTENSION_STORAGE_KEYS } from "@/shared/extension-contract";
 import { validateFeatureBindings } from "@/shared/provider-feature";
 import {
+  assertRuleGroupEdit,
   flattenCompatibleGroups,
   migrateLegacyRuleGroups,
+  normalizeSavedRules,
   projectFeatureBindings,
   readGroupId,
   synchronizeRuleGroups,
@@ -144,8 +147,12 @@ export const saveRules = async (
   decision?: RuleFeatureDecision,
 ): Promise<DomainRule[]> => {
   const [previous, stored] = await Promise.all([loadRules(), loadFeatureState()]);
-  const normalized = rules.map((rule) => inheritGroupId(storedRule(rule), previous));
+  const normalized = normalizeSavedRules(rules).map((rule) =>
+    inheritGroupId(storedRule(rule), previous),
+  );
+  assertRuleGroupEdit(previous, normalized);
   let next = synchronizeRuleGroups(previous, normalized);
+  assertJoinTargetStable(previous, next, stored, decision);
   let state = reconcileFeatureRefs(stored, previous, next);
   if (decision) {
     const updated = await applyFeatureDecision(next, state, decision);

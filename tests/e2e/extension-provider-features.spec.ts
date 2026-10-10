@@ -254,11 +254,29 @@ test("shares one product rule with a service through edit, restart, and import",
   );
 
   await openNewRuleDialog(page, extensionId);
+  await selectRuleProfile(page, "Paris", PARIS_LOCATION_ID);
   await fillRulePattern(page, MEDIA_HOST);
   await expectFeatureSlot(page, { state: "join", variant: "default" });
+  await expect(page.locator("#dialog-rule-profile")).toBeDisabled();
+  await expect(page.locator("#save-rule-dialog")).toBeDisabled();
+  await expectNoFeatureDecision(page);
   await clickFeatureAction(page, "join");
   await expectFeatureDecision(page, videoDecision(VIDEO_FEATURE, true));
-  await selectRuleProfile(page, "Paris", PARIS_LOCATION_ID);
+  await expect(page.locator("#dialog-rule-profile")).toBeDisabled();
+  await expect(page.locator("#dialog-rule-profile")).toHaveAttribute(
+    "data-selected-value",
+    WARSAW_LOCATION_ID,
+  );
+  await expect(page.locator("#open-rule-advanced-dialog")).toBeDisabled();
+  // Even a spelling-only scope edit invalidates the earlier merge approval.
+  await fillRulePattern(page, MEDIA_HOST.toUpperCase());
+  await expectNoFeatureDecision(page);
+  await expectFeatureSlot(page, { state: "join", variant: "default" });
+  await expect(page.locator("#dialog-rule-profile")).toBeDisabled();
+  await expect(page.locator("#save-rule-dialog")).toBeDisabled();
+  await clickFeatureAction(page, "join");
+  await expectFeatureDecision(page, videoDecision(VIDEO_FEATURE, true));
+  await expect(page.locator("#dialog-rule-profile")).toBeDisabled();
   await saveRuleDialog(page);
 
   const grouped = await exportSettings<ExportedSettings>(page);
@@ -469,7 +487,7 @@ test("stages a popup draft until save and then shows the summary badge", async (
   await expectProviderQuiet(page, worker, [LOCAL_HOST], escapes, pageRequests);
 });
 
-test("owns a three-site rule independently of provider assignments", async ({
+test("owns a three-pattern rule independently of provider assignments", async ({
   context,
   extensionId,
 }) => {

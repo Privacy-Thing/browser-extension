@@ -161,6 +161,17 @@ const seed = (
       },
     ];
     state.matches.set(hostname, recognizeHost(hostname));
+    state.ruleConfigurations = [
+      {
+        pattern: "www.youtube.com",
+        locationId: "warsaw",
+        enabled: false,
+        relaxCspForWorkers: true,
+        fingerprintSurfaceOverrides: { serviceWorker: true, sharedWorker: "strict" },
+        ruleSeedKey: "inherited-rule",
+        authKey: "inherited1",
+      },
+    ];
   }
   return state;
 };
@@ -233,7 +244,18 @@ export const createFeatureRuntimeMock = (
       default:
         break;
     }
-    return { ok: true, state: snapshot(state, hostname, command.rulePattern) };
+    const replyState = snapshot(state, hostname, command.rulePattern);
+    const target = command.contextFeatureId
+      ? state.bindings?.find(
+          (binding) => binding.featureId === command.contextFeatureId,
+        )
+      : undefined;
+    const canonical = state.ruleConfigurations?.find(
+      (rule) => rule.pattern === target?.rulePattern,
+    );
+    if (canonical && replyState.syncContext && !canonical.enabled)
+      replyState.syncContext = { ...replyState.syncContext, state: "disabled" };
+    return { ok: true, state: replyState };
   };
   const sendMessage = async (
     message: unknown,

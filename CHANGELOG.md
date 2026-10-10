@@ -15,7 +15,13 @@ The format is based on Keep a Changelog and the project follows Semantic Version
   It subscribes to PT configuration hooks for synchronization. Pattern editors keep
   a ghost + button beside the final input, distinguish remove actions and separate
   sections. A service already linked to another rule offers adding the pattern to
-  that existing rule instead of setting up another service.
+  that existing rule instead of setting up another service. Add rule locks the inherited
+  configuration as soon as a service collision is detected and requires consent to join
+  before saving. Editing patterns clears the earlier join choice. Pattern
+  saves reject empty, repeated and conflicting group membership instead of silently
+  dropping entries. A stale join cannot overwrite a changed or unlinked target rule.
+  Sync guidance names the Control D setting and the remote profile
+  from which disabled-rule redirects are removed.
 
 - Provider services are suggested automatically while creating or editing a domain
   rule, with compact service badges in the editor, rule list and popup. The service

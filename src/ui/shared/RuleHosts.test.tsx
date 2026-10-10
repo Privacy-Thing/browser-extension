@@ -2,9 +2,27 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { RuleHostList } from "./RuleHosts";
+import { RuleAdditionalHosts, RuleHostList } from "./RuleHosts";
 
 import { applyUiLocalePreference } from "@/ui/i18n";
+
+describe("RuleAdditionalHosts", () => {
+  it("requires every additional pattern so a blank row cannot be dropped", () => {
+    const markup = renderToStaticMarkup(
+      createElement(RuleAdditionalHosts, {
+        rules: [
+          { pattern: "example.com", enabled: true, groupId: "group" },
+          { pattern: "api.example.com", enabled: true, groupId: "group" },
+        ],
+        sourcePattern: "example.com",
+        renderPrimary: () => createElement("input", { id: "primary" }),
+      }),
+    );
+    expect(markup).toContain('name="additionalRulePatterns"');
+    expect(markup).toContain('value="api.example.com"');
+    expect(markup).toContain("required");
+  });
+});
 
 describe("RuleHostList", () => {
   it("names every host in a product rule without a provider badge", () => {

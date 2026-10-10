@@ -69,6 +69,8 @@ export type PopupRuleSheetProps = {
   confirmIcon?: React.ReactNode;
   canDelete?: boolean;
   canSave?: boolean;
+  settingsLocked?: boolean;
+  joinSource?: "open" | "canonical" | "pending";
   deleteTone?: "secondary" | "destructive";
   onOpenChange?: (open: boolean) => void;
   onLocationChange?: (id: string | null) => void;
@@ -379,6 +381,10 @@ const buildRuleFormProps = (props: PopupRuleSheetProps): PopupRuleFormBodyProps 
   canSave: props.canSave ?? true,
   onSave: props.onSave,
   saveLabel: props.saveLabel,
+  ...(props.settingsLocked !== undefined
+    ? { settingsLocked: props.settingsLocked }
+    : {}),
+  ...(props.joinSource ? { joinSource: props.joinSource } : {}),
 });
 
 const PopupSheetContent = ({ props }: { props: PopupRuleSheetProps }) => {

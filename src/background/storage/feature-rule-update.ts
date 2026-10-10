@@ -14,6 +14,8 @@ import {
   getRuleGroupSource,
   orderGroupAroundSource,
   projectFeatureBindings,
+  rulePatternKey,
+  ruleSettingsKey,
 } from "@/shared/rule-groups";
 import type { DomainRule } from "@/shared/types";
 
@@ -21,6 +23,47 @@ export type RuleFeatureDecision = FeatureDecision & { rulePattern: string };
 
 type DecisionResult = { rules: DomainRule[]; state: StoredFeatureState };
 type FeatureMatch = StoredFeatureState["featureMatches"][number];
+
+const samePattern = (left: string, right: string): boolean =>
+  rulePatternKey(left) === rulePatternKey(right);
+
+const hasPattern = (patterns: readonly string[], pattern: string): boolean =>
+  patterns.some((candidate) => samePattern(candidate, pattern));
+
+/** A staged join may not overwrite a target edited or removed since the form loaded. */
+export const assertJoinTargetStable = (
+  previous: readonly DomainRule[],
+  next: readonly DomainRule[],
+  state: StoredFeatureState,
+  decision: RuleFeatureDecision | undefined,
+): void => {
+  if (!decision?.joinExisting || !decision.featureId) return;
+  const binding = state.featureBindings.find(
+    (item) =>
+      item.providerId === decision.providerId && item.featureId === decision.featureId,
+  );
+  const fail = () => {
+    throw new Error(
+      "The linked rule changed. Review its configuration before joining.",
+    );
+  };
+  if (!binding) return fail();
+  const members = getRuleGroupPatterns(previous, binding.rulePattern);
+  if (members.length === 0) return fail();
+  for (const pattern of members) {
+    const before = previous.find((rule) => samePattern(rule.pattern, pattern));
+    const after = next.find((rule) => samePattern(rule.pattern, pattern));
+    if (
+      !before ||
+      !after ||
+      ruleSettingsKey(before) !== ruleSettingsKey(after) ||
+      before.authKey !== after.authKey ||
+      before.ruleSeedKey !== after.ruleSeedKey ||
+      before.groupId !== after.groupId
+    )
+      return fail();
+  }
+};
 
 const withoutBinding = (
   bindings: readonly RuleFeatureBinding[],
@@ -107,7 +150,7 @@ const joinExistingFeature = ({
   featureBindings: RuleFeatureBinding[];
 }): DecisionResult => {
   const canonical =
-    rules.find((rule) => rule.pattern === existing.rulePattern) ??
+    rules.find((rule) => samePattern(rule.pattern, existing.rulePattern)) ??
     getRuleGroupSource(rules, existing.rulePattern);
   if (!canonical) throw new Error("The linked service rule no longer exists.");
   const combined = [
@@ -118,8 +161,11 @@ const joinExistingFeature = ({
   ];
   const groupId = joinedGroupId(canonical, source, combined);
   const canonicalRule = groupId ? { ...canonical, groupId } : canonical;
+  const memberKeys = new Set(combined.map((pattern) => rulePatternKey(pattern)));
   const copied = rules.map((rule) =>
-    combined.includes(rule.pattern) ? copyGroupSettings(canonicalRule, rule) : rule,
+    memberKeys.has(rulePatternKey(rule.pattern))
+      ? copyGroupSettings(canonicalRule, rule)
+      : rule,
   );
   const joined = orderGroupAroundSource(copied, canonical.pattern, combined);
   return {
@@ -160,8 +206,11 @@ const linkNewFeature = ({
       match.status === "matched" &&
       members.some((pattern) => compileDomainPattern(pattern).test(match.hostname)),
   );
+  const memberKeys = new Set(members.map((pattern) => rulePatternKey(pattern)));
   const linked = rules.map((rule) =>
-    members.includes(rule.pattern) ? copyGroupSettings(source, rule) : rule,
+    memberKeys.has(rulePatternKey(rule.pattern))
+      ? copyGroupSettings(source, rule)
+      : rule,
   );
   return {
     rules: linked,
@@ -201,13 +250,13 @@ export const applyFeatureDecision = async (
   input: RuleFeatureDecision,
 ): Promise<DecisionResult> => {
   const decision = featureDecisionSchema.parse(input);
-  const source = rules.find((rule) => rule.pattern === input.rulePattern);
+  const source = rules.find((rule) => samePattern(rule.pattern, input.rulePattern));
   if (!source) throw new Error("Save a valid domain rule before linking its service.");
   const feature = await resolveFeatureDecision(decision);
   const oldBinding = state.featureBindings.find(
     (binding) =>
       binding.providerId === decision.providerId &&
-      bindingPatterns(binding).includes(source.pattern),
+      hasPattern(bindingPatterns(binding), source.pattern),
   );
   const featureBindings = withoutBinding(state.featureBindings, oldBinding);
   if (!feature) {

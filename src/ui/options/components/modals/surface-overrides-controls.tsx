@@ -69,6 +69,7 @@ const TriStateToggle = ({
   value,
   onChange,
   label,
+  disabled = false,
   labels = {
     trueLabel: t.rules.dialog.surfaceOverrides.stateOn,
     inheritLabel: t.rules.dialog.surfaceOverrides.stateInherit,
@@ -78,6 +79,7 @@ const TriStateToggle = ({
   value: boolean | undefined;
   onChange: (next: boolean | undefined) => void;
   label: string;
+  disabled?: boolean;
   labels?: {
     trueLabel: string;
     inheritLabel: string;
@@ -89,8 +91,10 @@ const TriStateToggle = ({
       type="button"
       aria-pressed={value === true}
       aria-label={labels.trueLabel}
+      disabled={disabled}
       className={getSegmentButtonClass({
         active: value === true,
+        disabled,
       })}
       onClick={() => onChange(value === true ? undefined : true)}
     >
@@ -100,9 +104,11 @@ const TriStateToggle = ({
       type="button"
       aria-pressed={value === undefined}
       aria-label={labels.inheritLabel}
+      disabled={disabled}
       className={getSegmentButtonClass({
         active: value === undefined,
         dividerClassName: "border-x border-border",
+        disabled,
       })}
       onClick={() => onChange(undefined)}
     >
@@ -112,8 +118,10 @@ const TriStateToggle = ({
       type="button"
       aria-pressed={value === false}
       aria-label={labels.falseLabel}
+      disabled={disabled}
       className={getSegmentButtonClass({
         active: value === false,
+        disabled,
       })}
       onClick={() => onChange(value === false ? undefined : false)}
     >
@@ -126,10 +134,12 @@ const SharedWorkerModeToggle = ({
   value,
   onChange,
   label,
+  disabled = false,
 }: {
   value: SharedWorkerHandlingMode | undefined;
   onChange: (next: SharedWorkerHandlingMode | undefined) => void;
   label: string;
+  disabled?: boolean;
 }) => {
   const entries: Array<{
     value: SharedWorkerHandlingMode | undefined;
@@ -149,9 +159,11 @@ const SharedWorkerModeToggle = ({
           type="button"
           aria-pressed={value === entry.value}
           aria-label={entry.label}
+          disabled={disabled}
           className={cn(
             getSegmentButtonClass({
               active: value === entry.value,
+              disabled,
               ...(index > 0 ? { dividerClassName: "border-l border-border" } : {}),
             }),
             "whitespace-nowrap px-2",
@@ -168,6 +180,7 @@ const SharedWorkerModeToggle = ({
 type SurfaceControlsProps = {
   value: SurfaceOverrides | undefined;
   onChange: (next: SurfaceOverrides | undefined) => void;
+  disabled?: boolean;
   labelClassName?: string;
   labelVariant?: ComponentProps<typeof Label>["variant"];
 };
@@ -203,6 +216,7 @@ const SurfaceOverrideRow = ({
 export const SurfaceOverridesControls = ({
   value,
   onChange,
+  disabled = false,
   labelClassName,
   labelVariant,
 }: SurfaceControlsProps) => {
@@ -225,6 +239,7 @@ export const SurfaceOverridesControls = ({
         >
           <TriStateToggle
             value={value?.[surface]}
+            disabled={disabled}
             onChange={(surfaceValue) => {
               const next: SurfaceOverrides = {
                 ...(value ?? {}),
@@ -253,6 +268,7 @@ export const SurfaceOverridesControls = ({
       >
         <SharedWorkerModeToggle
           value={value?.sharedWorker}
+          disabled={disabled}
           onChange={(sharedWorkerValue) => {
             const next: SurfaceOverrides = {
               ...(value ?? {}),

@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 
 import { matchTrustedSite } from "@/shared/rule-resolution";
 import { Button } from "@/ui/components/ui/button";
@@ -21,6 +28,26 @@ import { SECTION_ANCHORS, getRuleModalAnchor } from "@/ui/options/navigation";
 import { useSettings } from "@/ui/options/state/SettingsContext";
 import { ProviderFeatureHost } from "@/ui/shared/ProviderFeatureHost";
 import { RuleAdditionalHosts } from "@/ui/shared/RuleHosts";
+import {
+  useRuleEditorJoin,
+  type ProviderFeatureJoin,
+  type RuleDraftSettings,
+} from "@/ui/shared/use-provider-feature-join";
+
+const InheritedSettings = ({
+  locked,
+  children,
+}: {
+  locked: boolean;
+  children: ReactNode;
+}) => (
+  <div
+    {...(locked ? { inert: true } : {})}
+    className={locked ? "text-muted-foreground" : undefined}
+  >
+    {children}
+  </div>
+);
 
 const useAdvancedDialog = (parentOpen: boolean) => {
   const [open, setOpen] = useState(false);
@@ -54,7 +81,15 @@ const useAdvancedDialog = (parentOpen: boolean) => {
   return { changeOpen, closingRef, open };
 };
 
-const RuleDialogFooter = ({ openAdvanced }: { openAdvanced: () => void }) => {
+const RuleDialogFooter = ({
+  openAdvanced,
+  advancedDisabled,
+  saveDisabled,
+}: {
+  openAdvanced: () => void;
+  advancedDisabled: boolean;
+  saveDisabled: boolean;
+}) => {
   const {
     closeRuleDialog,
     editingRulePattern,
@@ -99,11 +134,12 @@ const RuleDialogFooter = ({ openAdvanced }: { openAdvanced: () => void }) => {
           type="button"
           variant="ghost"
           className="text-foreground hover:text-foreground"
+          disabled={advancedDisabled}
           onClick={openAdvanced}
         >
           {t.rules.dialog.advancedModal.trigger}
         </Button>
-        <Button id="save-rule-dialog" type="submit">
+        <Button id="save-rule-dialog" type="submit" disabled={saveDisabled}>
           {ruleDialogMode === "edit"
             ? t.rules.dialog.submitEdit
             : t.rules.dialog.submitAdd}
@@ -113,7 +149,13 @@ const RuleDialogFooter = ({ openAdvanced }: { openAdvanced: () => void }) => {
   );
 };
 
-const RuleScopeFeatures = () => {
+const RuleScopeFeatures = ({
+  join,
+  onAdditionalPatterns,
+}: {
+  join: ProviderFeatureJoin;
+  onAdditionalPatterns: (patterns: readonly string[]) => void;
+}) => {
   const {
     editingRulePattern,
     rules,
@@ -128,6 +170,7 @@ const RuleScopeFeatures = () => {
         key={editingRulePattern ?? "new"}
         rules={rules}
         sourcePattern={editingRulePattern}
+        onPatternsChange={onAdditionalPatterns}
         renderPrimary={(addControl) => (
           <DialogFieldRow
             htmlFor="dialog-rule-pattern"
@@ -152,25 +195,35 @@ const RuleScopeFeatures = () => {
         )}
       />
       <ProviderFeatureHost
+        key={`feature:${editingRulePattern ?? "new"}`}
+        scopeKey={join.scopeKey}
         rulePattern={rulePattern}
         locationId={ruleProfileId || null}
         ruleEnabled={ruleEnabled}
+        onDecisionChange={join.onDecisionChange}
+        onJoinOfferChange={join.onJoinOfferChange}
         {...(editingRulePattern ? { savedRulePattern: editingRulePattern } : {})}
       />
     </>
   );
 };
 
-const RuleFields = () => {
+const RuleFields = ({
+  join,
+  shown,
+  onAdditionalPatterns,
+}: {
+  join: ProviderFeatureJoin;
+  shown: RuleDraftSettings;
+  onAdditionalPatterns: (patterns: readonly string[]) => void;
+}) => {
   const {
     closeRuleDialog,
     editingRulePattern,
     editingRuleSeedKey,
     rotateRuleIdentity,
     ruleDialogMode,
-    ruleEnabled,
     rulePattern,
-    ruleProfileId,
     ruleProfileOptions,
     setRuleEnabled,
     setRuleProfileId,
@@ -188,7 +241,7 @@ const RuleFields = () => {
     <section className="rounded-xl border border-border/70 bg-card/35 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
       <div className="space-y-3 [&_[data-provider-feature-host]]:border-b [&_[data-provider-feature-host]]:border-border/70 [&_[data-provider-feature-host]]:pb-3">
         {ruleDialogMode === "edit" ? (
-          <>
+          <InheritedSettings locked={join.locked}>
             <DialogToggleRow
               htmlFor="dialog-rule-enabled"
               label={t.rules.dialog.enabledLabel}
@@ -196,7 +249,8 @@ const RuleFields = () => {
               control={
                 <Switch
                   id="dialog-rule-enabled"
-                  checked={ruleEnabled}
+                  checked={shown.enabled}
+                  disabled={join.locked}
                   onCheckedChange={setRuleEnabled}
                   aria-label={t.rules.dialog.enabledAriaLabel(
                     rulePattern || t.rules.dialog.titleEdit,
@@ -205,51 +259,56 @@ const RuleFields = () => {
               }
             />
             <div className="border-t border-border/70" />
-          </>
+          </InheritedSettings>
         ) : null}
-        <RuleScopeFeatures />
-        <div data-rule-preset className="space-y-3 pt-3">
-          <LocationFormFields
-            sectionLabel={t.rules.dialog.locationProfileLabel}
-            sectionHint={t.rules.dialog.locationProfileHint}
-            warning={
-              <>
-                {t.rules.globalFallback.dialog.locationProfileWarningPrefix}
-                <a
-                  href={limitationsHref}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-medium text-foreground underline underline-offset-4"
-                >
-                  {t.rules.globalFallback.dialog.locationProfileWarningLinkLabel}
-                </a>
-                {t.rules.globalFallback.dialog.locationProfileWarningSuffix}
-              </>
-            }
-            selectId="dialog-rule-profile"
-            selectLabel={t.rules.dialog.locationLabel}
-            selectPlaceholder={t.rules.globalFallback.noPresetLabel}
-            selectValue={ruleProfileId || UNASSIGNED_VALUE}
-            selectOptions={options}
-            onSelectValueChange={(value) =>
-              setRuleProfileId(value === UNASSIGNED_VALUE ? "" : value)
-            }
-          />
-        </div>
+        <RuleScopeFeatures join={join} onAdditionalPatterns={onAdditionalPatterns} />
+        <InheritedSettings locked={join.locked}>
+          <div data-rule-preset className="space-y-3 pt-3">
+            <LocationFormFields
+              sectionLabel={t.rules.dialog.locationProfileLabel}
+              sectionHint={t.rules.dialog.locationProfileHint}
+              warning={
+                <>
+                  {t.rules.globalFallback.dialog.locationProfileWarningPrefix}
+                  <a
+                    href={limitationsHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium text-foreground underline underline-offset-4"
+                  >
+                    {t.rules.globalFallback.dialog.locationProfileWarningLinkLabel}
+                  </a>
+                  {t.rules.globalFallback.dialog.locationProfileWarningSuffix}
+                </>
+              }
+              selectId="dialog-rule-profile"
+              selectLabel={t.rules.dialog.locationLabel}
+              selectPlaceholder={t.rules.globalFallback.noPresetLabel}
+              selectDisabled={join.locked}
+              selectValue={shown.locationId || UNASSIGNED_VALUE}
+              selectOptions={options}
+              onSelectValueChange={(value) =>
+                setRuleProfileId(value === UNASSIGNED_VALUE ? "" : value)
+              }
+            />
+          </div>
+        </InheritedSettings>
         {ruleDialogMode === "edit" && editingRulePattern && editingRuleSeedKey ? (
           <>
             <div className="border-t border-border/70" />
-            <DialogIdentitySection
-              title={t.rules.dialog.identity.sectionTitle}
-              description={t.rules.dialog.identity.sectionDescription}
-              actionDescription={t.rules.dialog.identity.actionDescription}
-              actionLabel={t.rules.dialog.identity.actionLabel}
-              actionDisabled={false}
-              onAction={async () => {
-                const rotated = await rotateRuleIdentity(editingRulePattern);
-                if (rotated) closeRuleDialog();
-              }}
-            />
+            <InheritedSettings locked={join.locked}>
+              <DialogIdentitySection
+                title={t.rules.dialog.identity.sectionTitle}
+                description={t.rules.dialog.identity.sectionDescription}
+                actionDescription={t.rules.dialog.identity.actionDescription}
+                actionLabel={t.rules.dialog.identity.actionLabel}
+                actionDisabled={join.locked}
+                onAction={async () => {
+                  const rotated = await rotateRuleIdentity(editingRulePattern);
+                  if (rotated) closeRuleDialog();
+                }}
+              />
+            </InheritedSettings>
           </>
         ) : null}
       </div>
@@ -257,9 +316,16 @@ const RuleFields = () => {
   );
 };
 
-const RuleDialogBody = () => {
-  const { rulePattern, ruleSurfaceOverrides, setRuleSurfaceOverrides, trustedSites } =
-    useSettings();
+const RuleDialogBody = ({
+  join,
+  shown,
+  onAdditionalPatterns,
+}: {
+  join: ProviderFeatureJoin;
+  shown: RuleDraftSettings;
+  onAdditionalPatterns: (patterns: readonly string[]) => void;
+}) => {
+  const { rulePattern, setRuleSurfaceOverrides, trustedSites } = useSettings();
   const trustedPattern = useMemo(() => {
     const raw = rulePattern.trim();
     if (!raw) return null;
@@ -295,7 +361,11 @@ const RuleDialogBody = () => {
       ) : null}
       <div className="grid gap-4 md:grid-cols-[minmax(0,1.15fr)_minmax(19rem,0.95fr)] md:items-start">
         <div className="space-y-4">
-          <RuleFields />
+          <RuleFields
+            join={join}
+            shown={shown}
+            onAdditionalPatterns={onAdditionalPatterns}
+          />
         </div>
         <section className="rounded-xl border border-border/70 bg-card/35 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
           <div>
@@ -306,13 +376,16 @@ const RuleDialogBody = () => {
               {t.rules.dialog.surfaceOverrides.description}
             </p>
           </div>
-          <div className="mt-4">
-            <SurfaceOverridesControls
-              value={ruleSurfaceOverrides}
-              onChange={setRuleSurfaceOverrides}
-              labelClassName="text-sm"
-            />
-          </div>
+          <InheritedSettings locked={join.locked}>
+            <div className="mt-4">
+              <SurfaceOverridesControls
+                value={shown.surfaceOverrides}
+                onChange={setRuleSurfaceOverrides}
+                disabled={join.locked}
+                labelClassName="text-sm"
+              />
+            </div>
+          </InheritedSettings>
         </section>
       </div>
     </>
@@ -326,7 +399,27 @@ export const RuleDialog = () => {
     ruleDialogMode,
     handleRuleSubmit,
     rulePattern,
+    editingRulePattern,
+    rules,
+    ruleProfileId,
+    ruleEnabled,
+    ruleSurfaceOverrides,
+    ruleRelaxCsp,
   } = useSettings();
+  const { join, shown, onAdditionalPatterns } = useRuleEditorJoin(
+    rules,
+    editingRulePattern,
+    rulePattern,
+    {
+      draft: {
+        locationId: ruleProfileId,
+        enabled: ruleEnabled,
+        surfaceOverrides: ruleSurfaceOverrides,
+        relaxCspForWorkers: ruleRelaxCsp,
+      },
+      lockOnOffer: ruleDialogMode === "add",
+    },
+  );
   const {
     changeOpen,
     closingRef,
@@ -374,21 +467,42 @@ export const RuleDialog = () => {
         headerClassName="gw-anchor-target"
         formProps={{
           id: "rule-dialog-form",
-          onSubmit: handleRuleSubmit,
+          onSubmit: (event) => {
+            if (join.saveDisabled) event.preventDefault();
+            else handleRuleSubmit(event);
+          },
         }}
         footerClassName="sm:justify-between"
         onOpenAutoFocus={(event) => {
           event.preventDefault();
           queueMicrotask(focusPrimaryControl);
         }}
-        footer={<RuleDialogFooter openAdvanced={() => changeOpen(true)} />}
+        footer={
+          <RuleDialogFooter
+            openAdvanced={() => changeOpen(true)}
+            advancedDisabled={join.locked}
+            saveDisabled={join.saveDisabled}
+          />
+        }
       >
-        <RuleDialogBody />
+        <div
+          className="contents"
+          data-join-lock={join.locked ? "locked" : "open"}
+          data-join-source={join.source}
+        >
+          <RuleDialogBody
+            join={join}
+            shown={shown}
+            onAdditionalPatterns={onAdditionalPatterns}
+          />
+        </div>
       </FormDialogShell>
       <RuleSettingsDialog
         open={advancedDialogOpen && ruleDialogOpened}
         onOpenChange={changeOpen}
         targetLabel={advancedTargetLabel}
+        relaxCsp={shown.relaxCspForWorkers}
+        settingsLocked={join.locked}
       />
     </>
   );

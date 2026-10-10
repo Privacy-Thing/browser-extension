@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { useState } from "react";
-import { expect, userEvent, waitFor } from "storybook/test";
+import { expect, userEvent, waitFor, within } from "storybook/test";
 import "@fortawesome/fontawesome-free/css/fontawesome.css";
 import "@fortawesome/fontawesome-free/css/solid.css";
 import "../popup.css";
@@ -20,6 +20,10 @@ import {
 import { ProviderFeatureHost } from "@/ui/shared/ProviderFeatureHost";
 import { ruleGroupCopy } from "@/ui/shared/rule-group-copy";
 import { RuleHostList } from "@/ui/shared/RuleHosts";
+import {
+  applyJoinToPopupDraft,
+  useProviderFeatureJoin,
+} from "@/ui/shared/use-provider-feature-join";
 
 installChromeBoundary();
 
@@ -42,12 +46,32 @@ const PopupRuleFeatureSurface = ({
 }: PopupRuleFeatureProps) => {
   const groupCopy = ruleGroupCopy[useUiLocale()];
   const [locationId, setLocationId] = useState<string | null>("warsaw");
+  const [regionalPresetEnabled, setRegionalPresetEnabled] = useState(true);
   const [ruleMode, setRuleMode] = useState<"exact" | "suffix">(
     savedPattern?.startsWith("*") ? "suffix" : "exact",
   );
   const [serviceWorker, setServiceWorker] = useState<boolean | undefined>();
   const [worker, setWorker] = useState<SharedWorkerHandlingMode>();
   const [relaxCsp, setRelaxCsp] = useState(false);
+  const scopePattern =
+    savedPattern &&
+    ((ruleMode === "suffix" && savedPattern.startsWith("*")) ||
+      (ruleMode === "exact" && !savedPattern.startsWith("*")))
+      ? savedPattern
+      : ruleMode === "suffix"
+        ? `*${hostname}`
+        : hostname;
+  const join = useProviderFeatureJoin(scopePattern, undefined, savedPattern === null);
+  const presented = applyJoinToPopupDraft(
+    {
+      selectedLocationId: locationId,
+      regionalPresetEnabled,
+      serviceWorkerOverride: serviceWorker,
+      workerHandlingOverride: worker,
+      relaxCspForWorkers: relaxCsp,
+    },
+    join,
+  );
   return (
     <div className="min-h-[640px] bg-background p-6 text-foreground">
       <div
@@ -73,21 +97,27 @@ const PopupRuleFeatureSurface = ({
                 />
               ) : null}
               <ProviderFeatureHost
+                key={scopePattern}
                 variant="compact"
-                rulePattern={savedPattern ?? hostname}
+                rulePattern={scopePattern}
                 {...(savedPattern ? { savedRulePattern: savedPattern } : {})}
                 hostname={hostname}
-                locationId={locationId}
+                locationId={regionalPresetEnabled ? locationId : null}
+                onDecisionChange={join.onDecisionChange}
+                onJoinOfferChange={join.onJoinOfferChange}
               />
             </>
           }
-          selectedLocationId={locationId}
+          selectedLocationId={presented.selectedLocationId}
+          settingsLocked={presented.settingsLocked}
+          joinSource={join.source}
           noPresetLabel={t.popup.noPresetLabel}
+          regionalPresetEnabled={presented.regionalPresetEnabled}
           locations={LOCATIONS}
           ruleMode={ruleMode}
-          serviceWorkerOverride={serviceWorker}
-          workerHandlingOverride={worker}
-          relaxCspForWorkers={relaxCsp}
+          serviceWorkerOverride={presented.serviceWorkerOverride}
+          workerHandlingOverride={presented.workerHandlingOverride}
+          relaxCspForWorkers={presented.relaxCspForWorkers}
           locationLabel={t.popup.currentProfileLabel}
           ruleTypeLabel={
             scenario === "group-linked"
@@ -120,8 +150,9 @@ const PopupRuleFeatureSurface = ({
           backLabel={t.common.actions.back}
           cancelLabel={t.common.actions.cancel}
           canDelete={savedPattern !== null}
-          canSave
+          canSave={!join.saveDisabled}
           onLocationChange={setLocationId}
+          onRegionalPresetChange={setRegionalPresetEnabled}
           onRuleModeChange={setRuleMode}
           onServiceWorkerChange={setServiceWorker}
           onWorkerChange={setWorker}
@@ -204,8 +235,27 @@ export const GroupLinked: Story = {
     ).toBeNull();
   },
 };
+const selectPopupValue = async (
+  canvasElement: HTMLElement,
+  id: string,
+  label: string,
+) => {
+  const trigger = canvasElement.querySelector<HTMLElement>(`#${id}`);
+  if (!trigger) throw new Error(`Missing ${id}.`);
+  await userEvent.click(trigger);
+  await userEvent.click(
+    await within(canvasElement.ownerDocument.body).findByRole("option", {
+      name: label,
+    }),
+  );
+};
+
 export const JoinExisting: Story = {
-  args: { savedPattern: null, hostname: "music.youtube.com", scenario: "join" },
+  args: {
+    savedPattern: "music.youtube.com",
+    hostname: "music.youtube.com",
+    scenario: "join",
+  },
   play: async ({ canvasElement }) => {
     const panel = await findPanel(canvasElement);
     await expect(panel).toHaveAttribute("data-provider-feature-state", "join");
@@ -213,10 +263,78 @@ export const JoinExisting: Story = {
       "YouTube",
     );
     await expect(panel.querySelector("[data-plugin-feature-term]")).toBeNull();
+    const preset = () => canvasElement.querySelector("#current-profile-select");
+    const editor = () => canvasElement.querySelector(".gw-popup-rule-editor");
+    await selectPopupValue(canvasElement, "current-profile-select", "Lisbon");
+    await expect(preset()).toHaveAttribute("data-selected-value", "lisbon");
+    const joinSwitch = panel.querySelector<HTMLElement>(
+      '[data-provider-feature-action="join"]',
+    );
+    if (!joinSwitch) throw new Error("Missing join.");
+    await userEvent.click(joinSwitch);
+    await expect(editor()).toHaveAttribute("data-join-source", "canonical");
+    await expect(editor()).toHaveAttribute("data-join-lock", "locked");
+    await expect(preset()).toHaveAttribute("data-selected-value", "warsaw");
+    await expect(preset()).toBeDisabled();
+    await expect(canvasElement.querySelector("#current-rule-mode")).toBeEnabled();
+    const block = [...canvasElement.querySelectorAll("button")].find(
+      (button) => button.textContent === "Block",
+    );
+    await expect(block).toHaveAttribute("aria-pressed", "true");
+    await expect(block).toBeDisabled();
+    await expect(
+      canvasElement.querySelector("#open-full-rule-settings"),
+    ).toBeDisabled();
+    await expect(canvasElement.querySelector("#apply-current-profile")).toBeEnabled();
+    await userEvent.click(joinSwitch);
+    await expect(editor()).toHaveAttribute("data-join-source", "open");
+    await expect(preset()).toHaveAttribute("data-selected-value", "lisbon");
+    await expect(preset()).toBeEnabled();
+    const rejoined = await findPanel(canvasElement);
+    const joinAgain = rejoined.querySelector<HTMLElement>(
+      '[data-provider-feature-action="join"]',
+    );
+    if (!joinAgain) throw new Error("Missing join.");
+    await userEvent.click(joinAgain);
+    await selectPopupValue(canvasElement, "current-rule-mode", "Host + subdomains");
+    await expect(
+      canvasElement.querySelector('input[name="featureDecision"]'),
+    ).toBeNull();
+    await expect(preset()).toHaveAttribute("data-selected-value", "lisbon");
+    await expect(editor()).toHaveAttribute("data-join-lock", "open");
   },
 };
 export const UnsavedDraft: Story = {
   args: { savedPattern: null, scenario: "not-checked" },
+};
+export const JoinSelected: Story = {
+  args: { ...JoinExisting.args, savedPattern: null },
+  play: async ({ canvasElement }) => {
+    const panel = await findPanel(canvasElement);
+    const action = panel.querySelector<HTMLElement>(
+      '[data-provider-feature-action="join"]',
+    );
+    if (!action) throw new Error("Missing join.");
+    await userEvent.click(action);
+    await expect(canvasElement.querySelector("[data-join-lock]")).toHaveAttribute(
+      "data-join-lock",
+      "locked",
+    );
+  },
+};
+export const JoinCollision: Story = {
+  args: { ...JoinExisting.args, savedPattern: null },
+  play: async ({ canvasElement }) => {
+    const panel = await findPanel(canvasElement);
+    await expect(canvasElement.querySelector("#current-profile-select")).toBeDisabled();
+    await expect(canvasElement.querySelector("#apply-current-profile")).toBeDisabled();
+    const action = panel.querySelector<HTMLElement>(
+      '[data-provider-feature-action="join"]',
+    );
+    if (!action) throw new Error("Missing join.");
+    await userEvent.click(action);
+    await expect(canvasElement.querySelector("#apply-current-profile")).toBeEnabled();
+  },
 };
 export const DraftStaged: Story = {
   args: { savedPattern: null, scenario: "suggested" },

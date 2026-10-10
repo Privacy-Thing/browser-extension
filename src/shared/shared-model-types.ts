@@ -496,3 +496,10 @@ export type PopupState = {
 };
 
 export type PopupFallbackState = "disabled" | "active" | "protections" | "unconfigured";
+
+declare module "@/shared/provider-feature" {
+  interface ProviderFeatureState {
+    /** Canonical rules for this provider's bindings, aligned by `rulePattern`. Get-state only. */
+    ruleConfigurations?: DomainRule[];
+  }
+}

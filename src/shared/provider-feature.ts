@@ -114,7 +114,7 @@ export type FeatureSyncContext = {
   settingsPath?: string;
 };
 
-export type ProviderFeatureState = {
+export interface ProviderFeatureState {
   available: boolean;
   providerId: string;
   providerName: string;
@@ -131,7 +131,7 @@ export type ProviderFeatureState = {
   badgeColors?: ProviderBadgeColors;
   bindings?: RuleFeatureBinding[];
   groupPatterns?: string[];
-};
+}
 
 export const FEATURE_COMMANDS = {
   getState: "pt.provider-feature.get-state",

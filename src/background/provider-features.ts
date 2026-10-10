@@ -70,6 +70,23 @@ export const normalizeFeatureHost = (input: string): string => {
   return hostname;
 };
 
+/** Canonical stored rules for this provider, one per binding source pattern. */
+const ruleConfigurationsFor = (
+  providerId: string,
+  bindings: readonly RuleFeatureBinding[],
+  rules: readonly DomainRule[],
+): DomainRule[] => {
+  const seen = new Set<string>();
+  const configurations: DomainRule[] = [];
+  for (const binding of bindings) {
+    if (binding.providerId !== providerId || seen.has(binding.rulePattern)) continue;
+    seen.add(binding.rulePattern);
+    const rule = rules.find((candidate) => candidate.pattern === binding.rulePattern);
+    if (rule) configurations.push(rule);
+  }
+  return configurations;
+};
+
 const unavailableState = (): ProviderFeatureState => ({
   available: false,
   providerId: "",
@@ -232,6 +249,7 @@ class FeatureController {
       match,
       binding,
       bindings: featureBindings.filter((item) => item.providerId === provider.id),
+      ruleConfigurations: ruleConfigurationsFor(provider.id, featureBindings, rules),
       groupPatterns: binding ? bindingPatterns(binding) : [],
       ...(binding
         ? {

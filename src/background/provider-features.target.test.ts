@@ -413,6 +413,70 @@ describe("provider feature lifecycle", () => {
     );
   });
 
+  it("returns normalized canonical rules for provider bindings without storing them", async () => {
+    data[RULES_STORAGE_KEY] = [
+      {
+        pattern: "video.example.com",
+        locationId: "warsaw",
+        ruleSeedKey: "abc123",
+        authKey: "abcdefgh",
+        fingerprintSurfaceOverrides: { serviceWorker: true },
+      },
+      {
+        pattern: "stream.example.com",
+        locationId: "ottawa",
+        enabled: true,
+        ruleSeedKey: "strm01",
+        authKey: "stuvwxyz",
+        relaxCspForWorkers: true,
+      },
+      {
+        pattern: "other.example.com",
+        locationId: "paris",
+        enabled: true,
+        ruleSeedKey: "other01",
+        authKey: "otherkey",
+      },
+    ];
+    await saveFeatureState({
+      featureBindings: [
+        binding,
+        streamBinding,
+        {
+          ...streamBinding,
+          rulePattern: "missing.example.com",
+          featureId: "gone",
+          featureName: "Gone",
+        },
+      ],
+      featureMatches: [],
+      dismissedMatches: [],
+    });
+    vi.mocked(chrome.storage.local.set).mockClear();
+    const state = stateOf(
+      await createFeatureController([provider()]).respond(
+        request(FEATURE_COMMANDS.getState),
+      ),
+    );
+    expect(state.ruleConfigurations?.map((rule) => rule.pattern)).toEqual([
+      "video.example.com",
+      "stream.example.com",
+    ]);
+    expect(state.ruleConfigurations?.[0]).toMatchObject({
+      pattern: "video.example.com",
+      locationId: "warsaw",
+      enabled: true,
+      relaxCspForWorkers: false,
+      fingerprintSurfaceOverrides: { serviceWorker: true },
+    });
+    expect(state.ruleConfigurations?.[1]).toMatchObject({
+      locationId: "ottawa",
+      relaxCspForWorkers: true,
+    });
+    expect(chrome.storage.local.set).not.toHaveBeenCalled();
+    expect(data[FEATURE_STORAGE_KEY]).not.toHaveProperty("ruleConfigurations");
+  });
+
   it("normalizes missing collections and preserves bindings when only a rule is disabled", () => {
     expect(
       reconcileFeatureRefs(

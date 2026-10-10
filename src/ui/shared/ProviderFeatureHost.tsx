@@ -1,6 +1,6 @@
 import "@/ui/plugins/feature-registration";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 import { BUILD_CHANNEL } from "@/shared/build-flags";
@@ -10,6 +10,7 @@ import {
   type ProviderFeature,
   type ProviderFeatureState,
 } from "@/shared/provider-feature";
+import type { DomainRule } from "@/shared/types";
 import {
   featureNotice,
   initialsFromState,
@@ -38,6 +39,7 @@ import {
   type ProviderFeaturePending as FeatureRead,
   type ProviderFeatureQuery,
 } from "@/ui/shared/use-provider-feature";
+import type { JoinOfferChange } from "@/ui/shared/use-provider-feature-join";
 
 export type HostSchedule = (run: () => void) => () => void;
 
@@ -46,10 +48,16 @@ export type ProviderFeatureHostProps = {
   rulePattern: string;
   /** Saved pattern. Keeps the existing group while the draft is edited. */
   savedRulePattern?: string;
+  /** Changing any pattern invalidates the staged choice without restarting lookup. */
+  scopeKey?: string;
+  onJoinOfferChange?: JoinOfferChange;
   /** Fixed representative host, such as the popup's current tab. */
   hostname?: string | null;
   variant?: ProviderFeatureVariant;
-  onDecisionChange?: (decision: FeatureDecision | undefined) => void;
+  onDecisionChange?: (
+    decision: FeatureDecision | undefined,
+    configuration?: DomainRule,
+  ) => void;
   /** Trailing debounce for typed patterns. Tests inject a fake scheduler. */
   schedule?: HostSchedule;
   locationId?: string | null;
@@ -106,10 +114,15 @@ const useFeatureDecision = (
     reported.current = rulePattern;
     notify.current?.(undefined);
   }, [rulePattern]);
-  const stage = useCallback((next: FeatureDecision | undefined) => {
-    setDecision(next);
-    notify.current?.(next);
-  }, []);
+  const stage = useCallback(
+    (next: FeatureDecision | undefined, configuration?: DomainRule) => {
+      setDecision(next);
+      if (next?.joinExisting === true && next.featureId)
+        notify.current?.(next, configuration);
+      else notify.current?.(next);
+    },
+    [],
+  );
   return { decision, stage };
 };
 
@@ -126,6 +139,17 @@ const decisionFor = (
   join
     ? { providerId, featureId: feature.featureId, joinExisting: true }
     : { providerId, featureId: feature.featureId };
+
+const canonicalRuleFor = (
+  state: ProviderFeatureState,
+  featureId: string,
+): DomainRule | undefined => {
+  const binding = (state.bindings ?? []).find(
+    (item) => item.providerId === state.providerId && item.featureId === featureId,
+  );
+  if (!binding) return undefined;
+  return state.ruleConfigurations?.find((rule) => rule.pattern === binding.rulePattern);
+};
 
 const requestKind = (
   state: ProviderFeatureState,
@@ -192,6 +216,8 @@ const sharedHostsFor = (
 const ProviderFeatureHostBody = ({
   rulePattern,
   savedRulePattern,
+  scopeKey,
+  onJoinOfferChange,
   hostname,
   variant = "default",
   onDecisionChange,
@@ -203,7 +229,10 @@ const ProviderFeatureHostBody = ({
   const pendingCopy = featurePendingCopy[locale];
   const fixed = hostname ? hostname : null;
   const settled = useSettledDraft(rulePattern, fixed, schedule);
-  const { decision, stage } = useFeatureDecision(rulePattern, onDecisionChange);
+  const { decision, stage } = useFeatureDecision(
+    scopeKey ?? rulePattern,
+    onDecisionChange,
+  );
   const query: ProviderFeatureQuery = {
     rulePattern: settled.pattern,
     hostname: settled.host,
@@ -228,9 +257,18 @@ const ProviderFeatureHostBody = ({
   const presentation = featureUiFor(state.providerId);
   if (!presentation) return null;
   const copy = presentation.messages[locale];
+  if (rulePattern !== settled.pattern) {
+    return (
+      <div data-provider-feature-host aria-busy="true">
+        <ProviderFeaturePending kind="lookup" copy={pendingCopy} />
+      </div>
+    );
+  }
   return (
     <ReadyFeatureHost
       rulePattern={rulePattern}
+      scopeKey={scopeKey ?? rulePattern}
+      {...(onJoinOfferChange ? { onJoinOfferChange } : {})}
       {...(savedRulePattern ? { savedRulePattern } : {})}
       variant={variant}
       settledHost={settled.host}
@@ -251,6 +289,7 @@ const ProviderFeatureHostBody = ({
         presentation.renderExplanation({
           feature,
           isJoin,
+          isStaged: decision?.joinExisting === true && !busy,
           state,
           locale,
           ...(variant === "compact" ? { openSettings: openInBackground } : {}),
@@ -266,8 +305,32 @@ const explainFeature = (
 ): ReactNode =>
   model.feature ? render(model.feature, model.join !== null) : undefined;
 
+const useJoinOffer = (
+  state: ProviderFeatureState,
+  model: ReturnType<typeof resolveSlot>,
+  scopeKey: string,
+  onChange: JoinOfferChange | undefined,
+): void => {
+  const featureId = model.join ? model.feature?.featureId : undefined;
+  const configuration = featureId ? canonicalRuleFor(state, featureId) : undefined;
+  useLayoutEffect(() => {
+    onChange?.(featureId ? { ...(configuration ? { configuration } : {}) } : undefined);
+  }, [featureId, configuration, onChange, scopeKey]);
+};
+
+const joinForFeature = (
+  state: ProviderFeatureState,
+  identity: string,
+  featureId: string,
+): JoinInfo | null => {
+  const group = otherGroup(state.bindings ?? [], state.providerId, featureId, identity);
+  return group ? joinInfo(group) : null;
+};
+
 const ReadyFeatureHost = ({
   rulePattern,
+  scopeKey,
+  onJoinOfferChange,
   savedRulePattern,
   variant,
   settledHost,
@@ -283,6 +346,8 @@ const ReadyFeatureHost = ({
   contextNotice,
 }: {
   rulePattern: string;
+  scopeKey: string;
+  onJoinOfferChange?: JoinOfferChange;
   savedRulePattern?: string;
   variant: ProviderFeatureVariant;
   settledHost: string;
@@ -292,7 +357,7 @@ const ReadyFeatureHost = ({
   failed: boolean;
   errorCode: string | null;
   decision: FeatureDecision | undefined;
-  stage: (next: FeatureDecision | undefined) => void;
+  stage: (next: FeatureDecision | undefined, configuration?: DomainRule) => void;
   copy: ProviderFeatureMessages;
   renderExplanation: (feature: ProviderFeature, isJoin: boolean) => ReactNode;
   contextNotice?: ReactNode;
@@ -300,15 +365,7 @@ const ReadyFeatureHost = ({
   const identity = identityOf(rulePattern, savedRulePattern);
   const kind = requestKind(state, busy, pending, errorCode);
   const sharedHosts = sharedHostsFor(state, identity, decision);
-  const joinFor = (featureId: string): JoinInfo | null => {
-    const group = otherGroup(
-      state.bindings ?? [],
-      state.providerId,
-      featureId,
-      identity,
-    );
-    return group ? joinInfo(group) : null;
-  };
+  const joinFor = (featureId: string) => joinForFeature(state, identity, featureId);
   const model = resolveSlot({
     available: state.available,
     providerId: state.providerId,
@@ -335,9 +392,11 @@ const ReadyFeatureHost = ({
     featureCount: state.features.length,
     hasStateError: state.error !== null && state.error.length > 0,
   });
+  useJoinOffer(state, model, scopeKey, onJoinOfferChange);
   const serviceName = state.binding?.featureName ?? model.decorator?.label ?? "";
   const accept = (feature: ProviderFeature, join: boolean) => {
-    stage(decisionFor(state.providerId, feature, join));
+    const decision = decisionFor(state.providerId, feature, join);
+    stage(decision, join ? canonicalRuleFor(state, feature.featureId) : undefined);
   };
   return (
     <div data-provider-feature-host aria-busy={kind ? true : undefined}>

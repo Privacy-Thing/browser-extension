@@ -530,7 +530,17 @@ describe("upsertRuleGroup", () => {
     authKey: "existing-auth",
     ruleSeedKey: "existing-identity",
   };
-  it("creates a three-site product rule without a provider and keeps its identity", () => {
+  it.each([[""], ["   "], [" FIRST.EXAMPLE "], ["second.example", " SECOND.EXAMPLE "]])(
+    "rejects empty or repeated draft patterns without changing existing rules: %j",
+    (...additionalPatterns) => {
+      const current = [{ ...source }];
+      expect(() =>
+        upsertRuleGroup(current, source, additionalPatterns, source.pattern),
+      ).toThrow();
+      expect(current).toEqual([source]);
+    },
+  );
+  it("creates a three-pattern product rule without a provider and keeps its identity", () => {
     const rules = upsertRuleGroup(
       [source],
       source,
@@ -549,7 +559,7 @@ describe("upsertRuleGroup", () => {
       expect(rule.ruleSeedKey).toBe(source.ruleSeedKey);
     }
   });
-  it("edits, renames and removes sites while keeping the product group", () => {
+  it("edits, renames and removes patterns while keeping the product group", () => {
     const current = [
       source,
       { ...source, pattern: "second.example" },
@@ -573,7 +583,7 @@ describe("upsertRuleGroup", () => {
         ruleSeedKey: source.ruleSeedKey,
       });
   });
-  it("rejects an extra site owned by another rule", () => {
+  it("rejects an extra pattern owned by another rule", () => {
     expect(() =>
       upsertRuleGroup(
         [source, { pattern: "owned.example", enabled: false }],
@@ -583,4 +593,23 @@ describe("upsertRuleGroup", () => {
       ),
     ).toThrow(/already belongs/);
   });
+  it.each(["group-a", undefined])(
+    "does not replace another group's primary pattern (%s)",
+    (groupId) => {
+      const current = [
+        { ...source, ...(groupId ? { groupId } : {}) },
+        { ...source, pattern: "owned.example", groupId: "group-b" },
+      ];
+      expect(() =>
+        upsertRuleGroup(
+          current,
+          { ...source, pattern: "owned.example" },
+          [],
+          source.pattern,
+        ),
+      ).toThrow(/already belongs/);
+      expect(current[0]?.pattern).toBe(source.pattern);
+      expect(current[1]?.groupId).toBe("group-b");
+    },
+  );
 });

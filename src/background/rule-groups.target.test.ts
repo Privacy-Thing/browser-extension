@@ -91,4 +91,26 @@ describe("product group migration", () => {
     ]);
     expect(set).not.toHaveBeenCalled();
   });
+
+  it("does not fold a case variant into an existing group on load", async () => {
+    data[RULES_STORAGE_KEY] = [
+      { ...loopback, groupId: "group-a" },
+      { ...loopback, pattern: "LOOPBACK.example", authKey: media.authKey },
+    ];
+    data[FEATURE_STORAGE_KEY] = {
+      featureBindings: [binding([loopback.pattern])],
+    };
+    installStorage();
+    const loaded = await loadRules();
+    expect(loaded.map((rule) => rule.pattern)).toEqual([
+      loopback.pattern,
+      "LOOPBACK.example",
+    ]);
+    expect(loaded.map((rule) => rule.groupId)).toEqual(["group-a", undefined]);
+    expect(loaded.map((rule) => rule.authKey)).toEqual([
+      loopback.authKey,
+      media.authKey,
+    ]);
+    expect(set).not.toHaveBeenCalled();
+  });
 });

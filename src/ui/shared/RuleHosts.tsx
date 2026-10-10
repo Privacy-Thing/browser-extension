@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import { ruleGroupCopy } from "./rule-group-copy";
 
@@ -31,10 +31,12 @@ export const RuleAdditionalHosts = ({
   rules,
   sourcePattern,
   renderPrimary,
+  onPatternsChange,
 }: {
   rules: readonly DomainRule[];
   sourcePattern: string | null;
   renderPrimary: (addControl: ReactNode) => ReactNode;
+  onPatternsChange?: (patterns: readonly string[]) => void;
 }) => {
   const copy = ruleGroupCopy[useUiLocale()];
   const [entries, setEntries] = useState(() =>
@@ -42,6 +44,9 @@ export const RuleAdditionalHosts = ({
       .filter((pattern) => pattern !== sourcePattern)
       .map((pattern) => ({ id: crypto.randomUUID(), pattern })),
   );
+  useEffect(() => {
+    onPatternsChange?.(entries.map((entry) => entry.pattern));
+  }, [entries, onPatternsChange]);
   const addControl = (
     <Button
       type="button"
@@ -81,6 +86,7 @@ export const RuleAdditionalHosts = ({
                 data-rule-host-input
                 aria-label={copy.patternLabel(index + 2)}
                 value={entry.pattern}
+                required
                 onChange={(event) => {
                   const pattern = event.currentTarget.value;
                   setEntries((current) =>
