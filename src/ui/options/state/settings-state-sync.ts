@@ -1,6 +1,7 @@
 import type { Dispatch, SetStateAction } from "react";
 
 import type { FeatureFlags } from "@/shared/feature-flags";
+import type { RuleFeatureBinding, ProviderDecorator } from "@/shared/provider-feature";
 import type {
   ContainerAssignment,
   DomainRule,
@@ -15,6 +16,8 @@ import type { ThemeAccentPreset, ThemeMode } from "@/shared/types";
 import { dedupeRules } from "@/ui/options/utils";
 
 type SettingsStatePayload = {
+  featureBindings?: RuleFeatureBinding[];
+  decorators?: ProviderDecorator[];
   locations: Location[];
   rules: DomainRule[];
   trustedSites: TrustedSite[];
@@ -42,6 +45,8 @@ type SettingsStatePayload = {
 type StateSetter<T> = Dispatch<SetStateAction<T>>;
 
 export type SettingsStateSetters = {
+  setFeatureBindings?: StateSetter<RuleFeatureBinding[]>;
+  setDecorators?: StateSetter<ProviderDecorator[]>;
   setProfiles: StateSetter<Location[]>;
   setRules: StateSetter<DomainRule[]>;
   setTrustedSites: StateSetter<TrustedSite[]>;
@@ -73,6 +78,8 @@ export const applySettingsPayload = (
 ): void => {
   setters.setProfiles(payload.locations);
   setters.setRules(dedupeRules(payload.rules));
+  setters.setFeatureBindings?.(payload.featureBindings ?? []);
+  setters.setDecorators?.(payload.decorators ?? []);
   setters.setTrustedSites(payload.trustedSites);
   setters.setThemeMode(payload.themeMode);
   setters.setThemeAccentPreset(payload.themeAccentPreset);

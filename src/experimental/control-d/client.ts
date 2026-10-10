@@ -335,24 +335,12 @@ export class ControlDClient {
     );
   }
 
-  // Dashboard putServices sends JSON { services: [{ PK, do, status, via? }] }.
-  // The published API only documents the singular form-urlencoded route.
-  async bypassProfileServices(
-    profileId: string,
-    servicePks: readonly string[],
-  ): Promise<void> {
-    if (servicePks.length === 0) return;
+  async bypassProfileService(profileId: string, servicePk: string): Promise<void> {
     await this.request(
-      `/profiles/${encodeURIComponent(profileId)}/services`,
-      {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          services: servicePks.map((pk) => ({ PK: pk, do: 1, status: 1 })),
-        }),
-      },
+      `/profiles/${encodeURIComponent(profileId)}/services/${encodeURIComponent(servicePk)}`,
+      { method: "PUT", body: formBody({ do: 1, status: 1 }) },
       true,
-      "bypass profile services",
+      "bypass profile service",
     );
   }
 
@@ -361,6 +349,7 @@ export class ControlDClient {
   async queryDomain(
     resolverId: string,
     hostname: string,
+    signal?: AbortSignal,
   ): Promise<ControlDDomainResult> {
     const outcome = await executeControlDQuery({
       fetchImpl: this.fetchImpl,
@@ -368,6 +357,7 @@ export class ControlDClient {
       resolverId,
       hostname,
       timeoutMs: this.timeoutMs,
+      ...(signal ? { signal } : {}),
     });
     if (outcome.ok) return outcome.result;
     throw new ControlDApiError(
@@ -599,13 +589,20 @@ export class ControlDClient {
     name: string,
     profileId: string,
     icon: string,
+    options?: { readonly stats?: number; readonly learnIp?: number },
   ): Promise<ControlDDevice | null> {
+    const fields: Record<string, string | number> = {
+      name,
+      client_count: 1,
+      profile_id: profileId,
+      icon,
+    };
+    // stats and learn_ip are opt-in so the browser DNS endpoint keeps its previous body.
+    if (options?.stats !== undefined) fields.stats = options.stats;
+    if (options?.learnIp !== undefined) fields.learn_ip = options.learnIp;
     const payload = await this.request(
       "/devices",
-      {
-        method: "POST",
-        body: formBody({ name, client_count: 1, profile_id: profileId, icon }),
-      },
+      { method: "POST", body: formBody(fields) },
       false,
       "create endpoint",
     );

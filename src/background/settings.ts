@@ -11,15 +11,26 @@ import {
   containerListSchema,
   domainRulesSchema,
   globalFallbackRuleSchema,
+  locationProfilesSchema,
   sharedSpoofingSchema,
   trustedSitesSchema,
-  locationProfilesSchema,
 } from "@/shared/profile-schema";
 import {
   validateFeatureBindings,
   type RuleFeatureBinding,
 } from "@/shared/provider-feature";
-import { withAuthKey, withContainerSeed, withRuleSeedKey } from "@/shared/rule-seed";
+import {
+  prepareProductRuleGroups,
+  readGroupId,
+  validateRuleGroups,
+} from "@/shared/rule-groups";
+import {
+  isValidAuthKey,
+  readRuleSeedKey,
+  withAuthKey,
+  withContainerSeed,
+  withRuleSeedKey,
+} from "@/shared/rule-seed";
 import {
   MAX_RANDOM_RADIUS_KM,
   MIN_RANDOM_RADIUS_KM,
@@ -210,8 +221,9 @@ const sanitizeAssignments = (
 const sanitizeRules = (rules: readonly DomainRule[]): DomainRule[] =>
   domainRulesSchema
     .parse(rules as Array<DomainRule & { profileId?: string }>)
-    .map((rule) =>
-      withAuthKey(
+    .map((rule) => {
+      const groupId = readGroupId(rule.groupId);
+      return withAuthKey(
         withRuleSeedKey({
           pattern: rule.pattern.trim().toLowerCase(),
           ...(rule.locationId?.trim() ? { locationId: rule.locationId.trim() } : {}),
@@ -222,9 +234,10 @@ const sanitizeRules = (rules: readonly DomainRule[]): DomainRule[] =>
           ...(rule.fingerprintSurfaceOverrides
             ? { fingerprintSurfaceOverrides: rule.fingerprintSurfaceOverrides }
             : {}),
+          ...(groupId ? { groupId } : {}),
         }),
-      ),
-    )
+      );
+    })
     .filter(
       (rule, index, all) =>
         all.findIndex((candidate) => candidate.pattern === rule.pattern) === index,
@@ -266,6 +279,39 @@ export const validateSettings = (
     locations: nextLocations,
     rules: nextRules,
     containerAssignments: nextAssignments,
+  };
+};
+
+const preservedRuleIdentity = (
+  rules: readonly DomainRule[],
+): Map<string, { authKey?: string; ruleSeedKey?: string }> => {
+  const preserved = new Map<string, { authKey?: string; ruleSeedKey?: string }>();
+  for (const rule of rules) {
+    const authKey = isValidAuthKey(rule.authKey)
+      ? rule.authKey.trim().toLowerCase()
+      : undefined;
+    const ruleSeedKey = readRuleSeedKey(rule.ruleSeedKey) ?? undefined;
+    preserved.set(rule.pattern.trim().toLowerCase(), {
+      ...(authKey ? { authKey } : {}),
+      ...(ruleSeedKey ? { ruleSeedKey } : {}),
+    });
+  }
+  return preserved;
+};
+
+const importProductGroups = (
+  settings: ExportedSettings,
+  rules: DomainRule[],
+): { rules: DomainRule[]; featureBindings: RuleFeatureBinding[] } => {
+  const preserved = preservedRuleIdentity(
+    Array.isArray(settings.rules) ? settings.rules : [],
+  );
+  const referenced = validateFeatureBindings(settings.featureBindings, rules);
+  const prepared = prepareProductRuleGroups(rules, referenced, preserved);
+  validateRuleGroups(prepared.rules);
+  return {
+    rules: prepared.rules,
+    featureBindings: validateFeatureBindings(prepared.featureBindings, prepared.rules),
   };
 };
 
@@ -346,12 +392,16 @@ export const validateImportedSettings = (
     );
   }
 
+  const imported = importProductGroups(settings, validated.rules);
+  const featureBindings = imported.featureBindings;
+  validated.rules = imported.rules;
+
   // Scalar preference defaults come from the single canon, not inline literals.
   const preferences = normalizePreferences(settings);
 
   return {
     ...validated,
-    featureBindings: validateFeatureBindings(settings.featureBindings, validated.rules),
+    featureBindings,
     trustedSites,
     uiLocale: preferences.uiLocale,
     themeMode: sanitizeThemeMode(settings.themeMode),

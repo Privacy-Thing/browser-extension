@@ -8,6 +8,7 @@ import {
   type ControlDMapping,
   type ControlDPreparedSnapshot,
 } from "./contracts";
+import { createControlDProvider } from "./feature-provider";
 import {
   hashControlDInputs,
   applyControlDSync,
@@ -34,10 +35,13 @@ import { loadLocations } from "@/background/storage/locations";
 import { loadFeatureBindings } from "@/background/storage/provider-features";
 import { loadRules } from "@/background/storage/rules";
 import { fireAndForget } from "@/shared/async";
+import type { FeaturePlugin } from "@/shared/plugin";
+import type { PluginHooks } from "@/shared/plugin-hooks";
 import { ExtensionLogLevel, LogCategory } from "@/shared/types";
 
 type BackgroundEntryDeps = {
   getDebugMode: () => boolean | Promise<boolean>;
+  hooks: PluginHooks;
 };
 
 type SyncResult =
@@ -602,6 +606,10 @@ const createController = (deps: BackgroundEntryDeps) => {
   };
 };
 
-export const registerControlD = (deps: BackgroundEntryDeps): void => {
-  registerControllers(createController(deps));
-};
+/** Release builds replace this module; the stub sets the factory to null. */
+export const controlDFeaturePlugins: (() => readonly FeaturePlugin[]) | null = () => [
+  createControlDProvider(),
+];
+
+export const registerControlD = (deps: BackgroundEntryDeps): (() => void) =>
+  registerControllers(createController(deps), deps.hooks);

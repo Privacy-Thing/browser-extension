@@ -13,10 +13,6 @@ import {
   ControlDSubpage,
 } from "../../../experimental/control-d/ui-entry";
 
-import {
-  DIAGNOSTIC_COMMANDS,
-  type RecognitionPhase,
-} from "@/experimental/control-d/recognition-setup";
 import { EXTENSION_STORAGE_KEYS } from "@/shared/extension-contract";
 import { DEFAULT_PREFERENCES } from "@/shared/settings-defaults";
 import type { ThemeMode } from "@/shared/types";
@@ -183,38 +179,11 @@ const installBoundary = (
   preparedSnapshot: ControlDPreparedSnapshot,
   recoveryCandidates: ControlDRecoveryCandidate[],
   themeMode: ThemeMode,
-  recognitionPhase: RecognitionPhase = "not-setup",
 ): void => {
-  let phase = recognitionPhase;
   Reflect.set(globalThis, "chrome", {
     runtime: {
       id: "storybook-control-d",
       sendMessage: async (message: { type?: string }) => {
-        if (Object.values(DIAGNOSTIC_COMMANDS).includes(message.type as never)) {
-          if (message.type === DIAGNOSTIC_COMMANDS.apply) phase = "ready";
-          return {
-            ok: true,
-            summary: {
-              phase,
-              code: null,
-              profileId: null,
-              endpointId: null,
-              hasResolver: phase === "ready",
-              serviceCount: phase === "ready" ? 1012 : 0,
-              lastError: null,
-            },
-            ...(message.type === DIAGNOSTIC_COMMANDS.preview
-              ? {
-                  preview: {
-                    token: "lookup-preview",
-                    profileCreateCount: phase === "ready" ? 0 : 1,
-                    endpointCreateCount: phase === "ready" ? 0 : 1,
-                    serviceCount: 1012,
-                  },
-                }
-              : {}),
-          };
-        }
         if (
           message.type === CONTROL_D_COMMANDS.discover ||
           message.type === CONTROL_D_COMMANDS.connect
@@ -258,21 +227,13 @@ const Surface = ({
   preparedSnapshot = snapshot,
   recoveryCandidates = [],
   themeMode = "light",
-  recognitionPhase = "not-setup",
 }: {
   state: ControlDPublicState;
   preparedSnapshot?: ControlDPreparedSnapshot;
   recoveryCandidates?: ControlDRecoveryCandidate[];
   themeMode?: ThemeMode;
-  recognitionPhase?: RecognitionPhase;
 }) => {
-  installBoundary(
-    state,
-    preparedSnapshot,
-    recoveryCandidates,
-    themeMode,
-    recognitionPhase,
-  );
+  installBoundary(state, preparedSnapshot, recoveryCandidates, themeMode);
   return (
     <ThemeProvider>
       <AppPageFrame
@@ -496,19 +457,42 @@ export const NativeServiceConflict: Story = {
   ),
 };
 
-export const RecognitionSetup: Story = {
+export const AutomaticDomainMatching: Story = {
   render: () => <Surface state={baseState} />,
   play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await userEvent.click(
-      await canvas.findByRole("button", { name: "Preview lookup setup" }),
-    );
     await expect(
-      canvasElement.querySelector("[data-control-d-recognition-preview]"),
+      canvasElement.querySelector(
+        "[data-control-d-help] [data-control-d-domain-matching]",
+      ),
     ).not.toBeNull();
+    await expect(
+      within(canvasElement).queryByRole("button", { name: "Preview lookup setup" }),
+    ).toBeNull();
   },
 };
 
-export const RecognitionReady: Story = {
-  render: () => <Surface state={baseState} recognitionPhase="ready" />,
+export const PresetSyncDeepLink: Story = {
+  beforeEach: () => {
+    const old = window.location.hash;
+    window.history.replaceState(
+      null,
+      "",
+      window.location.pathname +
+        window.location.search +
+        "#page-experimental-integration?section=routes&preset=warsaw",
+    );
+    return () =>
+      window.history.replaceState(
+        null,
+        "",
+        window.location.pathname + window.location.search + old,
+      );
+  },
+  render: () => <Surface state={baseState} />,
+  play: async ({ canvasElement }) => {
+    const route = await within(canvasElement).findByRole("combobox", {
+      name: "Exit for Warsaw",
+    });
+    await expect(route).toBeVisible();
+  },
 };

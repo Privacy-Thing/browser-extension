@@ -56,6 +56,32 @@ describe("rule seed helpers", () => {
     expect(rotated[1]?.ruleSeedKey).toBe("def456");
   });
 
+  it("rotates every member of a product group to one shared seed", () => {
+    const rules = [
+      {
+        pattern: "video.example",
+        enabled: true,
+        groupId: "group-1",
+        ruleSeedKey: "abc123",
+      },
+      {
+        pattern: "media.example",
+        enabled: true,
+        groupId: "group-1",
+        ruleSeedKey: "abc123",
+      },
+      {
+        pattern: "other.example",
+        enabled: true,
+        ruleSeedKey: "def456",
+      },
+    ];
+    const rotated = rotateRuleSeedKey(rules, "media.example");
+    expect(rotated[0]?.ruleSeedKey).toBe(rotated[1]?.ruleSeedKey);
+    expect(rotated[0]?.ruleSeedKey).not.toBe("abc123");
+    expect(rotated[2]?.ruleSeedKey).toBe("def456");
+  });
+
   it("assigns a seed key to a container assignment when missing", () => {
     const assignment = withContainerSeed({
       cookieStoreId: "firefox-container-1",

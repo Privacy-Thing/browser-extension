@@ -15,6 +15,7 @@ import {
   isNoticeUnread,
 } from "@/shared/popup-notification-state";
 import { BrandHorizontalLogo } from "@/ui/branding/BrandHorizontalLogo";
+import { ProviderDecoratorBadge } from "@/ui/components/provider-feature/ProviderDecoratorBadge";
 import { t } from "@/ui/i18n";
 import { useTheme } from "@/ui/shared/ThemeProvider";
 import { WorkerTroubleshooter } from "@/ui/shared/WorkerTroubleshooter";
@@ -287,6 +288,18 @@ const getShellPhase = ({
 };
 
 // Optional popup surfaces intentionally compose one stable shell contract.
+
+const getServiceDecorators = ({ state }: PopupController) =>
+  state.popupState?.decorators?.length
+    ? state.popupState.decorators.map((decorator) => (
+        <ProviderDecoratorBadge
+          key={`${decorator.providerId}:${decorator.featureId}`}
+          decorator={decorator}
+        />
+      ))
+    : null;
+
+// Optional popup surfaces intentionally compose one stable shell contract.
 // eslint-disable-next-line sonarjs/cognitive-complexity
 export const PopupShellPane = ({ controller }: { controller: PopupController }) => {
   const { reduceMotion } = useTheme();
@@ -344,6 +357,7 @@ export const PopupShellPane = ({ controller }: { controller: PopupController }) 
         powerAriaLabel={viewModel.powerAriaLabel}
         onPowerClick={() => fireAndForget(controller.toggles.handleToggle())}
         ruleTitle={viewModel.protectionTitle}
+        decorators={getServiceDecorators(controller)}
         {...visual.ruleBorderProps}
         ruleTone={visual.displayedRuleTone}
         presentationKind={viewModel.presentationKind}

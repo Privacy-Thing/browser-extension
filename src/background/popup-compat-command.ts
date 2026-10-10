@@ -118,7 +118,7 @@ const applyCompatibilityAction = async (
       activeTab?.cookieStoreId,
     );
   }
-  await persistPopupRuleMutation(deps, nextRules, hostname, activeTab);
+  await persistPopupRuleMutation(deps, nextRules, hostname, { activeTab });
   deps.logExtensionEvent({
     enabled: deps.getLastKnownDebugMode() ?? false,
     category: LogCategory.System,

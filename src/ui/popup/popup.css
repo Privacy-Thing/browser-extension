@@ -5,3 +5,10 @@
 @import "./styles/host-pause.css";
 @import "./styles/workspace.css";
 @import "./styles/motion.css";
+
+.gw-popup-rule-decorators {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin-top: 0.5rem;
+}

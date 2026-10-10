@@ -58,7 +58,7 @@ import { DEFAULT_ACCENT_PRESET, THEME_ACCENT_PRESETS } from "./theme-types.js";
 import type { ThemeAccentPreset, ThemeMode } from "./theme-types.js";
 import type { UiLocalePreference } from "./ui-locale.js";
 
-import type { RuleFeatureBinding } from "@/shared/provider-feature";
+import type { ProviderDecorator, RuleFeatureBinding } from "@/shared/provider-feature";
 import type { WorkerPolicyExceptions } from "@/shared/worker-policy-exceptions";
 
 export type {
@@ -132,6 +132,11 @@ export type DomainRule = ToggleableSurfaceFields & {
    * migrated to that override by `domainRuleSchema`.
    */
   relaxCspForWorkers?: boolean;
+  /**
+   * Product multi-host group. Membership is this id, not a provider binding.
+   * Absent on ordinary single-host rules.
+   */
+  groupId?: string;
 };
 
 /**
@@ -434,6 +439,10 @@ export type PopupEffectiveSummary = {
 };
 
 export type PopupState = {
+  decorators?: ProviderDecorator[];
+  groupPatterns?: string[];
+  /** Set when the current rule belongs to a product multi-host group. */
+  groupId?: string;
   hostPause?: HostPauseStatus;
   panicMode: boolean;
   effectiveSummary: PopupEffectiveSummary;
@@ -487,3 +496,10 @@ export type PopupState = {
 };
 
 export type PopupFallbackState = "disabled" | "active" | "protections" | "unconfigured";
+
+declare module "@/shared/provider-feature" {
+  interface ProviderFeatureState {
+    /** Canonical rules for this provider's bindings, aligned by `rulePattern`. Get-state only. */
+    ruleConfigurations?: DomainRule[];
+  }
+}

@@ -9,6 +9,7 @@ import type { loadContainerAssignments } from "@/background/storage/container-as
 import type { loadLocations } from "@/background/storage/locations";
 import type { loadRules } from "@/background/storage/rules";
 import type { SurfaceEvidenceByRealm } from "@/background/surface-evidence-tracker";
+import type { FeatureDecision } from "@/shared/provider-feature";
 import type {
   ControlState,
   XRayAccessedCategories,
@@ -24,6 +25,7 @@ export type LoadedRules = Awaited<ReturnType<typeof loadRules>>;
 export type LoadedContainers = Awaited<ReturnType<typeof loadContainerAssignments>>;
 
 export type UpdateCurrentRuleInput = {
+  featureDecision?: FeatureDecision;
   locationId: string | undefined;
   patternMode: "exact" | "suffix";
   replaceExisting: boolean;

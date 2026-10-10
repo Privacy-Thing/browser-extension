@@ -1,3 +1,4 @@
+import { decorateFeatureBindings } from "@/background/feature-provider-registry";
 import {
   buildPopupState,
   defaultPopupCurrentRule,
@@ -36,6 +37,7 @@ import {
   getSharedSpoofing,
   getWorkerMode,
 } from "@/background/storage/preferences";
+import { loadFeatureBindings } from "@/background/storage/provider-features";
 import { loadRules } from "@/background/storage/rules";
 import {
   loadSiteSuggestions,
@@ -44,6 +46,12 @@ import {
 import { loadTrustedSites } from "@/background/storage/trusted-sites";
 import { getContainer } from "@/shared/container-service";
 import { isNoticeAttention } from "@/shared/popup-notification-state";
+import { bindingPatterns } from "@/shared/provider-feature";
+import {
+  getRuleGroupPatterns,
+  getRuleGroupSource,
+  projectFeatureBindings,
+} from "@/shared/rule-groups";
 import {
   LogCategory,
   type ContainerAssignment,
@@ -507,6 +515,20 @@ export const createPopupStateHandler = (deps: PopupCommandDeps) => {
     const model = await resolvePopupModel(deps, inputs);
     const summary = await buildSummary(deps, inputs, model, ++generation);
     const response = buildSupportedResponse(inputs, model, summary);
+    const pattern = response.state.currentRule.pattern ?? "";
+    const source = pattern ? getRuleGroupSource(inputs.rules, pattern) : undefined;
+    const groupPatterns = source
+      ? getRuleGroupPatterns(inputs.rules, source.pattern)
+      : [];
+    response.state.groupPatterns = groupPatterns.length > 1 ? groupPatterns : [];
+    if (source?.groupId) response.state.groupId = source.groupId;
+    const bindings = projectFeatureBindings(
+      await loadFeatureBindings(),
+      inputs.rules,
+    ).filter((binding) =>
+      pattern ? bindingPatterns(binding).includes(pattern) : false,
+    );
+    response.state.decorators = decorateFeatureBindings(bindings);
     const hostname = response.state.currentTab.hostname;
     if (hostname) response.state.hostPause = getHostPauseStatus(hostname, activeTab.id);
     return response;

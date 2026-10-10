@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 
+import {
+  featureDecisionSchema,
+  type ProviderDecorator,
+  type RuleFeatureBinding,
+} from "@/shared/provider-feature";
+import { getRuleGroupPatterns, getRuleGroupSource } from "@/shared/rule-groups";
 import { withFallbackSeed } from "@/shared/rule-seed";
 import type {
   DomainRule,
@@ -19,10 +25,11 @@ import {
 import { getVisibleSelectionState } from "@/ui/options/rule-selection";
 import {
   buildRuleViewModels,
+  assertPatternReplacement,
   deleteRulesByIndex,
   reassignRulesToLocation,
   resolveRulePreview,
-  upsertRule,
+  upsertRuleGroup,
 } from "@/ui/options/rule-utils";
 import { useLatestRef } from "@/ui/options/state/use-latest-ref";
 import type { ConfirmDialogConfig } from "@/ui/options/state/use-settings-confirm-dialog";
@@ -39,6 +46,8 @@ export const useRuleState = (
   profiles: readonly Location[],
   globalFallbackRuleRef: RefObject<GlobalFallbackRule | undefined>,
 ) => {
+  const [decorators, setDecorators] = useState<ProviderDecorator[]>([]);
+  const [featureBindings, setFeatureBindings] = useState<RuleFeatureBinding[]>([]);
   const [rules, setRules] = useState<DomainRule[]>([]);
   const [selectedRulePatterns, setSelectedRulePatterns] = useState<Set<string>>(
     new Set(),
@@ -89,6 +98,10 @@ export const useRuleState = (
   }, [profiles, globalFallbackRuleRef]);
 
   return {
+    decorators,
+    setDecorators,
+    featureBindings,
+    setFeatureBindings,
     editingRulePattern,
     isFallbackDialogOpen,
     isFallbackEnabled,
@@ -138,13 +151,28 @@ export const useRuleDerivedState = (options: {
   trustedSites: readonly TrustedSite[];
 }) => {
   const { state } = options;
-  const viewModels = buildRuleViewModels(
+  const flatViewModels = buildRuleViewModels(
     state.rules,
     options.profiles,
     state.rulesFilter,
     options.linkedRuleLocationId,
   );
-  const allRuleKeys = state.rules.map((rule) => normalizeRulePattern(rule.pattern));
+  const groupedViewModels = flatViewModels.filter(({ rule }) => {
+    const patterns = getRuleGroupPatterns(state.rules, rule.pattern);
+    return (
+      flatViewModels.find((entry) => patterns.includes(entry.rule.pattern))?.rule
+        .pattern === rule.pattern
+    );
+  });
+  const viewModels = groupedViewModels.map((entry) => {
+    const canonical = getRuleGroupSource(state.rules, entry.rule.pattern);
+    return canonical ? { ...entry, rule: canonical } : entry;
+  });
+  const allRuleKeys = state.rules
+    .filter(
+      (rule) => getRuleGroupSource(state.rules, rule.pattern)?.pattern === rule.pattern,
+    )
+    .map((rule) => normalizeRulePattern(rule.pattern));
   const visibleRuleKeys = viewModels.map(({ rule }) =>
     normalizeRulePattern(rule.pattern),
   );
@@ -241,7 +269,13 @@ const syncFallbackDraft = (
   options.state.setFallbackSurfaces(source?.fingerprintSurfaceOverrides);
 };
 
-const openRuleDialog = (state: RuleState, rule: DomainRule | undefined): void => {
+const openRuleDialog = (
+  state: RuleState,
+  selectedRule: DomainRule | undefined,
+): void => {
+  const rule = selectedRule
+    ? (getRuleGroupSource(state.rules, selectedRule.pattern) ?? selectedRule)
+    : undefined;
   state.setRuleDialogMode(rule ? "edit" : "add");
   state.setEditingRulePattern(rule ? normalizeRulePattern(rule.pattern) : null);
   state.setRulePattern(rule?.pattern ?? "");
@@ -263,12 +297,25 @@ const closeFallbackDialog = (options: RuleHandlerOptions): void => {
   }
 };
 
+const readRuleForm = (form: HTMLFormElement | null) => {
+  const formData = form ? new FormData(form) : null;
+  const rawDecision = formData?.get("featureDecision") ?? null;
+  const additionalPatterns =
+    formData?.getAll("additionalRulePatterns").map(String) ?? [];
+  const decision =
+    typeof rawDecision === "string" && rawDecision
+      ? featureDecisionSchema.parse(JSON.parse(rawDecision) as unknown)
+      : undefined;
+  return { decision, additionalPatterns };
+};
+
 const handleRuleSubmit = async (
   options: RuleHandlerOptions,
   event: React.FormEvent<HTMLFormElement>,
 ): Promise<void> => {
   event.preventDefault();
   const { state } = options;
+  const { decision, additionalPatterns } = readRuleForm(event.currentTarget);
   const pattern = state.rulePattern.trim();
   if (!pattern) {
     notify.warning("Enter a domain pattern.");
@@ -276,6 +323,12 @@ const handleRuleSubmit = async (
   }
 
   const normalizedPattern = normalizeRulePattern(pattern);
+  try {
+    assertPatternReplacement(state.rules, pattern, state.editingRulePattern);
+  } catch (error) {
+    notify.warning(error instanceof Error ? error.message : String(error));
+    return;
+  }
   const hadExistingRule = state.rules.some(
     (rule) =>
       normalizeRulePattern(rule.pattern) === normalizedPattern &&
@@ -303,23 +356,30 @@ const handleRuleSubmit = async (
   }
 
   const normalizedLocationId = state.ruleProfileId.trim();
-  const nextRules = upsertRule(
-    state.rules,
-    {
-      pattern,
-      ...(normalizedLocationId ? { locationId: normalizedLocationId } : {}),
-      enabled: state.ruleDialogMode === "edit" ? state.ruleEnabled : true,
-      relaxCspForWorkers: state.ruleRelaxCsp,
-      fingerprintSurfaceOverrides: compactSurfaceOverrides(state.ruleSurfaceOverrides),
-    },
-    state.editingRulePattern,
-  );
-  state.setRules(nextRules);
-  state.setSelectedRulePatterns(new Set());
-  state.setRuleDialogOpened(false);
-  state.suppressedRuleDialogRef.current = ruleAnchor;
-  options.navigateToAnchor(ruleAnchor, { replace: true });
-  await options.persistSettings({
+  let nextRules: DomainRule[];
+  try {
+    nextRules = upsertRuleGroup(
+      state.rules,
+      {
+        pattern,
+        ...(normalizedLocationId ? { locationId: normalizedLocationId } : {}),
+        enabled: state.ruleDialogMode === "edit" ? state.ruleEnabled : true,
+        relaxCspForWorkers: state.ruleRelaxCsp,
+        fingerprintSurfaceOverrides: compactSurfaceOverrides(
+          state.ruleSurfaceOverrides,
+        ),
+      },
+      additionalPatterns,
+      state.editingRulePattern,
+    );
+  } catch (error) {
+    notify.warning(error instanceof Error ? error.message : String(error));
+    return;
+  }
+  const saved = await options.persistSettings({
+    ...(decision
+      ? { featureDecision: { ...decision, rulePattern: normalizedPattern } }
+      : {}),
     toast:
       state.ruleDialogMode === "edit" || hadExistingRule
         ? "Rule updated."
@@ -328,6 +388,12 @@ const handleRuleSubmit = async (
     rules: nextRules,
     scopes: ["location-model"],
   });
+  if (saved) {
+    state.setSelectedRulePatterns(new Set());
+    state.suppressedRuleDialogRef.current = ruleAnchor;
+    options.navigateToAnchor(ruleAnchor, { replace: true });
+    state.setRuleDialogOpened(false);
+  }
 };
 
 const buildGlobalFallbackRule = (options: RuleHandlerOptions): GlobalFallbackRule =>
@@ -375,11 +441,12 @@ const handleDeleteRule = async (
   }
 
   const { state } = options;
+  const targets = getRuleGroupPatterns(state.rules, patternKey);
   const nextRules = deleteRulesByIndex(
     state.rules,
     state.rules
       .map((entry, index) => ({ entry, index }))
-      .filter(({ entry }) => normalizeRulePattern(entry.pattern) === patternKey)
+      .filter(({ entry }) => targets.includes(normalizeRulePattern(entry.pattern)))
       .map(({ index }) => index),
   );
   state.setRules(nextRules);
@@ -396,9 +463,19 @@ const handleDeleteRule = async (
   });
 };
 
+const selectedGroupPatterns = (state: RuleState): Set<string> =>
+  new Set(
+    [...state.selectedRulePatterns].flatMap((pattern) =>
+      getRuleGroupPatterns(state.rules, pattern),
+    ),
+  );
+
 const getSelectedRuleIndexes = (state: RuleState): number[] =>
   state.rules.flatMap((rule, index) =>
-    state.selectedRulePatterns.has(normalizeRulePattern(rule.pattern)) ? [index] : [],
+    state.selectedRulePatterns.has(normalizeRulePattern(rule.pattern)) ||
+    selectedGroupPatterns(state).has(rule.pattern)
+      ? [index]
+      : [],
   );
 
 const assignBulkLocation = async (

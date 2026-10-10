@@ -1,14 +1,18 @@
 import { ControlDClient } from "./client";
-import { CONTROL_D_PROVIDER_ID } from "./contracts";
-import { loadRecognitionState } from "./recognition-setup";
+import { CONTROL_D_PROVIDER_ID, type ControlDConfig } from "./contracts";
+import {
+  ensureControlDRecognition,
+  isRecognitionSweepActive,
+  loadRecognitionState,
+} from "./recognition-setup";
 import { loadControlDApiKey, loadControlDConfig } from "./storage";
 
-import type { FeatureProvider } from "@/background/provider-features";
-import { loadRules } from "@/background/storage/rules";
+import type { FeaturePlugin, FeatureRuleContext } from "@/shared/plugin";
 import {
   providerFeatureSchema,
   type ProviderFeature,
   type RuleFeatureBinding,
+  type FeatureSyncContext,
 } from "@/shared/provider-feature";
 
 const CATALOGUE_TTL = 24 * 60 * 60 * 1_000;
@@ -30,14 +34,69 @@ export const resolverIdFrom = (input: string): string => {
   return resolverId;
 };
 
-const syncState = async (binding: RuleFeatureBinding | null | undefined) => {
+export class ControlDRecognitionError extends Error {
+  readonly code:
+    "recognition-preparing" | "recognition-blocked" | "recognition-unavailable";
+
+  constructor(code: ControlDRecognitionError["code"], message: string) {
+    super(message);
+    this.name = "ControlDRecognitionError";
+    this.code = code;
+  }
+}
+
+const recognitionError = (
+  code: ControlDRecognitionError["code"],
+): ControlDRecognitionError => {
+  if (code === "recognition-preparing") {
+    return new ControlDRecognitionError(
+      code,
+      "Control D is preparing domain matching.",
+    );
+  }
+  if (code === "recognition-blocked") {
+    return new ControlDRecognitionError(
+      code,
+      "Choose a service manually while lookup matching is blocked.",
+    );
+  }
+  return new ControlDRecognitionError(
+    code,
+    "Connect Control D before recognizing domains.",
+  );
+};
+
+const contextState = (
+  config: ControlDConfig,
+  context: FeatureRuleContext | undefined,
+): FeatureSyncContext["state"] => {
+  if (!context?.locationId) return "no-preset";
+  if (!context.enabled) return "disabled";
+  const mapping = config.locationMappings[context.locationId];
+  if (mapping?.status === "skipped" || mapping?.proxyPk === null) return "excluded";
+  if (!config.autoSyncEnabled) return "paused";
+  if (!mapping?.confirmed || !mapping.proxyPk) return "pending";
+  return "ready";
+};
+
+const settingsPath = (
+  state: FeatureSyncContext["state"],
+  locationId: string | null | undefined,
+): string => {
+  const base = "src/ui/options/index.html#page-experimental-integration";
+  if (state === "paused") return base;
+  const preset = locationId ? "&preset=" + encodeURIComponent(locationId) : "";
+  return base + "?section=routes" + preset;
+};
+
+const syncState = async (
+  binding: RuleFeatureBinding | null | undefined,
+  context: FeatureRuleContext | undefined,
+) => {
   const config = await loadControlDConfig();
   const available = config.enabled && config.connected;
-  const rule = binding
-    ? (await loadRules()).find((item) => item.pattern === binding.rulePattern)
-    : undefined;
-  const mapping = rule?.locationId
-    ? config.locationMappings[rule.locationId]
+  const mapping = context?.locationId
+    ? config.locationMappings[context.locationId]
     : undefined;
   const managed = binding ? config.managedServices?.[binding.featureId] : undefined;
   let syncStatus = "queued";
@@ -45,18 +104,40 @@ const syncState = async (binding: RuleFeatureBinding | null | undefined) => {
   else if (config.status === "syncing") syncStatus = "syncing";
   else if (
     available &&
-    rule?.enabled !== false &&
-    rule &&
+    context?.enabled &&
     mapping?.confirmed &&
     mapping.status !== "skipped" &&
     managed?.rulePattern === binding?.rulePattern &&
     managed?.proxyPk === mapping?.proxyPk
   )
     syncStatus = "synced";
-  return { available, syncStatus, error: config.lastError };
+  const state = contextState(config, context);
+  return {
+    available,
+    syncStatus,
+    error: config.lastError,
+    syncContext: {
+      state,
+      ...(context?.locationName ? { presetName: context.locationName } : {}),
+      settingsPath: settingsPath(state, context?.locationId),
+    },
+  };
 };
 
-export const createControlDProvider = (): FeatureProvider => {
+const recognitionStatus = async (): Promise<
+  "ready" | "preparing" | "blocked" | "unavailable"
+> => {
+  const config = await loadControlDConfig();
+  if (!config.enabled || !config.connected) return "unavailable";
+  if (isRecognitionSweepActive()) return "preparing";
+  const state = await loadRecognitionState();
+  if (state.phase === "blocked") return "blocked";
+  if (state.phase === "preparing") return state.lastError ? "unavailable" : "preparing";
+  if (state.phase === "ready" && state.resolverDoh) return "ready";
+  return "unavailable";
+};
+
+export const createControlDProvider = (): FeaturePlugin => {
   let catalogue: ProviderFeature[] | null = null;
   let catalogueAt = 0;
   let catalogueError: string | null = null;
@@ -117,21 +198,45 @@ export const createControlDProvider = (): FeatureProvider => {
   return {
     id: CONTROL_D_PROVIDER_ID,
     name: "Control D",
+    initials: "CD",
+    // Official controld.com palette: greenApple on blue800.
+    badgeColors: { background: "#1BE3AD", foreground: "#010818" },
     capabilities: { catalogue: true, domainRecognition: true, ruleSync: true },
     getFeatures,
-    getStatus: async (binding) => {
-      const status = await syncState(binding);
-      return { ...status, error: status.error ?? catalogueError };
+    getStatus: async (binding, context) => {
+      const status = await syncState(binding, context);
+      const recognition = await recognitionStatus();
+      const blocked =
+        recognition === "blocked" || recognition === "unavailable"
+          ? await loadRecognitionState()
+          : null;
+      return Object.assign(
+        {
+          available: status.available,
+          syncStatus: status.syncStatus,
+          syncContext: status.syncContext,
+          error: status.error ?? catalogueError ?? blocked?.lastError ?? null,
+        },
+        { recognitionStatus: recognition },
+      );
     },
     recognizeDomain: async (hostname) => {
-      const config = await loadRecognitionState();
-      if (config.phase !== "ready" || !config.resolverDoh)
-        throw new Error(
-          "Preview and apply the Control D lookup setup before recognizing domains. You can still choose a service manually.",
-        );
+      const config = await loadControlDConfig();
+      if (!config.enabled || !config.connected || !(await loadControlDApiKey())) {
+        throw recognitionError("recognition-unavailable");
+      }
+      if (isRecognitionSweepActive()) throw recognitionError("recognition-preparing");
+      const outcome = await ensureControlDRecognition();
+      if (outcome.phase === "preparing" || isRecognitionSweepActive()) {
+        throw recognitionError("recognition-preparing");
+      }
+      if (outcome.phase === "blocked") throw recognitionError("recognition-blocked");
+      if (outcome.phase !== "ready" || !outcome.resolverDoh) {
+        throw recognitionError("recognition-unavailable");
+      }
       const result = await (
         await client()
-      ).queryDomain(resolverIdFrom(config.resolverDoh), hostname);
+      ).queryDomain(resolverIdFrom(outcome.resolverDoh), hostname);
       const features = await getFeatures();
       const known = features.some((feature) => feature.featureId === result.serviceId);
       return {

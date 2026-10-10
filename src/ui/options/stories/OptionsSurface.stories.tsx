@@ -12,6 +12,12 @@ import {
 } from "./options-story-fixtures";
 
 import { defaultSharedSpoofing } from "@/shared/fingerprint-spoofing";
+import {
+  bindingPatterns,
+  type RuleFeatureBinding,
+  type ProviderDecorator,
+} from "@/shared/provider-feature";
+import { getRuleGroupSource } from "@/shared/rule-groups";
 import { DEFAULT_PREFERENCES } from "@/shared/settings-defaults";
 import type { SpoofingBrowserTarget } from "@/shared/spoofing-surfaces";
 import type { DomainRule, SharedSpoofingConfig } from "@/shared/types";
@@ -90,14 +96,29 @@ const OptionsSurfaceShell = ({
   </Tabs>
 );
 
-const RulesSurface = ({ rules = STORY_RULES }: { rules?: readonly DomainRule[] }) => {
+const RulesSurface = ({
+  rules = STORY_RULES,
+  featureBindings = [],
+  decorators = [],
+}: {
+  rules?: readonly DomainRule[];
+  featureBindings?: RuleFeatureBinding[];
+  decorators?: ProviderDecorator[];
+}) => {
   const [rulesFilter, setRulesFilter] = useState("");
   const [linkedRuleLocationId, setRuleLocationFilter] = useState<string | null>(null);
   const [selectedRulePatterns, setSelectedRulePatterns] = useState(new Set<string>());
   const [previewHostname, setPreviewHostname] = useState("browserleaks.com");
   const viewModels = useMemo(
     () =>
-      buildRuleViewModels(rules, STORY_LOCATIONS, rulesFilter, linkedRuleLocationId),
+      buildRuleViewModels(
+        rules,
+        STORY_LOCATIONS,
+        rulesFilter,
+        linkedRuleLocationId,
+      ).filter(({ rule }) => {
+        return getRuleGroupSource(rules, rule.pattern)?.pattern === rule.pattern;
+      }),
     [linkedRuleLocationId, rules, rulesFilter],
   );
   const visibleRuleKeys = viewModels.map(({ rule }) => rule.pattern);
@@ -106,6 +127,9 @@ const RulesSurface = ({ rules = STORY_RULES }: { rules?: readonly DomainRule[] }
     <StorySettingsProvider
       value={{
         rulesFilter,
+        rules: [...rules],
+        featureBindings,
+        decorators,
         setRulesFilter,
         profiles: STORY_LOCATIONS,
         globalFallbackRule: STORY_GLOBAL_FALLBACK,
@@ -458,6 +482,44 @@ type Story = StoryObj<typeof meta>;
 
 export const Rules: Story = {
   render: () => <RulesSurface />,
+};
+
+const videoGroup: RuleFeatureBinding = {
+  rulePattern: "youtube.com",
+  rulePatterns: ["youtube.com", "youtu.be", "music.youtube.com"],
+  providerId: "control-d",
+  featureId: "youtube",
+  featureName: "YouTube",
+  featureType: "service",
+};
+export const RulesWithServices: Story = {
+  render: () => (
+    <RulesSurface
+      rules={[
+        ...bindingPatterns(videoGroup).map((pattern) => ({
+          pattern,
+          groupId: "story-product-group",
+          locationId: "warsaw",
+          enabled: true,
+          ruleSeedKey: "abc123",
+          authKey: "abcdefgh",
+        })),
+        ...STORY_RULES,
+      ]}
+      featureBindings={[videoGroup]}
+      decorators={[
+        {
+          providerId: "control-d",
+          providerName: "Control D",
+          initials: "CD",
+          badgeColors: { background: "#1BE3AD", foreground: "#010818" },
+          featureId: "youtube",
+          label: "YouTube",
+          type: "service",
+        },
+      ]}
+    />
+  ),
 };
 
 export const RulesInteractionTest: Story = {
@@ -866,5 +928,33 @@ export const DefaultRuleDialogTest: Story = {
       ).toBeVisible();
     });
     await userEvent.keyboard("{Escape}");
+  },
+};
+
+export const MultiSiteRule: Story = {
+  render: () => (
+    <RulesSurface
+      rules={["news.example.com", "images.example.net", "api.example.org"].map(
+        (pattern) => ({
+          pattern,
+          groupId: "story-product-only-group",
+          locationId: "warsaw",
+          enabled: true,
+          ruleSeedKey: "story-shared-identity",
+          authKey: "story-controlled-auth",
+        }),
+      )}
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getAllByRole("button", { name: /^Edit rule / })).toHaveLength(
+      1,
+    );
+    for (const host of ["news.example.com", "images.example.net", "api.example.org"])
+      await expect(canvas.getAllByText(host).length).toBeGreaterThan(0);
+    await expect(
+      canvasElement.querySelector("[data-provider-decorator-badge]"),
+    ).toBeNull();
   },
 };

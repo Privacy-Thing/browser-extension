@@ -11,6 +11,7 @@ import { PopupShell } from "../components/PopupShell";
 
 import { BRAND_DISPLAY_NAME } from "@/shared/brand";
 import { BrandHorizontalLogo } from "@/ui/branding/BrandHorizontalLogo";
+import { ProviderDecoratorBadge } from "@/ui/components/provider-feature/ProviderDecoratorBadge";
 import { icon } from "@/ui/options/utils";
 
 const footerActions = [
@@ -389,5 +390,25 @@ export const TimedPauseSiteActions: Story = {
     await expect(getComputedStyle(trigger).outlineColor).toBe(
       getComputedStyle(symbol).color,
     );
+  },
+};
+
+export const ProviderDecorated: Story = {
+  args: {
+    ...Active.args,
+    domain: "youtu.be",
+    decorators: (
+      <ProviderDecoratorBadge
+        decorator={{
+          providerId: "control-d",
+          providerName: "Control D",
+          initials: "CD",
+          badgeColors: { background: "#1BE3AD", foreground: "#010818" },
+          featureId: "youtube",
+          label: "YouTube",
+          type: "service",
+        }}
+      />
+    ),
   },
 };

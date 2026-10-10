@@ -1,3 +1,4 @@
+import { getRuleGroupPatterns } from "@/shared/rule-groups";
 import type {
   ContainerAssignment,
   DomainRule,
@@ -141,15 +142,14 @@ export const withFallbackSeed = (
 export const rotateRuleSeedKey = (
   rules: readonly DomainRule[],
   pattern: string,
-): DomainRule[] =>
-  rules.map((rule) =>
-    rule.pattern === pattern
-      ? {
-          ...rule,
-          ruleSeedKey: createRuleSeedKey(),
-        }
-      : rule,
+): DomainRule[] => {
+  const targets = new Set(getRuleGroupPatterns(rules, pattern));
+  if (targets.size === 0) return rules.map((rule) => ({ ...rule }));
+  const ruleSeedKey = createRuleSeedKey();
+  return rules.map((rule) =>
+    targets.has(rule.pattern) ? { ...rule, ruleSeedKey } : rule,
   );
+};
 
 export const rotateContainerSeed = (
   assignments: readonly ContainerAssignment[],

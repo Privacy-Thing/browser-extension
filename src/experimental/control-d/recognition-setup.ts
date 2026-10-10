@@ -1,5 +1,6 @@
-/* eslint-disable max-lines -- Preview, apply, and recognition storage share one state machine and stay in this module. */
+/* eslint-disable max-lines -- Lookup ownership checks and the Bypass sweep stay in one state machine. */
 import {
+  ControlDApiError,
   ControlDClient,
   deviceProfileIds,
   type ControlDDevice,
@@ -7,13 +8,17 @@ import {
   type ControlDProfile,
   type ControlDRule,
 } from "./client";
+import { CONTROL_D_PROVIDER_ID } from "./contracts";
 import { generateResourceCode, isControlDResourceCode } from "./resource-names";
 import type { ControlDProfileService } from "./services";
 import { loadControlDApiKey } from "./storage";
 
+import { fireAndForget } from "@/shared/async";
 import { BUILD_BROWSER_TARGET } from "@/shared/build-flags";
+import { FEATURE_EVENTS } from "@/shared/provider-feature";
 
 export const RECOGNITION_STORE_KEY = "pt.experimental.control-d.v2.recognition";
+export const RECOGNITION_READY_TTL_MS = 15 * 60 * 1000;
 
 export const DIAGNOSTIC_COMMANDS = {
   getState: "pt.control-d.recognition.get-state",
@@ -31,8 +36,16 @@ const PROFILE_PREFIX = "PT Lookup ";
 const ENDPOINT_PREFIX = "PT Probe ";
 const MAX_NAME_LENGTH = 32;
 const RESOLVER_ID = /^[A-Za-z0-9_-]{1,128}$/;
+const STORED_PHASES = [
+  "not-setup",
+  "preparing",
+  "ready",
+  "blocked",
+  "error",
+  "stale",
+] as const;
 
-export type RecognitionPhase = "ready" | "error" | "stale" | "not-setup";
+export type RecognitionPhase = (typeof STORED_PHASES)[number];
 
 export type RecognitionState = {
   phase: RecognitionPhase;
@@ -44,6 +57,8 @@ export type RecognitionState = {
   expectedFingerprint: string | null;
   freshFingerprint: string | null;
   lastError: string | null;
+  failedPks?: readonly string[];
+  verifiedAt?: number | null;
 };
 
 export type RecognitionSummary = {
@@ -75,16 +90,21 @@ export type DiagnosticCommand =
   | { type: typeof DIAGNOSTIC_COMMANDS.preview }
   | { type: typeof DIAGNOSTIC_COMMANDS.apply; previewToken: string };
 
+export type RecognitionDeps = {
+  fetchImpl?: typeof fetch;
+  loadApiKey?: () => Promise<string | null>;
+  createCode?: () => string;
+  createToken?: () => string;
+};
+
 type SetupPlan = {
   fingerprint: string;
-  profileCreateCount: number;
-  endpointCreateCount: number;
   servicePks: readonly string[];
+  bypassed: ReadonlySet<string>;
   profileId: string | null;
   endpointId: string | null;
   resolverDoh: string | null;
   blocker: string | null;
-  bypassReady: boolean;
 };
 
 type ProfileDetail = {
@@ -93,28 +113,16 @@ type ProfileDetail = {
   rules: readonly ControlDRule[];
 };
 
-type OwnedResources = {
-  profile: ControlDProfile | null;
-  endpoint: ControlDDevice | null;
-  blocker: string | null;
-};
-
 type ResourceDraft = {
   code: string | null;
   profileId: string | null;
   endpointId: string | null;
 };
 
-type PreviewSession = {
-  token: string;
-  fingerprint: string;
-};
-
-export type RecognitionDeps = {
-  fetchImpl?: typeof fetch;
-  loadApiKey?: () => Promise<string | null>;
-  createToken?: () => string;
-  createCode?: () => string;
+type SweepContext = {
+  client: ControlDClient;
+  deps: RecognitionDeps;
+  state: RecognitionState;
 };
 
 const emptyDetail = (): ProfileDetail => ({ services: [], groups: [], rules: [] });
@@ -126,13 +134,15 @@ const emptyState = (): RecognitionState => ({
   endpointId: null,
   resolverDoh: null,
   servicePks: [],
+  failedPks: [],
   expectedFingerprint: null,
   freshFingerprint: null,
   lastError: null,
+  verifiedAt: null,
 });
 
-const isPhase = (value: unknown): value is RecognitionPhase =>
-  value === "ready" || value === "error" || value === "stale" || value === "not-setup";
+const isStoredPhase = (value: unknown): value is RecognitionPhase =>
+  typeof value === "string" && STORED_PHASES.some((phase) => phase === value);
 
 const textOrNull = (value: unknown): string | null | undefined => {
   if (value === null) return null;
@@ -145,7 +155,22 @@ const stringList = (value: unknown): string[] | null =>
     : null;
 
 const errorMessage = (error: unknown): string =>
-  error instanceof Error ? error.message : "Control D diagnostic setup failed.";
+  error instanceof Error ? error.message : "Control D lookup setup failed.";
+
+const apiStatus = (error: unknown): number | null =>
+  error instanceof ControlDApiError ? error.status : null;
+
+const rejectsService = (error: unknown): boolean => {
+  const status = apiStatus(error);
+  return (
+    status !== null &&
+    status >= 400 &&
+    status < 500 &&
+    status !== 401 &&
+    status !== 403 &&
+    status !== 429
+  );
+};
 
 const resourceName = (prefix: string, code: string): string => {
   if (!isControlDResourceCode(code))
@@ -223,6 +248,18 @@ const endpointIcon = (types: readonly string[]): string | null => {
   );
 };
 
+const normalizePhase = (
+  version: number,
+  phase: RecognitionPhase,
+  code: string | null,
+  resolverDoh: string | null,
+): RecognitionPhase => {
+  if (version === 1 && (phase !== "not-setup" || code !== null)) return "preparing";
+  if (phase === "error" || phase === "stale") return "preparing";
+  if (phase === "ready" && resolverDoh === null) return "preparing";
+  return phase;
+};
+
 const parseState = (value: unknown): RecognitionState | null => {
   if (!value || typeof value !== "object") return null;
   const record = value as Record<string, unknown>;
@@ -234,9 +271,10 @@ const parseState = (value: unknown): RecognitionState | null => {
   const freshFingerprint = textOrNull(record.freshFingerprint);
   const lastError = record.lastError === null ? null : textOrNull(record.lastError);
   const servicePks = stringList(record.servicePks);
+  const failedPks = record.failedPks === undefined ? [] : stringList(record.failedPks);
   if (
-    record.version !== 1 ||
-    !isPhase(record.phase) ||
+    (record.version !== 1 && record.version !== 2) ||
+    !isStoredPhase(record.phase) ||
     (code !== null && (typeof code !== "string" || !isControlDResourceCode(code))) ||
     profileId === undefined ||
     endpointId === undefined ||
@@ -245,28 +283,31 @@ const parseState = (value: unknown): RecognitionState | null => {
     freshFingerprint === undefined ||
     lastError === undefined ||
     !servicePks ||
+    !failedPks ||
     (resolverDoh !== null && !RESOLVER_ID.test(resolverDoh))
   ) {
     return null;
   }
-  const state: RecognitionState = {
-    phase: record.phase,
+  const verifiedAt = typeof record.verifiedAt === "number" ? record.verifiedAt : null;
+  const phase = normalizePhase(
+    record.version,
+    record.phase,
+    typeof code === "string" ? code : null,
+    resolverDoh,
+  );
+  return {
+    phase,
     code: typeof code === "string" ? code : null,
     profileId,
     endpointId,
-    resolverDoh,
+    resolverDoh: phase === "ready" ? resolverDoh : null,
     servicePks,
+    failedPks,
     expectedFingerprint,
     freshFingerprint,
     lastError,
+    verifiedAt: phase === "ready" && record.version === 2 ? verifiedAt : null,
   };
-  if (
-    state.phase === "ready" &&
-    (state.resolverDoh === null || !state.profileId || !state.endpointId || !state.code)
-  ) {
-    return { ...state, phase: "error", resolverDoh: null };
-  }
-  return state;
 };
 
 export const loadRecognitionState = async (): Promise<RecognitionState> => {
@@ -276,42 +317,64 @@ export const loadRecognitionState = async (): Promise<RecognitionState> => {
 
 const saveRecognitionState = async (state: RecognitionState): Promise<void> => {
   const parsed = parseState({
-    version: 1,
+    version: 2,
     ...state,
-    servicePks: [...state.servicePks],
+    failedPks: [...(state.failedPks ?? [])],
   });
-  if (!parsed) throw new Error("Control D recognition state is invalid.");
+  if (!parsed || parsed.phase !== state.phase) {
+    throw new Error("Control D recognition state is invalid.");
+  }
   await chrome.storage.local.set({
     [RECOGNITION_STORE_KEY]: {
-      version: 1,
+      version: 2,
       ...parsed,
       servicePks: [...parsed.servicePks],
+      failedPks: [...(parsed.failedPks ?? [])],
+      verifiedAt: parsed.verifiedAt ?? null,
     },
   });
 };
 
-const keepsResolver = (phase: RecognitionPhase): boolean =>
-  phase === "ready" || phase === "stale";
+const publishRecognition = (
+  previous: RecognitionPhase,
+  next: RecognitionPhase,
+  settled?: boolean,
+): void => {
+  if (previous === next && !settled) return;
+  if (next !== "preparing" && next !== "ready" && next !== "blocked") return;
+  const runtime = globalThis.chrome?.runtime;
+  if (!runtime?.sendMessage) return;
+  fireAndForget(
+    Promise.resolve(
+      runtime.sendMessage({
+        type: FEATURE_EVENTS.stateChanged,
+        providerId: CONTROL_D_PROVIDER_ID,
+      }),
+    ),
+  );
+};
 
-const failureState = (
-  current: RecognitionState,
-  message: string,
-  freshFingerprint: string | null,
-): RecognitionState =>
-  keepsResolver(current.phase)
-    ? {
-        ...current,
-        phase: "stale",
-        lastError: message,
-        freshFingerprint: freshFingerprint ?? current.freshFingerprint,
-      }
-    : {
-        ...current,
-        phase: current.code ? "error" : "not-setup",
-        resolverDoh: null,
-        lastError: message,
-        freshFingerprint: freshFingerprint ?? current.freshFingerprint,
-      };
+const savePhase = async (
+  previous: RecognitionPhase,
+  next: RecognitionState,
+): Promise<RecognitionState> => {
+  await saveRecognitionState(next);
+  publishRecognition(previous, next.phase);
+  return next;
+};
+
+export const isRecognitionReady = (
+  state: RecognitionState,
+  now = Date.now(),
+): boolean =>
+  state.phase === "ready" &&
+  state.resolverDoh !== null &&
+  state.profileId !== null &&
+  state.endpointId !== null &&
+  state.code !== null &&
+  typeof state.verifiedAt === "number" &&
+  state.verifiedAt <= now &&
+  now - state.verifiedAt < RECOGNITION_READY_TTL_MS;
 
 const locateProfile = (
   profiles: readonly ControlDProfile[],
@@ -340,6 +403,10 @@ const locateProfile = (
   return { profile: named, blocker: null };
 };
 
+// Control D replaces spaces with hyphens in device names on the live API.
+const matchesEndpointName = (actual: string, expected: string): boolean =>
+  actual === expected || actual === expected.replaceAll(" ", "-");
+
 const locateEndpoint = (
   devices: readonly ControlDDevice[],
   state: RecognitionState,
@@ -347,7 +414,7 @@ const locateEndpoint = (
 ): { endpoint: ControlDDevice | null; blocker: string | null } => {
   if (!state.code) return { endpoint: null, blocker: null };
   const name = resourceName(ENDPOINT_PREFIX, state.code);
-  const matches = devices.filter((device) => device.name === name);
+  const matches = devices.filter((device) => matchesEndpointName(device.name, name));
   if (matches.length > 1) {
     return { endpoint: null, blocker: "More than one lookup endpoint uses this name." };
   }
@@ -355,14 +422,21 @@ const locateEndpoint = (
   const stored = state.endpointId
     ? (devices.find((device) => device.id === state.endpointId) ?? null)
     : null;
-  if (stored && (stored.name !== name || (named && stored.id !== named.id))) {
+  if (
+    stored &&
+    (!matchesEndpointName(stored.name, name) || (named && stored.id !== named.id))
+  ) {
     return {
       endpoint: null,
       blocker: "The stored lookup endpoint does not belong to this setup.",
     };
   }
-  if (!named) return { endpoint: null, blocker: null };
-  if (!profileId || !exclusiveProfile(named, profileId)) {
+  if (!profileId) {
+    return named
+      ? { endpoint: null, blocker: "The lookup endpoint enforces another profile." }
+      : { endpoint: null, blocker: null };
+  }
+  if (named && !exclusiveProfile(named, profileId)) {
     return { endpoint: null, blocker: "The lookup endpoint enforces another profile." };
   }
   return { endpoint: named, blocker: null };
@@ -414,38 +488,28 @@ const inspect = async (
   const endpointHit = profileHit.blocker
     ? { endpoint: null, blocker: null }
     : locateEndpoint(devices, state, profileHit.profile?.id ?? null);
-  const owned: OwnedResources = {
-    profile: profileHit.profile,
-    endpoint: endpointHit.endpoint,
-    blocker: profileHit.blocker ?? endpointHit.blocker,
-  };
-  const detail = owned.profile
-    ? await readDetail(client, owned.profile.id)
-    : emptyDetail();
-  let blocker = owned.blocker;
-  if (!blocker && servicePks.length === 0) {
-    blocker = "Control D returned no services to recognize.";
-  } else if (!blocker && owned.profile) {
-    blocker = detailBlocker(owned.profile, owned.endpoint, detail, {
+  const profile = profileHit.profile;
+  const endpoint = endpointHit.endpoint;
+  const detail = profile ? await readDetail(client, profile.id) : emptyDetail();
+  let blocker = profileHit.blocker ?? endpointHit.blocker;
+  if (!blocker && profile) {
+    blocker = detailBlocker(profile, endpoint, detail, {
       devices,
       catalogue: new Set(servicePks),
     });
   }
-  const bypassReady =
-    servicePks.length > 0 &&
-    servicePks.every((pk) => {
-      const service = detail.services.find((item) => item.pk === pk);
-      return service ? isBypass(service) : false;
-    });
+  const bypassed = new Set(
+    detail.services.filter((service) => isBypass(service)).map((service) => service.pk),
+  );
   const fingerprint = await fingerprintOf({
     catalogue: servicePks,
-    profile: owned.profile ? { id: owned.profile.id, name: owned.profile.name } : null,
-    endpoint: owned.endpoint
+    profile: profile ? { id: profile.id, name: profile.name } : null,
+    endpoint: endpoint
       ? {
-          id: owned.endpoint.id,
-          name: owned.endpoint.name,
-          profiles: [...deviceProfileIds(owned.endpoint)].sort(),
-          resolver: resolverIdFrom(owned.endpoint.resolverDoh),
+          id: endpoint.id,
+          name: endpoint.name,
+          profiles: [...deviceProfileIds(endpoint)].sort(),
+          resolver: resolverIdFrom(endpoint.resolverDoh),
         }
       : null,
     groups: detail.groups.map((group) => group.id).sort((left, right) => left - right),
@@ -462,55 +526,64 @@ const inspect = async (
   });
   return {
     fingerprint,
-    profileCreateCount: blocker || owned.profile ? 0 : 1,
-    endpointCreateCount: blocker || owned.endpoint ? 0 : 1,
     servicePks,
-    profileId: owned.profile?.id ?? null,
-    endpointId: owned.endpoint?.id ?? null,
-    resolverDoh: resolverIdFrom(owned.endpoint?.resolverDoh ?? null),
+    bypassed,
+    profileId: profile?.id ?? null,
+    endpointId: endpoint?.id ?? null,
+    resolverDoh: resolverIdFrom(endpoint?.resolverDoh ?? null),
     blocker,
-    bypassReady,
   };
 };
 
-const reviewedPhase = (
+const isComplete = (plan: SetupPlan): boolean =>
+  plan.blocker === null &&
+  plan.profileId !== null &&
+  plan.endpointId !== null &&
+  plan.resolverDoh !== null &&
+  plan.servicePks.length > 0 &&
+  plan.servicePks.every((pk) => plan.bypassed.has(pk));
+
+const readyState = (current: RecognitionState, plan: SetupPlan): RecognitionState => ({
+  phase: "ready",
+  code: current.code,
+  profileId: plan.profileId,
+  endpointId: plan.endpointId,
+  resolverDoh: plan.resolverDoh,
+  servicePks: [...plan.servicePks],
+  failedPks: [],
+  expectedFingerprint: plan.fingerprint,
+  freshFingerprint: plan.fingerprint,
+  lastError: null,
+  verifiedAt: Date.now(),
+});
+
+const blockedState = (
   current: RecognitionState,
   plan: SetupPlan,
-): RecognitionPhase => {
-  if (keepsResolver(current.phase)) {
-    return current.expectedFingerprint === plan.fingerprint &&
-      !plan.blocker &&
-      current.resolverDoh
-      ? "ready"
-      : "stale";
-  }
-  return plan.blocker && current.code ? "error" : current.phase;
-};
+): RecognitionState => ({
+  ...current,
+  phase: "blocked",
+  profileId: plan.profileId ?? current.profileId,
+  endpointId: plan.endpointId,
+  resolverDoh: null,
+  freshFingerprint: plan.fingerprint,
+  verifiedAt: null,
+  lastError: plan.blocker,
+});
 
-const rememberReview = async (
+const preparingState = (
   current: RecognitionState,
-  plan: SetupPlan,
-): Promise<RecognitionState> => {
-  const next: RecognitionState = {
-    ...current,
-    phase: reviewedPhase(current, plan),
-    freshFingerprint: plan.fingerprint,
-    lastError: plan.blocker,
-  };
-  await saveRecognitionState(next);
-  return next;
-};
-
-const response = (
-  ok: boolean,
-  state: RecognitionState,
-  error?: string,
-  preview?: RecognitionPreview,
-): RecognitionResponse => ({
-  ok,
-  summary: toRecognitionSummary(state),
-  ...(error === undefined ? {} : { error }),
-  ...(preview === undefined ? {} : { preview }),
+  draft: ResourceDraft,
+  lastError: string | null,
+): RecognitionState => ({
+  ...current,
+  phase: "preparing",
+  code: draft.code,
+  profileId: draft.profileId,
+  endpointId: draft.endpointId,
+  resolverDoh: null,
+  verifiedAt: null,
+  lastError,
 });
 
 const requireUnique = <T extends { id: string; name: string }>(
@@ -530,44 +603,22 @@ const requireUnique = <T extends { id: string; name: string }>(
   return found;
 };
 
-const savePartial = async (
-  current: RecognitionState,
-  draft: ResourceDraft,
-): Promise<void> => {
-  if (keepsResolver(current.phase)) return;
-  await saveRecognitionState({
-    ...current,
-    phase: "error",
-    code: draft.code,
-    profileId: draft.profileId,
-    endpointId: draft.endpointId,
-    resolverDoh: null,
-    servicePks: [],
-    expectedFingerprint: null,
-    lastError: null,
-  });
-};
-
 const ensureProfile = async (
   client: ControlDClient,
-  current: RecognitionState,
   draft: ResourceDraft,
-  profileId: string | null,
 ): Promise<string> => {
-  if (profileId) return profileId;
+  if (draft.profileId) return draft.profileId;
   const code = draft.code;
   if (!code) throw new Error("Invalid Control D resource code.");
   const name = resourceName(PROFILE_PREFIX, code);
   await client.createProfile(name);
   const created = requireUnique(await client.listProfiles(), name, "profile");
   draft.profileId = created.id;
-  await savePartial(current, draft);
   return created.id;
 };
 
 const ensureEndpoint = async (
   client: ControlDClient,
-  current: RecognitionState,
   draft: ResourceDraft,
   profileId: string,
 ): Promise<string> => {
@@ -577,51 +628,245 @@ const ensureEndpoint = async (
   const name = resourceName(ENDPOINT_PREFIX, code);
   const icon = endpointIcon(await client.listDeviceTypes());
   if (!icon) throw new Error("Control D returned no supported browser endpoint type.");
-  const created = await client.createDevice(name, profileId, icon);
+  const created = await client.createDevice(name, profileId, icon, {
+    stats: 0,
+    learnIp: 0,
+  });
   const endpoint =
-    created ?? requireUnique(await client.listDevices(), name, "endpoint");
+    created ??
+    requireUnique(
+      (await client.listDevices()).map((device) =>
+        matchesEndpointName(device.name, name) ? { ...device, name } : device,
+      ),
+      name,
+      "endpoint",
+    );
   if (!exclusiveProfile(endpoint, profileId)) {
     throw new Error("The lookup endpoint enforces another profile.");
   }
   draft.endpointId = endpoint.id;
-  await savePartial(current, draft);
   return endpoint.id;
 };
 
-const verifiedSetup = async (
-  client: ControlDClient,
-  draft: ResourceDraft,
-  servicePks: readonly string[],
-): Promise<RecognitionState> => {
-  const verified = await inspect(client, {
-    ...emptyState(),
-    code: draft.code,
-    profileId: draft.profileId,
-    endpointId: draft.endpointId,
+type SweepCursor = {
+  current: RecognitionState;
+  draft: ResourceDraft;
+  servicePks: readonly string[];
+  failedPks: readonly string[];
+  lastError: string | null;
+};
+
+const saveCursor = async (cursor: SweepCursor): Promise<RecognitionState> =>
+  savePhase(cursor.current.phase, {
+    ...preparingState(cursor.current, cursor.draft, cursor.lastError),
+    servicePks: [...cursor.servicePks],
+    failedPks: [...cursor.failedPks],
   });
-  if (
-    verified.blocker ||
-    !verified.bypassReady ||
-    verified.profileCreateCount !== 0 ||
-    verified.endpointCreateCount !== 0 ||
-    !verified.profileId ||
-    !verified.endpointId ||
-    !verified.resolverDoh ||
-    !draft.code
-  ) {
-    throw new Error(verified.blocker ?? "The lookup setup could not be verified.");
-  }
-  return {
-    phase: "ready",
-    code: draft.code,
-    profileId: verified.profileId,
-    endpointId: verified.endpointId,
-    resolverDoh: verified.resolverDoh,
-    servicePks: [...servicePks],
-    expectedFingerprint: verified.fingerprint,
-    freshFingerprint: verified.fingerprint,
+
+const writeMissing = async (job: {
+  client: ControlDClient;
+  deps: RecognitionDeps;
+  current: RecognitionState;
+  draft: ResourceDraft;
+  profileId: string;
+  plan: SetupPlan;
+}): Promise<void> => {
+  const { client, deps, draft, profileId, plan } = job;
+  const loadApiKey = deps.loadApiKey ?? loadControlDApiKey;
+  const failed: string[] = [];
+  let cursor = plan.servicePks.filter((pk) => plan.bypassed.has(pk));
+  const missing = plan.servicePks.filter((pk) => !plan.bypassed.has(pk));
+  let saved = await saveCursor({
+    current: job.current,
+    draft,
+    servicePks: cursor,
+    failedPks: failed,
     lastError: null,
+  });
+  for (const pk of missing) {
+    if (!(await loadApiKey())) {
+      await saveCursor({
+        current: saved,
+        draft,
+        servicePks: cursor,
+        failedPks: failed,
+        lastError: saved.lastError,
+      });
+      return;
+    }
+    try {
+      await client.bypassProfileService(profileId, pk);
+      cursor = [...cursor, pk];
+      saved = await saveCursor({
+        current: saved,
+        draft,
+        servicePks: cursor,
+        failedPks: failed,
+        lastError: saved.lastError,
+      });
+    } catch (error) {
+      const stop = !rejectsService(error);
+      if (!stop) failed.push(pk);
+      saved = await saveCursor({
+        current: saved,
+        draft,
+        servicePks: cursor,
+        failedPks: failed,
+        lastError: errorMessage(error),
+      });
+      if (stop) return;
+    }
+  }
+  if (failed.length > 0) return;
+  const done = await inspect(client, { ...saved, code: draft.code, profileId });
+  if (done.blocker) {
+    await savePhase(saved.phase, blockedState({ ...saved, code: draft.code }, done));
+    return;
+  }
+  if (!isComplete(done) || !draft.code) {
+    await saveCursor({
+      current: saved,
+      draft,
+      servicePks: cursor,
+      failedPks: failed,
+      lastError: "The lookup setup could not be verified.",
+    });
+    return;
+  }
+  await savePhase(saved.phase, readyState({ ...saved, code: draft.code }, done));
+};
+
+const executeSweep = async ({ client, deps, state }: SweepContext): Promise<void> => {
+  const draft: ResourceDraft = {
+    code: state.code,
+    profileId: state.profileId,
+    endpointId: state.endpointId,
   };
+  let current = state;
+  try {
+    if (!draft.code) {
+      draft.code = (deps.createCode ?? generateResourceCode)();
+      current = await savePhase(current.phase, preparingState(current, draft, null));
+    }
+    const profileId = await ensureProfile(client, draft);
+    current = await saveCursor({
+      current,
+      draft,
+      servicePks: current.servicePks,
+      failedPks: current.failedPks ?? [],
+      lastError: null,
+    });
+    const endpointId = await ensureEndpoint(client, draft, profileId);
+    current = await saveCursor({
+      current,
+      draft: { ...draft, endpointId },
+      servicePks: current.servicePks,
+      failedPks: [],
+      lastError: null,
+    });
+    const verified = await inspect(client, {
+      ...current,
+      code: draft.code,
+      profileId,
+      endpointId,
+    });
+    if (verified.blocker) {
+      await savePhase(
+        current.phase,
+        blockedState({ ...current, code: draft.code, profileId, endpointId }, verified),
+      );
+      return;
+    }
+    if (verified.servicePks.length === 0) {
+      throw new Error("Control D returned no services to recognize.");
+    }
+    await writeMissing({ client, deps, current, draft, profileId, plan: verified });
+  } catch (error) {
+    await savePhase(current.phase, preparingState(current, draft, errorMessage(error)));
+  }
+};
+
+const acceptReady = async (
+  current: RecognitionState,
+  plan: SetupPlan,
+): Promise<RecognitionState> => savePhase(current.phase, readyState(current, plan));
+
+const blockRecognition = async (
+  current: RecognitionState,
+  plan: SetupPlan,
+): Promise<RecognitionState> => savePhase(current.phase, blockedState(current, plan));
+
+let flight: Promise<RecognitionState> | null = null;
+let sweep: Promise<void> | null = null;
+
+export const resetRecognitionRuntime = (): void => {
+  flight = null;
+  sweep = null;
+};
+
+export const isRecognitionSweepActive = (): boolean => sweep !== null;
+
+export const whenRecognitionSettled = (): Promise<void> =>
+  (sweep ?? Promise.resolve()).then(() => undefined);
+
+const beginSweep = (
+  client: ControlDClient,
+  deps: RecognitionDeps,
+  state: RecognitionState,
+): RecognitionState => {
+  const started = executeSweep({ client, deps, state }).then(
+    () => undefined,
+    () => undefined,
+  );
+  sweep = started;
+  void started.finally(() => {
+    if (sweep === started) {
+      sweep = null;
+      // The UI must read settled state after the single-flight marker is cleared.
+      publishRecognition("preparing", "preparing", true);
+    }
+  });
+  return state;
+};
+
+const runRecognition = async (deps: RecognitionDeps): Promise<RecognitionState> => {
+  const loadApiKey = deps.loadApiKey ?? loadControlDApiKey;
+  const apiKey = await loadApiKey();
+  const current = await loadRecognitionState();
+  if (!apiKey || isRecognitionReady(current)) return current;
+  const client = new ControlDClient(apiKey, deps.fetchImpl ?? fetch);
+  const plan = await inspect(client, current);
+  if (plan.blocker) return blockRecognition(current, plan);
+  if (plan.servicePks.length === 0) {
+    throw new Error("Control D returned no services to recognize.");
+  }
+  if (isComplete(plan) && current.code) return acceptReady(current, plan);
+  const preparing = await savePhase(current.phase, {
+    ...current,
+    phase: "preparing",
+    resolverDoh: null,
+    verifiedAt: null,
+    lastError: null,
+    profileId: plan.profileId,
+    endpointId: plan.endpointId,
+  });
+  return beginSweep(client, deps, preparing);
+};
+
+// Plan name for the lazy lookup entry point.
+// eslint-disable-next-line local/max-symbol-name-length -- adapter plan entry point
+export const ensureControlDRecognition = (
+  deps: RecognitionDeps = {},
+): Promise<RecognitionState> => {
+  if (sweep) {
+    return loadRecognitionState().then((state) =>
+      state.phase === "preparing" ? state : { ...state, phase: "preparing" },
+    );
+  }
+  flight ??= runRecognition(deps).finally(() => {
+    flight = null;
+  });
+  return flight;
 };
 
 export const isDiagnosticCommand = (value: unknown): value is DiagnosticCommand => {
@@ -640,159 +885,33 @@ export const isDiagnosticCommand = (value: unknown): value is DiagnosticCommand 
   );
 };
 
-const createSingleFlight = () => {
-  let tail = Promise.resolve();
-  return <T>(operation: () => Promise<T>): Promise<T> => {
-    const run = tail.then(operation, operation);
-    tail = run.then(
-      () => undefined,
-      () => undefined,
-    );
-    return run;
-  };
-};
+const recognitionResponse = (
+  ok: boolean,
+  state: RecognitionState,
+  error?: string,
+): RecognitionResponse => ({
+  ok,
+  summary: toRecognitionSummary(state),
+  ...(error === undefined ? {} : { error }),
+});
 
-type SessionBox = { value: PreviewSession | null };
-
-const previewSetup = async (
-  client: ControlDClient,
-  session: SessionBox,
-  createToken: () => string,
-): Promise<RecognitionResponse> => {
-  const current = await loadRecognitionState();
-  const plan = await inspect(client, current);
-  const reviewed = await rememberReview(current, plan);
-  if (plan.blocker || plan.servicePks.length === 0) {
-    session.value = null;
-    return response(
-      false,
-      reviewed,
-      plan.blocker ?? "Control D returned no services to recognize.",
-    );
-  }
-  const token = createToken();
-  session.value = { token, fingerprint: plan.fingerprint };
-  return response(true, reviewed, undefined, {
-    token,
-    profileCreateCount: plan.profileCreateCount,
-    endpointCreateCount: plan.endpointCreateCount,
-    serviceCount: plan.servicePks.length,
-  });
-};
-
-const rejectReview = async (
-  session: SessionBox,
-  current: RecognitionState,
-  plan: SetupPlan,
-  drifted: boolean,
-): Promise<RecognitionResponse> => {
-  session.value = null;
-  const message = drifted
-    ? "Control D changed since the preview. Review it again."
-    : (plan.blocker ?? "Control D changed since the preview. Review it again.");
-  const next = failureState(current, message, plan.fingerprint);
-  await saveRecognitionState(next);
-  return response(false, next, message);
-};
-
-const applySetup = async (
-  client: ControlDClient,
-  session: SessionBox,
-  previewToken: string,
-  createCode: () => string,
-): Promise<RecognitionResponse> => {
-  const current = await loadRecognitionState();
-  const reviewed = session.value;
-  if (!reviewed || reviewed.token !== previewToken) {
-    return response(
-      false,
-      current,
-      "Preview and review the diagnostic setup before applying.",
-    );
-  }
-  const plan = await inspect(client, current);
-  if (plan.fingerprint !== reviewed.fingerprint || plan.blocker) {
-    return rejectReview(
-      session,
-      current,
-      plan,
-      plan.fingerprint !== reviewed.fingerprint,
-    );
-  }
-  session.value = null;
-  const draft: ResourceDraft = {
-    code: current.code,
-    profileId: plan.profileId,
-    endpointId: plan.endpointId,
-  };
-  try {
-    if (!draft.code) {
-      draft.code = createCode();
-      await savePartial(current, draft);
+const openRecognition = (): {
+  respond: (input: unknown) => Promise<RecognitionResponse>;
+} => ({
+  respond: async (input) => {
+    const current = await loadRecognitionState();
+    if (!isDiagnosticCommand(input)) {
+      return recognitionResponse(false, current, "Unknown diagnostic command.");
     }
-    const profileId = await ensureProfile(client, current, draft, plan.profileId);
-    const endpointId = await ensureEndpoint(client, current, draft, profileId);
-    await client.bypassProfileServices(profileId, plan.servicePks);
-    const ready = await verifiedSetup(
-      client,
-      { ...draft, profileId, endpointId },
-      plan.servicePks,
+    if (input.type === DIAGNOSTIC_COMMANDS.getState) {
+      return recognitionResponse(true, current);
+    }
+    return recognitionResponse(
+      false,
+      current,
+      "Domain matching starts automatically when you edit a domain.",
     );
-    await saveRecognitionState(ready);
-    return response(true, ready);
-  } catch (error) {
-    const failed = failureState(current, errorMessage(error), plan.fingerprint);
-    const partial = keepsResolver(current.phase)
-      ? failed
-      : {
-          ...failed,
-          phase: "error" as const,
-          code: draft.code,
-          profileId: draft.profileId,
-          endpointId: draft.endpointId,
-          resolverDoh: null,
-        };
-    await saveRecognitionState(partial);
-    return response(false, partial, errorMessage(error));
-  }
-};
-
-const openRecognition = (
-  deps: RecognitionDeps = {},
-): { respond: (input: unknown) => Promise<RecognitionResponse> } => {
-  const flight = createSingleFlight();
-  const session: SessionBox = { value: null };
-  const loadApiKey = deps.loadApiKey ?? loadControlDApiKey;
-  const createToken = deps.createToken ?? (() => crypto.randomUUID());
-  const createCode = deps.createCode ?? generateResourceCode;
-  const openClient = async (): Promise<ControlDClient | null> => {
-    const apiKey = await loadApiKey();
-    return apiKey ? new ControlDClient(apiKey, deps.fetchImpl ?? fetch) : null;
-  };
-
-  return {
-    respond: (input) =>
-      flight(async () => {
-        const current = await loadRecognitionState();
-        if (!isDiagnosticCommand(input)) {
-          return response(false, current, "Unknown diagnostic command.");
-        }
-        if (input.type === DIAGNOSTIC_COMMANDS.getState) return response(true, current);
-        try {
-          const client = await openClient();
-          if (!client) {
-            return response(false, current, "Connect a Control D API key first.");
-          }
-          return input.type === DIAGNOSTIC_COMMANDS.preview
-            ? await previewSetup(client, session, createToken)
-            : await applySetup(client, session, input.previewToken, createCode);
-        } catch (error) {
-          const failed = failureState(current, errorMessage(error), null);
-          await saveRecognitionState(failed);
-          return response(false, failed, errorMessage(error));
-        }
-      }),
-  };
-};
+  },
+});
 
 export { openRecognition as createRecognitionController };
