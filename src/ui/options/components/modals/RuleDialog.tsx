@@ -1,15 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { findFeatureBinding } from "@/shared/feature-groups";
-import { bindingPatterns } from "@/shared/provider-feature";
 import { matchTrustedSite } from "@/shared/rule-resolution";
-import { providerFeatureCopy } from "@/ui/components/provider-feature";
 import { Button } from "@/ui/components/ui/button";
 import { FormDialogShell } from "@/ui/components/ui/form-dialog-shell";
 import { Input } from "@/ui/components/ui/input";
 import { Switch } from "@/ui/components/ui/switch";
 import { t } from "@/ui/i18n";
-import { useUiLocale } from "@/ui/i18n/LocaleRefresh";
 import {
   DialogIdentitySection,
   DialogFieldRow,
@@ -24,6 +20,7 @@ import { SurfaceOverridesControls } from "@/ui/options/components/modals/surface
 import { SECTION_ANCHORS, getRuleModalAnchor } from "@/ui/options/navigation";
 import { useSettings } from "@/ui/options/state/SettingsContext";
 import { ProviderFeatureHost } from "@/ui/shared/ProviderFeatureHost";
+import { RuleAdditionalHosts } from "@/ui/shared/RuleHosts";
 
 const useAdvancedDialog = (parentOpen: boolean) => {
   const [open, setOpen] = useState(false);
@@ -116,22 +113,6 @@ const RuleDialogFooter = ({ openAdvanced }: { openAdvanced: () => void }) => {
   );
 };
 
-const GroupHostList = () => {
-  const locale = useUiLocale();
-  const { featureBindings, editingRulePattern } = useSettings();
-  const binding = editingRulePattern
-    ? findFeatureBinding(featureBindings, editingRulePattern)
-    : undefined;
-  const hosts = binding
-    ? bindingPatterns(binding).filter((pattern) => pattern !== editingRulePattern)
-    : [];
-  return hosts.length ? (
-    <p data-feature-group-hosts className="text-xs break-all text-muted-foreground">
-      {providerFeatureCopy[locale].sharedWith(hosts)}
-    </p>
-  ) : null;
-};
-
 const RuleFields = () => {
   const {
     closeRuleDialog,
@@ -141,6 +122,7 @@ const RuleFields = () => {
     ruleDialogMode,
     ruleEnabled,
     rulePattern,
+    rules,
     ruleProfileId,
     ruleProfileOptions,
     setRuleEnabled,
@@ -195,7 +177,11 @@ const RuleFields = () => {
             onChange={(event) => setRulePattern(event.currentTarget.value)}
           />
         </DialogFieldRow>
-        <GroupHostList />
+        <RuleAdditionalHosts
+          key={editingRulePattern ?? "new"}
+          rules={rules}
+          sourcePattern={editingRulePattern}
+        />
         <ProviderFeatureHost
           rulePattern={rulePattern}
           {...(editingRulePattern ? { savedRulePattern: editingRulePattern } : {})}

@@ -167,7 +167,6 @@ const useRuleRuntime = (
     state: state.rules,
   });
   const identityHandlers = createIdentityHandlers({
-    featureBindings: state.rules.featureBindings,
     containerAssignmentsRef: state.locations.containerAssignmentsRef,
     requestConfirmation: state.confirmation.requestConfirmation,
     rulesRef: state.rules.rulesRef,

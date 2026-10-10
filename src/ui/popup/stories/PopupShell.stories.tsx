@@ -408,7 +408,6 @@ export const ProviderDecorated: Story = {
           label: "YouTube",
           type: "service",
         }}
-        groupSize={3}
       />
     ),
   },

@@ -295,9 +295,6 @@ const getServiceDecorators = ({ state }: PopupController) =>
         <ProviderDecoratorBadge
           key={`${decorator.providerId}:${decorator.featureId}`}
           decorator={decorator}
-          {...(state.popupState?.groupPatterns
-            ? { groupSize: state.popupState.groupPatterns.length }
-            : {})}
         />
       ))
     : null;

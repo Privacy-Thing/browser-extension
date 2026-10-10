@@ -1,8 +1,7 @@
 import type { Dispatch, RefObject, SetStateAction } from "react";
 
 import { EXTENSION_COMMAND_TYPES } from "@/shared/extension-contract";
-import { synchronizeFeatureGroups } from "@/shared/feature-groups";
-import type { RuleFeatureBinding } from "@/shared/provider-feature";
+import { synchronizeRuleGroups } from "@/shared/rule-groups";
 import type {
   ContainerAssignment,
   DomainRule,
@@ -16,7 +15,6 @@ import { normalizeRulePattern } from "@/ui/options/utils";
 import { sendMessageOrThrow } from "@/ui/shared/runtime-messaging";
 
 type IdentityHandlerOptions = {
-  featureBindings: readonly RuleFeatureBinding[];
   containerAssignmentsRef: RefObject<readonly ContainerAssignment[]>;
   requestConfirmation: (config: ConfirmDialogConfig) => Promise<boolean>;
   rulesRef: RefObject<readonly DomainRule[]>;
@@ -74,14 +72,13 @@ const commitRuleRotation = async (
     }
 
     options.setRules(
-      synchronizeFeatureGroups(
+      synchronizeRuleGroups(
         options.rulesRef.current,
         options.rulesRef.current.map((entry) =>
           normalizeRulePattern(entry.pattern) === normalizeRulePattern(response.pattern)
             ? { ...entry, ruleSeedKey: response.ruleSeedKey }
             : entry,
         ),
-        options.featureBindings,
       ),
     );
     notify.success(t.rules.dialog.identity.rotateSuccess);

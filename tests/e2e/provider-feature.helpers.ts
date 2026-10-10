@@ -465,7 +465,6 @@ export const expectNoFeatureDecision = async (page: Page): Promise<void> => {
 export const chooseCatalogueFeature = async (
   page: Page,
   featureId: string,
-  action: "choose" | "join",
 ): Promise<void> => {
   await clickFeatureAction(page, "open");
   const change = page.locator('[data-provider-feature-action="change"]');
@@ -475,7 +474,6 @@ export const chooseCatalogueFeature = async (
   await expect(chooser).toBeVisible();
   await chooser.locator('[role="combobox"]').click();
   await page.locator(`[data-combobox-option-value="${featureId}"]`).click();
-  await clickFeatureAction(page, action);
 };
 
 export const readProviderGuard = async (

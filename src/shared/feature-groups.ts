@@ -1,29 +1,14 @@
 import { bindingPatterns, type RuleFeatureBinding } from "./provider-feature";
+import { copyGroupSettings, ruleSettingsKey } from "./rule-groups";
 import type { DomainRule } from "./types";
+
+export { copyGroupSettings, ruleSettingsKey };
 
 export const findFeatureBinding = (
   bindings: readonly RuleFeatureBinding[],
   pattern: string,
 ): RuleFeatureBinding | undefined =>
   bindings.find((binding) => bindingPatterns(binding).includes(pattern));
-
-export const ruleSettingsKey = (rule: DomainRule): string =>
-  JSON.stringify({
-    locationId: rule.locationId ?? null,
-    enabled: rule.enabled,
-    relaxCspForWorkers: rule.relaxCspForWorkers ?? false,
-    fingerprintSurfaceOverrides: Object.entries(
-      rule.fingerprintSurfaceOverrides ?? {},
-    ).sort(([a], [b]) => a.localeCompare(b)),
-  });
-
-export const copyGroupSettings = (
-  source: DomainRule,
-  target: DomainRule,
-): DomainRule => ({
-  ...source,
-  pattern: target.pattern,
-});
 
 /** Group edits are flattened at storage, before any runtime resolver sees them. */
 export const synchronizeFeatureGroups = (

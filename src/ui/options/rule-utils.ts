@@ -1,4 +1,5 @@
 import { comparePatternRank, getDomainRuleSpecificity } from "@/shared/domain-match";
+import { getRuleGroupPatterns } from "@/shared/rule-groups";
 import { resolveRuleSources } from "@/shared/rule-resolution";
 import type {
   DomainRule,
@@ -6,7 +7,8 @@ import type {
   Location,
   TrustedSite,
 } from "@/shared/types";
-import { t } from "@/ui/i18n";
+import { t, getActiveUiLocale } from "@/ui/i18n";
+import { ruleGroupCopy } from "@/ui/shared/rule-group-copy";
 
 export type RuleConflictType = "shadowed-by-specific" | "duplicate";
 
@@ -384,6 +386,45 @@ export const upsertRule = (
 
       return currentPattern !== normalizedPattern;
     }),
+  ];
+};
+
+/** One product rule is stored as flat members for the existing runtime resolver. */
+export const upsertRuleGroup = (
+  rules: readonly DomainRule[],
+  nextRule: DomainRule,
+  additionalPatterns: readonly string[],
+  editingRulePattern?: string | null,
+): DomainRule[] => {
+  const patterns = [
+    ...new Set(
+      [nextRule.pattern, ...additionalPatterns].map(normalizePattern).filter(Boolean),
+    ),
+  ];
+  const oldPatterns = editingRulePattern
+    ? getRuleGroupPatterns(rules, editingRulePattern)
+    : [];
+  for (const pattern of patterns.slice(1)) {
+    if (
+      !oldPatterns.includes(pattern) &&
+      rules.some((rule) => rule.pattern === pattern)
+    )
+      throw new Error(ruleGroupCopy[getActiveUiLocale()].duplicate(pattern));
+  }
+  const source = upsertRule(rules, nextRule, editingRulePattern)[0];
+  if (!source) return [...rules];
+  const previous = rules.find((rule) => rule.pattern === editingRulePattern);
+  const groupId =
+    previous?.groupId ?? (patterns.length > 1 ? crypto.randomUUID() : undefined);
+  return [
+    ...patterns.map((pattern) => ({
+      ...source,
+      pattern,
+      ...(groupId ? { groupId } : {}),
+    })),
+    ...rules.filter(
+      (rule) => !oldPatterns.includes(rule.pattern) && !patterns.includes(rule.pattern),
+    ),
   ];
 };
 

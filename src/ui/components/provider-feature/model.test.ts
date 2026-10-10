@@ -170,12 +170,12 @@ describe("resolveSlot", () => {
     [input({ providerId: "" }), "hidden"],
     [input({ match: null, recognizing: true }), "checking"],
     [input({ match: null }), "manual"],
-    [input({ dismissed: true }), "manual"],
-    [input({ declinedId: "youtube" }), "manual"],
+    [input({ dismissed: true }), "suggest"],
+    [input({ declinedId: "youtube" }), "suggest"],
     [input({ match: match({ status: "unresolved", featureId: null }) }), "manual"],
     [input({ match: match({ status: "error", featureId: null }) }), "manual"],
     [input({ decision: { providerId: "provider", featureId: "netflix" } }), "staged"],
-    [input({ decision: { providerId: "provider", featureId: null } }), "manual"],
+    [input({ decision: { providerId: "provider", featureId: null } }), "suggest"],
   ] as const)("resolves to $1", (value, view) => {
     expect(resolveSlot(value).view).toBe(view);
   });

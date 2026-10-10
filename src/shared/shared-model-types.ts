@@ -132,6 +132,11 @@ export type DomainRule = ToggleableSurfaceFields & {
    * migrated to that override by `domainRuleSchema`.
    */
   relaxCspForWorkers?: boolean;
+  /**
+   * Product multi-host group. Membership is this id, not a provider binding.
+   * Absent on ordinary single-host rules.
+   */
+  groupId?: string;
 };
 
 /**
@@ -436,6 +441,8 @@ export type PopupEffectiveSummary = {
 export type PopupState = {
   decorators?: ProviderDecorator[];
   groupPatterns?: string[];
+  /** Set when the current rule belongs to a product multi-host group. */
+  groupId?: string;
   hostPause?: HostPauseStatus;
   panicMode: boolean;
   effectiveSummary: PopupEffectiveSummary;

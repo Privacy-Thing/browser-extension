@@ -215,7 +215,7 @@ describe("ProviderFeatureHost", () => {
     });
     await reply(1, { ok: true, state: matched("video.example.com") });
     expect(stateOf()).toBe("suggest");
-    expect(document.querySelector("[data-provider-initials]")?.textContent).toBe("ED");
+    expect(document.body.textContent).toContain("Example DNS: Setup YouTube service?");
     expect(document.querySelector("[data-provider-feature-host-field]")).toBeNull();
   });
 
@@ -250,7 +250,7 @@ describe("ProviderFeatureHost", () => {
       FEATURE_COMMANDS.getState,
       FEATURE_COMMANDS.getState,
     ]);
-    expect(stateOf()).toBe("manual");
+    expect(stateOf()).toBe("suggest");
     expect(hold.run).toBeNull();
   });
 
@@ -281,12 +281,13 @@ describe("ProviderFeatureHost", () => {
     ]);
   });
 
-  it("stages No for save and keeps that rejection across a refresh", async () => {
+  it("keeps a service switch off across refresh until the rule is saved", async () => {
     const onDecisionChange = vi.fn();
     await renderHost({ rulePattern: "video.example.com", onDecisionChange, schedule });
     await reply(0, { ok: true, state: matched("video.example.com") });
     await reply(1, { ok: true, state: matched("video.example.com") });
-    await click("decline");
+    await click("accept");
+    await click("accept");
     expect(JSON.parse(decisionInput()?.value ?? "null")).toEqual({
       providerId: "dns",
       featureId: null,
@@ -295,13 +296,13 @@ describe("ProviderFeatureHost", () => {
       providerId: "dns",
       featureId: null,
     });
-    expect(stateOf()).toBe("manual");
+    expect(stateOf()).toBe("suggest");
     expect(document.querySelector("[data-provider-feature-pending]")).toBeNull();
     listeners.forEach((listener) => listener({ type: FEATURE_EVENTS.stateChanged }));
     await flushReactEffects();
     const refresh = lastCommand(FEATURE_COMMANDS.getState);
     await reply(refresh, { ok: true, state: matched("video.example.com") });
-    expect(stateOf()).toBe("manual");
+    expect(stateOf()).toBe("suggest");
     expect(JSON.parse(decisionInput()?.value ?? "null")).toEqual({
       providerId: "dns",
       featureId: null,
@@ -334,7 +335,7 @@ describe("ProviderFeatureHost", () => {
     expect(document.body.textContent).toContain("settings and identity");
     await click("join");
     expect(
-      document.querySelector("[data-provider-feature-join]")?.textContent,
+      document.querySelector("[data-provider-feature-scope]")?.textContent,
     ).toContain("current settings will be replaced");
     expect(JSON.parse(decisionInput()?.value ?? "{}")).toEqual({
       providerId: "dns",
@@ -479,7 +480,7 @@ describe("ProviderFeatureHost", () => {
     expect(fresh).toBeGreaterThanOrEqual(0);
     await reply(fresh, { ok: true, state: matched("b.example.com") });
     expect(stateOf()).toBe("suggest");
-    expect(document.body.textContent).toContain("Link YouTube service?");
+    expect(document.body.textContent).toContain("Setup YouTube service?");
   });
 
   it("recognizes the apex of *host and www of *.host and skips other wildcards", async () => {
@@ -777,7 +778,7 @@ describe("ProviderFeatureHost", () => {
         recognitionStatus: "ready",
       },
     });
-    expect(stateOf()).toBe("manual");
+    expect(stateOf()).toBe("suggest");
     await renderHost({ rulePattern: "other.example.com", schedule });
     expect(document.body.textContent).not.toContain("Checking");
     expect(commands().some((command) => command.hostname === "other.example.com")).toBe(

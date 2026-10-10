@@ -335,6 +335,10 @@ export const planSettingsImport = (input: {
         ]
       : (source.featureBindings ?? []),
   };
-  if (locations.problems.length === 0) validateImportedSettings(settings);
+  if (locations.problems.length === 0) {
+    const validated = validateImportedSettings(settings);
+    settings.rules = validated.rules;
+    settings.featureBindings = validated.featureBindings;
+  }
   return { settings, problems: locations.problems };
 };

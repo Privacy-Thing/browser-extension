@@ -11,8 +11,8 @@ import { ProviderDecoratorBadge } from "./ProviderDecoratorBadge";
 import { ProviderFeatureMenu } from "./ProviderFeatureMenu";
 
 import { cn } from "@/ui/components/lib/utils";
-import { Button } from "@/ui/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/ui/components/ui/popover";
+import { Switch } from "@/ui/components/ui/switch";
 
 export type RequestPending = "status" | "lookup" | "preparing";
 
@@ -96,54 +96,31 @@ const keepMenuOpen = (event: {
   }
 };
 
-const SuggestionRow = ({
-  model,
-  copy,
-  question,
-  confirm,
-  action,
-  onConfirm,
-  onDecline,
-  note,
-}: {
-  model: SlotModel;
-  copy: ProviderFeatureMessages;
-  question: string;
-  confirm: string;
-  action: "accept" | "join";
-  onConfirm: () => void;
-  onDecline: () => void;
-  note: string;
-}) => {
+const ServiceChoice = ({ props }: { props: ProviderFeatureSlotProps }) => {
+  const { model, copy } = props;
+  const titleId = useId();
   const noteId = useId();
+  const switchId = useId();
   const decorator = model.decorator;
   if (!decorator) return null;
+  const checked = model.view === "staged";
+  const join = model.join;
+  const note = [
+    copy.scope(decorator.providerName, decorator.label),
+    join ? `${copy.joinHint(join.pattern, join.extra)} ${copy.joinReplaces}` : "",
+    copy.saveWithRule,
+  ]
+    .filter(Boolean)
+    .join(" ");
   return (
-    <div className="space-y-1">
-      <div className="space-y-1">
-        <ProviderDecoratorBadge decorator={decorator} label={question} wrap />
-        <span className="flex gap-1.5 pl-[30px]">
-          <Button
-            type="button"
-            size="sm"
-            variant="secondary"
-            data-provider-feature-action={action}
-            aria-describedby={noteId}
-            onClick={onConfirm}
-          >
-            {confirm}
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            data-provider-feature-action="decline"
-            onClick={onDecline}
-          >
-            {copy.no}
-          </Button>
-        </span>
-      </div>
+    <div data-provider-feature-choice className="space-y-2">
+      <p
+        id={titleId}
+        data-provider-feature-choice-title
+        className="text-sm font-medium text-foreground"
+      >
+        {decorator.providerName}: {copy.suggestQuestion(decorator.label)}
+      </p>
       <p
         id={noteId}
         data-provider-feature-scope
@@ -151,6 +128,27 @@ const SuggestionRow = ({
       >
         {note}
       </p>
+      <div className="flex items-center justify-between gap-3">
+        {checked ? (
+          <FeatureChip props={props} label={decorator.label} mode="staged" />
+        ) : (
+          <label htmlFor={switchId} className="text-sm text-foreground">
+            {copy.includeService}
+          </label>
+        )}
+        <Switch
+          id={switchId}
+          checked={checked}
+          data-provider-feature-action={join ? "join" : "accept"}
+          aria-labelledby={titleId}
+          aria-describedby={noteId}
+          onCheckedChange={(enabled) => {
+            if (!enabled) props.onDecline();
+            else if (join) props.onJoin();
+            else props.onAccept();
+          }}
+        />
+      </div>
     </div>
   );
 };
@@ -180,22 +178,13 @@ const FeatureChip = ({
           type="button"
           data-provider-feature-action="open"
           data-provider-feature-chip={mode}
-          aria-label={copy.chipLabel(
-            mode === "linked" && model.groupSize > 1
-              ? `${label}, ${copy.siteCount(model.groupSize)}`
-              : label,
-            decorator.providerName,
-          )}
+          aria-label={copy.chipLabel(label, decorator.providerName)}
           className={cn(
             "inline-flex max-w-full items-center gap-1 rounded-full border border-border bg-transparent px-2 py-0.5 text-left hover:bg-accent",
             mode === "staged" && "border-dashed",
           )}
         >
-          <ProviderDecoratorBadge
-            decorator={decorator}
-            label={label}
-            {...(mode === "linked" ? { groupSize: model.groupSize } : {})}
-          />
+          <ProviderDecoratorBadge decorator={decorator} label={label} />
           <ChevronDown />
         </button>
       </PopoverTrigger>
@@ -228,34 +217,8 @@ const FeatureChip = ({
 const SlotBody = (props: ProviderFeatureSlotProps) => {
   const { model, copy } = props;
   const decorator = model.decorator;
-  if (model.view === "suggest" && decorator) {
-    return (
-      <SuggestionRow
-        model={model}
-        copy={copy}
-        question={copy.suggestQuestion(decorator.label)}
-        confirm={copy.yes}
-        action="accept"
-        onConfirm={props.onAccept}
-        onDecline={props.onDecline}
-        note={copy.scope(decorator.providerName, decorator.label)}
-      />
-    );
-  }
-  if (model.view === "join" && decorator && model.join) {
-    const joinNote = `${copy.joinHint(model.join.pattern, model.join.extra)} ${copy.joinReplaces}`;
-    return (
-      <SuggestionRow
-        model={model}
-        copy={copy}
-        question={copy.joinQuestion(decorator.label)}
-        confirm={copy.yes}
-        action="join"
-        onConfirm={props.onJoin}
-        onDecline={props.onDecline}
-        note={joinNote}
-      />
-    );
+  if (["suggest", "join", "staged"].includes(model.view) && decorator) {
+    return <ServiceChoice props={props} />;
   }
   if (model.view === "checking" && decorator) {
     return (
@@ -269,27 +232,10 @@ const SlotBody = (props: ProviderFeatureSlotProps) => {
   if (model.view === "linked") {
     return <FeatureChip props={props} label={decorator?.label ?? ""} mode="linked" />;
   }
-  if (model.view === "staged" && decorator) {
-    return (
-      <FeatureChip
-        props={props}
-        label={copy.stagedLabel(decorator.label)}
-        mode="staged"
-      />
-    );
-  }
   if (model.view === "manual") {
     return <FeatureChip props={props} label={copy.addService} mode="manual" />;
   }
   return null;
-};
-
-const stagedJoinLine = (model: SlotModel, copy: ProviderFeatureMessages): string => {
-  if (model.view !== "staged" || !model.join) return "";
-  const hint = model.join.pattern
-    ? copy.joinHint(model.join.pattern, model.join.extra)
-    : "";
-  return [hint, copy.joinReplaces].filter((line) => line.length > 0).join(" ");
 };
 
 const SlotNotes = (props: ProviderFeatureSlotProps) => {
@@ -298,7 +244,6 @@ const SlotNotes = (props: ProviderFeatureSlotProps) => {
   const removal = props.groupRemoval
     ? copy.pendingRemovalGroup(service)
     : copy.pendingRemoval(service);
-  const joinLine = stagedJoinLine(model, copy);
   const providerName = model.decorator?.providerName;
   const pendingProps = props.pending
     ? {
@@ -312,11 +257,6 @@ const SlotNotes = (props: ProviderFeatureSlotProps) => {
     <>
       {showPending && pendingProps ? (
         <ProviderFeaturePending {...pendingProps} />
-      ) : null}
-      {joinLine ? (
-        <p data-provider-feature-join className="text-xs text-muted-foreground">
-          {joinLine}
-        </p>
       ) : null}
       {props.removing ? (
         <p data-provider-feature-pending className="text-xs text-muted-foreground">

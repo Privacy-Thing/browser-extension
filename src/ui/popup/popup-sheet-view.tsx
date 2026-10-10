@@ -10,8 +10,11 @@ import { getInheritedProfileLabel } from "./popup-navigation";
 import { fireAndForget } from "@/shared/async";
 import type { CleanupPlan, CleanupResult } from "@/shared/types";
 import { t } from "@/ui/i18n";
+import { useUiLocale } from "@/ui/i18n/LocaleRefresh";
 import { icon } from "@/ui/options/utils";
 import { ProviderFeatureHost } from "@/ui/shared/ProviderFeatureHost";
+import { ruleGroupCopy } from "@/ui/shared/rule-group-copy";
+import { RuleHostList } from "@/ui/shared/RuleHosts";
 
 const getCleanupSurfaceLabel = (key: CleanupPlan["surfaces"][number]["key"]): string =>
   ({
@@ -56,11 +59,12 @@ const getSheetTitle = (
   if (view === "cleanup-confirm") {
     return { title: t.popup.cleanupSheetTitle, description: "" };
   }
+  const ruleTitle =
+    (controller.state.popupState?.groupPatterns?.length ?? 0) > 1
+      ? t.rules.dialog.titleEdit
+      : controller.sheets.getRuleSheetPatternLabel();
   return {
-    title:
-      view === "rule-form"
-        ? controller.sheets.getRuleSheetPatternLabel()
-        : t.popup.sheetTitle,
+    title: view === "rule-form" ? ruleTitle : t.popup.sheetTitle,
     description: t.popup.sheetLead,
   };
 };
@@ -225,6 +229,7 @@ const getSavedRulePattern = ({ state }: PopupController): string | null => {
 
 export const PopupSheetPane = ({ controller }: { controller: PopupController }) => {
   const { state, viewModel } = controller;
+  const groupCopy = ruleGroupCopy[useUiLocale()];
   if (!state.popupState) return null;
   const copy = getSheetTitle(controller);
   const inheritedProfileLabel = getInheritedProfileLabel(state.popupState);
@@ -253,7 +258,20 @@ export const PopupSheetPane = ({ controller }: { controller: PopupController }) 
       {...(titleTooltip ? { titleTooltip } : {})}
       description={copy.description}
       body={renderSheetBody(controller)}
-      formExtra={featureExtra}
+      formExtra={
+        <>
+          {savedRulePattern ? (
+            <RuleHostList
+              patterns={(state.popupState.groupPatterns ?? []).map((pattern) =>
+                pattern === savedRulePattern
+                  ? controller.sheets.getRuleSheetPatternLabel()
+                  : pattern,
+              )}
+            />
+          ) : null}
+          {featureExtra}
+        </>
+      }
       selectedLocationId={state.selectedLocationId}
       allowInheritedLocation={state.allowInheritedLocation}
       {...(inheritedProfileLabel
@@ -267,7 +285,11 @@ export const PopupSheetPane = ({ controller }: { controller: PopupController }) 
       workerHandlingOverride={state.workerOverride}
       relaxCspForWorkers={state.shouldRelaxWorkerCsp}
       locationLabel={t.popup.currentProfileLabel}
-      ruleTypeLabel={t.popup.ruleTypeLabel}
+      ruleTypeLabel={
+        savedRulePattern && (state.popupState.groupPatterns?.length ?? 0) > 1
+          ? groupCopy.matchThisSite
+          : t.popup.ruleTypeLabel
+      }
       exactLabel={t.popup.ruleTypeExact}
       suffixLabel={t.popup.ruleTypeSuffix}
       advancedTitle={t.popup.advancedSectionTitle}

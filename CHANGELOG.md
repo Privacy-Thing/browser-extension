@@ -9,14 +9,21 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 ### Changed
 
 - Provider services are suggested automatically while creating or editing a domain
-  rule, with compact service badges in the editor, rule list and popup. Choices
-  are applied on Save. Hosts linked to the same service share one configuration
-  and identity; removing the service keeps their domain rules. Control D prepares
+  rule, with compact service badges in the editor, rule list and popup. The service
+  switch is applied with the rule on Save. Hosts linked to the same service share
+  one configuration and identity; removing the service keeps their domain rules.
+  Control D prepares
   its recognition resources automatically without a separate setup panel. Service
-  badges show the total number of linked sites, and the integration help explains
-  the difference between Privacy Thing's domain scope and Control D's service scope.
+  badges show only the external service name; the rule editor lists its sites. The
+  integration help explains the difference between Privacy Thing's domain scope
+  and Control D's service scope.
 
 ### Added
+
+- Domain rules can include several explicit sites sharing one configuration and
+  identity. The rule editor lists and edits the sites; the popup lists the complete
+  scope. This is a Privacy Thing feature that works without a provider and survives
+  unlinking a service, restart and backups. Runtime matching keeps flat rules.
 
 - Experimental local and beta builds can recognize a rule hostname as a provider
   feature and explicitly link a Control D service rule. Rule editor and popup

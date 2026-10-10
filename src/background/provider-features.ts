@@ -23,6 +23,7 @@ import {
   type ProviderFeatureState,
   type RuleFeatureBinding,
 } from "@/shared/provider-feature";
+import { getRuleGroupPatterns, projectFeatureBindings } from "@/shared/rule-groups";
 
 export type FeatureProvider = {
   id: string;
@@ -120,8 +121,10 @@ class FeatureController {
     command: ProviderFeatureCommand,
   ): Promise<ProviderFeatureState> {
     const stored = await loadFeatureState();
+    const rules = await loadRules();
+    const featureBindings = projectFeatureBindings(stored.featureBindings, rules);
     const binding =
-      stored.featureBindings.find(
+      featureBindings.find(
         (item) =>
           bindingPatterns(item).includes(command.rulePattern) &&
           item.providerId === provider.id,
@@ -177,9 +180,7 @@ class FeatureController {
       features,
       match,
       binding,
-      bindings: stored.featureBindings.filter(
-        (item) => item.providerId === provider.id,
-      ),
+      bindings: featureBindings.filter((item) => item.providerId === provider.id),
       groupPatterns: binding ? bindingPatterns(binding) : [],
       ...(binding
         ? {
@@ -267,12 +268,17 @@ class FeatureController {
     await withConfigMutation(async () => {
       const stored = await loadFeatureState();
       if (command.type === FEATURE_COMMANDS.detach) {
+        const rules = await loadRules();
+        const covered = new Set([
+          command.rulePattern,
+          ...getRuleGroupPatterns(rules, command.rulePattern),
+        ]);
         await saveFeatureState({
           ...stored,
           featureBindings: stored.featureBindings.filter(
             (binding) =>
-              binding.rulePattern !== command.rulePattern ||
-              binding.providerId !== provider.id,
+              binding.providerId !== provider.id ||
+              !bindingPatterns(binding).some((pattern) => covered.has(pattern)),
           ),
         });
         return;
@@ -302,11 +308,16 @@ class FeatureController {
           item.providerId === provider.id && item.featureId === command.featureId,
       );
       if (!feature) throw new Error("Choose an available provider feature.");
+      const rules = await loadRules();
+      const covered = new Set([
+        command.rulePattern,
+        ...getRuleGroupPatterns(rules, command.rulePattern),
+      ]);
       const conflict = stored.featureBindings.find(
         (binding) =>
           binding.providerId === provider.id &&
           binding.featureId === feature.featureId &&
-          binding.rulePattern !== command.rulePattern,
+          !bindingPatterns(binding).some((pattern) => covered.has(pattern)),
       );
       if (conflict)
         throw new Error(`This feature is already linked to ${conflict.rulePattern}.`);
@@ -323,8 +334,8 @@ class FeatureController {
         featureBindings: [
           ...stored.featureBindings.filter(
             (binding) =>
-              binding.rulePattern !== command.rulePattern ||
-              binding.providerId !== provider.id,
+              binding.providerId !== provider.id ||
+              !bindingPatterns(binding).some((pattern) => covered.has(pattern)),
           ),
           {
             rulePattern: command.rulePattern,

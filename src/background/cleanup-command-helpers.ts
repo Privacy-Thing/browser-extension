@@ -9,6 +9,7 @@ import {
   loadSeenHosts,
 } from "@/background/storage/seen-hosts";
 import { BUILD_BROWSER_TARGET } from "@/shared/build-flags";
+import { getRuleGroupPatterns } from "@/shared/rule-groups";
 import type { EffectiveTabContext, GlobalFallbackRule } from "@/shared/types";
 
 export type LoadedLocations = Awaited<ReturnType<typeof loadLocations>>;
@@ -70,6 +71,7 @@ export const toSeenHostsIdentity = (identity: TrackedIdentity): SeenHostsIdentit
 const matchesCleanupTarget = (
   identity: ResolvedActiveIdentity | null,
   target: CleanupTarget,
+  rules: Awaited<ReturnType<typeof loadRules>>,
 ): boolean => {
   if (!identity) {
     return false;
@@ -79,7 +81,7 @@ const matchesCleanupTarget = (
     if (target.kind !== "rule") {
       return false;
     }
-    return identity.pattern === target.pattern;
+    return getRuleGroupPatterns(rules, target.pattern).includes(identity.pattern);
   }
 
   if (target.kind !== "container") {
@@ -103,7 +105,7 @@ export const collectCleanupHosts = (
       rules,
       containerAssignments,
     );
-    if (matchesCleanupTarget(identity, target)) {
+    if (matchesCleanupTarget(identity, target, rules)) {
       hostnames.add(context.hostname);
     }
   }
@@ -224,10 +226,26 @@ export const resolveRotateCleanup = async (
     return null;
   }
 
+  const seenIdentities =
+    target.kind === "rule"
+      ? getRuleGroupPatterns(rules, target.pattern).flatMap((pattern) => {
+          const rule = rules.find((entry) => entry.pattern === pattern);
+          return rule?.ruleSeedKey
+            ? [
+                {
+                  kind: "rule" as const,
+                  pattern: rule.pattern,
+                  ruleSeedKey: rule.ruleSeedKey,
+                },
+              ]
+            : [];
+        })
+      : [seenHostsIdentity];
+
   return {
     cleanupHostnames: [
       ...new Set([
-        ...findIdentityHosts(seenHosts, seenHostsIdentity),
+        ...seenIdentities.flatMap((identity) => findIdentityHosts(seenHosts, identity)),
         ...collectCleanupHosts(deps, target, rules, containerAssignments),
       ]),
     ],
@@ -235,7 +253,11 @@ export const resolveRotateCleanup = async (
       target.kind === "container" && BUILD_BROWSER_TARGET === "firefox"
         ? target.cookieStoreId
         : undefined,
-    exactOrigins: findIdentityOrigins(seenHosts, seenHostsIdentity),
+    exactOrigins: [
+      ...new Set(
+        seenIdentities.flatMap((identity) => findIdentityOrigins(seenHosts, identity)),
+      ),
+    ],
     rules,
     containerAssignments,
   };

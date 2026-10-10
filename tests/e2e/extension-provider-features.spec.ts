@@ -1,4 +1,7 @@
-import { CONTROL_D_PROVIDER_ID } from "../../src/experimental/control-d/contracts";
+import {
+  CONTROL_D_COMMANDS,
+  CONTROL_D_PROVIDER_ID,
+} from "../../src/experimental/control-d/contracts";
 import type { ExportedSettings, PopupState } from "../../src/shared/types";
 
 import {
@@ -83,9 +86,9 @@ test("stages an automatic suggestion for an unsaved rule until save", async ({
 
   await fillRulePattern(page, VIDEO_HOST);
   await expectFeatureSlot(page, { state: "suggest", variant: "default" });
-  await expect(
-    page.locator("[data-provider-feature] [data-provider-initials]"),
-  ).toHaveAttribute("data-provider-initials", "CD");
+  await expect(page.locator("[data-provider-feature-choice-title]")).toContainText(
+    "Control D",
+  );
   const queried = await readControlDQueries(worker);
   expect(queried).toEqual([
     { origin: "https://dns.controld.com", pathname: "/e2eresolver", name: VIDEO_HOST },
@@ -155,12 +158,12 @@ test("keeps a declined domain unbound and commits reassignment or detach on save
   await openNewRuleDialog(page, extensionId);
   await fillRulePattern(page, CLIPS_HOST);
   await expectFeatureSlot(page, { state: "suggest", variant: "default" });
-  await clickFeatureAction(page, "decline");
-  await expectFeatureSlot(page, { state: "manual", variant: "default" });
-  await expect(page.locator("[data-provider-feature-chip]")).toHaveAttribute(
-    "data-provider-feature-chip",
-    "manual",
-  );
+  await clickFeatureAction(page, "accept");
+  await clickFeatureAction(page, "accept");
+  await expectFeatureSlot(page, { state: "suggest", variant: "default" });
+  await expect(
+    page.locator('[data-provider-feature-choice] [role="switch"]'),
+  ).toHaveAttribute("aria-checked", "false");
   await expectFeatureDecision(page, videoDecision(null));
   await selectRuleProfile(page, "Paris", PARIS_LOCATION_ID);
   await saveRuleDialog(page);
@@ -172,7 +175,7 @@ test("keeps a declined domain unbound and commits reassignment or detach on save
   expect(await readDismissedHosts(page)).toEqual([CLIPS_HOST]);
 
   await openSavedRuleEditor(page, extensionId, CLIPS_HOST);
-  await expectFeatureSlot(page, { state: "manual", variant: "default" });
+  await expectFeatureSlot(page, { state: "suggest", variant: "default" });
   await expectNoFeatureDecision(page);
   await cancelRuleDialog(page);
   expect(await readControlDQueries(worker)).toHaveLength(1);
@@ -186,7 +189,7 @@ test("keeps a declined domain unbound and commits reassignment or detach on save
   const video = savedIdentity(await exportSettings<ExportedSettings>(page), VIDEO_HOST);
 
   await openSavedRuleEditor(page, extensionId, VIDEO_HOST);
-  await chooseCatalogueFeature(page, SOCIAL_FEATURE, "choose");
+  await chooseCatalogueFeature(page, SOCIAL_FEATURE);
   await expectFeatureSlot(page, { state: "staged", variant: "default" });
   await expectFeatureDecision(page, videoDecision(SOCIAL_FEATURE));
   const beforeReassign = await exportSettings<ExportedSettings>(page);
@@ -226,7 +229,7 @@ test("keeps a declined domain unbound and commits reassignment or detach on save
   );
 });
 
-test("shares one provider group and preserves it through edit, restart, and import", async ({
+test("shares one product rule with a service through edit, restart, and import", async ({
   context,
   extensionId,
   serverUrl,
@@ -275,7 +278,7 @@ test("shares one provider group and preserves it through edit, restart, and impo
     "data-provider-initials",
     "CD",
   );
-  await expect(group.locator("[data-feature-group-hosts] span")).toHaveText([
+  await expect(group.locator("[data-rule-hosts] span")).toHaveText([
     LOOPBACK_HOST,
     MEDIA_HOST,
   ]);
@@ -284,6 +287,7 @@ test("shares one provider group and preserves it through edit, restart, and impo
   ).toHaveCount(0);
 
   await openSavedRuleEditor(page, extensionId, LOOPBACK_HOST);
+  await expect(page.locator("[data-rule-host-input]")).toHaveValue(MEDIA_HOST);
   await selectRuleProfile(page, "Paris", PARIS_LOCATION_ID);
   await expectNoFeatureDecision(page);
   await saveRuleDialog(page);
@@ -302,10 +306,7 @@ test("shares one provider group and preserves it through edit, restart, and impo
   await expect(
     popup.locator("[data-provider-decorators] [data-provider-initials]"),
   ).toHaveAttribute("data-provider-initials", "CD");
-  await expect(popup.locator("[data-provider-feature-site-count]")).toHaveAttribute(
-    "data-provider-feature-site-count",
-    "2",
-  );
+  await expect(popup.locator("[data-provider-feature-site-count]")).toHaveCount(0);
   const popupState = await getPopupState<PopupState>(popup);
   expect(popupState.decorators?.[0]).toEqual(
     expect.objectContaining({
@@ -315,6 +316,17 @@ test("shares one provider group and preserves it through edit, restart, and impo
     }),
   );
   expect(popupState.groupPatterns).toEqual([LOOPBACK_HOST, MEDIA_HOST]);
+  await popup.locator("#open-rule-settings").click();
+  await expect(popup.locator("[data-rule-hosts]")).toBeVisible();
+  await expect(popup.locator("[data-rule-host]")).toHaveCount(2);
+  await expect(popup.locator("[data-rule-host]").nth(0)).toHaveAttribute(
+    "data-rule-host",
+    LOOPBACK_HOST,
+  );
+  await expect(popup.locator("[data-rule-host]").nth(1)).toHaveAttribute(
+    "data-rule-host",
+    MEDIA_HOST,
+  );
   await popup.close();
   await expectHostUnprotected(
     context,
@@ -368,6 +380,14 @@ test("shares one provider group and preserves it through edit, restart, and impo
 
   await restarted.goto(`chrome-extension://${extensionId}/src/ui/options/index.html`);
   await openSettingsTab(restarted, "rules");
+  await openSavedRuleEditor(restarted, extensionId, LOOPBACK_HOST);
+  await clickFeatureAction(restarted, "open");
+  await clickFeatureAction(restarted, "detach");
+  await saveRuleDialog(restarted);
+  const unlinked = await exportSettings<ExportedSettings>(restarted);
+  expect(unlinked.featureBindings ?? []).toEqual([]);
+  expect(unlinked.rules).toEqual(imported.rules);
+  await expect(restarted.locator("#rules-list tr[data-rule-group]")).toHaveCount(1);
   await restarted
     .getByRole("button", { name: `Delete rule ${LOOPBACK_HOST}`, exact: true })
     .click();
@@ -446,4 +466,76 @@ test("stages a popup draft until save and then shows the summary badge", async (
     LOOPBACK_HOST,
   );
   await expectProviderQuiet(page, worker, [LOCAL_HOST], escapes, pageRequests);
+});
+
+test("owns a three-site rule independently of provider assignments", async ({
+  context,
+  extensionId,
+}) => {
+  test.slow();
+  const { page, worker, escapes, pageRequests } = await prepareProviderPage(
+    context,
+    extensionId,
+    { hosts: [] },
+  );
+  const disconnected = await page.evaluate(
+    async (type) => chrome.runtime.sendMessage({ type }),
+    CONTROL_D_COMMANDS.disconnect,
+  );
+  expect(disconnected.ok).toBe(true);
+  await page.reload();
+  const hosts = ["one.example.test", "two.example.test", "three.example.test"];
+  await openNewRuleDialog(page, extensionId);
+  await fillRulePattern(page, hosts[0]!);
+  for (const host of hosts.slice(1)) {
+    await page.locator('[data-rule-host-action="add"]').click();
+    await page.locator("[data-rule-host-input]").last().fill(host);
+  }
+  await selectRuleProfile(page, "Warsaw", WARSAW_LOCATION_ID);
+  await saveRuleDialog(page);
+  const saved = await exportSettings<ExportedSettings>(page);
+  expect(saved.rules.map((rule) => rule.pattern)).toEqual(hosts);
+  expect(saved.featureBindings ?? []).toEqual([]);
+  const identity = savedIdentity(saved, hosts[0]!);
+  const groupId = saved.rules[0]?.groupId;
+  expect(groupId).toEqual(expect.any(String));
+  for (const rule of saved.rules) {
+    expect(rule.groupId).toBe(groupId);
+    expectSavedRule(saved, { ...identity, pattern: rule.pattern });
+  }
+  const row = page.locator("#rules-list tr[data-rule-group]");
+  await expect(row).toHaveCount(1);
+  await expect(row.locator("[data-rule-host]")).toHaveText(hosts);
+  await expect(row.locator("[data-provider-initials]")).toHaveCount(0);
+  await openSavedRuleEditor(page, extensionId, hosts[0]!);
+  await expect(page.locator("[data-rule-host-input]")).toHaveCount(2);
+  await expect(page.locator("[data-rule-host-input]").nth(0)).toHaveValue(hosts[1]!);
+  await expect(page.locator("[data-rule-host-input]").nth(1)).toHaveValue(hosts[2]!);
+  await page.locator('[data-rule-host-action="remove"]').last().click();
+  await selectRuleProfile(page, "Paris", PARIS_LOCATION_ID);
+  await page.locator("#dialog-rule-enabled").click();
+  await saveRuleDialog(page);
+  const edited = await exportSettings<ExportedSettings>(page);
+  expect(edited.rules.map((rule) => rule.pattern)).toEqual(hosts.slice(0, 2));
+  for (const rule of edited.rules) {
+    expect(rule.groupId).toBe(groupId);
+    expectSavedRule(edited, {
+      ...identity,
+      pattern: rule.pattern,
+      locationId: PARIS_LOCATION_ID,
+      enabled: false,
+    });
+  }
+  await expectProviderQuiet(page, worker, [], escapes, pageRequests);
+  const restarted = await restartExtensionWorker(context, extensionId);
+  expect((await exportSettings<ExportedSettings>(restarted)).rules).toEqual(
+    edited.rules,
+  );
+  await saveLocationModel(restarted, { locations: edited.locations, rules: [] });
+  await importSettings(restarted, { ...edited, onboardingCompleted: true });
+  const imported = await exportSettings<ExportedSettings>(restarted);
+  expect(imported.rules).toEqual(edited.rules);
+  expect(imported.featureBindings ?? []).toEqual([]);
+  expect(escapes).toEqual([]);
+  expect(pageRequests).toEqual([]);
 });

@@ -23,12 +23,14 @@ type RuleEditorSurfaceProps = {
   draft?: boolean;
   /** Omitted for the pre-integration baseline with no provider listener. */
   scenario?: FeatureStoryScenario;
+  multipleSites?: boolean;
 };
 
 const RuleEditorSurface = ({
   savedPattern,
   draft,
   scenario,
+  multipleSites,
 }: RuleEditorSurfaceProps) => {
   const [pattern, setPattern] = useState(savedPattern);
   return (
@@ -54,6 +56,19 @@ const RuleEditorSurface = ({
                 },
               ]
             : [],
+        rules: [],
+        ...(scenario === "group-linked" || multipleSites
+          ? {
+              rules: [savedPattern, "music.youtube.com", "youtu.be"].map((pattern) => ({
+                pattern,
+                groupId: "story-product-group",
+                locationId: "warsaw",
+                enabled: true,
+                ruleSeedKey: "story-rule-identity",
+                authKey: "story-controlled-auth",
+              })),
+            }
+          : {}),
         editingRuleSeedKey: "story-rule-identity",
         rotateRuleIdentity: fn(async () => true),
         ruleEnabled: true,
@@ -182,5 +197,21 @@ export const LinkedMenu: Story = {
   play: async ({ canvasElement }) => {
     const panel = await findPanel(canvasElement);
     await clickAction(panel, "open");
+  },
+};
+
+/** Multi-site rules belong to PT even when no external provider is installed. */
+export const MultiSiteRule: Story = {
+  args: { savedPattern: "www.youtube.com", multipleSites: true },
+  play: async ({ canvasElement }) => {
+    const document = canvasElement.ownerDocument;
+    const extras = document.querySelectorAll<HTMLInputElement>(
+      "[data-rule-host-input]",
+    );
+    await expect([...extras].map((input) => input.value)).toEqual([
+      "music.youtube.com",
+      "youtu.be",
+    ]);
+    await expect(document.querySelector("[data-provider-decorator-badge]")).toBeNull();
   },
 };

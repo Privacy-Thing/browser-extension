@@ -19,6 +19,7 @@ import {
 import { loadFeatureBindings } from "@/background/storage/provider-features";
 import { loadRules } from "@/background/storage/rules";
 import { loadTrustedSites } from "@/background/storage/trusted-sites";
+import { projectFeatureBindings } from "@/shared/rule-groups";
 import { LogCategory } from "@/shared/types";
 import type {
   ClearLogsResponse,
@@ -85,7 +86,7 @@ const getSettings = async (deps: SettingsApiDeps): Promise<GetSettingsResponse> 
     getGlobalFallbackRule(),
     loadContainerAssignments(),
   ]);
-  const featureBindings = await loadFeatureBindings();
+  const featureBindings = projectFeatureBindings(await loadFeatureBindings(), rules);
   const {
     browserFingerprintSpoofingEnabled: fingerprintEnabled,
     sharedWorkerHandlingMode: workerMode,

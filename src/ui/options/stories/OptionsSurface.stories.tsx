@@ -11,13 +11,13 @@ import {
   STORY_TRUSTED_SITES,
 } from "./options-story-fixtures";
 
-import { findFeatureBinding } from "@/shared/feature-groups";
 import { defaultSharedSpoofing } from "@/shared/fingerprint-spoofing";
 import {
   bindingPatterns,
   type RuleFeatureBinding,
   type ProviderDecorator,
 } from "@/shared/provider-feature";
+import { getRuleGroupSource } from "@/shared/rule-groups";
 import { DEFAULT_PREFERENCES } from "@/shared/settings-defaults";
 import type { SpoofingBrowserTarget } from "@/shared/spoofing-surfaces";
 import type { DomainRule, SharedSpoofingConfig } from "@/shared/types";
@@ -117,10 +117,9 @@ const RulesSurface = ({
         rulesFilter,
         linkedRuleLocationId,
       ).filter(({ rule }) => {
-        const binding = findFeatureBinding(featureBindings, rule.pattern);
-        return !binding || rule.pattern === binding.rulePattern;
+        return getRuleGroupSource(rules, rule.pattern)?.pattern === rule.pattern;
       }),
-    [linkedRuleLocationId, rules, rulesFilter, featureBindings],
+    [linkedRuleLocationId, rules, rulesFilter],
   );
   const visibleRuleKeys = viewModels.map(({ rule }) => rule.pattern);
 
@@ -128,6 +127,7 @@ const RulesSurface = ({
     <StorySettingsProvider
       value={{
         rulesFilter,
+        rules: [...rules],
         featureBindings,
         decorators,
         setRulesFilter,
@@ -498,6 +498,7 @@ export const RulesWithServices: Story = {
       rules={[
         ...bindingPatterns(videoGroup).map((pattern) => ({
           pattern,
+          groupId: "story-product-group",
           locationId: "warsaw",
           enabled: true,
           ruleSeedKey: "abc123",
@@ -927,5 +928,33 @@ export const DefaultRuleDialogTest: Story = {
       ).toBeVisible();
     });
     await userEvent.keyboard("{Escape}");
+  },
+};
+
+export const MultiSiteRule: Story = {
+  render: () => (
+    <RulesSurface
+      rules={["news.example.com", "images.example.net", "api.example.org"].map(
+        (pattern) => ({
+          pattern,
+          groupId: "story-product-only-group",
+          locationId: "warsaw",
+          enabled: true,
+          ruleSeedKey: "story-shared-identity",
+          authKey: "story-controlled-auth",
+        }),
+      )}
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getAllByRole("button", { name: /^Edit rule / })).toHaveLength(
+      1,
+    );
+    for (const host of ["news.example.com", "images.example.net", "api.example.org"])
+      await expect(canvas.getAllByText(host).length).toBeGreaterThan(0);
+    await expect(
+      canvasElement.querySelector("[data-provider-decorator-badge]"),
+    ).toBeNull();
   },
 };

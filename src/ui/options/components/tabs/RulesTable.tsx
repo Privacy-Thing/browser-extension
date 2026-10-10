@@ -1,6 +1,6 @@
 import { findFeatureBinding } from "@/shared/feature-groups";
 import type { ProviderDecorator } from "@/shared/provider-feature";
-import { bindingPatterns } from "@/shared/provider-feature";
+import { getRuleGroupPatterns } from "@/shared/rule-groups";
 import type { DomainRule } from "@/shared/types";
 import { cn } from "@/ui/components/lib/utils";
 import { ProviderDecoratorBadge } from "@/ui/components/provider-feature/ProviderDecoratorBadge";
@@ -305,7 +305,7 @@ const RuleNameCell = ({
         </span>
         {decorator ? (
           <Badge variant="outline" title={decorator.providerName}>
-            <ProviderDecoratorBadge decorator={decorator} groupSize={hosts.length} />
+            <ProviderDecoratorBadge decorator={decorator} />
           </Badge>
         ) : null}
         {!rule.enabled ? (
@@ -320,11 +320,11 @@ const RuleNameCell = ({
     </AnchorHeading>
     {hosts.length > 1 ? (
       <div
-        data-feature-group-hosts
+        data-rule-hosts
         className="mt-1 flex flex-wrap gap-x-2 gap-y-1 text-xs text-muted-foreground"
       >
         {hosts.map((host) => (
-          <span key={host} className="break-all">
+          <span key={host} data-rule-host={host} className="break-all">
             {host}
           </span>
         ))}
@@ -339,6 +339,7 @@ const RuleNameCell = ({
 const DomainRuleRows = () => {
   const {
     featureBindings,
+    rules,
     decorators,
     getRuleAnchor,
     handleDeleteRule,
@@ -373,7 +374,7 @@ const DomainRuleRows = () => {
             entry.featureId === binding.featureId,
         )
       : undefined;
-    const hosts = binding ? bindingPatterns(binding) : [rule.pattern];
+    const hosts = getRuleGroupPatterns(rules, rule.pattern);
     const key = normalizeRulePattern(rule.pattern);
     const anchor = getRuleAnchor(rule.pattern);
     return (
@@ -382,6 +383,7 @@ const DomainRuleRows = () => {
         id={anchor}
         data-anchor-id={anchor}
         data-feature-group={binding?.featureId}
+        data-rule-group={rule.groupId}
         className={cn(
           "rule-table-row gw-anchor-target gw-anchor-no-pulse scroll-mt-7 border-b last:border-0 hover:bg-muted/30 transition-colors",
           !rule.enabled && "bg-muted/20 text-muted-foreground",

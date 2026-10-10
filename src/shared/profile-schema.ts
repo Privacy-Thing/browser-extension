@@ -126,6 +126,7 @@ export const domainRuleSchema = z
     blockServiceWorkerRegistration: z.boolean().optional().default(false),
     relaxCspForWorkers: z.boolean().optional().default(false),
     fingerprintSurfaceOverrides: surfaceOverridesSchema.optional(),
+    groupId: z.string().trim().min(1).max(128).optional(),
   })
   .transform(
     ({
@@ -139,6 +140,7 @@ export const domainRuleSchema = z
       blockServiceWorkerRegistration: blockServiceWorkers,
       relaxCspForWorkers,
       fingerprintSurfaceOverrides: surfaceOverrides,
+      groupId,
     }) => {
       const normalizedOverrides = normalizeLegacyWorker(
         normalizeLegacyGeo(surfaceOverrides, geolocationEnabled),
@@ -155,6 +157,7 @@ export const domainRuleSchema = z
         ...(normalizedOverrides
           ? { fingerprintSurfaceOverrides: normalizedOverrides }
           : {}),
+        ...(groupId ? { groupId } : {}),
       };
     },
   );

@@ -135,7 +135,9 @@ export const Suggest: Story = {
   render: () => <LiveSlot input={slotInput()} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole("button", { name: "Yes" }));
+    await userEvent.click(
+      canvas.getByRole("switch", { name: /Setup YouTube service/ }),
+    );
     await expect(
       canvasElement.querySelector("[data-provider-feature]"),
     ).toHaveAttribute("data-provider-feature-state", "staged");
@@ -146,11 +148,12 @@ export const Decline: Story = {
   render: () => <LiveSlot input={slotInput()} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole("button", { name: "No thanks" }));
+    await userEvent.click(canvas.getByRole("switch"));
+    await userEvent.click(canvas.getByRole("switch"));
     await expect(
       canvasElement.querySelector("[data-provider-feature]"),
-    ).toHaveAttribute("data-provider-feature-state", "manual");
-    await expect(canvas.getByRole("button", { name: /Link a service/ })).toBeVisible();
+    ).toHaveAttribute("data-provider-feature-state", "suggest");
+    await expect(canvas.getByRole("switch")).toHaveAttribute("aria-checked", "false");
   },
 };
 
@@ -175,7 +178,9 @@ export const Join: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByText(/settings and identity/)).toBeVisible();
-    await userEvent.click(canvas.getByRole("button", { name: "Yes" }));
+    await userEvent.click(
+      canvas.getByRole("switch", { name: /Setup YouTube service/ }),
+    );
     await expect(
       canvasElement.querySelector("[data-provider-feature]"),
     ).toHaveAttribute("data-provider-feature-state", "staged");
@@ -203,9 +208,7 @@ export const Chooser: Story = {
   ...Linked,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(
-      canvas.getByRole("button", { name: /YouTube, 3 sites, Example DNS/ }),
-    );
+    await userEvent.click(canvas.getByRole("button", { name: /YouTube, Example DNS/ }));
     await userEvent.click(
       await within(document.body).findByRole("menuitem", { name: "Change service" }),
     );
@@ -217,11 +220,10 @@ export const Chooser: Story = {
     await userEvent.click(
       await within(document.body).findByRole("option", { name: "Netflix" }),
     );
-    await userEvent.click(within(document.body).getByRole("button", { name: "Link" }));
     await expect(
       canvasElement.querySelector("[data-provider-feature]"),
     ).toHaveAttribute("data-provider-feature-state", "staged");
-    await expect(canvas.getByText(/Netflix · unsaved/)).toBeVisible();
+    await expect(canvas.getByText(/Setup Netflix service/)).toBeVisible();
   },
 };
 
@@ -236,14 +238,13 @@ export const Badge: Story = {
         label: "YouTube",
         type: "service",
       }}
-      groupSize={3}
     />
   ),
   play: async ({ canvasElement }) => {
-    const count = canvasElement.querySelector("[data-provider-feature-site-count]");
     const mark = canvasElement.querySelector("[data-provider-initials]");
-    await expect(count).toHaveAttribute("data-provider-feature-site-count", "3");
-    await expect(count).toHaveTextContent("3 sites");
+    await expect(
+      canvasElement.querySelector("[data-provider-feature-site-count]"),
+    ).toBeNull();
     await expect(mark).toHaveClass("size-[24px]", "text-[10px]");
   },
 };
@@ -252,8 +253,10 @@ export const RussianSuggest: Story = {
   render: () => <LiveSlot locale="ru" input={slotInput()} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText("Связать с сервисом YouTube?")).toBeVisible();
-    await expect(canvas.getByRole("button", { name: "Да" })).toBeEnabled();
+    await expect(
+      canvas.getByText("Example DNS: Настроить сервис YouTube?"),
+    ).toBeVisible();
+    await expect(canvas.getByRole("switch")).toBeEnabled();
   },
 };
 
@@ -293,7 +296,7 @@ export const LinkedBusy: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(
-      canvas.getByRole("button", { name: /YouTube, 3 sites, Example DNS/ }),
+      canvas.getByRole("button", { name: /YouTube, Example DNS/ }),
     ).toBeVisible();
     await expect(
       canvasElement.querySelector("[data-provider-request-pending]"),

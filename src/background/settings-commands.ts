@@ -34,6 +34,7 @@ import {
   saveTrustedSites,
 } from "@/background/storage/trusted-sites";
 import type { EXTENSION_COMMAND_TYPES } from "@/shared/extension-contract";
+import { projectFeatureBindings } from "@/shared/rule-groups";
 import { DEFAULT_PREFERENCES } from "@/shared/settings-defaults";
 import type {
   ExtensionCommand,
@@ -86,7 +87,7 @@ const exportSettings = async (
       exportedAt: new Date().toISOString(),
       locations: profiles,
       rules,
-      featureBindings: await loadFeatureBindings(),
+      featureBindings: projectFeatureBindings(await loadFeatureBindings(), rules),
       trustedSites,
       ...preferences,
       ...(sharedSpoofing ? { sharedSpoofing } : {}),
@@ -121,7 +122,10 @@ const saveLocationModel = async (
     await deps.syncPreloadedState();
     await deps.resyncActiveHeaderRules();
     await deps.refreshFxInjectionMode();
-    const featureBindings = await loadFeatureBindings();
+    const featureBindings = projectFeatureBindings(
+      await loadFeatureBindings(),
+      settings.rules,
+    );
     return {
       ok: true,
       locations: settings.locations,

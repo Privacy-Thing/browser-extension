@@ -11,7 +11,6 @@ import {
 } from "./ProviderFeatureSlot";
 
 import { BRAND_DISPLAY_NAME } from "@/shared/brand";
-import { applyUiLocalePreference, type UiLocale } from "@/ui/i18n";
 
 const youtube: ProviderFeature = {
   providerId: "provider",
@@ -70,18 +69,17 @@ const render = (
 };
 
 describe("ProviderFeatureSlot", () => {
-  it("offers yes and no with a scope note for a suggestion", () => {
+  it("offers a draft switch after the question and scope explanation", () => {
     const markup = render();
     expect(markup).toContain('data-provider-feature-state="suggest"');
-    expect(markup).toContain('data-provider-initials="ED"');
-    expect(markup).toContain("Link YouTube service?");
-    expect(markup).toContain("items-start");
-    expect(markup).toContain("whitespace-normal");
+    expect(markup).toContain("Example DNS: Setup YouTube service?");
     expect(markup).toContain('data-provider-feature-action="accept"');
-    expect(markup).toContain('data-provider-feature-action="decline"');
-    expect(markup).toContain("bg-secondary");
+    expect(markup).toContain('role="switch"');
+    expect(markup).toContain('aria-checked="false"');
+    expect(markup).not.toContain(">Yes<");
+    expect(markup).toContain("Saved with this rule.");
     expect(markup).toContain(BRAND_DISPLAY_NAME);
-    expect(markup).toContain("protects only this rule");
+    expect(markup).toContain("protects only the sites added here");
     expect(markup).not.toContain(">CD<");
     expect(markup).not.toContain("Control D");
   });
@@ -105,18 +103,19 @@ describe("ProviderFeatureSlot", () => {
       },
     );
     expect(markup).toContain('data-provider-feature-state="join"');
-    expect(markup).toContain("Join YouTube?");
+    expect(markup).toContain("Setup YouTube service?");
     expect(markup).toContain("Uses the settings and identity of www.youtube.com.");
     expect(markup).toContain("current settings will be replaced");
     expect(markup).toContain('data-provider-feature-action="join"');
   });
 
-  it("shows a dashed staged chip and a linked chip with a count", () => {
+  it("shows a selected draft switch and a service-only linked chip", () => {
     const staged = render({
       decision: { providerId: "provider", featureId: "youtube" },
     });
     expect(staged).toContain('data-provider-feature-state="staged"');
-    expect(staged).toContain("YouTube · unsaved");
+    expect(staged).toContain('aria-checked="true"');
+    expect(staged).toContain("Setup YouTube service?");
     expect(staged).toContain("data-provider-feature-chevron");
     expect(staged).toContain('data-provider-feature-chip="staged"');
 
@@ -132,18 +131,18 @@ describe("ProviderFeatureSlot", () => {
     });
     expect(linked).toContain('data-provider-feature-state="linked"');
     expect(linked).toContain('data-provider-feature-group-size="3"');
-    expect(linked).toContain('data-provider-feature-site-count="3"');
-    expect(linked).toContain(">3 sites<");
+    expect(linked).not.toContain("data-provider-feature-site-count");
+    expect(linked).toContain('aria-label="YouTube, Example DNS. Show options"');
     expect(linked).not.toContain("data-provider-feature-count");
     expect(linked).not.toContain(">+");
     expect(linked).not.toContain("Match evidence");
     expect(linked).not.toContain('data-provider-feature-action="recognize"');
   });
 
-  it("uses a quiet add chip after decline and while removing a bound service", () => {
+  it("keeps an unchecked choice after decline and a plain rule when unlinked", () => {
     const declined = render({ declinedId: "youtube" });
-    expect(declined).toContain('data-provider-feature-state="manual"');
-    expect(declined).toContain("Link a service");
+    expect(declined).toContain('data-provider-feature-state="suggest"');
+    expect(declined).toContain('aria-checked="false"');
     expect(declined).not.toContain("data-provider-feature-pending");
 
     const unbound = render({
@@ -152,7 +151,16 @@ describe("ProviderFeatureSlot", () => {
     expect(unbound).not.toContain("data-provider-feature-pending");
 
     const removing = render(
-      { decision: { providerId: "provider", featureId: null } },
+      {
+        decision: { providerId: "provider", featureId: null },
+        binding: {
+          rulePattern: "www.youtube.com",
+          providerId: "provider",
+          featureId: "youtube",
+          featureName: "YouTube",
+          featureType: "service",
+        },
+      },
       { removing: true, removalService: "YouTube" },
     );
     expect(removing).toContain("YouTube is unlinked when you save. The rule stays.");
@@ -174,7 +182,7 @@ describe("providerFeatureCopy", () => {
     ).toBe("Shares settings with a.example and 2 more");
     expect(providerFeatureCopy.en.removeService).toBe("Unlink service");
     expect(providerFeatureCopy.en.pendingRemovalGroup("YouTube")).toContain(
-      "rules stay",
+      "rule and its sites stay",
     );
     expect(providerFeatureCopy.es.sharedWith(["a.example", "b.example"])).toContain(
       " y ",
@@ -193,13 +201,6 @@ describe("providerFeatureCopy", () => {
     expect(providerFeatureCopy.en.scope("Example DNS", "YouTube")).toContain(
       BRAND_DISPLAY_NAME,
     );
-    expect(providerFeatureCopy.en.siteCount(3)).toBe("3 sites");
-    expect(providerFeatureCopy.es.siteCount(3)).toBe("3 sitios");
-    expect(providerFeatureCopy.pt.siteCount(3)).toBe("3 sites");
-    expect(providerFeatureCopy.ru.siteCount(3)).toBe("3 сайта");
-    expect(providerFeatureCopy.ru.siteCount(5)).toBe("5 сайтов");
-    expect(providerFeatureCopy.uk.siteCount(3)).toBe("3 сайти");
-    expect(providerFeatureCopy.uk.siteCount(5)).toBe("5 сайтів");
   });
 });
 
@@ -217,7 +218,6 @@ describe("ProviderDecoratorBadge", () => {
     const markup = renderToStaticMarkup(
       createElement(ProviderDecoratorBadge, {
         decorator: exampleDecorator,
-        groupSize: 1,
       }),
     );
     expect(markup).toContain("YouTube");
@@ -230,43 +230,6 @@ describe("ProviderDecoratorBadge", () => {
     expect(markup).not.toContain("data-provider-feature-site-count");
     expect(markup).not.toContain("data-provider-feature-count");
     expect(markup).not.toContain("#1BE3AD");
-  });
-
-  it("states the binding total for several sites", () => {
-    const markup = renderToStaticMarkup(
-      createElement(ProviderDecoratorBadge, {
-        decorator: exampleDecorator,
-        groupSize: 3,
-      }),
-    );
-    expect(markup).toContain('data-provider-feature-site-count="3"');
-    expect(markup).toContain(">3 sites<");
-    expect(markup).not.toContain("+2");
-    expect(markup).not.toContain("data-provider-feature-count");
-  });
-
-  it("localizes that total from the active locale", () => {
-    const totals: readonly (readonly [UiLocale, string])[] = [
-      ["es", "3 sitios"],
-      ["pt", "3 sites"],
-      ["ru", "3 сайта"],
-      ["uk", "3 сайти"],
-    ];
-    try {
-      for (const [locale, label] of totals) {
-        applyUiLocalePreference(locale);
-        const markup = renderToStaticMarkup(
-          createElement(ProviderDecoratorBadge, {
-            decorator: exampleDecorator,
-            groupSize: 3,
-          }),
-        );
-        expect(markup).toContain(`>${label}<`);
-        expect(markup).toContain('data-provider-feature-site-count="3"');
-      }
-    } finally {
-      applyUiLocalePreference("en");
-    }
   });
 
   it("fills the circle from provider badge colors", () => {

@@ -27,15 +27,12 @@ const Catalogue = ({
   copy,
   providerName,
   features,
-  joinFor,
   onChoose,
   onDone,
   onBack,
 }: MenuProps & { onBack: (() => void) | null }) => {
   const labelId = useId();
   const [draftId, setDraftId] = useState("");
-  const draft = findProviderFeature(features, draftId || null);
-  const join = draft ? joinFor(draft.featureId) : null;
   const options = useMemo(
     () =>
       features.map((feature) => ({ value: feature.featureId, label: feature.name })),
@@ -49,33 +46,20 @@ const Catalogue = ({
       <Combobox
         options={options}
         value={draftId}
-        onValueChange={setDraftId}
+        onValueChange={(featureId) => {
+          const feature = findProviderFeature(features, featureId);
+          if (!feature) return;
+          setDraftId(featureId);
+          onChoose(feature);
+          onDone();
+        }}
         placeholder={copy.pickerPlaceholder}
         searchPlaceholder={copy.pickerSearch}
         emptyMessage={copy.pickerEmpty}
         size="sm"
         aria-labelledby={labelId}
       />
-      {join ? (
-        <p className="text-xs text-muted-foreground">
-          {copy.joinHint(join.pattern, join.extra)} {copy.joinReplaces}
-        </p>
-      ) : null}
-      <div className="flex flex-wrap gap-1.5">
-        <Button
-          type="button"
-          size="sm"
-          variant="secondary"
-          data-provider-feature-action={join ? "join" : "choose"}
-          disabled={draft === null}
-          onClick={() => {
-            if (!draft) return;
-            onChoose(draft);
-            onDone();
-          }}
-        >
-          {join ? copy.join : copy.use}
-        </Button>
+      <div className="flex gap-1.5">
         {onBack ? (
           <Button type="button" size="sm" variant="ghost" onClick={onBack}>
             {copy.back}

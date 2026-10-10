@@ -1,16 +1,16 @@
 import { BRAND_DISPLAY_NAME } from "@/shared/brand";
 import type { UiLocale } from "@/shared/ui-locale";
-import { slavicCount } from "@/ui/shared/slavic-plural";
 
 type Text = (value: string) => string;
 type PairText = (first: string, second: string) => string;
 type JoinHint = (pattern: string, extra: number) => string;
 type SharedWith = (hosts: readonly string[]) => string;
-type CountText = (count: number) => string;
 
 export type ProviderFeatureMessages = {
   suggestQuestion: Text;
   yes: string;
+  includeService: string;
+  saveWithRule: string;
   no: string;
   scope: PairText;
   joinQuestion: Text;
@@ -37,7 +37,6 @@ export type ProviderFeatureMessages = {
   chipLabel: PairText;
   menuHeader: PairText;
   sharedWith: SharedWith;
-  siteCount: CountText;
   errorBlocked: Text;
   errorConnect: Text;
   errorCatalogue: Text;
@@ -83,16 +82,13 @@ const sharedWith =
       .replaceAll("{extra}", String(hosts.length - 1));
   };
 
-const countLabel =
-  (one: string, many: string): CountText =>
-  (count) =>
-    `${count} ${count === 1 ? one : many}`;
-
 const scope = (provider: string, service: string): string =>
-  `${BRAND_DISPLAY_NAME} protects only this rule's sites. A ${provider} service for ${service} may cover other sites.`;
+  `${BRAND_DISPLAY_NAME} protects only the sites added here. ${provider}'s ${service} service may cover different sites.`;
 
 const en: ProviderFeatureMessages = {
-  suggestQuestion: fill("Link {value} service?"),
+  suggestQuestion: fill("Setup {value} service?"),
+  includeService: "Include service",
+  saveWithRule: "Saved with this rule.",
   yes: "Yes",
   no: "No thanks",
   scope,
@@ -115,7 +111,7 @@ const en: ProviderFeatureMessages = {
   preparing: "Getting ready…",
   pendingRemoval: fill("{value} is unlinked when you save. The rule stays."),
   pendingRemovalGroup: fill(
-    "{value} is unlinked from all these sites when you save. Their rules stay.",
+    "{value} is unlinked from all these sites when you save. The rule and its sites stay.",
   ),
   pickerLabel: fill("{value} service"),
   pickerPlaceholder: "Choose a service",
@@ -129,7 +125,6 @@ const en: ProviderFeatureMessages = {
     "Shares settings with {a} and {b}",
     "Shares settings with {a} and {extra} more",
   ),
-  siteCount: countLabel("site", "sites"),
   errorBlocked: fill(
     "Suggestions are paused. Pick a service, or check {value} settings.",
   ),
@@ -138,7 +133,7 @@ const en: ProviderFeatureMessages = {
   errorGeneric: "Something went wrong. Try again.",
   errorSync: pair("{first} couldn't apply {second}. See {first} settings."),
   errorJoinTaken: pair(
-    "{first} is already linked to {second}. Choose Join to share its settings.",
+    "{first} is already linked to {second}. Turn on the service to share its settings.",
   ),
   errorPattern: "Fix the rule's pattern before linking a service.",
   errorMissingService: "That service is no longer available. Choose another.",
@@ -152,7 +147,9 @@ const en: ProviderFeatureMessages = {
 };
 
 const es: ProviderFeatureMessages = {
-  suggestQuestion: fill("¿Vincular el servicio {value}?"),
+  suggestQuestion: fill("¿Configurar el servicio {value}?"),
+  includeService: "Incluir servicio",
+  saveWithRule: "Se aplica al guardar esta regla.",
   yes: "Sí",
   no: "No, gracias",
   scope: (provider, service) =>
@@ -176,7 +173,7 @@ const es: ProviderFeatureMessages = {
   preparing: "Preparando…",
   pendingRemoval: fill("{value} se desvincula al guardar. La regla se mantiene."),
   pendingRemovalGroup: fill(
-    "{value} se desvincula de todos estos sitios al guardar. Sus reglas se mantienen.",
+    "{value} se desvincula de todos estos sitios al guardar. La regla y sus sitios se mantienen.",
   ),
   pickerLabel: fill("Servicio de {value}"),
   pickerPlaceholder: "Elige un servicio",
@@ -190,7 +187,6 @@ const es: ProviderFeatureMessages = {
     "Comparte configuración con {a} y {b}",
     "Comparte configuración con {a} y {extra} más",
   ),
-  siteCount: countLabel("sitio", "sitios"),
   errorBlocked: fill(
     "Las sugerencias están en pausa. Elige un servicio o revisa los ajustes de {value}.",
   ),
@@ -199,7 +195,7 @@ const es: ProviderFeatureMessages = {
   errorGeneric: "Algo salió mal. Inténtalo de nuevo.",
   errorSync: pair("{first} no pudo aplicar {second}. Revisa los ajustes de {first}."),
   errorJoinTaken: pair(
-    "{first} ya está vinculado a {second}. Elige Unirse para compartir su configuración.",
+    "{first} ya está vinculado a {second}. Activa el servicio para compartir su configuración.",
   ),
   errorPattern: "Corrige el patrón de la regla antes de vincular un servicio.",
   errorMissingService: "Ese servicio ya no está disponible. Elige otro.",
@@ -215,7 +211,9 @@ const es: ProviderFeatureMessages = {
 };
 
 const pt: ProviderFeatureMessages = {
-  suggestQuestion: fill("Vincular o serviço {value}?"),
+  suggestQuestion: fill("Configurar o serviço {value}?"),
+  includeService: "Incluir serviço",
+  saveWithRule: "Aplicado ao salvar esta regra.",
   yes: "Sim",
   no: "Agora não",
   scope: (provider, service) =>
@@ -239,7 +237,7 @@ const pt: ProviderFeatureMessages = {
   preparing: "Preparando…",
   pendingRemoval: fill("{value} será desvinculado ao salvar. A regra continua."),
   pendingRemovalGroup: fill(
-    "{value} será desvinculado de todos estes sites ao salvar. As regras continuam.",
+    "{value} será desvinculado de todos estes sites ao salvar. A regra e seus sites continuam.",
   ),
   pickerLabel: fill("Serviço de {value}"),
   pickerPlaceholder: "Escolha um serviço",
@@ -253,7 +251,6 @@ const pt: ProviderFeatureMessages = {
     "Compartilha configurações com {a} e {b}",
     "Compartilha configurações com {a} e mais {extra}",
   ),
-  siteCount: countLabel("site", "sites"),
   errorBlocked: fill(
     "As sugestões estão pausadas. Escolha um serviço ou confira as configurações do {value}.",
   ),
@@ -264,7 +261,7 @@ const pt: ProviderFeatureMessages = {
     "O {first} não conseguiu aplicar {second}. Confira as configurações do {first}.",
   ),
   errorJoinTaken: pair(
-    "{first} já está vinculado a {second}. Escolha Entrar para compartilhar as configurações.",
+    "{first} já está vinculado a {second}. Ative o serviço para compartilhar as configurações.",
   ),
   errorPattern: "Corrija o padrão da regra antes de vincular um serviço.",
   errorMissingService: "Esse serviço não está mais disponível. Escolha outro.",
@@ -280,7 +277,9 @@ const pt: ProviderFeatureMessages = {
 };
 
 const ru: ProviderFeatureMessages = {
-  suggestQuestion: fill("Связать с сервисом {value}?"),
+  suggestQuestion: fill("Настроить сервис {value}?"),
+  includeService: "Использовать сервис",
+  saveWithRule: "Применится при сохранении правила.",
   yes: "Да",
   no: "Не нужно",
   scope: (provider, service) =>
@@ -304,7 +303,7 @@ const ru: ProviderFeatureMessages = {
   preparing: "Подготовка…",
   pendingRemoval: fill("{value} будет отвязан при сохранении. Правило останется."),
   pendingRemovalGroup: fill(
-    "{value} будет отвязан от всех этих сайтов при сохранении. Их правила останутся.",
+    "{value} будет отвязан от всех этих сайтов при сохранении. Правило и его сайты останутся.",
   ),
   pickerLabel: fill("Сервис {value}"),
   pickerPlaceholder: "Выберите сервис",
@@ -318,7 +317,6 @@ const ru: ProviderFeatureMessages = {
     "Общие настройки с {a} и {b}",
     "Общие настройки с {a} и ещё {extra}",
   ),
-  siteCount: (count) => slavicCount(count, ["сайт", "сайта", "сайтов"]),
   errorBlocked: fill(
     "Подсказки приостановлены. Выберите сервис или проверьте настройки {value}.",
   ),
@@ -329,7 +327,7 @@ const ru: ProviderFeatureMessages = {
     "{first} не удалось применить {second}. Проверьте настройки {first}.",
   ),
   errorJoinTaken: pair(
-    "{first} уже связан с {second}. Выберите «Присоединить», чтобы использовать общие настройки.",
+    "{first} уже связан с {second}. Включите сервис, чтобы использовать общие настройки.",
   ),
   errorPattern: "Исправьте шаблон правила, прежде чем связывать сервис.",
   errorMissingService: "Этот сервис больше недоступен. Выберите другой.",
@@ -345,7 +343,9 @@ const ru: ProviderFeatureMessages = {
 };
 
 const uk: ProviderFeatureMessages = {
-  suggestQuestion: fill("Пов'язати із сервісом {value}?"),
+  suggestQuestion: fill("Налаштувати сервіс {value}?"),
+  includeService: "Використовувати сервіс",
+  saveWithRule: "Застосується після збереження правила.",
   yes: "Так",
   no: "Не треба",
   scope: (provider, service) =>
@@ -371,7 +371,7 @@ const uk: ProviderFeatureMessages = {
     "{value} буде відв'язано під час збереження. Правило залишиться.",
   ),
   pendingRemovalGroup: fill(
-    "{value} буде відв'язано від усіх цих сайтів під час збереження. Їхні правила залишаться.",
+    "{value} буде відв'язано від усіх цих сайтів під час збереження. Правило та його сайти залишаться.",
   ),
   pickerLabel: fill("Сервіс {value}"),
   pickerPlaceholder: "Виберіть сервіс",
@@ -385,7 +385,6 @@ const uk: ProviderFeatureMessages = {
     "Спільні налаштування з {a} і {b}",
     "Спільні налаштування з {a} і ще {extra}",
   ),
-  siteCount: (count) => slavicCount(count, ["сайт", "сайти", "сайтів"]),
   errorBlocked: fill(
     "Підказки призупинено. Виберіть сервіс або перевірте налаштування {value}.",
   ),
@@ -396,7 +395,7 @@ const uk: ProviderFeatureMessages = {
     "{first} не вдалося застосувати {second}. Перевірте налаштування {first}.",
   ),
   errorJoinTaken: pair(
-    "{first} уже пов'язано з {second}. Виберіть «Приєднати», щоб використати спільні налаштування.",
+    "{first} уже пов'язано з {second}. Увімкніть сервіс, щоб використати спільні налаштування.",
   ),
   errorPattern: "Виправте шаблон правила, перш ніж пов'язувати сервіс.",
   errorMissingService: "Цей сервіс більше недоступний. Виберіть інший.",

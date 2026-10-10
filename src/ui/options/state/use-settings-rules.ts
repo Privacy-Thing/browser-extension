@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 
-import { findFeatureBinding } from "@/shared/feature-groups";
 import {
-  bindingPatterns,
   featureDecisionSchema,
   type ProviderDecorator,
   type RuleFeatureBinding,
 } from "@/shared/provider-feature";
+import { getRuleGroupPatterns, getRuleGroupSource } from "@/shared/rule-groups";
 import { withFallbackSeed } from "@/shared/rule-seed";
 import type {
   DomainRule,
@@ -29,7 +28,7 @@ import {
   deleteRulesByIndex,
   reassignRulesToLocation,
   resolveRulePreview,
-  upsertRule,
+  upsertRuleGroup,
 } from "@/ui/options/rule-utils";
 import { useLatestRef } from "@/ui/options/state/use-latest-ref";
 import type { ConfirmDialogConfig } from "@/ui/options/state/use-settings-confirm-dialog";
@@ -158,23 +157,20 @@ export const useRuleDerivedState = (options: {
     options.linkedRuleLocationId,
   );
   const groupedViewModels = flatViewModels.filter(({ rule }) => {
-    const binding = findFeatureBinding(state.featureBindings, rule.pattern);
-    if (!binding) return true;
-    const visibleMembers = flatViewModels.filter(({ rule: member }) =>
-      bindingPatterns(binding).includes(member.pattern),
+    const patterns = getRuleGroupPatterns(state.rules, rule.pattern);
+    return (
+      flatViewModels.find((entry) => patterns.includes(entry.rule.pattern))?.rule
+        .pattern === rule.pattern
     );
-    return visibleMembers[0]?.rule.pattern === rule.pattern;
   });
   const viewModels = groupedViewModels.map((entry) => {
-    const binding = findFeatureBinding(state.featureBindings, entry.rule.pattern);
-    const canonical = state.rules.find((rule) => rule.pattern === binding?.rulePattern);
+    const canonical = getRuleGroupSource(state.rules, entry.rule.pattern);
     return canonical ? { ...entry, rule: canonical } : entry;
   });
   const allRuleKeys = state.rules
-    .filter((rule) => {
-      const binding = findFeatureBinding(state.featureBindings, rule.pattern);
-      return !binding || rule.pattern === binding.rulePattern;
-    })
+    .filter(
+      (rule) => getRuleGroupSource(state.rules, rule.pattern)?.pattern === rule.pattern,
+    )
     .map((rule) => normalizeRulePattern(rule.pattern));
   const visibleRuleKeys = viewModels.map(({ rule }) =>
     normalizeRulePattern(rule.pattern),
@@ -276,11 +272,9 @@ const openRuleDialog = (
   state: RuleState,
   selectedRule: DomainRule | undefined,
 ): void => {
-  const binding = selectedRule
-    ? findFeatureBinding(state.featureBindings, selectedRule.pattern)
+  const rule = selectedRule
+    ? (getRuleGroupSource(state.rules, selectedRule.pattern) ?? selectedRule)
     : undefined;
-  const rule =
-    state.rules.find((entry) => entry.pattern === binding?.rulePattern) ?? selectedRule;
   state.setRuleDialogMode(rule ? "edit" : "add");
   state.setEditingRulePattern(rule ? normalizeRulePattern(rule.pattern) : null);
   state.setRulePattern(rule?.pattern ?? "");
@@ -308,9 +302,10 @@ const handleRuleSubmit = async (
 ): Promise<void> => {
   event.preventDefault();
   const { state } = options;
-  const rawDecision = event.currentTarget
-    ? new FormData(event.currentTarget).get("featureDecision")
-    : null;
+  const formData = event.currentTarget ? new FormData(event.currentTarget) : null;
+  const rawDecision = formData?.get("featureDecision") ?? null;
+  const additionalPatterns =
+    formData?.getAll("additionalRulePatterns").map(String) ?? [];
   const decision =
     typeof rawDecision === "string" && rawDecision
       ? featureDecisionSchema.parse(JSON.parse(rawDecision) as unknown)
@@ -349,17 +344,26 @@ const handleRuleSubmit = async (
   }
 
   const normalizedLocationId = state.ruleProfileId.trim();
-  const nextRules = upsertRule(
-    state.rules,
-    {
-      pattern,
-      ...(normalizedLocationId ? { locationId: normalizedLocationId } : {}),
-      enabled: state.ruleDialogMode === "edit" ? state.ruleEnabled : true,
-      relaxCspForWorkers: state.ruleRelaxCsp,
-      fingerprintSurfaceOverrides: compactSurfaceOverrides(state.ruleSurfaceOverrides),
-    },
-    state.editingRulePattern,
-  );
+  let nextRules: DomainRule[];
+  try {
+    nextRules = upsertRuleGroup(
+      state.rules,
+      {
+        pattern,
+        ...(normalizedLocationId ? { locationId: normalizedLocationId } : {}),
+        enabled: state.ruleDialogMode === "edit" ? state.ruleEnabled : true,
+        relaxCspForWorkers: state.ruleRelaxCsp,
+        fingerprintSurfaceOverrides: compactSurfaceOverrides(
+          state.ruleSurfaceOverrides,
+        ),
+      },
+      additionalPatterns,
+      state.editingRulePattern,
+    );
+  } catch (error) {
+    notify.warning(error instanceof Error ? error.message : String(error));
+    return;
+  }
   const saved = await options.persistSettings({
     ...(decision
       ? { featureDecision: { ...decision, rulePattern: normalizedPattern } }
@@ -425,8 +429,7 @@ const handleDeleteRule = async (
   }
 
   const { state } = options;
-  const binding = findFeatureBinding(state.featureBindings, patternKey);
-  const targets = binding ? bindingPatterns(binding) : [patternKey];
+  const targets = getRuleGroupPatterns(state.rules, patternKey);
   const nextRules = deleteRulesByIndex(
     state.rules,
     state.rules
@@ -450,13 +453,9 @@ const handleDeleteRule = async (
 
 const selectedGroupPatterns = (state: RuleState): Set<string> =>
   new Set(
-    state.featureBindings
-      .filter((binding) =>
-        bindingPatterns(binding).some((pattern) =>
-          state.selectedRulePatterns.has(pattern),
-        ),
-      )
-      .flatMap(bindingPatterns),
+    [...state.selectedRulePatterns].flatMap((pattern) =>
+      getRuleGroupPatterns(state.rules, pattern),
+    ),
   );
 
 const getSelectedRuleIndexes = (state: RuleState): number[] =>

@@ -79,11 +79,34 @@ describe("atomic feature rule save", () => {
       rulePattern: other.pattern,
       joinExisting: true,
     });
-    expect(joined[1]).toEqual({ ...primary, pattern: other.pattern });
+    expect(joined[0]?.groupId).toEqual(joined[1]?.groupId);
+    expect(joined[1]).toEqual({
+      ...primary,
+      pattern: other.pattern,
+      groupId: joined[0]?.groupId,
+    });
     expect((await loadFeatureState()).featureBindings[0]?.rulePatterns).toEqual([
       primary.pattern,
       other.pattern,
     ]);
+  });
+  it("keeps the existing canonical host first when the new host is stored first", async () => {
+    await saveRules([primary], { ...decision, rulePattern: primary.pattern });
+    const joined = await saveRules([other, primary], {
+      ...decision,
+      rulePattern: other.pattern,
+      joinExisting: true,
+    });
+    expect(joined.map((rule) => rule.pattern)).toEqual([
+      primary.pattern,
+      other.pattern,
+    ]);
+    expect(joined[0]?.authKey).toBe(primary.authKey);
+    expect(joined[1]?.authKey).toBe(primary.authKey);
+    expect(joined[0]?.groupId).toEqual(joined[1]?.groupId);
+    const binding = (await loadFeatureState()).featureBindings[0];
+    expect(binding?.rulePattern).toBe(primary.pattern);
+    expect(binding?.rulePatterns).toEqual([primary.pattern, other.pattern]);
   });
   it("renames a member, edits shared settings, promotes a surviving host and detaches to domain rules", async () => {
     await saveRules([primary], { ...decision, rulePattern: primary.pattern });
@@ -107,6 +130,8 @@ describe("atomic feature rule save", () => {
     expect((await loadFeatureState()).featureBindings[0]?.rulePattern).toBe(
       renamed.pattern,
     );
+    const groupId = rules[0]?.groupId;
+    expect(groupId).toEqual(expect.any(String));
     await saveRules(rules, {
       ...decision,
       featureId: null,
@@ -115,5 +140,6 @@ describe("atomic feature rule save", () => {
     expect((await loadFeatureState()).featureBindings).toEqual([]);
     expect((await loadRules())[0]?.authKey).toBe(primary.authKey);
     expect((await loadRules())[0]?.pattern).toBe(renamed.pattern);
+    expect((await loadRules())[0]?.groupId).toBe(groupId);
   });
 });

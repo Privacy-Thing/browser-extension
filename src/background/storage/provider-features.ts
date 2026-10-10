@@ -5,6 +5,7 @@ import {
   type RuleFeatureBinding,
   type StoredFeatureState,
 } from "@/shared/provider-feature";
+import { projectFeatureBindings } from "@/shared/rule-groups";
 import type { DomainRule } from "@/shared/types";
 
 export const FEATURE_STORAGE_KEY = EXTENSION_STORAGE_KEYS.providerFeatures;
@@ -68,23 +69,23 @@ export const reconcileFeatureRefs = (
     );
     if (replacement) renamed.set(oldRule.pattern, replacement.pattern);
   }
+  const rewritten = state.featureBindings.flatMap((binding) => {
+    const members = bindingPatterns(binding)
+      .map((pattern) => renamed.get(pattern) ?? pattern)
+      .filter((pattern) => patterns.has(pattern));
+    const source = renamed.get(binding.rulePattern) ?? binding.rulePattern;
+    const rulePattern = members.includes(source) ? source : members[0];
+    if (!rulePattern) return [];
+    return [
+      {
+        ...binding,
+        rulePattern,
+        ...(members.length > 1 ? { rulePatterns: members } : {}),
+      },
+    ];
+  });
   return {
     ...state,
-    featureBindings: state.featureBindings.flatMap((binding) => {
-      const members = bindingPatterns(binding)
-        .map((pattern) => renamed.get(pattern) ?? pattern)
-        .filter((pattern) => patterns.has(pattern));
-      const source = renamed.get(binding.rulePattern) ?? binding.rulePattern;
-      const rulePattern = members.includes(source) ? source : members[0];
-      return rulePattern
-        ? [
-            {
-              ...binding,
-              rulePattern,
-              ...(binding.rulePatterns ? { rulePatterns: members } : {}),
-            },
-          ]
-        : [];
-    }),
+    featureBindings: projectFeatureBindings(rewritten, next, previous),
   };
 };

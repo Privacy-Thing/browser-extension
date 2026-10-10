@@ -25,6 +25,8 @@ type MockRule = {
   pattern: string;
   locationId?: string;
   enabled?: boolean;
+  groupId?: string;
+  authKey?: string;
   ruleSeedKey?: string;
   blockServiceWorkerRegistration?: boolean;
   relaxCspForWorkers?: boolean;
@@ -994,5 +996,55 @@ describe("createPopupHandlers", () => {
     expect(response.state.currentRule.enabled).toBe(false);
     expect(globalFallbackRuleState?.enabled).toBe(false);
     expect(consoleError).not.toHaveBeenCalled();
+  });
+
+  it("toggles and deletes an unbound product group from the popup", async () => {
+    containerState = [];
+    rulesState = [
+      {
+        pattern: "google.com",
+        locationId: "warsaw",
+        enabled: true,
+        groupId: "group-1",
+        authKey: "abcdefgh",
+        ruleSeedKey: "abc123",
+      },
+      {
+        pattern: "mail.google.com",
+        locationId: "warsaw",
+        enabled: true,
+        groupId: "group-1",
+        authKey: "abcdefgh",
+        ruleSeedKey: "abc123",
+      },
+    ];
+    const removeHostnameContexts = vi.fn();
+    const syncPreloadedState = vi.fn(async () => undefined);
+    const handlers = createHandlers({
+      removeHostnameContexts,
+      syncPreloadedState,
+      getActiveTabContexts: () => [
+        { tabId: 2, hostname: "mail.google.com" },
+        { tabId: 3, hostname: "unrelated.example" },
+      ],
+    });
+    const state = await handlers.getPopupState(activeTab.id);
+    expect(state.state.groupPatterns).toEqual(["google.com", "mail.google.com"]);
+    expect(state.state.groupId).toBe("group-1");
+
+    const toggled = expectToggleSuccess(
+      await handlers.toggleCurrentRule(false, activeTab.id),
+    );
+    expect(rulesState.map((rule) => rule.enabled)).toEqual([false, false]);
+    expect(toggled.state.groupPatterns).toEqual(["google.com", "mail.google.com"]);
+
+    removeHostnameContexts.mockClear();
+    syncPreloadedState.mockClear();
+    const deleted = await handlers.deleteCurrentRule(activeTab.id);
+    expect(deleted.ok).toBe(true);
+    expect(rulesState).toEqual([]);
+    expect(removeHostnameContexts).toHaveBeenCalledWith("mail.google.com");
+    expect(removeHostnameContexts).not.toHaveBeenCalledWith("unrelated.example");
+    expect(syncPreloadedState).toHaveBeenCalled();
   });
 });

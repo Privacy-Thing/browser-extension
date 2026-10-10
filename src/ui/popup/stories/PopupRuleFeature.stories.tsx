@@ -9,6 +9,7 @@ import { PopupRuleSheet } from "../components/PopupRuleSheet";
 
 import type { SharedWorkerHandlingMode } from "@/shared/types";
 import { t } from "@/ui/i18n";
+import { useUiLocale } from "@/ui/i18n/LocaleRefresh";
 import { installChromeBoundary } from "@/ui/options/stories/options-story-fixtures";
 import {
   createFeatureRuntimeMock,
@@ -17,6 +18,8 @@ import {
   type FeatureStoryScenario,
 } from "@/ui/options/stories/provider-feature-runtime-mock";
 import { ProviderFeatureHost } from "@/ui/shared/ProviderFeatureHost";
+import { ruleGroupCopy } from "@/ui/shared/rule-group-copy";
+import { RuleHostList } from "@/ui/shared/RuleHosts";
 
 installChromeBoundary();
 
@@ -32,7 +35,12 @@ type PopupRuleFeatureProps = {
   scenario?: FeatureStoryScenario;
 };
 
-const PopupRuleFeatureSurface = ({ savedPattern, hostname }: PopupRuleFeatureProps) => {
+const PopupRuleFeatureSurface = ({
+  savedPattern,
+  hostname,
+  scenario,
+}: PopupRuleFeatureProps) => {
+  const groupCopy = ruleGroupCopy[useUiLocale()];
   const [locationId, setLocationId] = useState<string | null>("warsaw");
   const [ruleMode, setRuleMode] = useState<"exact" | "suffix">(
     savedPattern?.startsWith("*") ? "suffix" : "exact",
@@ -51,15 +59,26 @@ const PopupRuleFeatureSurface = ({ savedPattern, hostname }: PopupRuleFeaturePro
           open
           drillIn
           view="rule-form"
-          title={savedPattern ?? hostname}
+          title={
+            scenario === "group-linked"
+              ? t.rules.dialog.titleEdit
+              : (savedPattern ?? hostname)
+          }
           description={t.popup.sheetLead}
           formExtra={
-            <ProviderFeatureHost
-              variant="compact"
-              rulePattern={savedPattern ?? hostname}
-              {...(savedPattern ? { savedRulePattern: savedPattern } : {})}
-              hostname={hostname}
-            />
+            <>
+              {scenario === "group-linked" ? (
+                <RuleHostList
+                  patterns={[savedPattern ?? hostname, "music.youtube.com", "youtu.be"]}
+                />
+              ) : null}
+              <ProviderFeatureHost
+                variant="compact"
+                rulePattern={savedPattern ?? hostname}
+                {...(savedPattern ? { savedRulePattern: savedPattern } : {})}
+                hostname={hostname}
+              />
+            </>
           }
           selectedLocationId={locationId}
           noPresetLabel={t.popup.noPresetLabel}
@@ -69,7 +88,11 @@ const PopupRuleFeatureSurface = ({ savedPattern, hostname }: PopupRuleFeaturePro
           workerHandlingOverride={worker}
           relaxCspForWorkers={relaxCsp}
           locationLabel={t.popup.currentProfileLabel}
-          ruleTypeLabel={t.popup.ruleTypeLabel}
+          ruleTypeLabel={
+            scenario === "group-linked"
+              ? groupCopy.matchThisSite
+              : t.popup.ruleTypeLabel
+          }
           exactLabel={t.popup.ruleTypeExact}
           suffixLabel={t.popup.ruleTypeSuffix}
           advancedTitle={t.popup.advancedSectionTitle}
@@ -147,23 +170,39 @@ export const SavedRuleSuggested: Story = {
   play: async ({ canvasElement }) => {
     const panel = await findPanel(canvasElement);
     await expect(panel).toHaveAttribute("data-provider-feature-state", "suggest");
-    const badge = panel.querySelector<HTMLElement>("[data-provider-decorator-badge]");
-    const label = badge?.children[1];
-    const accept = panel.querySelector<HTMLElement>(
-      '[data-provider-feature-action="accept"]',
+    const choice = panel.querySelector("[data-provider-feature-choice]");
+    const question = choice?.querySelector("p");
+    const scope = choice?.querySelector("[data-provider-feature-scope]");
+    const control = choice?.querySelector('[role="switch"]');
+    if (!choice || !question || !scope || !control)
+      throw new Error("Missing service choice.");
+    await expect(scope.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+      question.getBoundingClientRect().bottom,
     );
-    if (!badge || !label || !accept) throw new Error("Missing suggestion layout.");
-    await expect(accept.getBoundingClientRect().top).toBeGreaterThanOrEqual(
-      badge.getBoundingClientRect().bottom,
+    await expect(control.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+      scope.getBoundingClientRect().bottom,
     );
-    await expect(accept.getBoundingClientRect().left).toBeCloseTo(
-      label.getBoundingClientRect().left,
+    await expect(question.getBoundingClientRect().left).toBeCloseTo(
+      scope.getBoundingClientRect().left,
       0,
     );
+    await expect(control).toHaveAttribute("aria-checked", "false");
   },
 };
 export const SavedRuleLinked: Story = { args: { scenario: "linked" } };
-export const GroupLinked: Story = { args: { scenario: "group-linked" } };
+export const GroupLinked: Story = {
+  args: { scenario: "group-linked" },
+  play: async ({ canvasElement }) => {
+    await expect(
+      [...canvasElement.querySelectorAll("[data-rule-host]")].map((element) =>
+        element.getAttribute("data-rule-host"),
+      ),
+    ).toEqual(["*youtube.com", "music.youtube.com", "youtu.be"]);
+    await expect(
+      canvasElement.querySelector("[data-provider-feature-site-count]"),
+    ).toBeNull();
+  },
+};
 export const JoinExisting: Story = {
   args: { savedPattern: null, hostname: "music.youtube.com", scenario: "join" },
 };

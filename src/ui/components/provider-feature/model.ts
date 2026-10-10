@@ -174,7 +174,7 @@ const fromDecision = (input: SlotInput): SlotModel => {
   const decision = input.decision;
   const featureId = decision?.featureId;
   if (!decision || featureId === null || featureId === undefined)
-    return plain(input, "manual");
+    return input.binding ? plain(input, "manual") : fromMatch(input);
   const feature = findProviderFeature(input.features, featureId);
   const label = feature?.name ?? input.binding?.featureName ?? featureId;
   if (!decision.joinExisting) {
@@ -230,11 +230,8 @@ const suggestionOf = (input: SlotInput): ProviderFeature | null => {
 
 const fromMatch = (input: SlotInput): SlotModel => {
   const suggestion = suggestionOf(input);
-  const declined =
-    input.dismissed ||
-    (suggestion !== null && suggestion.featureId === input.declinedId);
   if (input.recognizing && suggestion === null) return plain(input, "checking");
-  if (!suggestion || declined) return plain(input, "manual");
+  if (!suggestion) return plain(input, "manual");
   const group = otherGroup(
     input.bindings,
     input.providerId,
