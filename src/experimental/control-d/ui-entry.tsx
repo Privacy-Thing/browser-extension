@@ -57,6 +57,8 @@ type ConfirmState =
   | { kind: "disconnect" }
   | null;
 
+const CONTROL_D_PRIVACY_URL = "https://controld.com/privacy";
+
 const EMPTY_PROXIES: ControlDPreparedSnapshot["proxies"] = [];
 const send = async (message: unknown): Promise<UiResponse> =>
   (await chrome.runtime.sendMessage(message)) as UiResponse;
@@ -74,6 +76,23 @@ export const isIntegrationAvailable = (): boolean =>
 
 const settingTitle = (text: string) => (
   <h3 className="text-sm font-semibold">{text}</h3>
+);
+
+const privacyPolicyLink = () => (
+  <Button
+    asChild
+    size="sm"
+    variant="link"
+    className="h-auto max-w-full whitespace-normal px-0 py-0 text-left text-xs"
+  >
+    <a href={CONTROL_D_PRIVACY_URL} target="_blank" rel="noopener noreferrer">
+      {t.privacyPolicy}
+      <span
+        className="fa-solid fa-arrow-up-right-from-square shrink-0"
+        aria-hidden="true"
+      />
+    </a>
+  </Button>
 );
 
 const StepSection = ({
@@ -184,7 +203,12 @@ export const ControlDFeatureToggle = ({
 
   return (
     <SettingsControlCard
-      title={settingTitle(t.featureTitle)}
+      title={
+        <div className="flex flex-wrap items-center gap-2">
+          {settingTitle(t.featureTitle)}
+          <StatusBadge label={t.beta} tone="neutral" />
+        </div>
+      }
       description={t.featureDescription}
       focusControlOnTitleClick
       action={
@@ -541,7 +565,46 @@ export const ControlDSubpage = () => {
           </Button>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-4">
+          <section
+            data-control-d-intro
+            aria-labelledby="control-d-intro-title"
+            className="space-y-3 text-xs leading-relaxed text-muted-foreground"
+          >
+            <h4 id="control-d-intro-title" className="font-semibold text-foreground">
+              {t.intro.title}
+            </h4>
+            <ul className="list-disc space-y-3 pl-4">
+              <li>{t.intro.purpose}</li>
+              <li>
+                {t.intro.resources}
+                <details className="mt-1" data-control-d-resource-names>
+                  <summary className="w-fit cursor-pointer font-medium text-foreground">
+                    {t.intro.namesTitle}
+                  </summary>
+                  <p className="mt-1 break-words">{t.intro.names}</p>
+                </details>
+              </li>
+              <li>{t.intro.data}</li>
+              <li>{t.intro.limits}</li>
+            </ul>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              {privacyPolicyLink()}
+              <Button
+                asChild
+                size="sm"
+                variant="link"
+                className="h-auto max-w-full whitespace-normal px-0 py-0 text-left text-xs"
+              >
+                <a
+                  href={`#${SETTINGS_SUBPAGE_ANCHORS.privacyPolicy}`}
+                  data-control-d-own-privacy
+                >
+                  {t.ownPrivacyPolicy}
+                </a>
+              </Button>
+            </div>
+          </section>
           <div className="flex max-w-2xl flex-col gap-2 sm:flex-row">
             <Input
               type="password"
@@ -563,19 +626,22 @@ export const ControlDSubpage = () => {
               {syncing ? t.common.working : t.account.connect}
             </Button>
           </div>
-          <Button
-            type="button"
-            size="sm"
-            variant="link"
-            className="h-auto px-0 py-0 text-xs"
-            onClick={() => void openExternal("open-guide", CONTROL_D_API_GUIDE_URL)}
-          >
-            {t.account.docs}
-            <span
-              className="fa-solid fa-arrow-up-right-from-square"
-              aria-hidden="true"
-            />
-          </Button>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="link"
+              className="h-auto px-0 py-0 text-xs"
+              onClick={() => void openExternal("open-guide", CONTROL_D_API_GUIDE_URL)}
+            >
+              {t.account.docs}
+              <span
+                className="fa-solid fa-arrow-up-right-from-square"
+                aria-hidden="true"
+              />
+            </Button>
+            {privacyPolicyLink()}
+          </div>
         </div>
       )}
     </StepSection>
@@ -827,6 +893,7 @@ export const ControlDSubpage = () => {
             >
               {t.dns.guide}
             </Button>
+            {privacyPolicyLink()}
           </div>
           {state.dnsStatus === "verified" ? (
             <p className="text-xs text-muted-foreground">
@@ -942,7 +1009,12 @@ export const ControlDSubpage = () => {
   return (
     <div data-control-d-state={state?.status ?? "loading"} className="space-y-5">
       <AppSubpageHeader
-        title={t.title}
+        title={
+          <span className="flex flex-wrap items-center gap-2">
+            {t.title}
+            <StatusBadge label={t.beta} tone="neutral" />
+          </span>
+        }
         lead={t.lead}
         backLabel={t.back}
         backAriaLabel={t.back}

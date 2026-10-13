@@ -5,7 +5,22 @@ export const controlDEs = {
   title: "Control D",
   featureTitle: "Integración con Control D",
   featureDescription:
-    "Sincroniza reglas regionales con un perfil de Control D independiente. Solo en versiones beta y locales.",
+    "Sincroniza reglas regionales con un perfil de Control D independiente.",
+  beta: "Beta",
+  privacyPolicy: "Privacidad de Control D",
+  ownPrivacyPolicy: `Privacidad de ${BRAND_DISPLAY_NAME}`,
+  intro: {
+    title: "Antes de conectar",
+    purpose:
+      "Control D es un servicio de DNS y enrutamiento de tráfico. Esta integración sincroniza tus reglas regionales con un perfil de Control D independiente para que esos sitios usen salidas correspondientes. La sincronización va en un solo sentido, desde esta extensión. Necesitas tu propia cuenta de Control D y una clave API con permiso de escritura.",
+    resources:
+      "Tras conectar y aplicar, se crean un perfil, un endpoint del navegador y carpetas de reglas (una por salida). El reconocimiento de servicios puede crear un perfil y un endpoint de consulta opcionales. Estos recursos permanecen en tu cuenta de Control D al desconectar.",
+    namesTitle: "Nombres de recursos aleatorios",
+    names: `Los nombres usan un código aleatorio, nunca los nombres de tus preajustes: «${BRAND_DISPLAY_NAME} XXXXX-XXXXX», «PT Browser XXXXX-XXXXX» («PT Firefox XXXXX-XXXXX» en Firefox), «PT XXXXX-XXXXX <ROUTE>». Recursos de consulta opcionales: «PT Lookup XXXXX-XXXXX», «PT Probe XXXXX-XXXXX».`,
+    data: "Control D recibe los nombres de host de tus reglas de dominio, las salidas elegidas y estos nombres de recursos. Solo con el reconocimiento de servicios, se envía también un host de una regla como consulta DNS sobre HTTPS que solicita no registrarse (no_log=1). No se envían nombres ni coordenadas de preajustes. Tu clave API queda en esta instalación, fuera de las exportaciones y la sincronización del navegador.",
+    limits:
+      "Esta extensión no cambia automáticamente el DNS del navegador ni cambia tu dirección IP por sí sola. Configuras el DNS seguro en un paso posterior; Control D solo enruta el tráfico tras configurar su resolutor.",
+  },
   open: "Abrir Control D",
   back: "Volver a Avanzado",
   lead: "Envía reglas regionales a Control D. Los cambios parten de esta extensión.",
