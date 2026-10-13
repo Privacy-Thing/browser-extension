@@ -45,7 +45,7 @@ const CommandInput = forwardRef<
   React.ComponentRef<typeof CommandPrimitive.Input>,
   React.ComponentPropsWithoutRef<typeof CommandPrimitive.Input>
 >(({ className, ...props }, ref) => (
-  <div className="flex items-center border-b px-3 [border-color:var(--gw-form-border-color)]">
+  <div className="flex shrink-0 items-center border-b px-3 [border-color:var(--gw-form-border-color)]">
     <svg
       xmlns="http://www.w3.org/2000/svg"
       width="16"
@@ -364,6 +364,7 @@ const ComboboxContent = (props: ComboboxContentProps) => (
       "data-[state=open]:animate-none data-[state=closed]:animate-none",
       dropdownPanelChromeClass,
       "max-h-[min(24rem,var(--radix-popover-content-available-height))]",
+      "flex flex-col overflow-hidden",
       props.className,
     )}
     onOpenAutoFocus={(event) => event.preventDefault()}
@@ -372,7 +373,7 @@ const ComboboxContent = (props: ComboboxContentProps) => (
       shouldFilter
       value={props.activeValue}
       onValueChange={props.onValueChange}
-      className={getPanelChromeClass(props.contentSide)}
+      className={cn("min-h-0 h-auto", getPanelChromeClass(props.contentSide))}
     >
       <CommandInput
         ref={props.inputRef}
@@ -380,10 +381,7 @@ const ComboboxContent = (props: ComboboxContentProps) => (
         value={props.search}
         onValueChange={props.onSearchChange}
       />
-      <CommandList
-        ref={props.listRef}
-        className="max-h-[min(300px,var(--radix-popover-content-available-height))]"
-      >
+      <CommandList ref={props.listRef} className="min-h-0 flex-1">
         <CommandEmpty>{props.emptyMessage}</CommandEmpty>
         <CommandGroup>
           {props.options.map((option) => (
