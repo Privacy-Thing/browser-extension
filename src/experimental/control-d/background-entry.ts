@@ -8,10 +8,10 @@ import {
   CONTROL_D_NEEDS_REVIEW,
   type ControlDCommand,
   type ControlDConfig,
-  type ControlDMapping,
   type ControlDPreparedSnapshot,
 } from "./contracts";
 import { createControlDProvider } from "./feature-provider";
+import { isMapping } from "./mapping-validation";
 import {
   hashControlDInputs,
   applyControlDSync,
@@ -139,17 +139,6 @@ const saveFailure = async (
   };
   await saveControlDConfig(failed);
   return failed;
-};
-
-const isMapping = (value: unknown): value is ControlDMapping => {
-  if (!value || typeof value !== "object") return false;
-  const candidate = value as Partial<ControlDMapping>;
-  return (
-    typeof candidate.locationId === "string" &&
-    (typeof candidate.proxyPk === "string" || candidate.proxyPk === null) &&
-    ["exact", "approximate", "skipped"].includes(candidate.status ?? "") &&
-    typeof candidate.confirmed === "boolean"
-  );
 };
 
 // eslint-disable-next-line max-lines-per-function -- Owns one single-flight lifecycle.
