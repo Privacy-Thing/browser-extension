@@ -315,7 +315,7 @@ export const loadRecognitionState = async (): Promise<RecognitionState> => {
   return parseState(stored[RECOGNITION_STORE_KEY]) ?? emptyState();
 };
 
-const saveRecognitionState = async (state: RecognitionState): Promise<void> => {
+export const saveRecognitionState = async (state: RecognitionState): Promise<void> => {
   const parsed = parseState({
     version: 2,
     ...state,

@@ -25,6 +25,10 @@ The format is based on Keep a Changelog and the project follows Semantic Version
   and the service's potentially wider scope; Privacy Thing protects only the rule's
   explicit patterns. The plugin is excluded from release builds.
 
+- Experimental Control D integration offers a reviewed disconnect-and-delete
+  option for recorded, unchanged resources, with a browser DNS confirmation and
+  retryable cleanup results. Plain Disconnect continues to preserve remote resources.
+
 - Added an experimental, one-way Control D regional DNS integration to local
   and beta builds. It previews managed rule changes, requires confirmation
   before the first sync, preserves unrelated Control D resources, and guides

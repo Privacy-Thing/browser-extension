@@ -21,6 +21,8 @@ export const CONTROL_D_COMMANDS = {
   confirmDns: "pt.control-d.confirm-dns",
   dnsAction: "pt.control-d.dns-action",
   disconnect: "pt.control-d.disconnect",
+  planCleanup: "pt.control-d.plan-cleanup",
+  executeCleanup: "pt.control-d.execute-cleanup",
 } as const;
 
 export type ControlDStatus =
@@ -278,7 +280,9 @@ export type ControlDCommand =
       action: "copy-resolver" | "open-settings" | "open-status" | "open-guide";
       outcome: "success" | "fallback" | "failure";
     }
-  | { type: typeof CONTROL_D_COMMANDS.disconnect };
+  | { type: typeof CONTROL_D_COMMANDS.disconnect }
+  | { type: typeof CONTROL_D_COMMANDS.planCleanup }
+  | { type: typeof CONTROL_D_COMMANDS.executeCleanup; cleanupToken: string };
 
 export const isControlDCommand = (value: unknown): value is ControlDCommand => {
   if (!value || typeof value !== "object") return false;
@@ -290,3 +294,38 @@ export const isControlDCommand = (value: unknown): value is ControlDCommand => {
     )
   );
 };
+
+export type CleanupReason =
+  | "name-changed"
+  | "content-changed"
+  | "not-recorded"
+  | "contains-preserved"
+  | "shared-profile"
+  | "already-deleted"
+  | "dependency-failed";
+
+export type CleanupResource = {
+  key: string;
+  kind: "folder" | "rule" | "service" | "endpoint" | "profile";
+  id: string;
+  name: string;
+  profileId: string;
+  disposition: "delete" | "skipped";
+  reason: CleanupReason | null;
+  // A folder DELETE removes all these rules atomically.
+  ruleHostnames: string[];
+  dependsOn: string[];
+};
+
+export type CleanupPlan = { token: string; resources: CleanupResource[] };
+export type CleanupResult = {
+  resource: CleanupResource;
+  status: "deleted" | "skipped" | "failed";
+  reason: CleanupReason | null;
+  message: string | null;
+};
+export type CleanupReport = { results: CleanupResult[]; retryAvailable: boolean };
+export type CleanupResponse = ControlDResponse<{
+  plan?: CleanupPlan;
+  report?: CleanupReport;
+}>;
