@@ -522,6 +522,190 @@ describe("Control D background entry", () => {
     });
   });
 
+  it.each([
+    { deleteRules: 1 },
+    { deleteServices: 1 },
+    { requiresApproximationConfirmation: true },
+    {
+      serviceErrors: [{ code: "remote-service-changed" as const, message: "Changed" }],
+    },
+  ])("pauses unattended changes requiring review: %j", async (changes) => {
+    const current = { ...fixtureConfig(), autoSyncEnabled: true };
+    storageState[CONTROL_D_STORE_KEYS[0]] = current;
+    storageState[CONTROL_D_STORE_KEYS[1]] = "api-key";
+    vi.mocked(prepareControlDSync).mockResolvedValue({
+      inputHash: "input",
+      remoteHash: "remote",
+      compilation: { rules: [], mappings: {}, warnings: [] },
+      proxies: [],
+      diff: {
+        createProfile: false,
+        createEndpoint: false,
+        createFolders: 0,
+        addRules: 0,
+        updateRules: 0,
+        deleteRules: 0,
+        unchangedRules: 0,
+        warnings: [],
+        mappings: [],
+        requiresApproximationConfirmation: false,
+        ...changes,
+      },
+    });
+    registerControlD({ hooks: createPluginHooks(), getDebugMode: () => false });
+    const response = await request({ type: CONTROL_D_COMMANDS.syncNow });
+    expect(response).toMatchObject({
+      ok: false,
+      state: { status: "conflict", autoSyncEnabled: false },
+    });
+    expect(applyControlDSync).not.toHaveBeenCalled();
+  });
+
+  it.each([null, "PT ABCDE-FGHJK", "another-extension", "request-fails"])(
+    "classifies ownership when adopting rules with comment %j",
+    async (comment) => {
+      storageState[CONTROL_D_STORE_KEYS[0]] = fixtureConfig();
+      storageState[CONTROL_D_STORE_KEYS[1]] = "api-key";
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (input: string | URL) => {
+          const path = new URL(input).pathname;
+          let body: unknown = {};
+          if (path === "/profiles")
+            body = {
+              profiles: [{ PK: "profile-id", name: "Privacy Thing ABCDE-FGHJK" }],
+            };
+          if (path === "/devices")
+            body = {
+              devices: [
+                {
+                  PK: "endpoint-id",
+                  name: "PT Browser ABCDE-FGHJK",
+                  profile: { PK: "profile-id" },
+                },
+              ],
+            };
+          if (path.endsWith("/groups")) body = { groups: [] };
+          if (path.endsWith("/rules/all")) {
+            if (comment === "request-fails")
+              return new Response(JSON.stringify({ success: false }), { status: 403 });
+            body = { rules: [{ PK: "foreign.example", comment }] };
+          }
+          return new Response(JSON.stringify({ success: true, body }));
+        }),
+      );
+      registerControlD({ hooks: createPluginHooks(), getDebugMode: () => false });
+      const response = await request({
+        type: CONTROL_D_COMMANDS.adopt,
+        profileId: "profile-id",
+        endpointId: "endpoint-id",
+        code: "ABCDE-FGHJK",
+      });
+      expect(response).toMatchObject({
+        ok: true,
+        state: { adoptionKind: comment === "PT ABCDE-FGHJK" ? "owned" : "foreign" },
+      });
+      expect(storageState[CONTROL_D_STORE_KEYS[0]]).toMatchObject({
+        profileId: "profile-id",
+        endpointId: "endpoint-id",
+        adoptionKind: comment === "PT ABCDE-FGHJK" ? "owned" : "foreign",
+      });
+    },
+  );
+
+  it("surfaces new approximate routes from an automatic sync without applying", async () => {
+    storageState[CONTROL_D_STORE_KEYS[0]] = {
+      ...fixtureConfig(),
+      autoSyncEnabled: true,
+    };
+    storageState[CONTROL_D_STORE_KEYS[1]] = "api-key";
+    vi.mocked(prepareControlDSync).mockResolvedValue({
+      inputHash: "input",
+      remoteHash: "remote",
+      proxies: [],
+      compilation: { rules: [], mappings: {}, warnings: [] },
+      diff: {
+        createProfile: false,
+        createEndpoint: false,
+        createFolders: 0,
+        addRules: 1,
+        updateRules: 0,
+        deleteRules: 0,
+        unchangedRules: 0,
+        mappings: [
+          {
+            locationId: "sydney",
+            proxyPk: "WAW",
+            status: "approximate",
+            confirmed: false,
+          },
+        ],
+        warnings: [],
+        requiresApproximationConfirmation: true,
+      },
+    });
+    registerControlD({ hooks: createPluginHooks(), getDebugMode: () => false });
+    await request({ type: CONTROL_D_COMMANDS.getState });
+    await vi.advanceTimersByTimeAsync(1_500);
+    await request({ type: CONTROL_D_COMMANDS.getState });
+    expect(prepareControlDSync).toHaveBeenCalledOnce();
+    expect(applyControlDSync).not.toHaveBeenCalled();
+    expect(storageState[CONTROL_D_STORE_KEYS[0]]).toMatchObject({
+      status: "conflict",
+      autoSyncEnabled: false,
+      lastError: "Review the pending routes and changes before synchronizing.",
+    });
+  });
+
+  it("keeps pending route consent visible after preview and a subsequent state read", async () => {
+    const current = {
+      ...fixtureConfig(),
+      status: "conflict" as const,
+      lastError: "Review the pending routes and changes before synchronizing.",
+    };
+    storageState[CONTROL_D_STORE_KEYS[0]] = current;
+    storageState[CONTROL_D_STORE_KEYS[1]] = "api-key";
+    vi.mocked(prepareControlDSync).mockResolvedValue({
+      inputHash: "input",
+      remoteHash: "remote",
+      proxies: [],
+      compilation: { rules: [], mappings: {}, warnings: [] },
+      diff: {
+        createProfile: false,
+        createEndpoint: false,
+        createFolders: 0,
+        addRules: 1,
+        updateRules: 0,
+        deleteRules: 0,
+        unchangedRules: 0,
+        mappings: [
+          {
+            locationId: "sydney",
+            proxyPk: "WAW",
+            status: "approximate",
+            confirmed: false,
+          },
+        ],
+        warnings: [],
+        requiresApproximationConfirmation: true,
+      },
+    });
+    registerControlD({ hooks: createPluginHooks(), getDebugMode: () => false });
+    expect(await request({ type: CONTROL_D_COMMANDS.preview })).toMatchObject({
+      ok: true,
+      state: { status: "conflict", lastError: current.lastError },
+    });
+    expect(await request({ type: CONTROL_D_COMMANDS.getState })).toMatchObject({
+      ok: true,
+      state: {
+        status: "conflict",
+        autoSyncEnabled: false,
+        lastError: current.lastError,
+      },
+    });
+    expect(applyControlDSync).not.toHaveBeenCalled();
+  });
+
   it("schedules automatic reconciliation when an applied integration starts", async () => {
     storageState[CONTROL_D_STORE_KEYS[0]] = {
       version: 2,

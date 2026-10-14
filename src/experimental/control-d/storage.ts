@@ -48,6 +48,9 @@ export const loadControlDConfig = async (): Promise<ControlDConfig> => {
           proxyPk: mapping.proxyPk,
           status: mapping.status,
           confirmed: mapping.confirmed,
+          ...(mapping.routeFingerprint
+            ? { routeFingerprint: mapping.routeFingerprint }
+            : {}),
         },
       ]),
     );
@@ -102,6 +105,7 @@ export const toControlDPublicState = async (
   let dnsStatus: ControlDPublicState["dnsStatus"] = "unavailable";
   if (config.resolverDoh) dnsStatus = dnsVerified ? "verified" : "pending";
   return {
+    ...(config.adoptionKind ? { adoptionKind: config.adoptionKind } : {}),
     enabled: config.enabled,
     connected: config.connected,
     autoSyncEnabled: config.autoSyncEnabled,

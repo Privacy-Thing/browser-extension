@@ -1,15 +1,17 @@
 /* eslint-disable max-params -- Logging keeps redaction context explicit. */
+import { controlDNeedsReview } from "./auto-apply";
 import { registerControllers } from "./background-registration";
 import { createCleanupController } from "./cleanup-controller";
 import { ControlDApiError, ControlDClient } from "./client";
 import {
   CONTROL_D_COMMANDS,
+  CONTROL_D_NEEDS_REVIEW,
   type ControlDCommand,
   type ControlDConfig,
-  type ControlDMapping,
   type ControlDPreparedSnapshot,
 } from "./contracts";
 import { createControlDProvider } from "./feature-provider";
+import { isMapping } from "./mapping-validation";
 import {
   hashControlDInputs,
   applyControlDSync,
@@ -18,7 +20,7 @@ import {
   prepareControlDSync,
   type ControlDPreparedSync,
 } from "./reconcile";
-import { adoptRecoverySet, discoverRecoverySets } from "./recovery";
+import { adoptRecoverySet, classifyAdoption, discoverRecoverySets } from "./recovery";
 import { redactControlDLogValue } from "./redaction";
 import { generateResourceCode } from "./resource-names";
 import {
@@ -138,17 +140,6 @@ const saveFailure = async (
   return failed;
 };
 
-const isMapping = (value: unknown): value is ControlDMapping => {
-  if (!value || typeof value !== "object") return false;
-  const candidate = value as Partial<ControlDMapping>;
-  return (
-    typeof candidate.locationId === "string" &&
-    (typeof candidate.proxyPk === "string" || candidate.proxyPk === null) &&
-    ["exact", "approximate", "skipped"].includes(candidate.status ?? "") &&
-    typeof candidate.confirmed === "boolean"
-  );
-};
-
 // eslint-disable-next-line max-lines-per-function -- Owns one single-flight lifecycle.
 const createController = (deps: BackgroundEntryDeps) => {
   const cleanup = createCleanupController();
@@ -204,6 +195,9 @@ const createController = (deps: BackgroundEntryDeps) => {
     try {
       const client = createClient(apiKey);
       const prepared = reviewed ?? (await prepareControlDSync(client, config));
+      if (!reviewed && controlDNeedsReview(prepared.diff, config.adoptionKind)) {
+        throw new ControlDConflictError(CONTROL_D_NEEDS_REVIEW);
+      }
       const next = await applyControlDSync({
         client,
         config,
@@ -448,6 +442,7 @@ const createController = (deps: BackgroundEntryDeps) => {
     if (command.type === CONTROL_D_COMMANDS.selectNew) {
       const next: ControlDConfig = {
         ...config,
+        adoptionKind: "owned",
         resourceIdentity: { code: generateResourceCode() },
         profileId: null,
         endpointId: null,
@@ -475,6 +470,11 @@ const createController = (deps: BackgroundEntryDeps) => {
           endpointId: command.endpointId,
           code: command.code,
         });
+        next.adoptionKind = await classifyAdoption(
+          createClient(apiKey),
+          command.profileId,
+          command.code,
+        );
         await saveControlDConfig(next);
         return { ok: true, state: await toControlDPublicState(next) };
       } catch (error) {
@@ -519,7 +519,11 @@ const createController = (deps: BackgroundEntryDeps) => {
           undefined,
           apiKey,
         );
-        const resolved = await withoutResolvedConflict(config);
+        const needsReview = controlDNeedsReview(prepared.diff, config.adoptionKind);
+        const resolved =
+          config.status === "conflict" && needsReview
+            ? config
+            : await withoutResolvedConflict(config);
         const token = crypto.randomUUID();
         preview = { token, inputHash: prepared.inputHash, prepared };
         return {

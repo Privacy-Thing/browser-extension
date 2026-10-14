@@ -3,6 +3,7 @@ import { expect, userEvent, within } from "storybook/test";
 
 import {
   CONTROL_D_COMMANDS,
+  CONTROL_D_NEEDS_REVIEW,
   type ControlDDiff,
   type ControlDPreparedSnapshot,
   type ControlDPublicState,
@@ -183,6 +184,8 @@ const installBoundary = (
   themeMode: ThemeMode,
   locale: UiLocale = "en",
 ): void => {
+  let current = state;
+  Reflect.set(globalThis, "__storyControlDApplyCommand", null);
   Reflect.set(globalThis, "chrome", {
     runtime: {
       id: "storybook-control-d",
@@ -191,7 +194,15 @@ const installBoundary = (
           message.type === CONTROL_D_COMMANDS.discover ||
           message.type === CONTROL_D_COMMANDS.connect
         ) {
-          return { ok: true, state, candidates: recoveryCandidates };
+          if (
+            message.type === CONTROL_D_COMMANDS.connect &&
+            current.status === "auth-error"
+          ) {
+            return { ok: false, error: "Invalid fake API key.", state: current };
+          }
+          if (message.type === CONTROL_D_COMMANDS.connect)
+            current = { ...current, connected: true, status: "ready", hasApiKey: true };
+          return { ok: true, state: current, candidates: recoveryCandidates };
         }
         if (
           [
@@ -201,9 +212,35 @@ const installBoundary = (
             CONTROL_D_COMMANDS.repair,
           ].includes(message.type as never)
         ) {
-          return { ok: true, state, snapshot: preparedSnapshot };
+          if (
+            message.type === CONTROL_D_COMMANDS.apply ||
+            message.type === CONTROL_D_COMMANDS.repair
+          ) {
+            Reflect.set(globalThis, "__storyControlDApplyCommand", message.type);
+            current = {
+              ...current,
+              lastSuccessAt: baseState.lastSuccessAt,
+              autoSyncEnabled: true,
+              dnsStatus: "pending",
+              resolverDoh: baseState.resolverDoh,
+              profileId: baseState.profileId,
+              endpointId: baseState.endpointId,
+              hasResolver: true,
+            };
+          }
+          return { ok: true, state: current, snapshot: preparedSnapshot };
         }
-        return { ok: true, state };
+        if (
+          message.type === CONTROL_D_COMMANDS.selectNew ||
+          message.type === CONTROL_D_COMMANDS.adopt
+        ) {
+          current = {
+            ...current,
+            setupStatus: "selected",
+            resourceCode: baseState.resourceCode,
+          };
+        }
+        return { ok: true, state: current };
       },
       getManifest: () => ({
         optional_host_permissions: ["https://api.controld.com/*"],
@@ -328,7 +365,7 @@ export const Account: Story = {
       intro.compareDocumentPosition(key) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     const policies = canvas.getAllByRole("link", { name: "Control D privacy policy" });
-    await expect(policies).toHaveLength(2);
+    await expect(policies).toHaveLength(1);
     for (const link of policies) {
       await expect(link).toHaveAttribute("href", "https://controld.com/privacy");
       await expect(link).toHaveAttribute("target", "_blank");
@@ -371,7 +408,9 @@ export const BrowserDns: Story = {
     await expect(canvasElement.querySelector("[data-control-d-intro]")).toBeNull();
     await userEvent.click(canvas.getByRole("button", { name: "Account" }));
     await expect(
-      canvas.getByText("Account access works. No remote changes have been made."),
+      canvas.getByText(
+        "Account access works. The Rules step shows synchronization changes.",
+      ),
     ).toBeVisible();
     await expect(canvasElement.querySelector("[data-control-d-intro]")).toBeNull();
   },
@@ -466,7 +505,7 @@ export const DnsPendingStatus: Story = {
 export const NativeServicePreview: Story = {
   render: () => (
     <Surface
-      state={firstSync}
+      state={{ ...firstSync, adoptionKind: "foreign" }}
       preparedSnapshot={{
         ...firstSnapshot,
         diff: {
@@ -488,7 +527,7 @@ export const NativeServicePreview: Story = {
 export const NativeServiceConflict: Story = {
   render: () => (
     <Surface
-      state={firstSync}
+      state={{ ...firstSync, adoptionKind: "foreign" }}
       preparedSnapshot={{
         ...firstSnapshot,
         diff: {
@@ -584,5 +623,143 @@ export const BetaCard: Story = {
     await expect(
       await canvas.findByRole("button", { name: "Open Control D" }),
     ).toBeVisible();
+  },
+};
+
+const connectInStory = async (canvasElement: HTMLElement) => {
+  const canvas = within(canvasElement);
+  await userEvent.type(await canvas.findByLabelText("Control D API key"), "fake-key");
+  await userEvent.click(canvas.getByRole("button", { name: "Connect" }));
+  return canvas;
+};
+
+export const AutoCreateExact: Story = {
+  render: () => <Surface state={disconnected} preparedSnapshot={firstSnapshot} />,
+  play: async ({ canvasElement }) => {
+    const canvas = await connectInStory(canvasElement);
+    await expect(
+      await canvas.findByText(
+        "Rules were synchronized automatically. Configure browser DNS below.",
+      ),
+    ).toBeVisible();
+    await expect(
+      canvas.getByRole("button", { name: "I verified this resolver" }),
+    ).toBeVisible();
+    await expect(canvas.queryByRole("button", { name: "Apply changes" })).toBeNull();
+  },
+};
+export const AutoAdoptReady: Story = {
+  render: () => <Surface state={disconnected} recoveryCandidates={[candidates[0]!]} />,
+  play: async ({ canvasElement }) => {
+    const canvas = await connectInStory(canvasElement);
+    await expect(
+      await canvas.findByText("Reconnected to Privacy Thing ABCDE-FGHJK."),
+    ).toBeVisible();
+    await userEvent.click(canvas.getByRole("button", { name: "Dismiss" }));
+    await expect(
+      canvasElement.querySelector("[data-control-d-success-notice]"),
+    ).toBeNull();
+  },
+};
+export const SingleApproximateConsent: Story = {
+  render: () => <Surface state={disconnected} preparedSnapshot={approximateSnapshot} />,
+  play: async ({ canvasElement }) => {
+    const canvas = await connectInStory(canvasElement);
+    const apply = await canvas.findByRole("button", {
+      name: /Apply with approximate routes/,
+    });
+    await expect(apply).toHaveTextContent("Rio de Janeiro → Sao Paulo, Brazil");
+    await expect(canvas.queryByRole("checkbox")).toBeNull();
+    await expect(
+      canvas.getByText("Will create: profile 1, endpoint 1, folders 2"),
+    ).toBeVisible();
+    await expect(canvas.getByText("Rules: add 6, update 0, remove 0")).toBeVisible();
+    await expect(canvas.getByRole("button", { name: "Disconnect" })).toBeVisible();
+    await userEvent.click(apply);
+    await expect(
+      await canvas.findByText("Rules synchronized. Configure browser DNS below."),
+    ).toBeVisible();
+  },
+};
+export const ForeignSetupReview: Story = {
+  render: () => (
+    <Surface
+      state={{ ...firstSync, adoptionKind: "foreign" }}
+      preparedSnapshot={firstSnapshot}
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      await canvas.findByText(
+        "This setup contains rules not created by this extension. Review the plan before applying.",
+      ),
+    ).toBeVisible();
+  },
+};
+export const Active360: Story = {
+  render: () => (
+    <div style={{ width: 360 }}>
+      <Surface state={baseState} />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    for (const label of ["Account", "Setup", "Rules", "DNS"]) {
+      await expect(await canvas.findByRole("button", { name: label })).toBeVisible();
+    }
+    const rail = canvasElement.querySelector("[data-control-d-step-rail]")!;
+    await expect(rail.scrollWidth).toBeLessThanOrEqual(rail.clientWidth);
+    await userEvent.click(canvas.getByRole("button", { name: "Review changes" }));
+    await expect(canvas.getByRole("button", { name: "Disconnect" })).toBeVisible();
+  },
+};
+export const Active1100: Story = {
+  ...Active360,
+  render: () => (
+    <div style={{ width: 1100, maxWidth: "100%" }}>
+      <Surface state={baseState} />
+    </div>
+  ),
+};
+
+export const AccountErrorWithoutShift: Story = {
+  render: () => (
+    <div style={{ width: 360 }}>
+      <Surface state={{ ...disconnected, status: "auth-error" }} />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const key = await canvas.findByLabelText("Control D API key");
+    const before = key.getBoundingClientRect().top + window.scrollY;
+    await userEvent.type(key, "fake-key");
+    await userEvent.click(canvas.getByRole("button", { name: "Connect" }));
+    await expect(await canvas.findByRole("alert")).toHaveTextContent(
+      "Invalid fake API key.",
+    );
+    await expect(key.getBoundingClientRect().top + window.scrollY).toBe(before);
+  },
+};
+
+export const PendingReviewRussian: Story = {
+  render: () => (
+    <Surface
+      state={{ ...firstSync, status: "conflict", lastError: CONTROL_D_NEEDS_REVIEW }}
+      preparedSnapshot={approximateSnapshot}
+      locale="ru"
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const alert = await canvas.findByRole("alert");
+    await expect(alert).not.toHaveTextContent(CONTROL_D_NEEDS_REVIEW);
+    await expect(alert).toHaveTextContent("Требуется проверка");
+    await userEvent.click(
+      canvasElement.querySelector("[data-control-d-apply]") as HTMLElement,
+    );
+    await expect(Reflect.get(globalThis, "__storyControlDApplyCommand")).toBe(
+      CONTROL_D_COMMANDS.apply,
+    );
   },
 };

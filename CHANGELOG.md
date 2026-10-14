@@ -6,6 +6,16 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ## [Unreleased]
 
+### Changed
+
+- Control D setup now opens when enabled and automatically creates or reconnects a
+  single ready setup and applies safe plans. One explicit action remembers consent
+  for approximate routes; changed routes, removals and conflicts require review.
+  A failed ownership check preserves the adopted setup and requires plan review.
+- Control D shows labeled setup steps, clearer planned changes and a dismissible
+  sync summary. Disconnect is available throughout setup, resource codes are
+  explained, and API-key errors reserve space below the field.
+
 ### Added
 
 - The optional Control D integration is now included in production builds for Chromium
@@ -36,11 +46,11 @@ The format is based on Keep a Changelog and the project follows Semantic Version
   retained resources and manual DNS setup, with both privacy policy links. Local and
   beta builds label the integration with a Beta badge.
 
-- Added an optional, one-way Control D regional DNS integration. It previews managed rule changes, requires confirmation
-  before the first sync, preserves unrelated Control D resources, and guides
-  users through manual browser DoH setup. The dedicated four-step flow can
-  explicitly recover setups created with the v2 Privacy Thing naming scheme
-  after reinstalling.
+- Added an optional, one-way Control D regional DNS integration. It previews
+  managed rule changes internally, asks for review when a decision is needed,
+  preserves unrelated Control D resources, and guides users through manual browser
+  DoH setup. The dedicated four-step flow can recover setups created with the v2
+  Privacy Thing naming scheme after reinstalling.
 - A “Site not working?” assistant offers one temporary Service Worker or
   SharedWorker policy test for the exact top-document host. Failed, cancelled
   and expired tests restore current settings; saving a host exception requires
