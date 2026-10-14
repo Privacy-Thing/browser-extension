@@ -41,17 +41,22 @@ const ResourceRow = ({
   status,
   reason,
   failed,
+  retained,
 }: {
   item: CleanupResource;
   status: string;
   reason: CleanupReason | null;
   failed: boolean;
+  retained: boolean;
 }) => (
   <li
     className="space-y-1 border-b border-border py-2 last:border-0"
     data-cleanup-resource={item.key}
+    data-cleanup-retained={retained}
   >
-    <p className="break-words text-sm font-medium">
+    <p
+      className={`break-words text-sm font-medium ${retained ? "text-muted-foreground" : ""}`}
+    >
       {t[item.kind]}: {item.name} <span className="font-normal">({item.id})</span>
     </p>
     <p className="text-xs text-muted-foreground">
@@ -118,7 +123,7 @@ const PlanList = ({ plan }: { plan: CleanupPlan }) => (
     tabIndex={0}
     aria-label={t.planTitle}
     data-cleanup-plan
-    className="max-h-64 overflow-y-auto"
+    className="min-h-32 flex-auto overflow-y-auto"
   >
     {plan.resources.map((item) => (
       <ResourceRow
@@ -127,6 +132,7 @@ const PlanList = ({ plan }: { plan: CleanupPlan }) => (
         status={item.disposition === "delete" ? t.deleteLabel : t.skipped}
         reason={item.reason}
         failed={false}
+        retained={item.disposition !== "delete"}
       />
     ))}
   </ul>
@@ -180,7 +186,7 @@ const ResultPanel = ({
       tabIndex={0}
       aria-label={t.resultTitle}
       data-cleanup-results
-      className="max-h-64 overflow-y-auto"
+      className="min-h-32 flex-auto overflow-y-auto"
     >
       {report.results.map((item) => (
         <ResourceRow
@@ -189,6 +195,7 @@ const ResultPanel = ({
           status={t[item.status]}
           reason={item.reason}
           failed={item.status === "failed" && item.message !== null}
+          retained={item.status === "skipped"}
         />
       ))}
     </ul>
@@ -325,7 +332,7 @@ export const CleanupDialogView = (props: CleanupDialogProps) => {
       }}
     >
       <DialogContent
-        className="max-h-[90dvh] w-[calc(100vw-2rem)] max-w-xl overflow-y-auto"
+        className="flex max-h-[90dvh] w-[calc(100vw-2rem)] max-w-xl flex-col overflow-y-auto"
         data-control-d-cleanup={phase}
         aria-busy={busy}
       >
