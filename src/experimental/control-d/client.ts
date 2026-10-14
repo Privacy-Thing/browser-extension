@@ -379,6 +379,22 @@ export class ControlDClient {
     );
   }
 
+  private async remove(path: string): Promise<void> {
+    await this.request(path, { method: "DELETE" });
+  }
+
+  async deleteProfile(profileId: string): Promise<void> {
+    await this.remove(`/profiles/${encodeURIComponent(profileId)}`);
+  }
+
+  async deleteDevice(deviceId: string): Promise<void> {
+    await this.remove(`/devices/${encodeURIComponent(deviceId)}`);
+  }
+
+  async deleteGroup(profileId: string, folderId: number): Promise<void> {
+    await this.remove(`/profiles/${encodeURIComponent(profileId)}/groups/${folderId}`);
+  }
+
   async setDefaultBypass(profileId: string): Promise<void> {
     await this.request(
       `/profiles/${encodeURIComponent(profileId)}/default`,

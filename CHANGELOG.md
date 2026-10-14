@@ -37,6 +37,10 @@ The format is based on Keep a Changelog and the project follows Semantic Version
   and the service's potentially wider scope; Privacy Thing protects only the rule's
   explicit patterns.
 
+- Experimental Control D integration offers a reviewed disconnect-and-delete
+  option for recorded, unchanged resources, with a browser DNS confirmation and
+  retryable cleanup results. Plain Disconnect continues to preserve remote resources.
+
 - Added a compact Control D introduction explaining account resources, data sharing,
   retained resources and manual DNS setup, with both privacy policy links. Local and
   beta builds label the integration with a Beta badge.
@@ -81,6 +85,12 @@ The format is based on Keep a Changelog and the project follows Semantic Version
   `dischargingTime`, `level`) in addition to `navigator.getBattery`.
 
 ### Changed
+
+- The privacy policy now has a separate section for the optional Control D
+  integration. It lists what is sent to Control D (rule hostnames, chosen
+  exits, resource names, optional service lookups and the API key), what stays
+  local, what remains in the Control D account after disconnecting, and links to
+  Control D's own privacy policy.
 
 - About and Regional Presets copy no longer claims that Privacy Thing never
   affects routing or the IP address. It now says that browser-level spoofing alone

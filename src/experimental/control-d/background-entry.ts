@@ -1,6 +1,7 @@
 /* eslint-disable max-params -- Logging keeps redaction context explicit. */
 import { controlDNeedsReview } from "./auto-apply";
 import { registerControllers } from "./background-registration";
+import { createCleanupController } from "./cleanup-controller";
 import { ControlDApiError, ControlDClient } from "./client";
 import {
   CONTROL_D_COMMANDS,
@@ -153,6 +154,7 @@ const isMapping = (value: unknown): value is ControlDMapping => {
 
 // eslint-disable-next-line max-lines-per-function -- Owns one single-flight lifecycle.
 const createController = (deps: BackgroundEntryDeps) => {
+  const cleanup = createCleanupController();
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
   const syncQueue = createControlDSyncQueue<SyncResult>();
   let rerunRequested = false;
@@ -282,6 +284,7 @@ const createController = (deps: BackgroundEntryDeps) => {
   };
 
   const scheduleAutomatic = (): void => {
+    cleanup.invalidate();
     if (debounceTimer) clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
       debounceTimer = null;
@@ -291,6 +294,14 @@ const createController = (deps: BackgroundEntryDeps) => {
 
   // eslint-disable-next-line max-lines-per-function, sonarjs/cognitive-complexity -- Command boundary keeps secrets in background.
   const respond = async (command: ControlDCommand): Promise<unknown> => {
+    if (command.type !== CONTROL_D_COMMANDS.executeCleanup) cleanup.invalidate();
+    if (
+      command.type === CONTROL_D_COMMANDS.planCleanup ||
+      command.type === CONTROL_D_COMMANDS.executeCleanup
+    ) {
+      preview = null;
+      return cleanup.respond(command);
+    }
     if (
       ![
         CONTROL_D_COMMANDS.getState,

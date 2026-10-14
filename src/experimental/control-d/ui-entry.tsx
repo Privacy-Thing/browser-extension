@@ -16,6 +16,7 @@ import {
   type ControlDPublicState,
   type ControlDRecoveryCandidate,
 } from "./contracts";
+import { CleanupRetryButton, ControlDDisconnectDialog } from "./ui-cleanup-dialog";
 import { controlDText as t } from "./ui-copy";
 import { featureText } from "./ui-feature-copy";
 import { ControlDRegionalRoute } from "./ui-regional-route";
@@ -1271,8 +1272,23 @@ export const ControlDSubpage = () => {
           </SettingsHelpCard>
         </div>
       </div>
+      <CleanupRetryButton
+        state={state}
+        onClick={() => setConfirmState({ kind: "disconnect" })}
+      />
+      <ControlDDisconnectDialog
+        open={confirmState?.kind === "disconnect"}
+        close={() => setConfirmState(null)}
+        disconnect={() => void finishConfirmation()}
+        onState={(next) => {
+          setState(next);
+          setSnapshot(null);
+          setCandidates([]);
+          setStepOverride(0);
+        }}
+      />
       <Dialog
-        open={confirmState !== null}
+        open={confirmState?.kind === "adopt"}
         onOpenChange={(open) => {
           if (!open) setConfirmState(null);
         }}
