@@ -116,6 +116,9 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ### Fixed
 
+- Connecting Control D in Firefox no longer fails after access to all websites was
+  turned off for the extension.
+
 - Pickers no longer draw option rows outside their popup on short windows.
 
 - Control D keeps saved route overrides when all rules for a region are disabled,
