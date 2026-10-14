@@ -1,10 +1,13 @@
 /* eslint-disable max-lines */
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 
+import { controlDAutoApply } from "./auto-apply";
+import { isConflictEntered } from "./conflict-transition";
 import {
   CONTROL_D_API_GUIDE_URL,
   CONTROL_D_API_ORIGIN,
   CONTROL_D_COMMANDS,
+  CONTROL_D_NEEDS_REVIEW,
   CONTROL_D_GUIDE_URL,
   CONTROL_D_STATUS_URL,
   type ControlDDiff,
@@ -13,9 +16,9 @@ import {
   type ControlDPublicState,
   type ControlDRecoveryCandidate,
 } from "./contracts";
+import { CleanupRetryButton, ControlDDisconnectDialog } from "./ui-cleanup-dialog";
 import { controlDText as t } from "./ui-copy";
 import { featureText } from "./ui-feature-copy";
-import { ControlDRecognitionPanel } from "./ui-recognition";
 import { ControlDRegionalRoute } from "./ui-regional-route";
 
 import { cn } from "@/ui/components/lib/utils";
@@ -23,7 +26,6 @@ import { SettingsControlCard } from "@/ui/components/SettingsControlCard";
 import { SettingsHelpCard } from "@/ui/components/SettingsHelpCard";
 import { Button } from "@/ui/components/ui/button";
 import { Card } from "@/ui/components/ui/card";
-import { Checkbox } from "@/ui/components/ui/checkbox";
 import {
   Dialog,
   DialogCloseButton,
@@ -38,7 +40,10 @@ import { Separator } from "@/ui/components/ui/separator";
 import { Switch } from "@/ui/components/ui/switch";
 import { SetupProgress } from "@/ui/options/components/onboarding/setup-progress";
 import { SETTINGS_SUBPAGE_ANCHORS, PAGE_ANCHORS } from "@/ui/options/navigation";
+import type { PluginUiContribution } from "@/ui/plugins/contracts";
 import { AppSubpageHeader } from "@/ui/shared/AppSubpageHeader";
+
+export { controlDFeatureUi } from "./ui-rule-feature-presentation";
 
 type UiResponse =
   | {
@@ -54,6 +59,8 @@ type ConfirmState =
   | { kind: "adopt"; candidate: ControlDRecoveryCandidate }
   | { kind: "disconnect" }
   | null;
+
+const CONTROL_D_PRIVACY_URL = "https://controld.com/privacy";
 
 const EMPTY_PROXIES: ControlDPreparedSnapshot["proxies"] = [];
 const send = async (message: unknown): Promise<UiResponse> =>
@@ -72,6 +79,23 @@ export const isIntegrationAvailable = (): boolean =>
 
 const settingTitle = (text: string) => (
   <h3 className="text-sm font-semibold">{text}</h3>
+);
+
+const privacyPolicyLink = () => (
+  <Button
+    asChild
+    size="sm"
+    variant="link"
+    className="h-auto max-w-full whitespace-normal px-0 py-0 text-left text-xs"
+  >
+    <a href={CONTROL_D_PRIVACY_URL} target="_blank" rel="noopener noreferrer">
+      {t.privacyPolicy}
+      <span
+        className="fa-solid fa-arrow-up-right-from-square shrink-0"
+        aria-hidden="true"
+      />
+    </a>
+  </Button>
 );
 
 const StepSection = ({
@@ -98,11 +122,6 @@ const formatTime = (value: string | null): string =>
 
 const inferStep = (state: ControlDPublicState | null): FlowStep => {
   if (!state?.connected) return 0;
-  if (state.setupStatus === "unselected") return 1;
-  return state.lastSuccessAt ? 3 : 2;
-};
-
-const connectedStep = (state: ControlDPublicState): FlowStep => {
   if (state.setupStatus === "unselected") return 1;
   return state.lastSuccessAt ? 3 : 2;
 };
@@ -170,7 +189,10 @@ export const ControlDFeatureToggle = ({
     try {
       const response = await send({ type: CONTROL_D_COMMANDS.setEnabled, enabled });
       if (response.state) setState(response.state);
-      if (response.ok) onEnabledChange(enabled);
+      if (response.ok) {
+        onEnabledChange(enabled);
+        if (enabled) openIntegration();
+      }
     } finally {
       setBusy(false);
     }
@@ -182,7 +204,12 @@ export const ControlDFeatureToggle = ({
 
   return (
     <SettingsControlCard
-      title={settingTitle(t.featureTitle)}
+      title={
+        <div className="flex flex-wrap items-center gap-2">
+          {settingTitle(t.featureTitle)}
+          <StatusBadge label={t.beta} tone="neutral" />
+        </div>
+      }
       description={t.featureDescription}
       focusControlOnTitleClick
       action={
@@ -223,7 +250,7 @@ const StepRail = ({
   furthest: FlowStep;
   onSelect: (step: FlowStep) => void;
 }) => (
-  <div data-control-d-step-rail>
+  <div data-control-d-step-rail className="space-y-2">
     <SetupProgress
       active={current + 1}
       label={t.progressLabel}
@@ -231,27 +258,38 @@ const StepRail = ({
       selectableUntil={furthest}
       onSelect={(step) => onSelect(step as FlowStep)}
     />
+    <div
+      className="mx-auto grid w-full max-w-[340px] grid-cols-4 text-center text-xs text-muted-foreground"
+      aria-hidden="true"
+    >
+      {t.steps.map((label) => (
+        <span key={label}>{label}</span>
+      ))}
+    </div>
   </div>
 );
 
-const ChangeSummary = ({ diff }: { diff: ControlDDiff }) => {
-  const values = [
-    [t.summary.profiles, diff.createProfile ? 1 : 0],
-    [t.summary.endpoints, diff.createEndpoint ? 1 : 0],
-    [t.summary.folders, diff.createFolders],
-    [t.summary.add, diff.addRules],
-    [t.summary.update, diff.updateRules],
-    [t.summary.remove, diff.deleteRules],
-  ] as const;
+const ChangeSummary = ({
+  diff,
+  completed,
+}: {
+  diff: ControlDDiff;
+  completed?: boolean;
+}) => {
   return (
-    <dl className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-      {values.map(([label, value]) => (
-        <div key={label} className="rounded-lg border bg-background/70 px-3 py-2">
-          <dt className="text-xs text-muted-foreground">{label}</dt>
-          <dd className="mt-0.5 text-lg font-semibold tabular-nums">{value}</dd>
-        </div>
-      ))}
-    </dl>
+    <div
+      data-control-d-change-summary
+      className="space-y-2 rounded-lg border bg-background/70 px-3 py-2 text-sm"
+    >
+      <p>
+        {(completed ? t.summary.created : t.summary.willCreate)(
+          diff.createProfile ? 1 : 0,
+          diff.createEndpoint ? 1 : 0,
+          diff.createFolders,
+        )}
+      </p>
+      <p>{t.summary.ruleChanges(diff.addRules, diff.updateRules, diff.deleteRules)}</p>
+    </div>
   );
 };
 
@@ -286,14 +324,99 @@ const ServiceChangeSummary = ({ diff }: { diff: ControlDDiff }) => {
   );
 };
 
-// eslint-disable-next-line max-lines-per-function -- Coordinates the complete experimental setup flow.
+const isControlDPlanEmpty = (diff: ControlDDiff): boolean =>
+  !diff.createProfile &&
+  !diff.createEndpoint &&
+  diff.createFolders +
+    diff.addRules +
+    diff.updateRules +
+    diff.deleteRules +
+    (diff.addServices ?? 0) +
+    (diff.updateServices ?? 0) +
+    (diff.deleteServices ?? 0) ===
+    0;
+
+const hasBlockingChanges = (diff: ControlDDiff): boolean =>
+  diff.warnings.some(
+    (warning) =>
+      warning.code === "unsupported-pattern" || warning.code === "missing-location",
+  ) ||
+  (diff.serviceErrors?.some((conflict) => conflict.code !== "remote-service-changed") ??
+    false);
+
+const requiresRepair = (
+  diff: ControlDDiff | undefined,
+  state: ControlDPublicState | null,
+): boolean =>
+  (state?.status === "conflict" && state.lastError !== CONTROL_D_NEEDS_REVIEW) ||
+  (diff?.serviceErrors?.some(
+    (conflict) => conflict.code === "remote-service-changed",
+  ) ??
+    false);
+
+const applyButtonLabel = (
+  busy: boolean,
+  diff: ControlDDiff | undefined,
+  state: ControlDPublicState | null,
+): string => {
+  if (busy) return t.common.working;
+  if (diff?.requiresApproximationConfirmation) return t.rules.applyApproximate;
+  if (requiresRepair(diff, state)) return t.rules.repair;
+  return t.rules.apply;
+};
+
+const PlanWarnings = ({ diff }: { diff: ControlDDiff }) => (
+  <>
+    {diff.warnings.length > 0 ? (
+      <ul className="space-y-1 rounded-lg border border-tone-warning-border bg-tone-warning-bg px-3 py-2 text-xs text-tone-warning-text">
+        {diff.warnings.map((warning, index) => (
+          <li key={`${warning.code}-${warning.locationId ?? warning.pattern ?? index}`}>
+            {warning.message}
+          </li>
+        ))}
+      </ul>
+    ) : null}
+  </>
+);
+
+const ApproximateApplyLabel = ({
+  label,
+  diff,
+  proxyByPk,
+}: {
+  label: string;
+  diff: ControlDDiff;
+  proxyByPk: ReadonlyMap<string, ControlDPreparedSnapshot["proxies"][number]>;
+}) => (
+  <span>
+    {label}
+    {diff.requiresApproximationConfirmation ? (
+      <span className="mt-1 block text-xs font-normal">
+        {diff.mappings
+          .filter((mapping) => mapping.status === "approximate" && !mapping.confirmed)
+          .map((mapping) => {
+            const proxy = mapping.proxyPk ? proxyByPk.get(mapping.proxyPk) : undefined;
+            const exit = proxy
+              ? `${proxy.city}, ${proxy.countryName}`
+              : t.route.unavailable;
+            return `${mapping.locationLabel ?? mapping.locationId} → ${exit}`;
+          })
+          .join("; ")}
+      </span>
+    ) : null}
+  </span>
+);
+
+// eslint-disable-next-line max-lines-per-function, sonarjs/cognitive-complexity -- Coordinates the complete experimental setup flow.
 export const ControlDSubpage = () => {
   const [state, setState] = useState<ControlDPublicState | null>(null);
   const [apiKey, setApiKey] = useState("");
   const [candidates, setCandidates] = useState<ControlDRecoveryCandidate[]>([]);
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
   const [snapshot, setSnapshot] = useState<ControlDPreparedSnapshot | null>(null);
-  const [confirmApproximate, setConfirmApproximate] = useState(false);
+  const [flowBusy, setFlowBusy] = useState(false);
+  const [successNotice, setSuccessNotice] = useState<string | null>(null);
+  const [completedDiff, setCompletedDiff] = useState<ControlDDiff | null>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [stepOverride, setStepOverride] = useState<FlowStep | null>(null);
@@ -310,16 +433,11 @@ export const ControlDSubpage = () => {
       if (response.state) setState(response.state);
       if (!response.ok) {
         setSnapshot(null);
-        setConfirmApproximate(false);
         setNotice(response.error);
         return response;
       }
       if (response.snapshot) {
         setSnapshot(response.snapshot);
-        setConfirmApproximate(false);
-      } else if (!response.ok) {
-        setSnapshot(null);
-        setConfirmApproximate(false);
       }
       if (response.candidates) {
         setCandidates(response.candidates);
@@ -335,28 +453,24 @@ export const ControlDSubpage = () => {
   }, []);
 
   useEffect(() => {
-    void (async () => {
-      const response = await run({ type: CONTROL_D_COMMANDS.getState });
-      if (
-        response?.ok &&
-        response.state.connected &&
-        response.state.setupStatus === "unselected"
-      ) {
-        await run({ type: CONTROL_D_COMMANDS.discover });
-      } else if (
-        response?.ok &&
-        response.state.connected &&
-        response.state.setupStatus === "selected" &&
-        (!response.state.lastSuccessAt || response.state.status === "conflict")
-      ) {
-        await run({ type: CONTROL_D_COMMANDS.preview });
+    const onChange = (
+      changes: Record<string, chrome.storage.StorageChange>,
+      area: string,
+    ) => {
+      if (area !== "local") return;
+      const pending = Object.values(changes).some(isConflictEntered);
+      if (pending) {
+        setStepOverride(2);
+        void run({ type: CONTROL_D_COMMANDS.preview });
       }
-    })();
+    };
+    chrome.storage.onChanged.addListener(onChange);
+    return () => chrome.storage.onChanged.removeListener(onChange);
   }, [run]);
 
   const inferredStep = inferStep(state);
   const currentStep = stepOverride ?? inferredStep;
-  const syncing = busy || state?.status === "syncing";
+  const syncing = busy || flowBusy || state?.status === "syncing";
   const active = Boolean(state?.lastSuccessAt && state.dnsStatus === "verified");
   const selectedCandidate = candidates.find(
     (candidate) => candidate.profileId === selectedProfileId,
@@ -367,44 +481,155 @@ export const ControlDSubpage = () => {
     [proxies],
   );
 
-  const connect = async () => {
-    if (!(await requestApiAccess())) {
-      setNotice(t.account.permissionDenied);
-      return;
-    }
-    const response = await run({ type: CONTROL_D_COMMANDS.connect, apiKey });
-    if (response?.ok) {
-      setApiKey("");
-      setStepOverride(connectedStep(response.state));
-    }
-  };
+  const prepareAndAdvance = useCallback(
+    async (adoptionNotice?: string) => {
+      const prepared = await run({ type: CONTROL_D_COMMANDS.preview });
+      if (!prepared?.ok || !prepared.snapshot) {
+        setStepOverride(2);
+        return;
+      }
+      const decision = controlDAutoApply(
+        prepared.snapshot.diff,
+        prepared.snapshot.diff.mappings,
+        prepared.state.adoptionKind ?? "owned",
+      );
+      if (decision.kind === "needs-screen") {
+        setStepOverride(2);
+        if (adoptionNotice) setSuccessNotice(adoptionNotice);
+        return;
+      }
+      const applied = await run({
+        type: CONTROL_D_COMMANDS.apply,
+        previewToken: prepared.snapshot.token,
+        confirmApproximate: false,
+      });
+      if (applied?.ok) {
+        setStepOverride(3);
+        setCompletedDiff(prepared.snapshot.diff);
+        setSuccessNotice(adoptionNotice ?? t.rules.appliedAutomatically);
+      } else setStepOverride(2);
+    },
+    [run],
+  );
+
+  const openRoutes = useCallback(
+    async (preset: string | null) => {
+      const prepared = await run({ type: CONTROL_D_COMMANDS.preview });
+      if (!prepared?.ok) return;
+      setShowRoutes(true);
+      setStepOverride(2);
+      if (
+        preset &&
+        prepared.snapshot?.diff.mappings.some(
+          (mapping) => mapping.locationId === preset,
+        )
+      )
+        setEditingLocationId(preset);
+    },
+    [run],
+  );
+
+  useEffect(() => {
+    void (async () => {
+      const response = await run({ type: CONTROL_D_COMMANDS.getState });
+      const routeLink = new URLSearchParams(window.location.hash.split("?")[1] ?? "");
+      if (
+        response?.ok &&
+        response.state.connected &&
+        response.state.setupStatus === "selected" &&
+        routeLink.get("section") === "routes"
+      ) {
+        await openRoutes(routeLink.get("preset"));
+      } else if (
+        response?.ok &&
+        response.state.connected &&
+        response.state.setupStatus === "unselected"
+      ) {
+        await run({ type: CONTROL_D_COMMANDS.discover });
+      } else if (
+        response?.ok &&
+        response.state.connected &&
+        response.state.setupStatus === "selected" &&
+        (!response.state.lastSuccessAt ||
+          response.state.lastError ||
+          response.state.status === "conflict")
+      ) {
+        if (
+          !response.state.lastSuccessAt &&
+          !response.state.lastError &&
+          response.state.status !== "conflict"
+        ) {
+          setFlowBusy(true);
+          try {
+            await prepareAndAdvance();
+          } finally {
+            setFlowBusy(false);
+          }
+        } else {
+          setStepOverride(2);
+          await run({ type: CONTROL_D_COMMANDS.preview });
+        }
+      }
+    })();
+  }, [run, prepareAndAdvance, openRoutes]);
 
   const chooseNew = async () => {
-    const response = await run({ type: CONTROL_D_COMMANDS.selectNew });
-    if (!response?.ok) return;
-    setSnapshot(null);
-    setConfirmApproximate(false);
-    const prepared = await run({ type: CONTROL_D_COMMANDS.preview });
-    if (prepared?.ok) setStepOverride(2);
+    setFlowBusy(true);
+    try {
+      const response = await run({ type: CONTROL_D_COMMANDS.selectNew });
+      if (response?.ok) await prepareAndAdvance();
+    } finally {
+      setFlowBusy(false);
+    }
   };
 
   const adopt = async (candidate: ControlDRecoveryCandidate) => {
-    const response = await run({
-      type: CONTROL_D_COMMANDS.adopt,
-      profileId: candidate.profileId,
-      endpointId: candidate.endpointId,
-      code: candidate.code,
-    });
-    if (!response?.ok) return;
-    setSnapshot(null);
-    setConfirmApproximate(false);
-    const prepared = await run({ type: CONTROL_D_COMMANDS.preview });
-    if (prepared?.ok) setStepOverride(2);
+    setFlowBusy(true);
+    try {
+      const response = await run({
+        type: CONTROL_D_COMMANDS.adopt,
+        profileId: candidate.profileId,
+        endpointId: candidate.endpointId,
+        code: candidate.code,
+      });
+      if (response?.ok) await prepareAndAdvance(t.setup.adopted(candidate.profileName));
+    } finally {
+      setFlowBusy(false);
+    }
+  };
+
+  const connect = async () => {
+    setFlowBusy(true);
+    try {
+      if (!(await requestApiAccess())) {
+        setNotice(t.account.permissionDenied);
+        return;
+      }
+      const response = await run({ type: CONTROL_D_COMMANDS.connect, apiKey });
+      if (!response?.ok) return;
+      setApiKey("");
+      if (response.state.setupStatus === "selected") {
+        await prepareAndAdvance();
+        return;
+      }
+      const discovery = await run({ type: CONTROL_D_COMMANDS.discover });
+      if (!discovery?.ok) return;
+      const found = discovery.candidates ?? [];
+      if (found.length === 0) await chooseNew();
+      else if (
+        found.length === 1 &&
+        found[0]?.compatibility === "ready" &&
+        !found[0].issue
+      )
+        await adopt(found[0]);
+      else setStepOverride(1);
+    } finally {
+      setFlowBusy(false);
+    }
   };
 
   const updateMapping = async (mapping: ControlDMapping, proxyPk: string) => {
     setSnapshot(null);
-    setConfirmApproximate(false);
     const proxy = proxyByPk.get(proxyPk);
     const shared = {
       locationId: mapping.locationId,
@@ -425,16 +650,19 @@ export const ControlDSubpage = () => {
   };
 
   const apply = async () => {
-    const type =
-      state?.status === "conflict"
-        ? CONTROL_D_COMMANDS.repair
-        : CONTROL_D_COMMANDS.apply;
+    const type = requiresRepair(snapshot?.diff, state)
+      ? CONTROL_D_COMMANDS.repair
+      : CONTROL_D_COMMANDS.apply;
     const response = await run({
       type,
-      confirmApproximate,
+      confirmApproximate: snapshot?.diff.requiresApproximationConfirmation ?? false,
       previewToken: snapshot?.token ?? "",
     });
-    if (response?.ok) setStepOverride(3);
+    if (response?.ok) {
+      setCompletedDiff(snapshot?.diff ?? null);
+      setSuccessNotice(t.rules.applied);
+      setStepOverride(3);
+    }
   };
 
   const recordDnsAction = (
@@ -485,25 +713,26 @@ export const ControlDSubpage = () => {
       const response = await run({ type: CONTROL_D_COMMANDS.disconnect });
       if (response?.ok) {
         setSnapshot(null);
+        setSuccessNotice(null);
+        setCompletedDiff(null);
         setCandidates([]);
         setStepOverride(0);
       }
     }
   };
 
-  const stepAlert =
-    (notice ?? state?.lastError) ? (
-      <div
-        role="alert"
-        className="rounded-lg border border-tone-error-border bg-tone-error-bg px-3 py-2 text-sm text-tone-error-text"
-      >
-        {notice ?? state?.lastError}
-      </div>
-    ) : null;
+  const errorText = notice ?? state?.lastError;
+  const stepAlert = errorText ? (
+    <div
+      role="alert"
+      className="rounded-lg border border-tone-error-border bg-tone-error-bg px-3 py-2 text-sm text-tone-error-text"
+    >
+      {errorText === CONTROL_D_NEEDS_REVIEW ? t.status.conflict : errorText}
+    </div>
+  ) : null;
 
   const renderAccount = () => (
     <StepSection
-      alert={stepAlert}
       title={settingTitle(
         state?.connected ? t.account.connectedTitle : t.account.title,
       )}
@@ -519,7 +748,52 @@ export const ControlDSubpage = () => {
           </Button>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-4">
+          <section
+            data-control-d-intro
+            aria-labelledby="control-d-intro-title"
+            className="space-y-3 text-xs leading-relaxed text-muted-foreground"
+          >
+            <h4 id="control-d-intro-title" className="font-semibold text-foreground">
+              {t.intro.title}
+            </h4>
+            <ul className="list-disc space-y-3 pl-4">
+              <li>{t.intro.purpose}</li>
+              <li>
+                {t.intro.resources}
+                <details className="mt-1" data-control-d-resource-names>
+                  <summary className="w-fit cursor-pointer font-medium text-foreground">
+                    {t.intro.namesTitle}
+                  </summary>
+                  <p className="mt-1 break-words">{t.intro.names}</p>
+                </details>
+              </li>
+              <li>{t.intro.data}</li>
+              <li>{t.intro.limits}</li>
+            </ul>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              {privacyPolicyLink()}
+              <Button
+                asChild
+                size="sm"
+                variant="link"
+                className="h-auto max-w-full whitespace-normal px-0 py-0 text-left text-xs"
+              >
+                <a
+                  href={`#${SETTINGS_SUBPAGE_ANCHORS.privacyPolicy}`}
+                  data-control-d-own-privacy
+                >
+                  {t.ownPrivacyPolicy}
+                </a>
+              </Button>
+            </div>
+          </section>
+          <p
+            data-control-d-connect-consent
+            className="max-w-2xl text-xs text-muted-foreground"
+          >
+            {t.account.consent}
+          </p>
           <div className="flex max-w-2xl flex-col gap-2 sm:flex-row">
             <Input
               type="password"
@@ -541,19 +815,24 @@ export const ControlDSubpage = () => {
               {syncing ? t.common.working : t.account.connect}
             </Button>
           </div>
-          <Button
-            type="button"
-            size="sm"
-            variant="link"
-            className="h-auto px-0 py-0 text-xs"
-            onClick={() => void openExternal("open-guide", CONTROL_D_API_GUIDE_URL)}
-          >
-            {t.account.docs}
-            <span
-              className="fa-solid fa-arrow-up-right-from-square"
-              aria-hidden="true"
-            />
-          </Button>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="link"
+              className="h-auto px-0 py-0 text-xs"
+              onClick={() => void openExternal("open-guide", CONTROL_D_API_GUIDE_URL)}
+            >
+              {t.account.docs}
+              <span
+                className="fa-solid fa-arrow-up-right-from-square"
+                aria-hidden="true"
+              />
+            </Button>
+          </div>
+          <div data-control-d-key-feedback aria-live="polite">
+            {stepAlert}
+          </div>
         </div>
       )}
     </StepSection>
@@ -640,20 +919,12 @@ export const ControlDSubpage = () => {
     </StepSection>
   );
 
-  // eslint-disable-next-line sonarjs/cognitive-complexity
   const renderRules = () => {
     const diff = snapshot?.diff;
-    const blockingWarnings =
-      diff?.warnings.filter(
-        (warning) =>
-          warning.code === "unsupported-pattern" || warning.code === "missing-location",
-      ) ?? [];
     const mappings = showRoutes
       ? (diff?.mappings ?? [])
       : (diff?.mappings.filter((mapping) => mapping.status === "approximate") ?? []);
-    let applyLabel: string = t.rules.apply;
-    if (syncing) applyLabel = t.common.working;
-    else if (state?.status === "conflict") applyLabel = t.rules.repair;
+    const applyLabel = applyButtonLabel(syncing, diff, state);
     return (
       <div className="space-y-4">
         <StepSection
@@ -665,34 +936,25 @@ export const ControlDSubpage = () => {
             <div className="space-y-4">
               <ChangeSummary diff={diff} />
               <ServiceChangeSummary diff={diff} />
-              {diff.addRules + diff.updateRules + diff.deleteRules === 0 &&
-              !diff.createProfile &&
-              !diff.createEndpoint &&
-              (diff.addServices ?? 0) +
-                (diff.updateServices ?? 0) +
-                (diff.deleteServices ?? 0) ===
-                0 ? (
+              {isControlDPlanEmpty(diff) ? (
                 <p className="text-sm text-tone-success-text">{t.rules.upToDate}</p>
               ) : null}
-              {diff.warnings.length > 0 ? (
-                <ul className="space-y-1 rounded-lg border border-tone-warning-border bg-tone-warning-bg px-3 py-2 text-xs text-tone-warning-text">
-                  {diff.warnings.map((warning, index) => (
-                    <li
-                      key={`${warning.code}-${warning.locationId ?? warning.pattern ?? index}`}
-                    >
-                      {warning.message}
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
+              <PlanWarnings diff={diff} />
               {diff.requiresApproximationConfirmation ? (
-                <label className="flex items-start gap-2 text-sm">
-                  <Checkbox
-                    checked={confirmApproximate}
-                    onChange={(event) => setConfirmApproximate(event.target.checked)}
-                  />
-                  <span>{t.rules.acceptApproximate}</span>
-                </label>
+                <p
+                  data-control-d-pending-consent
+                  className="text-sm text-tone-warning-text"
+                >
+                  {t.rules.consentRequired}
+                </p>
+              ) : null}
+              {state?.adoptionKind === "foreign" ? (
+                <p
+                  data-control-d-foreign-review
+                  className="text-sm text-tone-warning-text"
+                >
+                  {t.setup.foreignReview}
+                </p>
               ) : null}
               <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-4">
                 <Button
@@ -705,18 +967,16 @@ export const ControlDSubpage = () => {
                 </Button>
                 <Button
                   type="button"
-                  disabled={
-                    syncing ||
-                    blockingWarnings.length > 0 ||
-                    (diff.serviceErrors?.some(
-                      (conflict) => conflict.code !== "remote-service-changed",
-                    ) ??
-                      false) ||
-                    (diff.requiresApproximationConfirmation && !confirmApproximate)
-                  }
+                  disabled={syncing || hasBlockingChanges(diff)}
+                  data-control-d-apply
+                  className="h-auto max-w-full whitespace-normal py-2 text-left"
                   onClick={() => void apply()}
                 >
-                  {applyLabel}
+                  <ApproximateApplyLabel
+                    label={applyLabel}
+                    diff={diff}
+                    proxyByPk={proxyByPk}
+                  />
                 </Button>
               </div>
             </div>
@@ -805,6 +1065,7 @@ export const ControlDSubpage = () => {
             >
               {t.dns.guide}
             </Button>
+            {privacyPolicyLink()}
           </div>
           {state.dnsStatus === "verified" ? (
             <p className="text-xs text-muted-foreground">
@@ -837,11 +1098,14 @@ export const ControlDSubpage = () => {
 
   const renderOverview = () => (
     <div className="space-y-4">
-      <StepSection
-        alert={stepAlert}
-        title={settingTitle(t.overview.title)}
-        description={t.overview.setupLabel(state?.resourceCode ?? "")}
-      >
+      <StepSection alert={stepAlert} title={settingTitle(t.overview.title)}>
+        <details className="mb-4 text-xs text-muted-foreground">
+          <summary className="w-fit cursor-pointer">{t.overview.codeTitle}</summary>
+          <p className="mt-1">
+            {t.overview.setupLabel(state?.resourceCode ?? "")} ·{" "}
+            {t.overview.codeDescription}
+          </p>
+        </details>
         <div className="grid gap-2 sm:grid-cols-3">
           <div className="rounded-lg border p-3">
             <p className="text-xs text-muted-foreground">{t.overview.account}</p>
@@ -867,7 +1131,10 @@ export const ControlDSubpage = () => {
             type="button"
             size="sm"
             variant="ghost"
-            onClick={() => setStepOverride(2)}
+            onClick={() => {
+              setStepOverride(2);
+              void run({ type: CONTROL_D_COMMANDS.preview });
+            }}
           >
             {t.overview.review}
           </Button>
@@ -883,32 +1150,37 @@ export const ControlDSubpage = () => {
             type="button"
             size="sm"
             disabled={syncing}
-            onClick={() => void run({ type: CONTROL_D_COMMANDS.syncNow })}
+            onClick={() => {
+              setFlowBusy(true);
+              void prepareAndAdvance().finally(() => setFlowBusy(false));
+            }}
           >
             {syncing ? t.common.working : t.rules.sync}
           </Button>
         </div>
       </StepSection>
-      <Separator />
-      <div className="flex justify-end">
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          className="border-tone-error-border text-tone-error-text hover:bg-tone-error-bg hover:text-tone-error-text"
-          onClick={() => setConfirmState({ kind: "disconnect" })}
-        >
-          {t.disconnect.action}
-        </Button>
-      </div>
     </div>
   );
 
   let content = renderDns();
-  if (active && stepOverride === null) content = renderOverview();
+  if (active && stepOverride === null && !state?.lastError) content = renderOverview();
   else if (currentStep === 0) content = renderAccount();
   else if (currentStep === 1) content = renderSetup();
-  else if (currentStep === 2) content = renderRules();
+  else if (currentStep === 2 || (active && state?.lastError && stepOverride === null))
+    content = renderRules();
+
+  if (flowBusy && state?.connected)
+    content = (
+      <StepSection title={settingTitle(t.common.working)}>
+        <p
+          role="status"
+          data-control-d-advancing
+          className="text-sm text-muted-foreground"
+        >
+          {t.status.syncing}
+        </p>
+      </StepSection>
+    );
 
   const help =
     active && stepOverride === null
@@ -920,7 +1192,12 @@ export const ControlDSubpage = () => {
   return (
     <div data-control-d-state={state?.status ?? "loading"} className="space-y-5">
       <AppSubpageHeader
-        title={t.title}
+        title={
+          <span className="flex flex-wrap items-center gap-2">
+            {t.title}
+            <StatusBadge label={t.beta} tone="neutral" />
+          </span>
+        }
         lead={t.lead}
         backLabel={t.back}
         backAriaLabel={t.back}
@@ -938,19 +1215,80 @@ export const ControlDSubpage = () => {
             <div aria-live="polite" className="sr-only">
               {syncing ? t.common.working : stateLabel(state)}
             </div>
+            {successNotice ? (
+              <div
+                role="status"
+                data-control-d-success-notice
+                className="flex items-start justify-between gap-2 rounded-lg border border-tone-success-border bg-tone-success-bg px-3 py-2 text-sm text-tone-success-text"
+              >
+                <div className="min-w-0 space-y-2">
+                  <span>{successNotice}</span>
+                  {completedDiff ? (
+                    <ChangeSummary diff={completedDiff} completed />
+                  ) : null}
+                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  aria-label={t.common.dismiss}
+                  onClick={() => setSuccessNotice(null)}
+                >
+                  ×
+                </Button>
+              </div>
+            ) : null}
             {content}
+            {state?.connected ? (
+              <>
+                <Separator />
+                <div className="flex justify-end">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="border-tone-error-border text-tone-error-text hover:bg-tone-error-bg hover:text-tone-error-text"
+                    disabled={syncing}
+                    onClick={() => setConfirmState({ kind: "disconnect" })}
+                  >
+                    {t.disconnect.action}
+                  </Button>
+                </div>
+              </>
+            ) : null}
           </Card>
-          {state?.connected ? <ControlDRecognitionPanel /> : null}
         </div>
         <div className="col-span-12 lg:col-span-4">
-          <SettingsHelpCard title={help.title} collapsible defaultOpen>
+          <SettingsHelpCard
+            title={help.title}
+            collapsible
+            defaultOpen
+            data-control-d-help
+          >
             <p>{help.body}</p>
             <p>{help.note}</p>
+            {state?.connected ? (
+              <p data-control-d-domain-matching>{featureText.automaticMatching}</p>
+            ) : null}
           </SettingsHelpCard>
         </div>
       </div>
+      <CleanupRetryButton
+        state={state}
+        onClick={() => setConfirmState({ kind: "disconnect" })}
+      />
+      <ControlDDisconnectDialog
+        open={confirmState?.kind === "disconnect"}
+        close={() => setConfirmState(null)}
+        disconnect={() => void finishConfirmation()}
+        onState={(next) => {
+          setState(next);
+          setSnapshot(null);
+          setCandidates([]);
+          setStepOverride(0);
+        }}
+      />
       <Dialog
-        open={confirmState !== null}
+        open={confirmState?.kind === "adopt"}
         onOpenChange={(open) => {
           if (!open) setConfirmState(null);
         }}
@@ -994,3 +1332,13 @@ export const ControlDSubpage = () => {
 };
 
 export const ControlDPanel = ControlDSubpage;
+
+/** Plugin-owned settings presentation, consumed by the PT composition root. */
+export const controlDPluginUi: PluginUiContribution = {
+  id: "control-d",
+  name: "Control D",
+  route: "experimentalIntegration",
+  supported: isIntegrationAvailable,
+  Toggle: ControlDFeatureToggle,
+  Subpage: ControlDSubpage,
+};

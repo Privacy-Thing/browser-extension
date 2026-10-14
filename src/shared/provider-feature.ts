@@ -11,6 +11,7 @@ export type ProviderFeature = z.infer<typeof providerFeatureSchema>;
 
 export const featureBindingSchema = z.object({
   rulePattern: z.string().min(1),
+  rulePatterns: z.array(z.string().min(1)).min(1).max(256).optional(),
   providerId: z.string().min(1),
   featureId: z.string().min(1),
   featureName: z.string().min(1),
@@ -22,6 +23,31 @@ export const featureBindingSchema = z.object({
 });
 
 export type RuleFeatureBinding = z.infer<typeof featureBindingSchema>;
+
+export const bindingPatterns = (binding: RuleFeatureBinding): string[] => [
+  ...new Set([binding.rulePattern, ...(binding.rulePatterns ?? [])]),
+];
+
+export const featureDecisionSchema = z.object({
+  providerId: z.string().min(1).max(100),
+  featureId: z.string().min(1).max(200).nullable(),
+  joinExisting: z.boolean().optional(),
+});
+
+/** A form draft; committed together with its domain rules only on Save. */
+export type FeatureDecision = z.infer<typeof featureDecisionSchema>;
+
+export type ProviderBadgeColors = { background: string; foreground: string };
+
+export type ProviderDecorator = {
+  providerId: string;
+  providerName: string;
+  initials: string;
+  badgeColors?: ProviderBadgeColors;
+  featureId: string;
+  label: string;
+  type: "service";
+};
 
 export const validateFeatureBindings = (
   value: unknown,
@@ -38,14 +64,25 @@ export const validateFeatureBindings = (
     const normalized = {
       ...binding,
       rulePattern: binding.rulePattern.trim().toLowerCase(),
+      ...(binding.rulePatterns
+        ? {
+            rulePatterns: [
+              ...new Set(
+                binding.rulePatterns.map((pattern) => pattern.trim().toLowerCase()),
+              ),
+            ],
+          }
+        : {}),
     };
-    const sourceKey = JSON.stringify([binding.providerId, normalized.rulePattern]);
     const featureKey = JSON.stringify([binding.providerId, binding.featureId]);
-    if (!patterns.has(normalized.rulePattern))
-      throw new Error(`Unknown rule referenced by feature: ${binding.rulePattern}`);
-    if (sources.has(sourceKey) || features.has(featureKey))
-      throw new Error("Conflicting provider feature bindings.");
-    sources.add(sourceKey);
+    for (const pattern of bindingPatterns(normalized)) {
+      const sourceKey = JSON.stringify([binding.providerId, pattern]);
+      if (!patterns.has(pattern))
+        throw new Error(`Unknown rule referenced by feature: ${pattern}`);
+      if (sources.has(sourceKey) || features.has(featureKey))
+        throw new Error("Conflicting provider feature bindings.");
+      sources.add(sourceKey);
+    }
     features.add(featureKey);
     return normalized;
   });
@@ -70,7 +107,14 @@ export const featureStateSchema = z.object({
 
 export type StoredFeatureState = z.infer<typeof featureStateSchema>;
 
-export type ProviderFeatureState = {
+/** Plugin synchronization state for the current rule draft, separate from matching. */
+export type FeatureSyncContext = {
+  state: "ready" | "excluded" | "paused" | "pending" | "no-preset" | "disabled";
+  presetName?: string;
+  settingsPath?: string;
+};
+
+export interface ProviderFeatureState {
   available: boolean;
   providerId: string;
   providerName: string;
@@ -79,8 +123,15 @@ export type ProviderFeatureState = {
   binding: RuleFeatureBinding | null;
   dismissed: boolean;
   syncStatus: string;
+  syncContext?: FeatureSyncContext;
+  recognitionStatus?: "ready" | "preparing" | "blocked" | "unavailable";
   error: string | null;
-};
+  decorator?: ProviderDecorator;
+  providerInitials?: string;
+  badgeColors?: ProviderBadgeColors;
+  bindings?: RuleFeatureBinding[];
+  groupPatterns?: string[];
+}
 
 export const FEATURE_COMMANDS = {
   getState: "pt.provider-feature.get-state",
@@ -100,8 +151,18 @@ export type ProviderFeatureCommand = {
   rulePattern: string;
   hostname: string;
   featureId?: string | undefined;
+  /** Optional draft overrides; null explicitly means no assigned preset. */
+  locationId?: string | null;
+  ruleEnabled?: boolean;
+  /** Existing configuration selected by a staged join; used only for status. */
+  contextFeatureId?: string;
 };
 
 export type ProviderFeatureReply =
   | { ok: true; state: ProviderFeatureState }
-  | { ok: false; error: string; state?: ProviderFeatureState };
+  | { ok: false; error: string; errorCode?: string; state?: ProviderFeatureState };
+
+export type ProviderFeaturePayload = {
+  featureBindings?: RuleFeatureBinding[];
+  decorators?: ProviderDecorator[];
+};

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { fireAndForget } from "@/shared/async";
 import {
@@ -8,20 +8,33 @@ import {
   type ProviderFeatureReply,
   type ProviderFeatureState,
 } from "@/shared/provider-feature";
-import type { FeatureSyncStatus } from "@/ui/components/provider-feature";
+import {
+  recognitionHost,
+  type FeatureSyncStatus,
+} from "@/ui/components/provider-feature/model";
 import { sendMessageOrThrow, sendRuntimeMessage } from "@/ui/shared/runtime-messaging";
 
-type MutationType = Exclude<
-  ProviderFeatureCommand["type"],
-  typeof FEATURE_COMMANDS.getState
->;
+export type ProviderFeatureQuery = {
+  /** Current draft pattern. Recognition must be covered by this pattern. */
+  rulePattern: string;
+  /** Saved pattern, so editing the draft still reads the existing group. */
+  savedRulePattern?: string;
+  hostname: string;
+  /** Recognize a host that has no cached match. Never set from injected worlds. */
+  recognize: boolean;
+  locationId?: string | null;
+  ruleEnabled?: boolean;
+  contextFeatureId?: string;
+};
+
+export type ProviderFeaturePending = "status" | "lookup";
 
 export type ProviderFeatureHandle = {
-  /** Last state the background confirmed; failed replies never replace it. */
   state: ProviderFeatureState | null;
   busy: boolean;
-  error: string | null;
-  send: (type: MutationType, featureId?: string) => void;
+  pending: ProviderFeaturePending | null;
+  failed: boolean;
+  errorCode: string | null;
 };
 
 const isReply = (value: unknown): value is ProviderFeatureReply =>
@@ -32,7 +45,15 @@ const isReply = (value: unknown): value is ProviderFeatureReply =>
 const errorMessage = (failure: unknown): string =>
   failure instanceof Error ? failure.message : String(failure);
 
-/** Provider sync states outside the panel's four are failures the user must see. */
+/**
+ * Extension UI pages have a runtime id. Injected page and worker worlds do not,
+ * so this hook never messages the provider from those paths.
+ */
+const messagingReady = (): boolean =>
+  typeof chrome !== "undefined" &&
+  typeof chrome.runtime?.id === "string" &&
+  chrome.runtime.id.length > 0;
+
 export const toFeatureSyncStatus = (status: string): FeatureSyncStatus => {
   switch (status) {
     case "queued":
@@ -46,75 +67,259 @@ export const toFeatureSyncStatus = (status: string): FeatureSyncStatus => {
   }
 };
 
+export const patternForRead = (query: ProviderFeatureQuery): string => {
+  const saved = query.savedRulePattern?.trim();
+  return saved ? saved : query.rulePattern;
+};
+
+type RecognizeGate = {
+  query: ProviderFeatureQuery;
+  key: string;
+  state: ProviderFeatureState | null;
+  confirmedKey: string;
+  attemptedKey: string;
+};
+
+const isFeatureStateChanged = (message: unknown): boolean =>
+  typeof message === "object" &&
+  message !== null &&
+  Reflect.get(message, "type") === FEATURE_EVENTS.stateChanged;
+
 /**
- * Reads provider feature state for a saved rule source. Only `getState` runs on
- * render; recognition and every mutation wait for an explicit `send`.
+ * A saved group can render from cache while the draft still names the same host.
+ * A new draft host must be queried. Callers that omit the saved pattern have not
+ * shown a hostname edit, so an existing binding stays on the cached group.
  */
+const stableBinding = (
+  query: ProviderFeatureQuery,
+  state: ProviderFeatureState,
+): boolean => {
+  if (!state.binding) return false;
+  const saved = query.savedRulePattern?.trim();
+  if (!saved) return true;
+  return recognitionHost(query.rulePattern) === recognitionHost(saved);
+};
+
+const recognitionBlocksLookup = (state: ProviderFeatureState): boolean =>
+  state.recognitionStatus === "preparing" ||
+  state.recognitionStatus === "unavailable" ||
+  state.recognitionStatus === "blocked";
+
+/** One recognize per editor host. Background applies its own TTL to cached matches. */
+const shouldRecognize = ({
+  query,
+  key,
+  state,
+  confirmedKey,
+  attemptedKey,
+}: RecognizeGate): boolean => {
+  if (!query.recognize || query.hostname === "" || !messagingReady()) return false;
+  if (confirmedKey !== key || !state?.available || attemptedKey === key) return false;
+  if (!state || recognitionBlocksLookup(state)) return false;
+  if (state.dismissed || stableBinding(query, state)) return false;
+  return true;
+};
+
+const failedWhilePreparing = (reply: ProviderFeatureReply): boolean => {
+  if (reply.ok) return false;
+  return (
+    reply.errorCode === "recognition-preparing" ||
+    reply.state?.recognitionStatus === "preparing"
+  );
+};
+
+type FailureState = { key: string; code: string | null };
+
+type LookupArgs = {
+  query: ProviderFeatureQuery;
+  key: string;
+  state: ProviderFeatureState | null;
+  apply: (sequence: number, reply: unknown) => void;
+  sequenceRef: { current: number };
+  actionRef: { current: Promise<unknown> | null };
+  target: { current: ProviderFeatureQuery };
+  confirmed: { current: string };
+  attempted: { current: string };
+  setBusy: (busy: boolean) => void;
+  setPending: (pending: ProviderFeaturePending | null) => void;
+};
+
+const useFeatureLookup = ({
+  query,
+  key,
+  state,
+  apply,
+  sequenceRef,
+  actionRef,
+  target,
+  confirmed,
+  attempted,
+  setBusy,
+  setPending,
+}: LookupArgs): void => {
+  const { rulePattern, hostname, recognize } = query;
+  useEffect(() => {
+    const current = target.current;
+    if (
+      !shouldRecognize({
+        query: current,
+        key,
+        state,
+        confirmedKey: confirmed.current,
+        attemptedKey: attempted.current,
+      })
+    ) {
+      return;
+    }
+    attempted.current = key;
+    const sequence = ++sequenceRef.current;
+    const command: ProviderFeatureCommand = {
+      type: FEATURE_COMMANDS.recognize,
+      rulePattern: current.rulePattern,
+      hostname: current.hostname,
+      ...(state?.providerId ? { providerId: state.providerId } : {}),
+      ...(current.locationId !== undefined ? { locationId: current.locationId } : {}),
+      ...(current.ruleEnabled !== undefined
+        ? { ruleEnabled: current.ruleEnabled }
+        : {}),
+      ...(current.contextFeatureId
+        ? { contextFeatureId: current.contextFeatureId }
+        : {}),
+    };
+    setBusy(true);
+    setPending("lookup");
+    const action = sendMessageOrThrow<ProviderFeatureReply>(command).then(
+      (reply) => apply(sequence, reply),
+      (error: unknown) => apply(sequence, { ok: false, error: errorMessage(error) }),
+    );
+    actionRef.current = action;
+    fireAndForget(
+      action.finally(() => {
+        if (actionRef.current === action) actionRef.current = null;
+      }),
+    );
+  }, [
+    actionRef,
+    apply,
+    attempted,
+    confirmed,
+    hostname,
+    key,
+    recognize,
+    rulePattern,
+    sequenceRef,
+    setBusy,
+    setPending,
+    state,
+    target,
+  ]);
+};
+
+const queryKey = (query: ProviderFeatureQuery): string =>
+  JSON.stringify([
+    patternForRead(query),
+    query.hostname,
+    query.locationId,
+    query.ruleEnabled,
+    query.contextFeatureId,
+  ]);
+
+type FeatureSnapshot = { key: string; value: ProviderFeatureState };
+const stateFor = (
+  snapshot: FeatureSnapshot | null,
+  key: string,
+): ProviderFeatureState | null => {
+  if (!snapshot) return null;
+  if (snapshot.key === key) return snapshot.value;
+  return { ...snapshot.value, match: null, dismissed: false };
+};
+
 export const useProviderFeature = (
-  rulePattern: string,
-  hostname: string,
+  query: ProviderFeatureQuery,
 ): ProviderFeatureHandle => {
-  const key = JSON.stringify([rulePattern, hostname]);
-  const [snapshot, setSnapshot] = useState<{
-    key: string;
-    value: ProviderFeatureState;
-  } | null>(null);
-  let state = snapshot?.value ?? null;
-  if (state && snapshot?.key !== key)
-    state = { ...state, match: null, dismissed: false };
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const key = queryKey(query);
+  const [snapshot, setSnapshot] = useState<FeatureSnapshot | null>(null);
+  const state = useMemo(() => stateFor(snapshot, key), [key, snapshot]);
+  const live = messagingReady();
+  const [busy, setBusy] = useState(live);
+  const [pending, setPending] = useState<ProviderFeaturePending | null>(
+    live ? "status" : null,
+  );
+  const [failure, setFailure] = useState<FailureState | null>(null);
   const sequenceRef = useRef(0);
   const actionRef = useRef<Promise<unknown> | null>(null);
-  const target = useRef({ rulePattern, hostname });
-  target.current = { rulePattern, hostname };
+  const confirmed = useRef("");
+  const attempted = useRef("");
+  const preparingKey = useRef("");
+  const target = useRef(query);
+  target.current = query;
 
   const apply = useCallback(
     (sequence: number, reply: unknown) => {
       if (sequence !== sequenceRef.current) return;
       setBusy(false);
-      if (!isReply(reply)) return;
-      if (reply.ok) {
-        setSnapshot({ key, value: reply.state });
-        setError(null);
+      setPending(null);
+      if (!isReply(reply)) {
+        setFailure({ key, code: null });
         return;
       }
-      setSnapshot((previous) => {
-        if (previous?.key === key) return previous;
-        return reply.state ? { key, value: reply.state } : null;
-      });
-      setError(reply.error);
+      if (reply.ok) {
+        setSnapshot({ key, value: reply.state });
+        confirmed.current = key;
+        if (preparingKey.current === key && reply.state.recognitionStatus === "ready") {
+          preparingKey.current = "";
+          attempted.current = "";
+        }
+        setFailure(null);
+        return;
+      }
+      if (reply.state) {
+        setSnapshot({ key, value: reply.state });
+        confirmed.current = key;
+      }
+      preparingKey.current = failedWhilePreparing(reply) ? key : "";
+      setFailure({ key, code: reply.errorCode ?? null });
     },
     [key],
   );
 
   useEffect(() => {
+    if (!messagingReady()) {
+      setBusy(false);
+      setPending(null);
+      return;
+    }
     let active = true;
     const refresh = () => {
       if (!active) return;
       const sequence = ++sequenceRef.current;
+      const current = target.current;
       const command: ProviderFeatureCommand = {
         type: FEATURE_COMMANDS.getState,
-        rulePattern,
-        hostname,
+        rulePattern: patternForRead(current),
+        hostname: current.hostname,
+        ...(current.locationId !== undefined ? { locationId: current.locationId } : {}),
+        ...(current.ruleEnabled !== undefined
+          ? { ruleEnabled: current.ruleEnabled }
+          : {}),
+        ...(current.contextFeatureId
+          ? { contextFeatureId: current.contextFeatureId }
+          : {}),
       };
+      setBusy(true);
+      setPending("status");
       fireAndForget(
-        sendRuntimeMessage<ProviderFeatureReply>(command).then((reply) =>
-          apply(sequence, reply),
+        sendRuntimeMessage<ProviderFeatureReply>(command).then(
+          (reply) => apply(sequence, reply),
+          (error: unknown) =>
+            apply(sequence, { ok: false, error: errorMessage(error) }),
         ),
       );
     };
     const changed = (message: unknown) => {
-      if (
-        typeof message !== "object" ||
-        message === null ||
-        Reflect.get(message, "type") !== FEATURE_EVENTS.stateChanged
-      )
-        return;
-      // A provider update converges after the user's in-flight operation, so it cannot discard its result.
-      fireAndForget((actionRef.current ?? Promise.resolve()).then(refresh));
+      if (!isFeatureStateChanged(message)) return;
+      fireAndForget((actionRef.current ?? Promise.resolve()).then(() => refresh()));
     };
-    setBusy(false);
     refresh();
     chrome.runtime.onMessage?.addListener(changed);
     return () => {
@@ -122,32 +327,28 @@ export const useProviderFeature = (
       sequenceRef.current += 1;
       chrome.runtime.onMessage?.removeListener(changed);
     };
-  }, [apply, hostname, rulePattern]);
+  }, [apply, key]);
 
-  const send = useCallback(
-    (type: MutationType, featureId?: string) => {
-      const sequence = ++sequenceRef.current;
-      const command: ProviderFeatureCommand = {
-        type,
-        ...target.current,
-        ...(state?.providerId ? { providerId: state.providerId } : {}),
-        ...(featureId === undefined ? {} : { featureId }),
-      };
-      setBusy(true);
-      setError(null);
-      const action = sendMessageOrThrow<ProviderFeatureReply>(command).then(
-        (reply) => apply(sequence, reply),
-        (failure) => apply(sequence, { ok: false, error: errorMessage(failure) }),
-      );
-      actionRef.current = action;
-      fireAndForget(
-        action.finally(() => {
-          if (actionRef.current === action) actionRef.current = null;
-        }),
-      );
-    },
-    [apply, state?.providerId],
-  );
+  useFeatureLookup({
+    query,
+    key,
+    state,
+    apply,
+    sequenceRef,
+    actionRef,
+    target,
+    confirmed,
+    attempted,
+    setBusy,
+    setPending,
+  });
 
-  return { state, busy, error, send };
+  const currentFailure = failure?.key === key ? failure : null;
+  return {
+    state,
+    busy,
+    pending: busy ? pending : null,
+    failed: currentFailure !== null,
+    errorCode: currentFailure?.code ?? null,
+  };
 };

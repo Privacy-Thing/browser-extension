@@ -56,14 +56,15 @@ export const about = {
 
   privacy: {
     title: "Privacidade",
-    body: `O ${BRAND_DISPLAY_NAME} armazena suas configurações e seus perfis regionais localmente no navegador. As solicitações externas de mapas são opcionais: após o seu consentimento, o OpenStreetMap Nominatim é usado para pesquisar locais e o OpenFreeMap para exibir mapas interativos.`,
+    body: `O ${BRAND_DISPLAY_NAME} armazena localmente as configurações e os perfis salvos. Os serviços de mapa opcionais recebem solicitações de pesquisa e de mapa após o seu consentimento. Se você ativar o Control D, os nomes de host das regras de domínio, as saídas escolhidas e os nomes dos recursos gerenciados são enviados ao Control D. Consulte a política de privacidade para mais detalhes.`,
     openPolicyButton: "Abrir política de privacidade",
   },
 
   limitations: {
     title: WHAT_PRODUCT_IS_NOT,
-    intro: `${BRAND_DISPLAY_NAME} altera dados visíveis no navegador, como geolocalização, localidade, fuso horário e detalhes de impressão digital selecionados. Ele não redireciona seu tráfego por uma rede diferente.`,
-    body1: "Ele não oculta nem substitui seu endereço IP.",
+    intro: `${BRAND_DISPLAY_NAME} altera dados visíveis no navegador, como geolocalização, localidade, fuso horário e detalhes de impressão digital selecionados. A simulação não roteia o tráfego. A integração opcional com o Control D sincroniza regras regionais; o Control D roteia o tráfego depois que você configura o resolvedor DNS dele.`,
+    body1:
+      "Por si só, a simulação no nível do navegador não oculta nem substitui seu endereço IP. Um resolvedor do Control D configurado pode rotear sites selecionados por suas saídas.",
     body2:
       "Ele não substitui uma VPN, proxy ou configuração de roteamento baseada em DNS.",
     body3:

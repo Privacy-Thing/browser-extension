@@ -6,23 +6,51 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ## [Unreleased]
 
+### Changed
+
+- Control D setup now opens when enabled and automatically creates or reconnects a
+  single ready setup and applies safe plans. One explicit action remembers consent
+  for approximate routes; changed routes, removals and conflicts require review.
+  A failed ownership check preserves the adopted setup and requires plan review.
+- Control D shows labeled setup steps, clearer planned changes and a dismissible
+  sync summary. Disconnect is available throughout setup, resource codes are
+  explained, and API-key errors reserve space below the field.
+
 ### Added
 
-- Experimental local and beta builds can recognize a rule hostname as a provider
-  feature and explicitly link a Control D service rule. Rule editor and popup
-  support confirmation, manual selection, dismissal and detach. Generic bindings
-  survive backups and pattern changes; local Privacy Thing protection keeps its
-  domain scope. Native service sync preserves unrelated provider rules.
-  A separately reviewed lookup profile avoids Custom Rule overrides without
-  changing the browser's regional DNS endpoint.
+- The optional Control D integration is now included in production builds for Chromium
+  and Firefox, with API access requested only when connecting.
 
-- Added an experimental, one-way Control D regional DNS integration to local
-  and beta builds. It previews managed rule changes, requires confirmation
-  before the first sync, preserves unrelated Control D resources, and guides
-  users through manual browser DoH setup. The dedicated four-step flow can
-  explicitly recover setups created with the v2 Privacy Thing naming scheme
-  after reinstalling, while release builds preserve but never load its private
-  storage namespace.
+- Domain rules can include several explicit patterns sharing one configuration and
+  identity. The editor manages all patterns, the rule list shows one configuration,
+  and the popup lists its complete scope. Pattern edits reject empty, duplicate or
+  conflicting membership. Groups work independently of plugins and survive service
+  unlinking, restart and settings backups.
+
+- Privacy Thing automatically suggests matching Control D services
+  when creating or editing a domain rule. The editor and popup let users choose, change
+  or unlink a service, with a compact plugin badge and visible request progress; Save
+  commits the choice with the rule. A service already linked to another rule offers
+  adding the pattern to that rule, previews and locks its shared settings, and requires
+  consent before creation. Service links survive pattern changes and settings backups.
+  Control D prepares recognition automatically, synchronizes eligible redirects and
+  preserves unrelated remote rules. Help and preset guidance explain synchronization
+  and the service's potentially wider scope; Privacy Thing protects only the rule's
+  explicit patterns.
+
+- Experimental Control D integration offers a reviewed disconnect-and-delete
+  option for recorded, unchanged resources, with a browser DNS confirmation and
+  retryable cleanup results. Plain Disconnect continues to preserve remote resources.
+
+- Added a compact Control D introduction explaining account resources, data sharing,
+  retained resources and manual DNS setup, with both privacy policy links. Local and
+  beta builds label the integration with a Beta badge.
+
+- Added an optional, one-way Control D regional DNS integration. It previews
+  managed rule changes internally, asks for review when a decision is needed,
+  preserves unrelated Control D resources, and guides users through manual browser
+  DoH setup. The dedicated four-step flow can recover setups created with the v2
+  Privacy Thing naming scheme after reinstalling.
 - A “Site not working?” assistant offers one temporary Service Worker or
   SharedWorker policy test for the exact top-document host. Failed, cancelled
   and expired tests restore current settings; saving a host exception requires
@@ -59,6 +87,18 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ### Changed
 
+- The privacy policy now has a separate section for the optional Control D
+  integration. It lists what is sent to Control D (rule hostnames, chosen
+  exits, resource names, optional service lookups and the API key), what stays
+  local, what remains in the Control D account after disconnecting, and links to
+  Control D's own privacy policy.
+
+- About and Regional Presets copy no longer claims that Privacy Thing never
+  affects routing or the IP address. It now says that browser-level spoofing alone
+  does not route traffic, that the optional Control D integration can sync domain
+  rules to a matching exit once its resolver is configured, and that enabling it
+  sends rule hostnames, chosen exits and managed resource names to Control D.
+  Translated for English, Spanish, Portuguese, Russian and Ukrainian.
 - Upgrade the location map to MapLibre GL JS 6 while keeping its worker bundled
   locally for Chromium and Firefox extension pages. Maps now require WebGL2.
 
@@ -75,6 +115,8 @@ The format is based on Keep a Changelog and the project follows Semantic Version
   rules. Domain fencing session rules still apply only to the top-frame host.
 
 ### Fixed
+
+- Pickers no longer draw option rows outside their popup on short windows.
 
 - Control D keeps saved route overrides when all rules for a region are disabled,
   and status colors follow integration state in every interface language.
@@ -126,6 +168,10 @@ The format is based on Keep a Changelog and the project follows Semantic Version
   the shared Select.
 - Confirm installed Battery protection before a page first queries the API, and clear
   stale integrity evidence after the protection recovers.
+
+## [0.9.3.14] - 2026-10-13
+
+- Refreshed extension metadata (hardware profiles, Chrome versions, locale data) from upstream sources to keep spoofed fingerprints current.
 
 ## [0.9.3.13] - 2026-10-10
 

@@ -7,6 +7,7 @@ import {
   type ControlDConfig,
   type ControlDPreparedSnapshot,
 } from "./contracts";
+import { ensureControlDRecognition } from "./recognition-setup";
 import {
   hashControlDInputs,
   applyControlDSync,
@@ -15,8 +16,14 @@ import {
 import { CONTROL_D_STORE_KEYS, saveControlDConfig } from "./storage";
 
 import { logExtensionEvent } from "@/background/logger";
+import { createPluginHooks } from "@/background/plugin-hooks";
 import { LOCATIONS_STORAGE_KEY } from "@/background/storage/locations";
 import { RULES_STORAGE_KEY } from "@/background/storage/rules";
+
+vi.mock("./recognition-setup", async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  ensureControlDRecognition: vi.fn(async () => undefined),
+}));
 
 vi.mock("@/background/logger", () => ({
   logExtensionEvent: vi.fn(),
@@ -63,14 +70,20 @@ beforeEach(() => {
   for (const key of Object.keys(storageState))
     Reflect.deleteProperty(storageState, key);
 
+  const storageListeners: StorageListener[] = [];
+  storageListener = (changes, area) => {
+    for (const listener of storageListeners) listener(changes, area);
+  };
   vi.stubGlobal("chrome", {
     runtime: {
       id: "extension-id",
+      sendMessage: vi.fn(async () => undefined),
       getURL: (path: string) => `chrome-extension://extension-id${path}`,
       onMessage: {
         addListener: vi.fn((listener: MessageListener) => {
           messageListener = listener;
         }),
+        removeListener: vi.fn(),
       },
     },
     storage: {
@@ -85,8 +98,9 @@ beforeEach(() => {
       },
       onChanged: {
         addListener: vi.fn((listener: StorageListener) => {
-          storageListener = listener;
+          storageListeners.push(listener);
         }),
+        removeListener: vi.fn(),
       },
     },
   });
@@ -135,8 +149,30 @@ describe("Control D background entry", () => {
       );
     });
 
+  it("prepares matching automatically after setup and on worker restart", async () => {
+    await saveControlDConfig(fixtureConfig());
+    registerControlD({ hooks: createPluginHooks(), getDebugMode: () => false });
+    for (let tick = 0; tick < 6; tick++) await Promise.resolve();
+    expect(ensureControlDRecognition).toHaveBeenCalledOnce();
+    vi.mocked(ensureControlDRecognition).mockClear();
+    storageListener(
+      { [CONTROL_D_STORE_KEYS[0]]: { newValue: fixtureConfig() } },
+      "local",
+    );
+    for (let tick = 0; tick < 6; tick++) await Promise.resolve();
+    expect(ensureControlDRecognition).toHaveBeenCalledOnce();
+    await saveControlDConfig({ ...fixtureConfig(), enabled: false });
+    vi.mocked(ensureControlDRecognition).mockClear();
+    storageListener(
+      { [CONTROL_D_STORE_KEYS[0]]: { newValue: { enabled: false } } },
+      "local",
+    );
+    for (let tick = 0; tick < 6; tick++) await Promise.resolve();
+    expect(ensureControlDRecognition).not.toHaveBeenCalled();
+  });
+
   it("rejects Control D commands from content scripts before reading credentials", () => {
-    registerControlD({ getDebugMode: () => false });
+    registerControlD({ hooks: createPluginHooks(), getDebugMode: () => false });
     const respond = vi.fn();
     expect(
       messageListener(
@@ -215,7 +251,7 @@ describe("Control D background entry", () => {
       .mockResolvedValueOnce(prepared)
       .mockResolvedValueOnce(prepared);
     vi.mocked(applyControlDSync).mockResolvedValueOnce(config);
-    registerControlD({ getDebugMode: async () => false });
+    registerControlD({ hooks: createPluginHooks(), getDebugMode: async () => false });
 
     const previewResponse = await request({ type: CONTROL_D_COMMANDS.preview });
     expect(previewResponse).toMatchObject({ ok: true, snapshot: expectedSnapshot });
@@ -282,7 +318,7 @@ describe("Control D background entry", () => {
       await saveControlDConfig(journal);
       throw new Error("Second service write timed out");
     });
-    registerControlD({ getDebugMode: async () => false });
+    registerControlD({ hooks: createPluginHooks(), getDebugMode: async () => false });
     const preview = await request({ type: CONTROL_D_COMMANDS.preview });
     const response = await request({
       type: CONTROL_D_COMMANDS.apply,
@@ -342,7 +378,7 @@ describe("Control D background entry", () => {
         requiresApproximationConfirmation: false,
       },
     });
-    registerControlD({ getDebugMode: async () => false });
+    registerControlD({ hooks: createPluginHooks(), getDebugMode: async () => false });
 
     const response = await request({ type: CONTROL_D_COMMANDS.preview });
 
@@ -358,7 +394,7 @@ describe("Control D background entry", () => {
 
   it("creates a new resource identity without running synchronization", async () => {
     storageState[CONTROL_D_STORE_KEYS[1]] = "api-key";
-    registerControlD({ getDebugMode: async () => false });
+    registerControlD({ hooks: createPluginHooks(), getDebugMode: async () => false });
 
     const response = await request({ type: CONTROL_D_COMMANDS.selectNew });
 
@@ -398,7 +434,7 @@ describe("Control D background entry", () => {
       lastError: null,
     };
     storageState[CONTROL_D_STORE_KEYS[1]] = "api-key";
-    registerControlD({ getDebugMode: async () => false });
+    registerControlD({ hooks: createPluginHooks(), getDebugMode: async () => false });
 
     const confirmed = await request({
       type: CONTROL_D_COMMANDS.confirmDns,
@@ -420,7 +456,7 @@ describe("Control D background entry", () => {
   });
 
   it("persists a toggle action in extension logs when debug mode comes from storage", async () => {
-    registerControlD({ getDebugMode: async () => true });
+    registerControlD({ hooks: createPluginHooks(), getDebugMode: async () => true });
 
     const response = await new Promise<unknown>((resolve) => {
       expect(
@@ -447,7 +483,7 @@ describe("Control D background entry", () => {
   });
 
   it("logs regional mapping changes for View Logs in debug mode", async () => {
-    registerControlD({ getDebugMode: async () => true });
+    registerControlD({ hooks: createPluginHooks(), getDebugMode: async () => true });
 
     const response = await new Promise<unknown>((resolve) => {
       messageListener(
@@ -486,6 +522,190 @@ describe("Control D background entry", () => {
     });
   });
 
+  it.each([
+    { deleteRules: 1 },
+    { deleteServices: 1 },
+    { requiresApproximationConfirmation: true },
+    {
+      serviceErrors: [{ code: "remote-service-changed" as const, message: "Changed" }],
+    },
+  ])("pauses unattended changes requiring review: %j", async (changes) => {
+    const current = { ...fixtureConfig(), autoSyncEnabled: true };
+    storageState[CONTROL_D_STORE_KEYS[0]] = current;
+    storageState[CONTROL_D_STORE_KEYS[1]] = "api-key";
+    vi.mocked(prepareControlDSync).mockResolvedValue({
+      inputHash: "input",
+      remoteHash: "remote",
+      compilation: { rules: [], mappings: {}, warnings: [] },
+      proxies: [],
+      diff: {
+        createProfile: false,
+        createEndpoint: false,
+        createFolders: 0,
+        addRules: 0,
+        updateRules: 0,
+        deleteRules: 0,
+        unchangedRules: 0,
+        warnings: [],
+        mappings: [],
+        requiresApproximationConfirmation: false,
+        ...changes,
+      },
+    });
+    registerControlD({ hooks: createPluginHooks(), getDebugMode: () => false });
+    const response = await request({ type: CONTROL_D_COMMANDS.syncNow });
+    expect(response).toMatchObject({
+      ok: false,
+      state: { status: "conflict", autoSyncEnabled: false },
+    });
+    expect(applyControlDSync).not.toHaveBeenCalled();
+  });
+
+  it.each([null, "PT ABCDE-FGHJK", "another-extension", "request-fails"])(
+    "classifies ownership when adopting rules with comment %j",
+    async (comment) => {
+      storageState[CONTROL_D_STORE_KEYS[0]] = fixtureConfig();
+      storageState[CONTROL_D_STORE_KEYS[1]] = "api-key";
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (input: string | URL) => {
+          const path = new URL(input).pathname;
+          let body: unknown = {};
+          if (path === "/profiles")
+            body = {
+              profiles: [{ PK: "profile-id", name: "Privacy Thing ABCDE-FGHJK" }],
+            };
+          if (path === "/devices")
+            body = {
+              devices: [
+                {
+                  PK: "endpoint-id",
+                  name: "PT Browser ABCDE-FGHJK",
+                  profile: { PK: "profile-id" },
+                },
+              ],
+            };
+          if (path.endsWith("/groups")) body = { groups: [] };
+          if (path.endsWith("/rules/all")) {
+            if (comment === "request-fails")
+              return new Response(JSON.stringify({ success: false }), { status: 403 });
+            body = { rules: [{ PK: "foreign.example", comment }] };
+          }
+          return new Response(JSON.stringify({ success: true, body }));
+        }),
+      );
+      registerControlD({ hooks: createPluginHooks(), getDebugMode: () => false });
+      const response = await request({
+        type: CONTROL_D_COMMANDS.adopt,
+        profileId: "profile-id",
+        endpointId: "endpoint-id",
+        code: "ABCDE-FGHJK",
+      });
+      expect(response).toMatchObject({
+        ok: true,
+        state: { adoptionKind: comment === "PT ABCDE-FGHJK" ? "owned" : "foreign" },
+      });
+      expect(storageState[CONTROL_D_STORE_KEYS[0]]).toMatchObject({
+        profileId: "profile-id",
+        endpointId: "endpoint-id",
+        adoptionKind: comment === "PT ABCDE-FGHJK" ? "owned" : "foreign",
+      });
+    },
+  );
+
+  it("surfaces new approximate routes from an automatic sync without applying", async () => {
+    storageState[CONTROL_D_STORE_KEYS[0]] = {
+      ...fixtureConfig(),
+      autoSyncEnabled: true,
+    };
+    storageState[CONTROL_D_STORE_KEYS[1]] = "api-key";
+    vi.mocked(prepareControlDSync).mockResolvedValue({
+      inputHash: "input",
+      remoteHash: "remote",
+      proxies: [],
+      compilation: { rules: [], mappings: {}, warnings: [] },
+      diff: {
+        createProfile: false,
+        createEndpoint: false,
+        createFolders: 0,
+        addRules: 1,
+        updateRules: 0,
+        deleteRules: 0,
+        unchangedRules: 0,
+        mappings: [
+          {
+            locationId: "sydney",
+            proxyPk: "WAW",
+            status: "approximate",
+            confirmed: false,
+          },
+        ],
+        warnings: [],
+        requiresApproximationConfirmation: true,
+      },
+    });
+    registerControlD({ hooks: createPluginHooks(), getDebugMode: () => false });
+    await request({ type: CONTROL_D_COMMANDS.getState });
+    await vi.advanceTimersByTimeAsync(1_500);
+    await request({ type: CONTROL_D_COMMANDS.getState });
+    expect(prepareControlDSync).toHaveBeenCalledOnce();
+    expect(applyControlDSync).not.toHaveBeenCalled();
+    expect(storageState[CONTROL_D_STORE_KEYS[0]]).toMatchObject({
+      status: "conflict",
+      autoSyncEnabled: false,
+      lastError: "Review the pending routes and changes before synchronizing.",
+    });
+  });
+
+  it("keeps pending route consent visible after preview and a subsequent state read", async () => {
+    const current = {
+      ...fixtureConfig(),
+      status: "conflict" as const,
+      lastError: "Review the pending routes and changes before synchronizing.",
+    };
+    storageState[CONTROL_D_STORE_KEYS[0]] = current;
+    storageState[CONTROL_D_STORE_KEYS[1]] = "api-key";
+    vi.mocked(prepareControlDSync).mockResolvedValue({
+      inputHash: "input",
+      remoteHash: "remote",
+      proxies: [],
+      compilation: { rules: [], mappings: {}, warnings: [] },
+      diff: {
+        createProfile: false,
+        createEndpoint: false,
+        createFolders: 0,
+        addRules: 1,
+        updateRules: 0,
+        deleteRules: 0,
+        unchangedRules: 0,
+        mappings: [
+          {
+            locationId: "sydney",
+            proxyPk: "WAW",
+            status: "approximate",
+            confirmed: false,
+          },
+        ],
+        warnings: [],
+        requiresApproximationConfirmation: true,
+      },
+    });
+    registerControlD({ hooks: createPluginHooks(), getDebugMode: () => false });
+    expect(await request({ type: CONTROL_D_COMMANDS.preview })).toMatchObject({
+      ok: true,
+      state: { status: "conflict", lastError: current.lastError },
+    });
+    expect(await request({ type: CONTROL_D_COMMANDS.getState })).toMatchObject({
+      ok: true,
+      state: {
+        status: "conflict",
+        autoSyncEnabled: false,
+        lastError: current.lastError,
+      },
+    });
+    expect(applyControlDSync).not.toHaveBeenCalled();
+  });
+
   it("schedules automatic reconciliation when an applied integration starts", async () => {
     storageState[CONTROL_D_STORE_KEYS[0]] = {
       version: 2,
@@ -507,7 +727,7 @@ describe("Control D background entry", () => {
     };
     const timeoutSpy = vi.spyOn(globalThis, "setTimeout");
 
-    registerControlD({ getDebugMode: async () => true });
+    registerControlD({ hooks: createPluginHooks(), getDebugMode: async () => true });
 
     await vi.waitFor(() => {
       expect(timeoutSpy).toHaveBeenCalledWith(expect.any(Function), 1_500);
@@ -515,10 +735,10 @@ describe("Control D background entry", () => {
     timeoutSpy.mockRestore();
   });
 
-  it("debounces every saved rule or location mutation into automatic reconciliation", () => {
+  it("debounces every saved rule or location mutation into automatic reconciliation", async () => {
     const timeoutSpy = vi.spyOn(globalThis, "setTimeout");
     const clearTimeoutSpy = vi.spyOn(globalThis, "clearTimeout");
-    registerControlD({ getDebugMode: async () => false });
+    registerControlD({ hooks: createPluginHooks(), getDebugMode: async () => false });
 
     const ruleSnapshots = [
       [{ pattern: "added.example", enabled: true }],
@@ -532,6 +752,7 @@ describe("Control D background entry", () => {
       { [LOCATIONS_STORAGE_KEY]: { newValue: [{ id: "warsaw" }] } },
       "local",
     );
+    await Promise.resolve();
 
     expect(timeoutSpy).toHaveBeenCalledTimes(4);
     expect(timeoutSpy).toHaveBeenLastCalledWith(expect.any(Function), 1_500);
@@ -550,7 +771,7 @@ describe("Control D background entry", () => {
       return pending.promise;
     });
     vi.mocked(applyControlDSync).mockResolvedValueOnce(config);
-    registerControlD({ getDebugMode: async () => false });
+    registerControlD({ hooks: createPluginHooks(), getDebugMode: async () => false });
     const sync = request({ type: CONTROL_D_COMMANDS.syncNow });
     await started.promise;
     let disconnected = false;
@@ -612,7 +833,7 @@ describe("Control D background entry", () => {
         requiresApproximationConfirmation: false,
       },
     });
-    registerControlD({ getDebugMode: async () => false });
+    registerControlD({ hooks: createPluginHooks(), getDebugMode: async () => false });
     const preview = await request({ type: CONTROL_D_COMMANDS.preview });
     storageState[RULES_STORAGE_KEY] = [
       {

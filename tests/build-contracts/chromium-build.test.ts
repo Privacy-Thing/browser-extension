@@ -13,7 +13,6 @@ import {
 } from "../../config/build-budgets";
 import { BRAND_DISPLAY_NAME } from "../../scripts/brand-config.mjs";
 
-import { findControlDReleaseLeaks } from "./experimental-integrations";
 import { findRetiredBuildLeaks } from "./retired-name";
 
 type ChromiumManifest = {
@@ -83,16 +82,20 @@ test("contains no retired namespace outside approved notification copy", async (
   expect(await findRetiredBuildLeaks("chrome")).toEqual([]);
 });
 
-test("keeps the Control D experiment out of release artifacts", async () => {
+test("includes the optional Control D integration in every build channel", async () => {
   const manifest = await readChromiumManifest();
-  if (
-    manifest.version_name?.endsWith("-local") ||
-    manifest.version_name?.endsWith("-beta")
-  )
-    return;
-
-  expect(manifest.optional_host_permissions).toBeUndefined();
-  expect(await findControlDReleaseLeaks("chrome")).toEqual([]);
+  expect(manifest.optional_host_permissions).toEqual(["https://api.controld.com/*"]);
+  const background = await readFile(
+    path.resolve(process.cwd(), "build", "chrome", "assets", "background.js"),
+    "utf8",
+  );
+  expect(background).toContain("api.controld.com");
+  const assets = path.resolve(process.cwd(), "build", "chrome", "assets");
+  const uiBundles = (await readdir(assets)).filter((file) => file.endsWith(".js"));
+  const ui = await Promise.all(
+    uiBundles.map((file) => readFile(path.join(assets, file), "utf8")),
+  );
+  expect(ui.some((bundle) => bundle.includes("Control D"))).toBe(true);
 });
 
 test("exposes only the runtime-applied marker to downstream CI jobs", async () => {

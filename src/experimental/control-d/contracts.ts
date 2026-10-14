@@ -5,6 +5,8 @@ export const CONTROL_D_API_GUIDE_URL =
   "https://docs.controld.com/reference/get-started";
 export const CONTROL_D_GUIDE_URL = "https://docs.controld.com/docs/browsers-platform";
 export const CONTROL_D_STATUS_URL = "https://controld.com/status";
+export const CONTROL_D_NEEDS_REVIEW =
+  "Review the pending routes and changes before synchronizing.";
 
 export const CONTROL_D_COMMANDS = {
   getState: "pt.control-d.get-state",
@@ -21,6 +23,8 @@ export const CONTROL_D_COMMANDS = {
   confirmDns: "pt.control-d.confirm-dns",
   dnsAction: "pt.control-d.dns-action",
   disconnect: "pt.control-d.disconnect",
+  planCleanup: "pt.control-d.plan-cleanup",
+  executeCleanup: "pt.control-d.execute-cleanup",
 } as const;
 
 export type ControlDStatus =
@@ -36,6 +40,7 @@ export type ControlDMapping = {
   proxyPk: string | null;
   status: "exact" | "approximate" | "skipped";
   confirmed: boolean;
+  routeFingerprint?: string | undefined;
 };
 
 export type ControlDManagedFolder = {
@@ -82,6 +87,7 @@ export type ControlDServiceConflict = {
 
 export type ControlDConfigV2 = {
   version: 2;
+  adoptionKind?: "owned" | "foreign" | undefined;
   enabled: boolean;
   connected: boolean;
   autoSyncEnabled: boolean;
@@ -168,6 +174,7 @@ export type ControlDPreparedSnapshot = {
 };
 
 export type ControlDPublicState = {
+  adoptionKind?: "owned" | "foreign" | undefined;
   enabled: boolean;
   connected: boolean;
   autoSyncEnabled: boolean;
@@ -197,6 +204,7 @@ const mappingSchema = z.object({
   proxyPk: z.string().min(1).nullable(),
   status: z.enum(["exact", "approximate", "skipped"]),
   confirmed: z.boolean(),
+  routeFingerprint: z.string().optional(),
 });
 
 const managedFolderSchema = z.object({
@@ -220,6 +228,7 @@ const managedServiceSchema = z.object({
 
 export const controlDConfigSchema = z.object({
   version: z.literal(2),
+  adoptionKind: z.enum(["owned", "foreign"]).optional(),
   enabled: z.boolean(),
   connected: z.boolean(),
   autoSyncEnabled: z.boolean(),
@@ -278,7 +287,9 @@ export type ControlDCommand =
       action: "copy-resolver" | "open-settings" | "open-status" | "open-guide";
       outcome: "success" | "fallback" | "failure";
     }
-  | { type: typeof CONTROL_D_COMMANDS.disconnect };
+  | { type: typeof CONTROL_D_COMMANDS.disconnect }
+  | { type: typeof CONTROL_D_COMMANDS.planCleanup }
+  | { type: typeof CONTROL_D_COMMANDS.executeCleanup; cleanupToken: string };
 
 export const isControlDCommand = (value: unknown): value is ControlDCommand => {
   if (!value || typeof value !== "object") return false;
@@ -290,3 +301,38 @@ export const isControlDCommand = (value: unknown): value is ControlDCommand => {
     )
   );
 };
+
+export type CleanupReason =
+  | "name-changed"
+  | "content-changed"
+  | "not-recorded"
+  | "contains-preserved"
+  | "shared-profile"
+  | "already-deleted"
+  | "dependency-failed";
+
+export type CleanupResource = {
+  key: string;
+  kind: "folder" | "rule" | "service" | "endpoint" | "profile";
+  id: string;
+  name: string;
+  profileId: string;
+  disposition: "delete" | "skipped";
+  reason: CleanupReason | null;
+  // A folder DELETE removes all these rules atomically.
+  ruleHostnames: string[];
+  dependsOn: string[];
+};
+
+export type CleanupPlan = { token: string; resources: CleanupResource[] };
+export type CleanupResult = {
+  resource: CleanupResource;
+  status: "deleted" | "skipped" | "failed";
+  reason: CleanupReason | null;
+  message: string | null;
+};
+export type CleanupReport = { results: CleanupResult[]; retryAvailable: boolean };
+export type CleanupResponse = ControlDResponse<{
+  plan?: CleanupPlan;
+  report?: CleanupReport;
+}>;

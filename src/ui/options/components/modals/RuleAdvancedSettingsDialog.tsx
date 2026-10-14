@@ -9,14 +9,18 @@ type RuleSettingsDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   targetLabel: string;
+  relaxCsp: boolean;
+  settingsLocked: boolean;
 };
 
 export const RuleSettingsDialog = ({
   open,
   onOpenChange,
   targetLabel,
+  relaxCsp,
+  settingsLocked,
 }: RuleSettingsDialogProps) => {
-  const { ruleRelaxCsp, setRuleRelaxCsp } = useSettings();
+  const { setRuleRelaxCsp } = useSettings();
 
   const focusPrimaryControl = () => {
     document.getElementById("dialog-rule-relax-csp")?.focus();
@@ -65,7 +69,8 @@ export const RuleSettingsDialog = ({
             control={
               <Switch
                 id="dialog-rule-relax-csp"
-                checked={ruleRelaxCsp}
+                checked={relaxCsp}
+                disabled={settingsLocked}
                 onCheckedChange={setRuleRelaxCsp}
                 aria-label={t.rules.dialog.relaxCspAriaLabel(targetLabel)}
               />

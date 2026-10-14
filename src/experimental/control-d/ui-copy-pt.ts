@@ -5,7 +5,22 @@ export const controlDPt = {
   title: "Control D",
   featureTitle: "Integração com Control D",
   featureDescription:
-    "Sincronize regras regionais com um perfil separado do Control D. Apenas versões beta e locais.",
+    "Sincronize regras regionais com um perfil separado do Control D.",
+  beta: "Beta",
+  privacyPolicy: "Privacidade do Control D",
+  ownPrivacyPolicy: `Privacidade do ${BRAND_DISPLAY_NAME}`,
+  intro: {
+    title: "Antes de conectar",
+    purpose:
+      "O Control D é um serviço de DNS e roteamento de tráfego. Esta integração sincroniza suas regras regionais com um perfil separado do Control D para que esses sites usem saídas correspondentes. A sincronização é unidirecional, a partir desta extensão. Você precisa de uma conta própria do Control D e de uma chave de API com acesso de escrita.",
+    resources:
+      "Após conectar, são criados um perfil, um endpoint do navegador e pastas de regras (uma por saída). O reconhecimento de serviços pode criar um perfil e um endpoint de consulta opcionais. Esses recursos permanecem na sua conta do Control D após desconectar, a menos que você escolha excluí-los durante a desconexão.",
+    namesTitle: "Nomes aleatórios dos recursos",
+    names: `Os nomes usam um código aleatório, nunca os nomes dos seus presets: “${BRAND_DISPLAY_NAME} XXXXX-XXXXX”, “PT Browser XXXXX-XXXXX” (“PT Firefox XXXXX-XXXXX” no Firefox), “PT XXXXX-XXXXX <ROUTE>”. Recursos de consulta opcionais: “PT Lookup XXXXX-XXXXX”, “PT Probe XXXXX-XXXXX”.`,
+    data: "O Control D recebe os nomes de host das suas regras de domínio, as saídas escolhidas e esses nomes de recursos. Somente com o reconhecimento de serviços, um host de uma regra também é enviado como consulta DNS sobre HTTPS que solicita não ser registrada (no_log=1). Nomes e coordenadas de presets não são enviados. Sua chave de API fica nesta instalação, fora de exportações e da sincronização do navegador.",
+    limits:
+      "Esta extensão não altera automaticamente o DNS do navegador nem muda seu endereço IP por si só. Você configura o DNS seguro em uma etapa posterior; o Control D só roteia o tráfego após configurar seu resolvedor.",
+  },
   open: "Abrir Control D",
   back: "Voltar a Avançado",
   lead: "Envie regras regionais para o Control D. As alterações partem desta extensão.",
@@ -24,6 +39,8 @@ export const controlDPt = {
     active: "Ativo",
   },
   account: {
+    consent:
+      "Ao conectar, são criados um perfil, um endpoint do navegador e pastas de regras com nomes aleatórios, ou uma configuração compatível é reutilizada. Os recursos permanecem após desconectar, a menos que você escolha excluí-los.",
     title: "Conectar conta",
     description:
       "Use uma chave de API com acesso de escrita. Ela fica nesta instalação, fora de exportações e da sincronização do navegador.",
@@ -31,11 +48,14 @@ export const controlDPt = {
     connect: "Conectar",
     connectedTitle: "Acesso à API verificado",
     connectedDescription:
-      "O acesso à conta funciona. Nenhuma alteração remota foi feita.",
+      "O acesso à conta funciona. A etapa Regras mostra as alterações de sincronização.",
     docs: "Instruções da API",
     permissionDenied: "O acesso à API do Control D não foi concedido.",
   },
   setup: {
+    adopted: (name: string) => `Reconectado a ${name}.`,
+    foreignReview:
+      "Esta configuração contém regras não criadas por esta extensão. Revise o plano antes de aplicar.",
     title: "Escolher configuração",
     description: `Crie uma configuração separada ou reconecte uma criada pelo ${BRAND_DISPLAY_NAME}.`,
     none: "Nenhuma configuração compatível encontrada.",
@@ -46,10 +66,16 @@ export const controlDPt = {
     createNew: "Criar configuração",
     confirmTitle: "Usar esta configuração?",
     confirmDescription:
-      "Vincule esta instalação ao perfil selecionado. As alterações remotas exigem revisar e aplicar o plano.",
+      "Após conectar, as alterações simples são aplicadas automaticamente. As decisões são exibidas para revisão.",
     folders: (count: number) => `Pastas: ${count}`,
   },
   rules: {
+    consentRequired:
+      "Rotas aproximadas novas ou alteradas precisam da sua aprovação para continuar a sincronização.",
+    applyApproximate: "Aplicar com rotas aproximadas",
+    appliedAutomatically:
+      "As regras foram sincronizadas automaticamente. Configure o DNS do navegador abaixo.",
+    applied: "Regras sincronizadas. Configure o DNS do navegador abaixo.",
     title: "Revisar alterações",
     description: "Revise este plano antes de alterar recursos gerenciados.",
     preview: "Atualizar prévia",
@@ -80,16 +106,25 @@ export const controlDPt = {
     unverifiedState: "Não verificado",
   },
   overview: {
+    codeTitle: "Código de identificação dos recursos",
+    codeDescription:
+      "Este código aleatório identifica o perfil, o endpoint e as pastas para reconectar.",
     title: "Visão geral da integração",
     account: "Acesso à API",
     rules: "Regras gerenciadas",
     dns: "DNS do navegador",
-    review: "Revisar rotas",
+    review: "Revisar alterações",
     verify: "Verificar DNS novamente",
     setupLabel: (code: string) => `Configuração ${code}`,
     syncedAt: (time: string) => `Sincronizado ${time}`,
   },
   summary: {
+    created: (p: number, e: number, f: number) =>
+      `Criados: perfil ${p}, endpoint ${e}, pastas ${f}`,
+    willCreate: (p: number, e: number, f: number) =>
+      `Serão criados: perfil ${p}, endpoint ${e}, pastas ${f}`,
+    ruleChanges: (a: number, u: number, r: number) =>
+      `Regras: adicionar ${a}, atualizar ${u}, remover ${r}`,
     profiles: "Perfis",
     endpoints: "Endpoints",
     folders: "Pastas",
@@ -105,6 +140,7 @@ export const controlDPt = {
     confirm: "Desconectar",
   },
   common: {
+    dismiss: "Fechar",
     cancel: "Cancelar",
     continue: "Continuar",
     notYet: "Ainda não",
@@ -124,7 +160,7 @@ export const controlDPt = {
     setup: {
       title: "Uma configuração separada",
       body: "Use uma configuração nova ou reconecte uma existente. As demais mantêm suas configurações.",
-      note: "As alterações remotas começam ao aplicar o plano revisado.",
+      note: "Após conectar, as alterações simples são aplicadas automaticamente. As decisões são exibidas para revisão.",
     },
     rules: {
       title: "Revisar e aplicar",

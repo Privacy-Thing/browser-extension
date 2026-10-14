@@ -1,13 +1,17 @@
 /* eslint-disable max-params -- Logging keeps redaction context explicit. */
+import { controlDNeedsReview } from "./auto-apply";
 import { registerControllers } from "./background-registration";
+import { createCleanupController } from "./cleanup-controller";
 import { ControlDApiError, ControlDClient } from "./client";
 import {
   CONTROL_D_COMMANDS,
+  CONTROL_D_NEEDS_REVIEW,
   type ControlDCommand,
   type ControlDConfig,
-  type ControlDMapping,
   type ControlDPreparedSnapshot,
 } from "./contracts";
+import { createControlDProvider } from "./feature-provider";
+import { isMapping } from "./mapping-validation";
 import {
   hashControlDInputs,
   applyControlDSync,
@@ -16,7 +20,7 @@ import {
   prepareControlDSync,
   type ControlDPreparedSync,
 } from "./reconcile";
-import { adoptRecoverySet, discoverRecoverySets } from "./recovery";
+import { adoptRecoverySet, classifyAdoption, discoverRecoverySets } from "./recovery";
 import { redactControlDLogValue } from "./redaction";
 import { generateResourceCode } from "./resource-names";
 import {
@@ -34,10 +38,13 @@ import { loadLocations } from "@/background/storage/locations";
 import { loadFeatureBindings } from "@/background/storage/provider-features";
 import { loadRules } from "@/background/storage/rules";
 import { fireAndForget } from "@/shared/async";
+import type { FeaturePlugin } from "@/shared/plugin";
+import type { PluginHooks } from "@/shared/plugin-hooks";
 import { ExtensionLogLevel, LogCategory } from "@/shared/types";
 
 type BackgroundEntryDeps = {
   getDebugMode: () => boolean | Promise<boolean>;
+  hooks: PluginHooks;
 };
 
 type SyncResult =
@@ -133,19 +140,9 @@ const saveFailure = async (
   return failed;
 };
 
-const isMapping = (value: unknown): value is ControlDMapping => {
-  if (!value || typeof value !== "object") return false;
-  const candidate = value as Partial<ControlDMapping>;
-  return (
-    typeof candidate.locationId === "string" &&
-    (typeof candidate.proxyPk === "string" || candidate.proxyPk === null) &&
-    ["exact", "approximate", "skipped"].includes(candidate.status ?? "") &&
-    typeof candidate.confirmed === "boolean"
-  );
-};
-
 // eslint-disable-next-line max-lines-per-function -- Owns one single-flight lifecycle.
 const createController = (deps: BackgroundEntryDeps) => {
+  const cleanup = createCleanupController();
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
   const syncQueue = createControlDSyncQueue<SyncResult>();
   let rerunRequested = false;
@@ -198,6 +195,9 @@ const createController = (deps: BackgroundEntryDeps) => {
     try {
       const client = createClient(apiKey);
       const prepared = reviewed ?? (await prepareControlDSync(client, config));
+      if (!reviewed && controlDNeedsReview(prepared.diff, config.adoptionKind)) {
+        throw new ControlDConflictError(CONTROL_D_NEEDS_REVIEW);
+      }
       const next = await applyControlDSync({
         client,
         config,
@@ -272,6 +272,7 @@ const createController = (deps: BackgroundEntryDeps) => {
   };
 
   const scheduleAutomatic = (): void => {
+    cleanup.invalidate();
     if (debounceTimer) clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
       debounceTimer = null;
@@ -281,6 +282,14 @@ const createController = (deps: BackgroundEntryDeps) => {
 
   // eslint-disable-next-line max-lines-per-function, sonarjs/cognitive-complexity -- Command boundary keeps secrets in background.
   const respond = async (command: ControlDCommand): Promise<unknown> => {
+    if (command.type !== CONTROL_D_COMMANDS.executeCleanup) cleanup.invalidate();
+    if (
+      command.type === CONTROL_D_COMMANDS.planCleanup ||
+      command.type === CONTROL_D_COMMANDS.executeCleanup
+    ) {
+      preview = null;
+      return cleanup.respond(command);
+    }
     if (
       ![
         CONTROL_D_COMMANDS.getState,
@@ -433,6 +442,7 @@ const createController = (deps: BackgroundEntryDeps) => {
     if (command.type === CONTROL_D_COMMANDS.selectNew) {
       const next: ControlDConfig = {
         ...config,
+        adoptionKind: "owned",
         resourceIdentity: { code: generateResourceCode() },
         profileId: null,
         endpointId: null,
@@ -460,6 +470,11 @@ const createController = (deps: BackgroundEntryDeps) => {
           endpointId: command.endpointId,
           code: command.code,
         });
+        next.adoptionKind = await classifyAdoption(
+          createClient(apiKey),
+          command.profileId,
+          command.code,
+        );
         await saveControlDConfig(next);
         return { ok: true, state: await toControlDPublicState(next) };
       } catch (error) {
@@ -504,7 +519,11 @@ const createController = (deps: BackgroundEntryDeps) => {
           undefined,
           apiKey,
         );
-        const resolved = await withoutResolvedConflict(config);
+        const needsReview = controlDNeedsReview(prepared.diff, config.adoptionKind);
+        const resolved =
+          config.status === "conflict" && needsReview
+            ? config
+            : await withoutResolvedConflict(config);
         const token = crypto.randomUUID();
         preview = { token, inputHash: prepared.inputHash, prepared };
         return {
@@ -602,6 +621,10 @@ const createController = (deps: BackgroundEntryDeps) => {
   };
 };
 
-export const registerControlD = (deps: BackgroundEntryDeps): void => {
-  registerControllers(createController(deps));
-};
+/** Release builds replace this module; the stub sets the factory to null. */
+export const controlDFeaturePlugins: (() => readonly FeaturePlugin[]) | null = () => [
+  createControlDProvider(),
+];
+
+export const registerControlD = (deps: BackgroundEntryDeps): (() => void) =>
+  registerControllers(createController(deps), deps.hooks);

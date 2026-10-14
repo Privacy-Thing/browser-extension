@@ -612,3 +612,67 @@ it.each(["skipped", "approximate"] as const)(
     );
   },
 );
+
+it("remembers one approximate consent and reuses it on the next preview", async () => {
+  const fake = new FakeClient();
+  vi.mocked(loadLocations).mockResolvedValue(
+    (await loadLocations()).map((location) => ({ ...location, countryCode: "AU" })),
+  );
+  const initial = config();
+  const prepared = await prepareControlDSync(asClient(fake), initial);
+  const applied = await applyControlDSync({
+    client: asClient(fake),
+    config: initial,
+    prepared,
+    confirmApproximate: true,
+    repair: false,
+  });
+  expect(applied.locationMappings.warsaw).toMatchObject({
+    status: "approximate",
+    confirmed: true,
+  });
+  expect(applied.autoSyncEnabled).toBe(true);
+  const next = await prepareControlDSync(asClient(fake), applied);
+  expect(next.diff.requiresApproximationConfirmation).toBe(false);
+});
+
+it.each(["country", "exit-disappeared", "exit-result"])(
+  "requires fresh approximate consent when the mapping changes: %s",
+  async (change) => {
+    const fake = new FakeClient();
+    const initial = config();
+    if (change !== "country") {
+      vi.mocked(loadLocations).mockResolvedValue(
+        (await loadLocations()).map((location) => ({ ...location, countryCode: "AU" })),
+      );
+    }
+    const first = await prepareControlDSync(asClient(fake), initial);
+    const applied = await applyControlDSync({
+      client: asClient(fake),
+      config: initial,
+      prepared: first,
+      confirmApproximate: true,
+      repair: false,
+    });
+    if (change === "country") {
+      vi.mocked(loadLocations).mockResolvedValue(
+        (await loadLocations()).map((location) => ({ ...location, countryCode: "AU" })),
+      );
+    } else if (change === "exit-disappeared") fake.proxies = [berlinProxy];
+    else fake.proxies = [{ ...proxy, city: "Krakow" }];
+    const changed = await prepareControlDSync(asClient(fake), applied);
+    expect(changed.diff.requiresApproximationConfirmation).toBe(true);
+    expect(changed.diff.mappings[0]?.confirmed).toBe(false);
+    const writes = fake.createRulesCalls;
+    await expect(
+      applyControlDSync({
+        client: asClient(fake),
+        config: applied,
+        prepared: changed,
+        confirmApproximate: false,
+        repair: false,
+      }),
+    ).rejects.toThrow("Confirm every approximate");
+    expect(fake.createRulesCalls).toBe(writes);
+  },
+);

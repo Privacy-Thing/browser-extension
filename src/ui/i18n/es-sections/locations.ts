@@ -32,7 +32,7 @@ export const locations = {
       "Un perfil regional debe representar un lugar creíble. Mantén su configuración regional, sus idiomas y su zona horaria alineados con la región de las coordenadas.",
     body2: `Los cambios se guardan automáticamente. Cuando editas un campo, ${BRAND_DISPLAY_NAME} escribe la actualización después de una breve pausa.`,
     body3:
-      "Un perfil regional guardado cambia valores del navegador como la geolocalización, la configuración regional y la zona horaria. No cambia tu dirección IP ni la ruta de tu tráfico.",
+      "Un perfil regional guardado cambia valores del navegador como la geolocalización, la configuración regional y la zona horaria. Por sí solo no enruta el tráfico. Con Control D configurado, las reglas de dominio sincronizadas pueden usar una salida equivalente.",
     privacyTitle: "Privacidad",
     privacyBody: `La búsqueda y las vistas previas del mapa son opcionales. ${BRAND_DISPLAY_NAME} solo contacta a OpenStreetMap Nominatim para búsqueda y a OpenFreeMap para vistas previas interactivas del mapa después de que lo permitas.`,
     networkTitle: "Límites de red",

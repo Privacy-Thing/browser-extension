@@ -182,6 +182,33 @@ describe("ControlDClient", () => {
     expect(createInit.body?.toString()).toContain("client_count=1");
     expect(createInit.body?.toString()).toContain("profile_id=profile-1");
     expect(createInit.body?.toString()).toContain("icon=browser-chromium");
+    expect(createInit.body?.toString()).not.toContain("stats=");
+    expect(createInit.body?.toString()).not.toContain("learn_ip=");
+    expect(createInit.body?.toString()).not.toContain("profile_id2");
+  });
+
+  it("adds stats and learn_ip only when the caller asks for them", async () => {
+    const fetchImpl = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
+      jsonResponse({
+        body: {
+          device: {
+            PK: "probe-1",
+            resolvers: { doh: "https://dns.controld.com/probe" },
+          },
+        },
+      }),
+    );
+    await new ControlDClient("token", fetchImpl).createDevice(
+      "PT Probe ABCDE-FGHJK",
+      "lookup-profile",
+      "browser-other",
+      { stats: 0, learnIp: 0 },
+    );
+    const body = fetchImpl.mock.calls[0]?.[1]?.body?.toString();
+    expect(body).toContain("stats=0");
+    expect(body).toContain("learn_ip=0");
+    expect(body).not.toContain("restricted");
+    expect(body).not.toContain("profile_id2");
   });
 
   it("accepts a legacy flat endpoint-type map without treating groups as icons", async () => {

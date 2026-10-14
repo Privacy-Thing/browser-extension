@@ -227,39 +227,25 @@ describe("Control D service reads", () => {
     });
   });
 
-  it("bypasses catalogue services with the dashboard bulk JSON shape", async () => {
+  it("bypasses one service with the documented singular form", async () => {
     const fetchImpl = vi.fn(async () => new Response("{}", { status: 200 }));
 
-    await new ControlDClient("test-token", fetchImpl).bypassProfileServices(
+    await new ControlDClient("test-token", fetchImpl).bypassProfileService(
       "profile/a",
-      ["netflix", "1688"],
+      "youtube",
     );
 
     const [url, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
-    expect(url).toBe("https://api.controld.com/profiles/profile%2Fa/services");
+    expect(url).toBe("https://api.controld.com/profiles/profile%2Fa/services/youtube");
     expect(init.method).toBe("PUT");
-    expect(init.body).toBe(
-      JSON.stringify({
-        services: [
-          { PK: "netflix", do: 1, status: 1 },
-          { PK: "1688", do: 1, status: 1 },
-        ],
-      }),
-    );
+    expect(init.body?.toString()).toBe("do=1&status=1");
+    expect(init.body?.toString()).not.toContain("via");
     expect(init.headers).toMatchObject({
       Accept: "application/json",
       Authorization: "Bearer test-token",
-      "Content-Type": "application/json",
+      "Content-Type": "application/x-www-form-urlencoded",
     });
-  });
-
-  it("does not write when there are no services to bypass", async () => {
-    const fetchImpl = vi.fn();
-    await new ControlDClient("test-token", fetchImpl).bypassProfileServices(
-      "profile",
-      [],
-    );
-    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(init.headers).not.toMatchObject({ "Content-Type": "application/json" });
   });
 
   it("reads every custom rule before a lookup profile can be trusted", async () => {
