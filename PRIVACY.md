@@ -104,9 +104,13 @@ Privacy Thing does not route your traffic itself and does not change your IP add
 
 ### Your API key and disconnecting
 
-Privacy Thing stores your API key only in this installation. It is excluded from exports and from browser sync. When you disconnect, Privacy Thing deletes the key and stops sending requests to Control D.
+Privacy Thing stores your API key only in this installation. It is excluded from exports and from browser sync.
 
-Disconnecting does not delete what Privacy Thing created in your Control D account. The profile, endpoint, rule folders, and rules remain there until you delete them in Control D.
+You can disconnect in two ways. Disconnecting without deletion deletes the key and stops sending requests to Control D. It leaves what Privacy Thing created in your Control D account, meaning the profile, endpoint, rule folders, and rules, until you delete it there.
+
+"Disconnect and delete what Privacy Thing created" first shows you what it would delete and what it would keep, and asks you to confirm. It deletes only resources that Privacy Thing recorded as its own and whose names and contents still match what it created. Resources that were renamed or changed, that Privacy Thing did not create, or that another endpoint still uses are kept. Before you confirm, change your browser's DNS provider away from the Control D resolver, because deleting the endpoint stops name resolution on any device still using it.
+
+If a deletion fails, Privacy Thing stops syncing and keeps your API key and its records locally so that you can review and retry. It deletes the key when the cleanup finishes without failures, or when you choose to disconnect without deletion.
 
 ### Control D's own policy
 
@@ -139,7 +143,7 @@ Optional debug logs remain only in local extension memory and can be cleared by 
 
 Requests made to OpenStreetMap Nominatim and OpenFreeMap are governed by those services' own privacy and retention practices.
 
-Your Control D API key remains in this installation until you disconnect or uninstall the extension. The profile, endpoint, rule folders, and rules that Privacy Thing creates in your Control D account remain there until you delete them in Control D. Requests made to Control D are governed by Control D's own privacy and retention practices.
+Your Control D API key remains in this installation until you disconnect or uninstall the extension. The profile, endpoint, rule folders, and rules that Privacy Thing creates in your Control D account remain there until you delete them in Control D or use "Disconnect and delete what Privacy Thing created". Requests made to Control D are governed by Control D's own privacy and retention practices.
 
 ## Your Choices
 
@@ -152,7 +156,7 @@ You can control your data by:
 - using or avoiding the embedded map view
 - turning the optional Control D integration on or off, or disconnecting it
 - denying the browser permission that Control D access requires
-- deleting, in your Control D account, the resources that Privacy Thing created there
+- deleting the resources that Privacy Thing created in your Control D account, either in Control D or with "Disconnect and delete what Privacy Thing created"
 - choosing whether to use Control D as your browser's DNS resolver
 - clearing domain state with the cleanup feature
 - resetting extension settings
