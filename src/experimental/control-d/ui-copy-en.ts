@@ -11,7 +11,7 @@ export const controlDEn = {
     purpose:
       "Control D is a DNS and traffic-routing service. This integration syncs your regional rules to a separate Control D profile so those sites use matching exits. Sync is one-way, from this extension. You need your own Control D account and an API key with write access.",
     resources:
-      "After you connect and apply, a profile, a browser endpoint and rule folders (one per exit) are created. Service recognition can optionally create a lookup profile and endpoint. These resources remain in your Control D account after you disconnect.",
+      "After you connect and apply, a profile, a browser endpoint and rule folders (one per exit) are created. Service recognition can optionally create a lookup profile and endpoint. These resources remain in your Control D account after you disconnect, unless you choose to delete them while disconnecting.",
     namesTitle: "Random resource names",
     names: `Names use a random code, never your preset names: “${BRAND_DISPLAY_NAME} XXXXX-XXXXX”, “PT Browser XXXXX-XXXXX” (“PT Firefox XXXXX-XXXXX” on Firefox), “PT XXXXX-XXXXX <ROUTE>”. Optional lookup resources: “PT Lookup XXXXX-XXXXX”, “PT Probe XXXXX-XXXXX”.`,
     data: "Control D receives your domain-rule hostnames, their chosen exits and these resource names. Only with service recognition, a rule hostname is also sent as a DNS-over-HTTPS lookup asking not to be logged (no_log=1). Preset names and coordinates are not sent. Your API key stays in this installation, excluded from exports and browser sync.",
