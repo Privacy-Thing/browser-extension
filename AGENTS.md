@@ -129,18 +129,15 @@ An explicit “not applicable” is valid; silently checking only one path is no
 - Prefer a shared layout, lifecycle, token or provider fix over per-screen exceptions.
 - A pull request that changes user-visible UI (popup, options, sidebar or UI injected
   into pages) includes before/after screenshots under a `Screenshots` heading in its
-  description. Capture them from Storybook or the built extension. Cover every changed
-  state and, when layout is affected, the narrow popup width (360 px) and the sidecar
-  width (720 px). The repository is public: use test data only, with no real hostnames,
-  accounts, API keys or personal data.
-- Never point a PR description at a file on your own machine. Commit the images to the
-  `feature/pr-assets` branch (one directory per ticket, for example `pt-62/`) and embed
-  them as
-  `https://raw.githubusercontent.com/Privacy-Thing/browser-extension/feature/pr-assets/<path>`.
-  The branch name must start with `feature/` to satisfy the repository's branch-name
-  rule. It holds only screenshots and is never merged into `main`. If you cannot
-  publish the images, say so in the description; do not omit the section or substitute
-  a text description.
+  description, attached to the description itself (GitHub uploads images pasted or
+  dropped into the editor). Capture them from Storybook or the built extension. Cover
+  every changed state and, when layout is affected, the narrow popup width (360 px) and
+  the sidecar width (720 px). The repository is public: use test data only, with no real
+  hostnames, accounts, API keys or personal data.
+- Never point a PR description at a file on your own machine or at an external host.
+  `gh` cannot upload images, so attach them through the GitHub web editor. If you
+  cannot, say so in the description and give the user the local file paths; do not omit
+  the section or substitute a text description.
 
 ## Generated files and commands
 
