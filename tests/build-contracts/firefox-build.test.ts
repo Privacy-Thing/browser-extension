@@ -14,7 +14,6 @@ import {
   STABLE_FX_EXT_ID,
 } from "../../scripts/brand-config.mjs";
 
-import { findControlDReleaseLeaks } from "./experimental-integrations";
 import { findRetiredBuildLeaks } from "./retired-name";
 
 type FirefoxManifest = {
@@ -62,16 +61,20 @@ test("contains no retired namespace outside approved Firefox IDs and notificatio
   expect(await findRetiredBuildLeaks("firefox")).toEqual([]);
 });
 
-test("keeps the Control D experiment out of release artifacts", async () => {
+test("includes the optional Control D integration in every build channel", async () => {
   const manifest = await readFirefoxManifest();
-  if (
-    manifest.version_name?.endsWith("-local") ||
-    manifest.version_name?.endsWith("-beta")
-  )
-    return;
-
-  expect(manifest.optional_host_permissions).toBeUndefined();
-  expect(await findControlDReleaseLeaks("firefox")).toEqual([]);
+  expect(manifest.optional_host_permissions).toEqual(["https://api.controld.com/*"]);
+  const background = await readFile(
+    path.resolve(process.cwd(), "build", "firefox", "assets", "background.js"),
+    "utf8",
+  );
+  expect(background).toContain("api.controld.com");
+  const assets = path.resolve(process.cwd(), "build", "firefox", "assets");
+  const uiBundles = (await readdir(assets)).filter((file) => file.endsWith(".js"));
+  const ui = await Promise.all(
+    uiBundles.map((file) => readFile(path.join(assets, file), "utf8")),
+  );
+  expect(ui.some((bundle) => bundle.includes("Control D"))).toBe(true);
 });
 
 test("builds a firefox artifact with gecko settings and script-injection fallback", async () => {

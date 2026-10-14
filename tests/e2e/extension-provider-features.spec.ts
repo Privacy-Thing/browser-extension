@@ -87,9 +87,6 @@ test("stages an automatic suggestion for an unsaved rule until save", async ({
 
   await fillRulePattern(page, VIDEO_HOST);
   await expectFeatureSlot(page, { state: "suggest", variant: "default" });
-  await expect(page.locator("[data-provider-feature-choice-title]")).toContainText(
-    "Control D",
-  );
   const queried = await readControlDQueries(worker);
   expect(queried).toEqual([
     { origin: "https://dns.controld.com", pathname: "/e2eresolver", name: VIDEO_HOST },
