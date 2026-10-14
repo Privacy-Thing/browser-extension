@@ -561,7 +561,7 @@ describe("Control D background entry", () => {
     expect(applyControlDSync).not.toHaveBeenCalled();
   });
 
-  it.each([null, "PT ABCDE-FGHJK", "another-extension"])(
+  it.each([null, "PT ABCDE-FGHJK", "another-extension", "request-fails"])(
     "classifies ownership when adopting rules with comment %j",
     async (comment) => {
       storageState[CONTROL_D_STORE_KEYS[0]] = fixtureConfig();
@@ -586,8 +586,11 @@ describe("Control D background entry", () => {
               ],
             };
           if (path.endsWith("/groups")) body = { groups: [] };
-          if (path.endsWith("/rules/all"))
+          if (path.endsWith("/rules/all")) {
+            if (comment === "request-fails")
+              return new Response(JSON.stringify({ success: false }), { status: 403 });
             body = { rules: [{ PK: "foreign.example", comment }] };
+          }
           return new Response(JSON.stringify({ success: true, body }));
         }),
       );
@@ -603,6 +606,8 @@ describe("Control D background entry", () => {
         state: { adoptionKind: comment === "PT ABCDE-FGHJK" ? "owned" : "foreign" },
       });
       expect(storageState[CONTROL_D_STORE_KEYS[0]]).toMatchObject({
+        profileId: "profile-id",
+        endpointId: "endpoint-id",
         adoptionKind: comment === "PT ABCDE-FGHJK" ? "owned" : "foreign",
       });
     },

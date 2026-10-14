@@ -6,6 +6,7 @@ import type {
 } from "./contracts";
 import { hashControlDValue } from "./reconcile";
 import {
+  controlDRuleComment,
   isControlDEndpointName,
   isControlDFolderName,
   parseControlDProfileCode,
@@ -161,4 +162,20 @@ export const adoptRecoverySet = async ({
     lastSuccessAt: null,
     lastError: null,
   };
+};
+
+export const classifyAdoption = async (
+  client: ControlDClient,
+  profileId: string,
+  code: string,
+): Promise<"owned" | "foreign"> => {
+  try {
+    const rules = await client.listCustomRules(profileId);
+    return rules.some((rule) => rule.comment !== controlDRuleComment(code))
+      ? "foreign"
+      : "owned";
+  } catch {
+    // An unverified setup must require review before automatic changes.
+    return "foreign";
+  }
 };

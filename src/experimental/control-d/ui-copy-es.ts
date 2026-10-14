@@ -48,7 +48,7 @@ export const controlDEs = {
     connect: "Conectar",
     connectedTitle: "Acceso API verificado",
     connectedDescription:
-      "El acceso a la cuenta funciona. No se han realizado cambios remotos.",
+      "El acceso a la cuenta funciona. El paso Reglas muestra los cambios de sincronización.",
     docs: "Instrucciones de la API",
     permissionDenied: "No se concedió acceso a la API de Control D.",
   },

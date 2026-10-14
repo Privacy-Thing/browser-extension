@@ -20,9 +20,8 @@ import {
   prepareControlDSync,
   type ControlDPreparedSync,
 } from "./reconcile";
-import { adoptRecoverySet, discoverRecoverySets } from "./recovery";
+import { adoptRecoverySet, classifyAdoption, discoverRecoverySets } from "./recovery";
 import { redactControlDLogValue } from "./redaction";
-import { controlDRuleComment } from "./resource-names";
 import { generateResourceCode } from "./resource-names";
 import {
   forgetControlDApiKey,
@@ -471,14 +470,11 @@ const createController = (deps: BackgroundEntryDeps) => {
           endpointId: command.endpointId,
           code: command.code,
         });
-        const customRules = await createClient(apiKey).listCustomRules(
+        next.adoptionKind = await classifyAdoption(
+          createClient(apiKey),
           command.profileId,
+          command.code,
         );
-        next.adoptionKind = customRules.some(
-          (rule) => rule.comment !== controlDRuleComment(command.code),
-        )
-          ? "foreign"
-          : "owned";
         await saveControlDConfig(next);
         return { ok: true, state: await toControlDPublicState(next) };
       } catch (error) {

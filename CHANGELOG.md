@@ -11,6 +11,7 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 - Control D setup now opens when enabled and automatically creates or reconnects a
   single ready setup and applies safe plans. One explicit action remembers consent
   for approximate routes; changed routes, removals and conflicts require review.
+  A failed ownership check preserves the adopted setup and requires plan review.
 - Control D shows labeled setup steps, clearer planned changes and a dismissible
   sync summary. Disconnect is available throughout setup, resource codes are
   explained, and API-key errors reserve space below the field.

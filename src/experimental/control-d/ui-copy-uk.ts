@@ -47,7 +47,7 @@ export const controlDUk = {
     connect: "Підключити",
     connectedTitle: "Доступ до API перевірено",
     connectedDescription:
-      "Доступ до облікового запису працює. Віддалених змін ще немає.",
+      "Доступ до облікового запису працює. Зміни синхронізації показано на кроці «Правила».",
     docs: "Інструкція з API",
     permissionDenied: "Доступ до API Control D не надано.",
   },
