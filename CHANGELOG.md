@@ -98,6 +98,8 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ### Fixed
 
+- Pickers no longer draw option rows outside their popup on short windows.
+
 - Control D keeps saved route overrides when all rules for a region are disabled,
   and status colors follow integration state in every interface language.
 
