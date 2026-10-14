@@ -57,14 +57,15 @@ export const about = {
 
   privacy: {
     title: "Privacidad",
-    body: `${BRAND_DISPLAY_NAME} guarda localmente en tu navegador tus opciones y datos de configuración. Las solicitudes externas de mapas son opcionales: tras obtener tu consentimiento, usa OpenStreetMap Nominatim para buscar ubicaciones y OpenFreeMap para mostrar vistas previas interactivas.`,
+    body: `${BRAND_DISPLAY_NAME} guarda localmente las opciones y la configuración. Los servicios de mapas opcionales reciben solicitudes de búsqueda y de mapas tras tu consentimiento. Si activas Control D, los nombres de host de las reglas de dominio, las salidas elegidas y los nombres de los recursos gestionados se envían a Control D. Consulta la política de privacidad para más detalles.`,
     openPolicyButton: "Abrir política de privacidad",
   },
 
   limitations: {
     title: WHAT_PRODUCT_IS_NOT,
-    intro: `${BRAND_DISPLAY_NAME} cambia los datos visibles en el navegador como la geolocalización, la configuración regional, la zona horaria y los detalles de la huella digital seleccionados. No enruta tu tráfico a través de una red diferente.`,
-    body1: "No oculta ni reemplaza tu dirección IP.",
+    intro: `${BRAND_DISPLAY_NAME} cambia los datos visibles en el navegador como la geolocalización, la configuración regional, la zona horaria y los detalles de la huella digital seleccionados. Su simulación no enruta el tráfico. La integración opcional con Control D sincroniza reglas regionales; Control D enruta el tráfico después de que configures su resolvedor DNS.`,
+    body1:
+      "Por sí sola, la simulación en el navegador no oculta ni reemplaza tu dirección IP. Un resolvedor de Control D configurado puede enrutar sitios seleccionados a través de sus salidas.",
     body2: "No reemplaza una VPN, proxy o configuración de enrutamiento basada en DNS.",
     body3:
       "No hace que los sitios web vean tu conexión como proveniente de otro país por sí solo.",

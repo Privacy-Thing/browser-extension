@@ -31,7 +31,7 @@ export const locations = {
       "A regional preset should describe one believable place. Keep its language, languages, and time zone aligned with the same region as the coordinates.",
     body2: `Changes save automatically. When you edit a field, ${BRAND_DISPLAY_NAME} writes the update after a short pause.`,
     body3:
-      "A saved regional preset changes browser-level values such as geolocation, locale, and time zone. It does not change your IP address or where your traffic is routed.",
+      "A saved regional preset changes browser-level values such as geolocation, locale, and time zone. It does not route traffic by itself. With Control D configured, synced domain rules can use a matching exit.",
     privacyTitle: "Privacy",
     privacyBody: `Search and map previews are optional. ${BRAND_DISPLAY_NAME} only contacts OpenStreetMap Nominatim for search and OpenFreeMap for interactive map previews after you allow it.`,
     networkTitle: "Network limits",
