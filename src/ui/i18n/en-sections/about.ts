@@ -56,14 +56,15 @@ export const about = {
 
   privacy: {
     title: "Privacy",
-    body: `${BRAND_DISPLAY_NAME} stores your settings and saved configuration locally in your browser. External map requests are optional: OpenStreetMap Nominatim is used for location search and OpenFreeMap is used for interactive map previews after your consent.`,
+    body: `${BRAND_DISPLAY_NAME} stores settings and saved configuration locally. Optional map services receive search and map requests after consent. If you enable Control D, domain-rule hostnames, selected exits and managed resource names are sent to Control D. See the privacy policy for details.`,
     openPolicyButton: "Open privacy policy",
   },
 
   limitations: {
     title: WHAT_PRODUCT_IS_NOT,
-    intro: `${BRAND_DISPLAY_NAME} changes browser-visible data such as geolocation, locale, time zone, and selected fingerprint details. It does not route your traffic through a different network.`,
-    body1: "It does not hide or replace your IP address.",
+    intro: `${BRAND_DISPLAY_NAME} changes browser-visible data such as geolocation, locale, time zone, and selected fingerprint details. Its spoofing does not route traffic. The optional Control D integration syncs regional rules; Control D routes traffic after you configure its resolver.`,
+    body1:
+      "Browser-level spoofing alone does not hide or replace your IP address. A configured Control D resolver can route selected sites through its exits.",
     body2: "It does not replace a VPN, proxy, or DNS-based routing setup.",
     body3:
       "It does not make websites see your connection as coming from another country on its own.",

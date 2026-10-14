@@ -72,6 +72,12 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ### Changed
 
+- About and Regional Presets copy no longer claims that Privacy Thing never
+  affects routing or the IP address. It now says that browser-level spoofing alone
+  does not route traffic, that the optional Control D integration can sync domain
+  rules to a matching exit once its resolver is configured, and that enabling it
+  sends rule hostnames, chosen exits and managed resource names to Control D.
+  Translated for English, Spanish, Portuguese, Russian and Ukrainian.
 - Upgrade the location map to MapLibre GL JS 6 while keeping its worker bundled
   locally for Chromium and Firefox extension pages. Maps now require WebGL2.
 
