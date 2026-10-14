@@ -31,7 +31,7 @@ export const locations = {
       "Um perfil regional deve descrever um lugar plausível. Mantenha a configuração regional, os idiomas e o fuso horário coerentes com a região das coordenadas.",
     body2: `As alterações são salvas automaticamente. Quando você edita um campo, ${BRAND_DISPLAY_NAME} grava a atualização após uma breve pausa.`,
     body3:
-      "Um perfil regional salvo altera valores no nível do navegador, como geolocalização, localidade e fuso horário. Ele não altera seu endereço IP nem para onde seu tráfego é roteado.",
+      "Um perfil regional salvo altera valores no nível do navegador, como geolocalização, localidade e fuso horário. Ele não roteia o tráfego por si só. Com o Control D configurado, as regras de domínio sincronizadas podem usar uma saída correspondente.",
     privacyTitle: "Privacidade",
     privacyBody: `Pesquisas e pré-visualizações de mapas são opcionais. ${BRAND_DISPLAY_NAME} só entra em contato com o OpenStreetMap Nominatim para pesquisa e com o OpenFreeMap para pré-visualizações de mapas interativos após você permitir.`,
     networkTitle: "Limites de rede",
