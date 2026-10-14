@@ -31,8 +31,11 @@ export const CHROME_BOOT_GZIP_BYTES = Math.round(5.2 * 1024);
  * compressed worker payload so a Worker constructed during the
  * pre-bootstrap race is patched. Put new spoofing in `refract-core`
  * instead of adding a second copy of adapters here.
+ *
+ * Reserve identifier-length headroom: the current graph can reach 134645 B
+ * with 16-character build IDs, before the shared tolerance is applied.
  */
-export const FX_GEO_SHIM_MAX_BYTES = 131 * 1024;
+export const FX_GEO_SHIM_MAX_BYTES = 131 * 1024 + 256;
 
 /**
  * Firefox main-world runtime (`main-world-runtime.js`), including the

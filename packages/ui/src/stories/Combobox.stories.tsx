@@ -139,6 +139,53 @@ export const OverlayLayoutTest: Story = {
   },
 };
 
+export const ConstrainedHeightTest: Story = {
+  args: { options: languages },
+  tags: ["!dev", "!autodocs"],
+  parameters: { layout: "fullscreen" },
+  render: () => (
+    <div style={{ position: "fixed", bottom: 8, left: 16, width: 320 }}>
+      <Combobox
+        options={languages}
+        ariaLabel="Constrained language picker"
+        contentClassName="max-h-[250px]"
+      />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const body = within(canvasElement.ownerDocument.body);
+    await userEvent.click(
+      canvas.getByRole("combobox", { name: "Constrained language picker" }),
+    );
+    const list = await body.findByRole("listbox");
+    const content = list.closest<HTMLElement>('[data-slot="combobox-content"]');
+    if (!content) throw new Error("Missing combobox content.");
+
+    await waitFor(() => {
+      expect(content).toHaveAttribute("data-side", "top");
+      expect(content.getBoundingClientRect().height).toBe(250);
+      expect(list.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+        content.getBoundingClientRect().bottom,
+      );
+    });
+    expect(getComputedStyle(list).overflowY).toBe("auto");
+    expect(list.scrollHeight).toBeGreaterThan(list.clientHeight);
+
+    // Every row must be reachable inside the clipped scrollport.
+    for (const option of body.getAllByRole("option")) {
+      option.scrollIntoView({ block: "nearest" });
+      const rowBounds = option.getBoundingClientRect();
+      const listBounds = list.getBoundingClientRect();
+      expect(rowBounds.top).toBeGreaterThanOrEqual(listBounds.top);
+      expect(rowBounds.bottom).toBeLessThanOrEqual(listBounds.bottom);
+      expect(rowBounds.left).toBeGreaterThanOrEqual(listBounds.left);
+      expect(rowBounds.right).toBeLessThanOrEqual(listBounds.right);
+    }
+    await userEvent.keyboard("{Escape}");
+  },
+};
+
 function ActionTriggerExample() {
   const [lastAction, setLastAction] = useState<string>("none");
 

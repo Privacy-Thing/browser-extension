@@ -148,6 +148,18 @@ An explicit “not applicable” is valid; silently checking only one path is no
   component or variant.
 - Product names in language packs come from the shared branding helper.
 - Prefer a shared layout, lifecycle, token or provider fix over per-screen exceptions.
+- A pull request that changes user-visible UI (popup, options, sidebar or UI injected
+  into pages) includes before/after screenshots under a `Screenshots` heading in its
+  description, attached to the description itself (GitHub uploads images pasted or
+  dropped into the editor). Capture them from Storybook or the built extension. Cover
+  every changed state and, when layout is affected, the narrow popup width (360 px) and
+  the sidecar width (720 px). The repository is public: use test data only, with no real
+  hostnames, accounts, API keys or personal data.
+- Never point a PR description at a file on your own machine or at an external host.
+  Attach images with `gh pr create|edit|comment --attach '<file>#<alt text>'` (gh 2.102
+  or newer), or paste them into the GitHub web editor, then use the asset links GitHub
+  returns. If you cannot attach them, say so in the description and give the user the
+  local file paths; do not omit the section or substitute a text description.
 
 ## Generated files and commands
 

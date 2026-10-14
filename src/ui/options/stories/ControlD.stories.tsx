@@ -13,10 +13,12 @@ import {
   ControlDSubpage,
 } from "../../../experimental/control-d/ui-entry";
 
+import { BRAND_DISPLAY_NAME } from "@/shared/brand";
 import { EXTENSION_STORAGE_KEYS } from "@/shared/extension-contract";
 import { DEFAULT_PREFERENCES } from "@/shared/settings-defaults";
 import type { ThemeMode } from "@/shared/types";
 import { applyUiLocalePreference, type UiLocale } from "@/ui/i18n";
+import { SETTINGS_SUBPAGE_ANCHORS } from "@/ui/options/navigation";
 import { AppPageFrame } from "@/ui/shared/AppPageFrame";
 import { ThemeProvider } from "@/ui/shared/ThemeProvider";
 
@@ -179,6 +181,7 @@ const installBoundary = (
   preparedSnapshot: ControlDPreparedSnapshot,
   recoveryCandidates: ControlDRecoveryCandidate[],
   themeMode: ThemeMode,
+  locale: UiLocale = "en",
 ): void => {
   Reflect.set(globalThis, "chrome", {
     runtime: {
@@ -211,7 +214,11 @@ const installBoundary = (
     storage: {
       local: {
         get: async () => ({
-          [EXTENSION_STORAGE_KEYS.preferences]: { ...DEFAULT_PREFERENCES, themeMode },
+          [EXTENSION_STORAGE_KEYS.preferences]: {
+            ...DEFAULT_PREFERENCES,
+            themeMode,
+            uiLocale: locale,
+          },
         }),
         set: async () => undefined,
         remove: async () => undefined,
@@ -227,13 +234,16 @@ const Surface = ({
   preparedSnapshot = snapshot,
   recoveryCandidates = [],
   themeMode = "light",
+  locale = "en",
 }: {
   state: ControlDPublicState;
   preparedSnapshot?: ControlDPreparedSnapshot;
   recoveryCandidates?: ControlDRecoveryCandidate[];
   themeMode?: ThemeMode;
+  locale?: UiLocale;
 }) => {
-  installBoundary(state, preparedSnapshot, recoveryCandidates, themeMode);
+  applyUiLocalePreference(locale);
+  installBoundary(state, preparedSnapshot, recoveryCandidates, themeMode, locale);
   return (
     <ThemeProvider>
       <AppPageFrame
@@ -309,6 +319,33 @@ export const Account: Story = {
     await expect(
       canvas.getByRole("button", { name: "API instructions" }),
     ).toBeVisible();
+    const intro = canvasElement.querySelector("[data-control-d-intro]");
+    await expect(intro).toBeVisible();
+    const key = canvasElement.querySelector("[data-control-d-api-key]");
+    await expect(key).toHaveAttribute("type", "password");
+    if (!intro || !key) throw new Error("Account introduction and key must render.");
+    await expect(
+      intro.compareDocumentPosition(key) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    const policies = canvas.getAllByRole("link", { name: "Control D privacy policy" });
+    await expect(policies).toHaveLength(2);
+    for (const link of policies) {
+      await expect(link).toHaveAttribute("href", "https://controld.com/privacy");
+      await expect(link).toHaveAttribute("target", "_blank");
+      await expect(link).toHaveAttribute("rel", "noopener noreferrer");
+    }
+    await expect(
+      canvas.getByRole("link", { name: `${BRAND_DISPLAY_NAME} privacy policy` }),
+    ).toHaveAttribute("href", `#${SETTINGS_SUBPAGE_ANCHORS.privacyPolicy}`);
+    await expect(canvas.getByText("Beta")).toBeVisible();
+    await userEvent.click(canvas.getByText("Random resource names"));
+    await expect(
+      canvasElement.querySelector("[data-control-d-resource-names]"),
+    ).toHaveAttribute("open");
+    await userEvent.click(canvas.getByText("Random resource names"));
+    await expect(
+      canvasElement.querySelector("[data-control-d-resource-names]"),
+    ).not.toHaveAttribute("open");
   },
 };
 export const NoExistingSetup: Story = { render: () => <Surface state={choosing} /> };
@@ -321,7 +358,24 @@ export const FirstSynchronization: Story = {
 export const ApproximateRoute: Story = {
   render: () => <Surface state={firstSync} preparedSnapshot={approximateSnapshot} />,
 };
-export const BrowserDns: Story = { render: () => <Surface state={dnsPending} /> };
+export const BrowserDns: Story = {
+  render: () => <Surface state={dnsPending} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const policy = await canvas.findByRole("link", {
+      name: "Control D privacy policy",
+    });
+    await expect(policy).toHaveAttribute("href", "https://controld.com/privacy");
+    await expect(policy).toHaveAttribute("target", "_blank");
+    await expect(policy).toHaveAttribute("rel", "noopener noreferrer");
+    await expect(canvasElement.querySelector("[data-control-d-intro]")).toBeNull();
+    await userEvent.click(canvas.getByRole("button", { name: "Account" }));
+    await expect(
+      canvas.getByText("Account access works. No remote changes have been made."),
+    ).toBeVisible();
+    await expect(canvasElement.querySelector("[data-control-d-intro]")).toBeNull();
+  },
+};
 export const Active: Story = { render: () => <Surface state={baseState} /> };
 export const Conflict: Story = {
   render: () => (
@@ -494,5 +548,41 @@ export const PresetSyncDeepLink: Story = {
       name: "Exit for Warsaw",
     });
     await expect(route).toBeVisible();
+  },
+};
+
+const checkLocalizedIntro =
+  (locale: UiLocale) =>
+  async ({ canvasElement }: { canvasElement: HTMLElement }) => {
+    await expect(document.documentElement.lang).toBe(locale);
+    const canvas = within(canvasElement);
+    const intro = await canvas.findByText(
+      (_, element) => element?.hasAttribute("data-control-d-intro") === true,
+    );
+    await expect(intro).toBeVisible();
+    await expect(intro.querySelectorAll("li")).toHaveLength(4);
+    const details = intro.querySelector("details");
+    const summary = details?.querySelector("summary");
+    await expect(summary).toBeVisible();
+    await userEvent.click(summary as HTMLElement);
+    await expect(details).toHaveAttribute("open");
+  };
+
+export const RussianAccount: Story = {
+  render: () => <Surface state={disconnected} locale="ru" />,
+  play: checkLocalizedIntro("ru"),
+};
+export const UkrainianAccount: Story = {
+  render: () => <Surface state={disconnected} locale="uk" />,
+  play: checkLocalizedIntro("uk"),
+};
+export const BetaCard: Story = {
+  render: () => <StatusSurface state={disconnected} locale="en" />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText("Beta")).toBeVisible();
+    await expect(
+      await canvas.findByRole("button", { name: "Open Control D" }),
+    ).toBeVisible();
   },
 };

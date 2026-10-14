@@ -29,6 +29,10 @@ The format is based on Keep a Changelog and the project follows Semantic Version
   option for recorded, unchanged resources, with a browser DNS confirmation and
   retryable cleanup results. Plain Disconnect continues to preserve remote resources.
 
+- Added a compact Control D introduction explaining account resources, data sharing,
+  retained resources and manual DNS setup, with both privacy policy links. Local and
+  beta builds label the integration with a Beta badge.
+
 - Added an experimental, one-way Control D regional DNS integration to local
   and beta builds. It previews managed rule changes, requires confirmation
   before the first sync, preserves unrelated Control D resources, and guides
@@ -88,6 +92,8 @@ The format is based on Keep a Changelog and the project follows Semantic Version
   rules. Domain fencing session rules still apply only to the top-frame host.
 
 ### Fixed
+
+- Pickers no longer draw option rows outside their popup on short windows.
 
 - Control D keeps saved route overrides when all rules for a region are disabled,
   and status colors follow integration state in every interface language.
