@@ -55,6 +55,22 @@ describe("provider feature backup", () => {
     expect(JSON.stringify(exported)).not.toContain("resolverDoh");
   });
 
+  it("round-trips a group as flat rules with one generic binding", () => {
+    const settings = backup();
+    const source = settings.rules[0]!;
+    const alias = { ...source, pattern: "media.example.com" };
+    settings.rules.push(alias);
+    settings.featureBindings = [
+      { ...binding, rulePatterns: [source.pattern, alias.pattern] },
+    ];
+    const exported = configurationToExport(importedConfiguration(settings));
+    expect(exported.featureBindings).toEqual(settings.featureBindings);
+    expect(exported.rules.map((rule) => rule.authKey)).toEqual([
+      source.authKey,
+      source.authKey,
+    ]);
+  });
+
   it("migrates old backups to an empty binding collection", () => {
     const old = backup();
     delete old.featureBindings;

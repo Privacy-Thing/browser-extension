@@ -147,6 +147,9 @@ const previewSettingsImport = async (
         ...before,
         [EXTENSION_STORAGE_KEYS.locations]: planned.settings.locations,
         [EXTENSION_STORAGE_KEYS.rules]: planned.settings.rules,
+        [EXTENSION_STORAGE_KEYS.providerFeatures]: {
+          featureBindings: planned.settings.featureBindings ?? [],
+        },
         [EXTENSION_STORAGE_KEYS.containerAssignments]:
           planned.settings.containerAssignments ?? [],
       };

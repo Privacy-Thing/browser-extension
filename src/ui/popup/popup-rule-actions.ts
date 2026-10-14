@@ -79,6 +79,7 @@ export const createSaveActions = (deps: PopupActionDeps) => {
     try {
       const response = (await sendMessageOrThrow({
         type: EXTENSION_COMMAND_TYPES.updateCurrentRule,
+        ...(state.featureDecision ? { featureDecision: state.featureDecision } : {}),
         ...(state.selectedLocationId ? { locationId: state.selectedLocationId } : {}),
         patternMode: state.selectedRuleMode,
         replaceExisting,

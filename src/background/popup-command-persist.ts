@@ -11,11 +11,14 @@ import {
   getRegistrableHostname,
 } from "@/background/state-hygiene";
 import { saveContainerAssignments } from "@/background/storage/container-assignments";
+import type { RuleFeatureDecision } from "@/background/storage/feature-rule-update";
 import { getHostPause } from "@/background/storage/host-protection-pauses";
 import { saveGlobalFallbackRule } from "@/background/storage/preferences";
-import { saveRules } from "@/background/storage/rules";
+import { loadRules, saveRules } from "@/background/storage/rules";
 import { fireAndForget } from "@/shared/async";
 import { BUILD_BROWSER_TARGET } from "@/shared/build-flags";
+import { compileDomainPattern } from "@/shared/domain-match";
+import { getRuleGroupPatterns } from "@/shared/rule-groups";
 import { withRuleSeedKey } from "@/shared/rule-seed";
 import { LogCategory, type GlobalFallbackRule } from "@/shared/types";
 
@@ -170,19 +173,40 @@ export const persistPopupRuleMutation = async (
   deps: PopupCommandDeps,
   nextRules: LoadedRules,
   hostname: string,
-  activeTab: PopupTab | undefined,
+  mutation: { activeTab: PopupTab | undefined; featureDecision?: RuleFeatureDecision },
 ): Promise<void> => {
+  const { activeTab, featureDecision } = mutation;
+  const previousRules = await loadRules();
   const normalizedRules = nextRules.map((rule) => withRuleSeedKey(rule));
 
-  await saveRules(normalizedRules);
-  deps.setLastKnownRules(normalizedRules);
+  const savedRules = await saveRules(normalizedRules, featureDecision);
+  deps.setLastKnownRules(savedRules ?? normalizedRules);
+  const activeRules = savedRules ?? normalizedRules;
+  const groupPatterns = [
+    ...new Set(
+      [previousRules, activeRules].flatMap((rules) =>
+        rules
+          .filter((rule) => compileDomainPattern(rule.pattern).test(hostname))
+          .flatMap((rule) => getRuleGroupPatterns(rules, rule.pattern)),
+      ),
+    ),
+  ];
+  for (const context of deps.getActiveTabContexts()) {
+    if (
+      context.hostname !== hostname &&
+      groupPatterns.some((pattern) =>
+        compileDomainPattern(pattern).test(context.hostname),
+      )
+    )
+      deps.removeHostnameContexts(context.hostname);
+  }
   deps.removeHostnameContexts(hostname);
   runPopupMutationFinalize({
     deps,
     hostname,
     activeTab,
     refreshCachedConfig: false,
-    refreshInjectionState: "firefox-only",
+    refreshInjectionState: groupPatterns.length > 1 ? "always" : "firefox-only",
     errorMessage: "Failed to finalize popup rule mutation.",
     trigger: "popup-rule-mutation",
   });

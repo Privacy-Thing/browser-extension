@@ -8,13 +8,26 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ### Added
 
-- Experimental local and beta builds can recognize a rule hostname as a provider
-  feature and explicitly link a Control D service rule. Rule editor and popup
-  support confirmation, manual selection, dismissal and detach. Generic bindings
-  survive backups and pattern changes; local Privacy Thing protection keeps its
-  domain scope. Native service sync preserves unrelated provider rules.
-  A separately reviewed lookup profile avoids Custom Rule overrides without
-  changing the browser's regional DNS endpoint.
+- Domain rules can include several explicit patterns sharing one configuration and
+  identity. The editor manages all patterns, the rule list shows one configuration,
+  and the popup lists its complete scope. Pattern edits reject empty, duplicate or
+  conflicting membership. Groups work independently of plugins and survive service
+  unlinking, restart and settings backups.
+
+- Experimental local and beta builds automatically suggest matching Control D services
+  when creating or editing a domain rule. The editor and popup let users choose, change
+  or unlink a service, with a compact plugin badge and visible request progress; Save
+  commits the choice with the rule. A service already linked to another rule offers
+  adding the pattern to that rule, previews and locks its shared settings, and requires
+  consent before creation. Service links survive pattern changes and settings backups.
+  Control D prepares recognition automatically, synchronizes eligible redirects and
+  preserves unrelated remote rules. Help and preset guidance explain synchronization
+  and the service's potentially wider scope; Privacy Thing protects only the rule's
+  explicit patterns. The plugin is excluded from release builds.
+
+- Added a compact Control D introduction explaining account resources, data sharing,
+  retained resources and manual DNS setup, with both privacy policy links. Local and
+  beta builds label the integration with a Beta badge.
 
 - Added an experimental, one-way Control D regional DNS integration to local
   and beta builds. It previews managed rule changes, requires confirmation
@@ -80,6 +93,8 @@ The format is based on Keep a Changelog and the project follows Semantic Version
   rules. Domain fencing session rules still apply only to the top-frame host.
 
 ### Fixed
+
+- Pickers no longer draw option rows outside their popup on short windows.
 
 - Control D keeps saved route overrides when all rules for a region are disabled,
   and status colors follow integration state in every interface language.

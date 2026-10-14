@@ -26,6 +26,7 @@ export type ControlDQueryTransport = {
   resolverId: string;
   hostname: string;
   timeoutMs: number;
+  signal?: AbortSignal;
 };
 
 export type ControlDQueryOutcome =
@@ -70,14 +71,21 @@ const serviceIdValue = (value: unknown): string | null => {
   return typeof value === "string" && value.trim().length > 0 ? value : null;
 };
 
-const dnsStatus = (payload: unknown): number | null => {
-  const status = recordValue(payload)?.Status;
-  return typeof status === "number" &&
-    Number.isInteger(status) &&
-    status >= 0 &&
-    status <= DNS_STATUS_MAX
-    ? status
+const integerDnsCode = (value: unknown): number | null =>
+  typeof value === "number" &&
+  Number.isInteger(value) &&
+  value >= 0 &&
+  value <= DNS_STATUS_MAX
+    ? value
     : null;
+
+// RFC 8427 JSON uses numeric RCODE. A present Status still wins, including when it is invalid.
+const dnsStatus = (payload: unknown): number | null => {
+  const record = recordValue(payload);
+  if (!record) return null;
+  if ("Status" in record) return integerDnsCode(record.Status);
+  if ("RCODE" in record) return integerDnsCode(record.RCODE);
+  return null;
 };
 
 const failure = (
@@ -190,14 +198,18 @@ export const executeControlDQuery = async ({
   resolverId,
   hostname,
   timeoutMs,
+  signal,
 }: ControlDQueryTransport): Promise<ControlDQueryOutcome> => {
   const url = controlDDomainQueryUrl(resolverId, hostname);
   const parsed = url ? new URL(url) : null;
   if (!url || !parsed || !isAllowedDohUrl(parsed)) {
     return failure("rejected-url", 0, null, null);
   }
+  if (signal?.aborted) return failure("transport", 0, null, null);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const abortFromCaller = (): void => controller.abort();
+  signal?.addEventListener("abort", abortFromCaller, { once: true });
   try {
     const response = await fetchImpl.call(globalThis, url, {
       headers: {
@@ -209,6 +221,7 @@ export const executeControlDQuery = async ({
     });
     return await readDomainPayload(response, hostname);
   } catch (error) {
+    if (signal?.aborted) return failure("transport", 0, null, null);
     const timedOut = error instanceof DOMException && error.name === "AbortError";
     return failure(
       timedOut ? "timeout" : "transport",
@@ -218,5 +231,6 @@ export const executeControlDQuery = async ({
     );
   } finally {
     clearTimeout(timer);
+    signal?.removeEventListener("abort", abortFromCaller);
   }
 };

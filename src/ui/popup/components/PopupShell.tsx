@@ -101,6 +101,7 @@ type PopupShellProps = {
   protectionDetailsLabel?: string;
   onProtectionDetails?: () => void;
   pauseControl?: React.ReactNode;
+  decorators?: React.ReactNode;
   alertTitle?: string;
   alertDescription?: string;
   alertActionLabel?: string;
@@ -285,6 +286,7 @@ const PopupRuleSection = ({ props }: { props: PopupShellProps }) => (
           : {})}
         {...(props.onProtectionDetails ? { onDetails: props.onProtectionDetails } : {})}
         pauseControl={props.pauseControl}
+        decorators={props.decorators}
       />
     </div>
   </div>

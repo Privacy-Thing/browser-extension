@@ -1,0 +1,254 @@
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it } from "vitest";
+
+import { resolveSlot, type ProviderFeature, type SlotInput } from "./model";
+import { ProviderDecoratorBadge } from "./ProviderDecoratorBadge";
+import {
+  ProviderFeatureSlot,
+  type ProviderFeatureSlotProps,
+} from "./ProviderFeatureSlot";
+
+import { controlDRuleFeatureCopy as providerFeatureCopy } from "@/experimental/control-d/ui-rule-feature-copy";
+import { BRAND_DISPLAY_NAME } from "@/shared/brand";
+
+const youtube: ProviderFeature = {
+  providerId: "provider",
+  featureId: "youtube",
+  type: "service",
+  name: "YouTube",
+};
+
+const baseInput = (overrides: Partial<SlotInput> = {}): SlotInput => ({
+  available: true,
+  providerId: "provider",
+  providerName: "Example DNS",
+  initials: "ED",
+  features: [youtube],
+  bindings: [],
+  binding: null,
+  match: {
+    hostname: "www.youtube.com",
+    providerId: "provider",
+    featureId: "youtube",
+    matchSource: "domain-test",
+    status: "matched",
+    checkedAt: "2026-10-09T12:00:00.000Z",
+  },
+  dismissed: false,
+  recognizing: false,
+  identityPattern: "www.youtube.com",
+  decision: undefined,
+  declinedId: null,
+  ...overrides,
+});
+
+const noop = () => undefined;
+
+const render = (
+  overrides: Partial<SlotInput> = {},
+  props: Partial<ProviderFeatureSlotProps> = {},
+) => {
+  const model = resolveSlot(baseInput(overrides));
+  return renderToStaticMarkup(
+    createElement(ProviderFeatureSlot, {
+      model,
+      copy: providerFeatureCopy.en,
+      features: [youtube],
+      removing: false,
+      joinFor: () => null,
+      onAccept: noop,
+      onDecline: noop,
+      onJoin: noop,
+      onChoose: noop,
+      onDetach: noop,
+      onClear: noop,
+      ...props,
+    }),
+  );
+};
+
+describe("ProviderFeatureSlot", () => {
+  it("offers a draft switch after the question and scope explanation", () => {
+    const markup = render();
+    expect(markup).toContain('data-provider-feature-state="suggest"');
+    expect(markup).toContain("Example DNS: Setup YouTube service?");
+    expect(markup).toContain('data-provider-feature-action="accept"');
+    expect(markup).toContain('role="switch"');
+    expect(markup).toContain('aria-checked="false"');
+    expect(markup).not.toContain(">Yes<");
+    expect(markup).toContain("Applies when you save this rule.");
+    expect(markup).toContain(BRAND_DISPLAY_NAME);
+    expect(markup).toContain("protects only domains matching this rule");
+    expect(markup).not.toContain(">CD<");
+    expect(markup).not.toContain("Control D");
+  });
+
+  it("explains that joining adopts the existing group", () => {
+    const markup = render(
+      {
+        identityPattern: "music.youtube.com",
+        bindings: [
+          {
+            rulePattern: "www.youtube.com",
+            providerId: "provider",
+            featureId: "youtube",
+            featureName: "YouTube",
+            featureType: "service",
+          },
+        ],
+      },
+      {
+        joinFor: () => ({ pattern: "www.youtube.com", extra: 0 }),
+      },
+    );
+    expect(markup).toContain('data-provider-feature-state="join"');
+    expect(markup).toContain("Add this pattern to the existing YouTube rule?");
+    expect(markup).toContain("Add to existing rule");
+    expect(markup).not.toContain("Setup YouTube service?");
+    expect(markup).toContain("Uses the settings and identity of www.youtube.com.");
+    expect(markup).toContain(
+      "Regional Preset, protection settings and identity will be replaced",
+    );
+    expect(markup).toContain('data-provider-feature-action="join"');
+  });
+
+  it("shows a selected draft switch and a service-only linked chip", () => {
+    const staged = render({
+      decision: { providerId: "provider", featureId: "youtube" },
+    });
+    expect(staged).toContain('data-provider-feature-state="staged"');
+    expect(staged).toContain('aria-checked="true"');
+    expect(staged).toContain("Setup YouTube service?");
+    expect(staged).toContain("data-provider-feature-chevron");
+    expect(staged).toContain('data-provider-feature-chip="staged"');
+
+    const linked = render({
+      binding: {
+        rulePattern: "www.youtube.com",
+        rulePatterns: ["www.youtube.com", "m.youtube.com", "music.youtube.com"],
+        providerId: "provider",
+        featureId: "youtube",
+        featureName: "YouTube",
+        featureType: "service",
+      },
+    });
+    expect(linked).toContain('data-provider-feature-state="linked"');
+    expect(linked).toContain('data-provider-feature-group-size="3"');
+    expect(linked).not.toContain("data-provider-feature-site-count");
+    expect(linked).toContain('aria-label="YouTube, Example DNS. Show options"');
+    expect(linked).not.toContain("data-provider-feature-count");
+    expect(linked).not.toContain(">+");
+    expect(linked).not.toContain("Match evidence");
+    expect(linked).not.toContain('data-provider-feature-action="recognize"');
+  });
+
+  it("keeps an unchecked choice after decline and a plain rule when unlinked", () => {
+    const declined = render({ declinedId: "youtube" });
+    expect(declined).toContain('data-provider-feature-state="suggest"');
+    expect(declined).toContain('aria-checked="false"');
+    expect(declined).not.toContain("data-provider-feature-pending");
+
+    const unbound = render({
+      decision: { providerId: "provider", featureId: null },
+    });
+    expect(unbound).not.toContain("data-provider-feature-pending");
+
+    const removing = render(
+      {
+        decision: { providerId: "provider", featureId: null },
+        binding: {
+          rulePattern: "www.youtube.com",
+          providerId: "provider",
+          featureId: "youtube",
+          featureName: "YouTube",
+          featureType: "service",
+        },
+      },
+      { removing: true, removalService: "YouTube" },
+    );
+    expect(removing).toContain("YouTube is unlinked when you save. The rule stays.");
+    expect(removing).not.toContain('role="alert"');
+  });
+
+  it("renders nothing when the provider is hidden", () => {
+    expect(render({ available: false })).toBe("");
+  });
+});
+
+describe("providerFeatureCopy", () => {
+  it("describes shared domains and whole-group removal in every language", () => {
+    expect(providerFeatureCopy.en.sharedWith(["music.youtube.com"])).toBe(
+      "Shares settings with music.youtube.com",
+    );
+    expect(
+      providerFeatureCopy.en.sharedWith(["a.example", "b.example", "c.example"]),
+    ).toBe("Shares settings with a.example and 2 more");
+    expect(providerFeatureCopy.en.removeService).toBe("Unlink service");
+    expect(providerFeatureCopy.en.pendingRemovalGroup("YouTube")).toContain(
+      "rule and its domains stay",
+    );
+    expect(providerFeatureCopy.es.sharedWith(["a.example", "b.example"])).toContain(
+      " y ",
+    );
+    expect(providerFeatureCopy.es.removeService).toBe("Desvincular servicio");
+    expect(providerFeatureCopy.pt.sharedWith(["a.example"])).toContain("Compartilha");
+    expect(providerFeatureCopy.pt.removeService).toBe("Desvincular serviço");
+    expect(providerFeatureCopy.ru.sharedWith(["a.example"])).toContain(
+      "Общие настройки",
+    );
+    expect(providerFeatureCopy.ru.removeService).toBe("Отвязать сервис");
+    expect(
+      providerFeatureCopy.uk.sharedWith(["a.example", "b.example", "c.example"]),
+    ).toContain("ще 2");
+    expect(providerFeatureCopy.uk.removeService).toBe("Відв'язати сервіс");
+    expect(providerFeatureCopy.en.scope("Example DNS", "YouTube")).toContain(
+      BRAND_DISPLAY_NAME,
+    );
+  });
+});
+
+const exampleDecorator = {
+  providerId: "provider",
+  providerName: "Example DNS",
+  initials: "ED",
+  featureId: "youtube",
+  label: "YouTube",
+  type: "service" as const,
+};
+
+describe("ProviderDecoratorBadge", () => {
+  it("omits the count for a single domain", () => {
+    const markup = renderToStaticMarkup(
+      createElement(ProviderDecoratorBadge, {
+        decorator: exampleDecorator,
+      }),
+    );
+    expect(markup).toContain("YouTube");
+    expect(markup).toContain("border-border");
+    expect(markup).toContain("size-[24px]");
+    expect(markup).toContain("text-[10px]");
+    expect(markup).toContain("items-center");
+    expect(markup).toContain("truncate");
+    expect(markup).toContain('title="Example DNS"');
+    expect(markup).not.toContain("data-provider-feature-site-count");
+    expect(markup).not.toContain("data-provider-feature-count");
+    expect(markup).not.toContain("#1BE3AD");
+  });
+
+  it("fills the circle from provider badge colors", () => {
+    const markup = renderToStaticMarkup(
+      createElement(ProviderDecoratorBadge, {
+        decorator: {
+          ...exampleDecorator,
+          badgeColors: { background: "#1BE3AD", foreground: "#010818" },
+        },
+      }),
+    );
+    expect(markup).toContain("background-color:#1BE3AD");
+    expect(markup).toContain("color:#010818");
+    expect(markup).toContain("size-[24px]");
+    expect(markup).toContain("text-[10px]");
+    expect(markup).not.toContain("bg-secondary");
+  });
+});

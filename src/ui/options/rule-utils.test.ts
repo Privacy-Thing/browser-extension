@@ -7,6 +7,7 @@ import {
   reassignRulesToLocation,
   resolveRulePreview,
   upsertRule,
+  upsertRuleGroup,
 } from "@/ui/options/rule-utils";
 
 describe("buildRuleViewModels", () => {
@@ -186,7 +187,7 @@ describe("rule mutations", () => {
     ]);
   });
 
-  it("preserves ruleSeedKey when editing an existing rule from the options flow", () => {
+  it("preserves ruleSeedKey and authKey when editing an existing rule from the options flow", () => {
     const result = upsertRule(
       [
         {
@@ -194,6 +195,7 @@ describe("rule mutations", () => {
           locationId: "warsaw",
           enabled: true,
           ruleSeedKey: "seed01",
+          authKey: "abcd1234",
         },
         {
           pattern: "shop.example.com",
@@ -215,6 +217,7 @@ describe("rule mutations", () => {
       locationId: "warsaw",
       enabled: false,
       ruleSeedKey: "seed01",
+      authKey: "abcd1234",
     });
     expect(result[1]).toEqual({
       pattern: "shop.example.com",
@@ -517,4 +520,96 @@ describe("resolveRulePreview", () => {
     expect(result.location).toBeNull();
     expect(result.locationProfileActive).toBe(false);
   });
+});
+
+describe("upsertRuleGroup", () => {
+  const source = {
+    pattern: "first.example",
+    enabled: true,
+    locationId: "warsaw",
+    authKey: "existing-auth",
+    ruleSeedKey: "existing-identity",
+  };
+  it.each([[""], ["   "], [" FIRST.EXAMPLE "], ["second.example", " SECOND.EXAMPLE "]])(
+    "rejects empty or repeated draft patterns without changing existing rules: %j",
+    (...additionalPatterns) => {
+      const current = [{ ...source }];
+      expect(() =>
+        upsertRuleGroup(current, source, additionalPatterns, source.pattern),
+      ).toThrow();
+      expect(current).toEqual([source]);
+    },
+  );
+  it("creates a three-pattern product rule without a provider and keeps its identity", () => {
+    const rules = upsertRuleGroup(
+      [source],
+      source,
+      ["second.example", "third.example"],
+      source.pattern,
+    );
+    expect(rules.map((rule) => rule.pattern)).toEqual([
+      "first.example",
+      "second.example",
+      "third.example",
+    ]);
+    expect(new Set(rules.map((rule) => rule.groupId)).size).toBe(1);
+    expect(rules[0]?.groupId).toBeTruthy();
+    for (const rule of rules) {
+      expect(rule.authKey).toBe(source.authKey);
+      expect(rule.ruleSeedKey).toBe(source.ruleSeedKey);
+    }
+  });
+  it("edits, renames and removes patterns while keeping the product group", () => {
+    const current = [
+      source,
+      { ...source, pattern: "second.example" },
+      { ...source, pattern: "third.example" },
+    ].map((rule) => ({ ...rule, groupId: "group-a" }));
+    const result = upsertRuleGroup(
+      current,
+      { ...source, pattern: "renamed.example", locationId: "paris" },
+      ["third.example"],
+      source.pattern,
+    );
+    expect(result.map((rule) => rule.pattern)).toEqual([
+      "renamed.example",
+      "third.example",
+    ]);
+    for (const rule of result)
+      expect(rule).toMatchObject({
+        groupId: "group-a",
+        locationId: "paris",
+        authKey: source.authKey,
+        ruleSeedKey: source.ruleSeedKey,
+      });
+  });
+  it("rejects an extra pattern owned by another rule", () => {
+    expect(() =>
+      upsertRuleGroup(
+        [source, { pattern: "owned.example", enabled: false }],
+        source,
+        ["owned.example"],
+        source.pattern,
+      ),
+    ).toThrow(/already belongs/);
+  });
+  it.each(["group-a", undefined])(
+    "does not replace another group's primary pattern (%s)",
+    (groupId) => {
+      const current = [
+        { ...source, ...(groupId ? { groupId } : {}) },
+        { ...source, pattern: "owned.example", groupId: "group-b" },
+      ];
+      expect(() =>
+        upsertRuleGroup(
+          current,
+          { ...source, pattern: "owned.example" },
+          [],
+          source.pattern,
+        ),
+      ).toThrow(/already belongs/);
+      expect(current[0]?.pattern).toBe(source.pattern);
+      expect(current[1]?.groupId).toBe("group-b");
+    },
+  );
 });

@@ -1,4 +1,9 @@
+import { findFeatureBinding } from "@/shared/feature-groups";
+import type { ProviderDecorator } from "@/shared/provider-feature";
+import { getRuleGroupPatterns } from "@/shared/rule-groups";
+import type { DomainRule } from "@/shared/types";
 import { cn } from "@/ui/components/lib/utils";
+import { ProviderDecoratorBadge } from "@/ui/components/provider-feature/ProviderDecoratorBadge";
 import { Badge } from "@/ui/components/ui/badge";
 import { Button } from "@/ui/components/ui/button";
 import { Checkbox } from "@/ui/components/ui/checkbox";
@@ -24,6 +29,7 @@ import {
   toggleMatchingSelections,
   toggleVisibleSelections,
 } from "@/ui/options/rule-selection";
+import type { RuleConflict } from "@/ui/options/rule-utils";
 import { useSettings } from "@/ui/options/state/SettingsContext";
 import { icon, normalizeRulePattern } from "@/ui/options/utils";
 
@@ -269,8 +275,72 @@ const FallbackRuleRow = () => {
   );
 };
 
+const RuleNameCell = ({
+  rule,
+  anchor,
+  decorator,
+  hosts,
+  conflict,
+}: {
+  rule: DomainRule;
+  anchor: string;
+  decorator: ProviderDecorator | undefined;
+  hosts: string[];
+  conflict: RuleConflict | undefined;
+}) => (
+  <div className="gw-rule-cell">
+    <AnchorHeading
+      anchorId={anchor}
+      label={t.rules.copyLinkRuleAriaLabel(rule.pattern)}
+      className="gw-anchor-heading-compact"
+    >
+      <span className="inline-flex max-w-full items-center gap-2">
+        <span
+          className={cn(
+            "min-w-0 truncate font-semibold",
+            !rule.enabled && "text-muted-foreground",
+          )}
+        >
+          {rule.pattern}
+        </span>
+        {decorator ? (
+          <Badge variant="outline" title={decorator.providerName}>
+            <ProviderDecoratorBadge decorator={decorator} providerLabel="name" />
+          </Badge>
+        ) : null}
+        {!rule.enabled ? (
+          <Badge
+            variant="secondary"
+            className="shrink-0 px-2 py-0 text-[10px] font-semibold uppercase tracking-[0.08em]"
+          >
+            {t.rules.inactiveBadge}
+          </Badge>
+        ) : null}
+      </span>
+    </AnchorHeading>
+    {hosts.length > 1 ? (
+      <div
+        data-rule-hosts
+        className="mt-1 flex flex-wrap gap-x-2 gap-y-1 text-xs text-muted-foreground"
+      >
+        {hosts.map((host) => (
+          <span key={host} data-rule-host={host} className="break-all">
+            {host}
+          </span>
+        ))}
+      </div>
+    ) : null}
+    {conflict ? (
+      <p className="mt-0.5 text-xs text-tone-warning-text">{conflict.message}</p>
+    ) : null}
+  </div>
+);
+
 const DomainRuleRows = () => {
   const {
+    featureBindings,
+    rules,
+    decorators,
     getRuleAnchor,
     handleDeleteRule,
     highlightedAnchorId,
@@ -296,6 +366,15 @@ const DomainRuleRows = () => {
     );
   }
   return viewModels.map(({ rule, locationLabel, conflicts }) => {
+    const binding = findFeatureBinding(featureBindings, rule.pattern);
+    const decorator = binding
+      ? decorators.find(
+          (entry) =>
+            entry.providerId === binding.providerId &&
+            entry.featureId === binding.featureId,
+        )
+      : undefined;
+    const hosts = getRuleGroupPatterns(rules, rule.pattern);
     const key = normalizeRulePattern(rule.pattern);
     const anchor = getRuleAnchor(rule.pattern);
     return (
@@ -303,6 +382,8 @@ const DomainRuleRows = () => {
         key={key}
         id={anchor}
         data-anchor-id={anchor}
+        data-feature-group={binding?.featureId}
+        data-rule-group={rule.groupId}
         className={cn(
           "rule-table-row gw-anchor-target gw-anchor-no-pulse scroll-mt-7 border-b last:border-0 hover:bg-muted/30 transition-colors",
           !rule.enabled && "bg-muted/20 text-muted-foreground",
@@ -327,37 +408,13 @@ const DomainRuleRows = () => {
           </div>
         </TableCell>
         <TableCell className="px-3 py-3">
-          <div className="gw-rule-cell">
-            <AnchorHeading
-              anchorId={anchor}
-              label={t.rules.copyLinkRuleAriaLabel(rule.pattern)}
-              className="gw-anchor-heading-compact"
-            >
-              <span className="inline-flex max-w-full items-center gap-2">
-                <span
-                  className={cn(
-                    "min-w-0 truncate font-semibold",
-                    !rule.enabled && "text-muted-foreground",
-                  )}
-                >
-                  {rule.pattern}
-                </span>
-                {!rule.enabled ? (
-                  <Badge
-                    variant="secondary"
-                    className="shrink-0 px-2 py-0 text-[10px] font-semibold uppercase tracking-[0.08em]"
-                  >
-                    {t.rules.inactiveBadge}
-                  </Badge>
-                ) : null}
-              </span>
-            </AnchorHeading>
-            {conflicts[0] ? (
-              <p className="mt-0.5 text-xs text-tone-warning-text">
-                {conflicts[0].message}
-              </p>
-            ) : null}
-          </div>
+          <RuleNameCell
+            rule={rule}
+            anchor={anchor}
+            decorator={decorator}
+            hosts={hosts}
+            conflict={conflicts[0]}
+          />
         </TableCell>
         <TableCell className="px-3 py-3 text-sm">
           <span className="block truncate">{locationLabel}</span>

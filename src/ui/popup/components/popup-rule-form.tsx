@@ -70,6 +70,8 @@ export type PopupRuleFormBodyProps = {
   canSave: boolean;
   onSave: (() => void) | undefined;
   saveLabel: string;
+  settingsLocked?: boolean;
+  joinSource?: "open" | "canonical" | "pending";
 };
 
 const NO_PRESET_VALUE = "__no-preset__";
@@ -81,12 +83,14 @@ const PopupSheetSelectField = ({
   value,
   onValueChange,
   options,
+  disabled = false,
 }: {
   id: string;
   label: string;
   value: string;
   onValueChange: (value: string) => void;
   options: ReadonlyArray<{ value: string; label: string }>;
+  disabled?: boolean;
 }) => {
   const unlockHostDismissRef = useRef<(() => void) | undefined>(undefined);
 
@@ -109,10 +113,16 @@ const PopupSheetSelectField = ({
       </label>
       <Select
         value={value}
+        disabled={disabled}
         onOpenChange={handleOpenChange}
         onValueChange={onValueChange}
       >
-        <SelectTrigger id={id} className="gw-popup-sheet-select">
+        <SelectTrigger
+          id={id}
+          className="gw-popup-sheet-select"
+          data-selected-value={value}
+          disabled={disabled}
+        >
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -260,12 +270,14 @@ const WorkerChoiceGroup = <T,>({
   choices,
   value,
   onChange,
+  disabled = false,
 }: {
   label: string;
   columns: "3" | "4";
   choices: ReadonlyArray<Choice<T>>;
   value: T;
   onChange: ((value: T) => void) | undefined;
+  disabled?: boolean;
 }) => (
   <div
     className="gw-popup-worker-choice"
@@ -279,6 +291,7 @@ const WorkerChoiceGroup = <T,>({
         variant="ghost"
         aria-pressed={value === choice.value}
         className="gw-popup-worker-option"
+        disabled={disabled}
         {...(choice.tone ? { "data-tone": choice.tone } : {})}
         onClick={() => onChange?.(choice.value)}
       >
@@ -327,6 +340,7 @@ const ServiceWorkerControl = ({ props }: { props: PopupRuleFormBodyProps }) => {
         choices={choices}
         value={props.serviceWorkerOverride}
         onChange={props.onServiceWorkerChange}
+        disabled={props.settingsLocked === true}
       />
     </div>
   );
@@ -357,6 +371,7 @@ const WorkerHandlingControl = ({ props }: { props: PopupRuleFormBodyProps }) => 
         choices={choices}
         value={props.workerHandlingOverride}
         onChange={props.onWorkerChange}
+        disabled={props.settingsLocked === true}
       />
     </div>
   );
@@ -392,13 +407,19 @@ const PopupRuleFields = ({ props }: { props: PopupRuleFormBodyProps }) => {
 
   return (
     <div className="gw-popup-rule-form-fields">
-      <PopupSheetSelectField
-        id="current-profile-select"
-        label={props.locationLabel}
-        value={locationValue}
-        onValueChange={handleLocationChange}
-        options={locationOptions}
-      />
+      <div
+        {...(props.settingsLocked === true ? { inert: true } : {})}
+        className={props.settingsLocked === true ? "text-muted-foreground" : undefined}
+      >
+        <PopupSheetSelectField
+          id="current-profile-select"
+          label={props.locationLabel}
+          value={locationValue}
+          onValueChange={handleLocationChange}
+          options={locationOptions}
+          disabled={props.settingsLocked === true}
+        />
+      </div>
       <PopupSheetSelectField
         id="current-rule-mode"
         label={props.ruleTypeLabel}
@@ -429,6 +450,7 @@ const PopupAdvancedSettings = ({ props }: { props: PopupRuleFormBodyProps }) => 
       <Switch
         id="current-rule-relax-csp"
         checked={props.relaxCspForWorkers}
+        disabled={props.settingsLocked === true}
         {...(props.onRelaxCspChange ? { onCheckedChange: props.onRelaxCspChange } : {})}
       />
     </PopupAdvancedRow>
@@ -465,6 +487,7 @@ const PopupRuleActions = ({ props }: { props: PopupRuleFormBodyProps }) => (
       type="button"
       variant="secondary"
       onClick={props.onOpenFullSettings}
+      disabled={props.settingsLocked === true}
       className="gw-popup-context-action gw-popup-full-settings"
       wide
     >
@@ -478,7 +501,11 @@ export const PopupRuleFormBody = (props: PopupRuleFormBodyProps) => {
   if (props.isBodyOnlyView) return props.body ?? null;
 
   return (
-    <div className="gw-popup-rule-editor">
+    <div
+      className="gw-popup-rule-editor"
+      data-join-lock={props.settingsLocked === true ? "locked" : "open"}
+      {...(props.joinSource ? { "data-join-source": props.joinSource } : {})}
+    >
       <div className="gw-popup-workspace-scroll" data-popup-scrollport="true">
         {props.preview ? (
           <div id="sheet-domain-preview" className="gw-popup-sheet-domain">
