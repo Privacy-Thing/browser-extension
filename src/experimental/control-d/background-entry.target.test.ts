@@ -581,11 +581,10 @@ describe("Control D background entry", () => {
     storageState[CONTROL_D_STORE_KEYS[0]] = fixtureConfig();
     registerControlD({ getDebugMode: async () => false });
     const gate = deferred<void>();
-    const originalGet = vi.mocked(chrome.storage.local.get).getMockImplementation();
-    vi.mocked(chrome.storage.local.get).mockImplementation(async (key) => {
+    vi.mocked(chrome.storage.local.get).mockImplementation((async (key: string) => {
       await gate.promise;
-      return originalGet?.(key) ?? {};
-    });
+      return key in storageState ? { [key]: storageState[key] } : {};
+    }) as never);
     const reply = request({
       type: FEATURE_COMMANDS.getState,
       providerId: "control-d",
