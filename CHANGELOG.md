@@ -77,6 +77,12 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ### Changed
 
+- The privacy policy now has a separate section for the optional Control D
+  integration. It lists what is sent to Control D (rule hostnames, chosen
+  exits, resource names, optional service lookups and the API key), what stays
+  local, what remains in the Control D account after disconnecting, and links to
+  Control D's own privacy policy.
+
 - About and Regional Presets copy no longer claims that Privacy Thing never
   affects routing or the IP address. It now says that browser-level spoofing alone
   does not route traffic, that the optional Control D integration can sync domain
