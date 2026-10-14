@@ -2,6 +2,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 import { controlDAutoApply } from "./auto-apply";
+import { isConflictEntered } from "./conflict-transition";
 import {
   CONTROL_D_API_GUIDE_URL,
   CONTROL_D_API_ORIGIN,
@@ -456,16 +457,7 @@ export const ControlDSubpage = () => {
       area: string,
     ) => {
       if (area !== "local") return;
-      const pending = Object.values(changes).some(({ newValue }) => {
-        if (!newValue || typeof newValue !== "object") return false;
-        const value = newValue as Record<string, unknown>;
-        return (
-          value.version === 2 &&
-          value.connected === true &&
-          value.status === "conflict" &&
-          typeof value.lastError === "string"
-        );
-      });
+      const pending = Object.values(changes).some(isConflictEntered);
       if (pending) {
         setStepOverride(2);
         void run({ type: CONTROL_D_COMMANDS.preview });
