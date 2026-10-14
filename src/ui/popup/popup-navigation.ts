@@ -64,6 +64,7 @@ export const getInheritedProfileLabel = (
 
 export const createSheetActions = (state: PopupAppState) => {
   const closeSheet = () => {
+    state.setFeatureDecision(undefined);
     state.setRuleSheetOpen(false);
     state.setActiveSheetTrigger(null);
     state.setSheetView("rule-form");
@@ -92,6 +93,7 @@ export const createSheetActions = (state: PopupAppState) => {
     return true;
   };
   const syncSheetDraft = (nextState: PopupState) => {
+    state.setFeatureDecision(undefined);
     state.setAllowInherited(false);
     state.setCreatingExactOverride(false);
     state.setSelectedRuleMode(getInitialRuleMode(nextState));

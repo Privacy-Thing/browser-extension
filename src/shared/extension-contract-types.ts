@@ -11,6 +11,7 @@ import type {
 } from "./fingerprint-types.js";
 import type { SetHostPauseCommand } from "./host-protection-pause";
 import type { ExtensionLogLevel } from "./logging-types.js";
+import type { FeatureDecision, ProviderFeaturePayload } from "./provider-feature";
 import type { SettingsImportSelection } from "./settings-import";
 import type {
   ContainerAssignment,
@@ -95,6 +96,7 @@ export type ExtensionCommand =
       type: typeof EXTENSION_COMMAND_TYPES.saveLocationModel;
       locations: Location[];
       rules: DomainRule[];
+      featureDecision?: FeatureDecision & { rulePattern: string };
       containerAssignments?: ContainerAssignment[];
     }
   | {
@@ -202,6 +204,7 @@ export type ExtensionCommand =
     }
   | {
       type: typeof EXTENSION_COMMAND_TYPES.updateCurrentRule;
+      featureDecision?: FeatureDecision;
       /** Omit to create a protection-only rule that inherits its effective location. */
       locationId?: string;
       patternMode: "exact" | "suffix";
@@ -401,16 +404,13 @@ export type SetPanicModeResponse = {
   state: ControlState;
 };
 
-export type GetControlStateResponse = {
-  ok: true;
-  state: ControlState;
-};
+export type GetControlStateResponse = Pick<SetPanicModeResponse, "ok" | "state">;
 
 /**
  * Response returned when the options page asks for the full persisted settings
  * model plus any migration notice that should be shown to the user.
  */
-export type GetSettingsResponse = {
+export type GetSettingsResponse = ProviderFeaturePayload & {
   workerPolicyExceptions?: WorkerPolicyExceptions;
   ok: true;
   locations: Location[];
@@ -470,12 +470,12 @@ export type SaveSettingsResponse =
     };
 
 export type SaveLocationResponse =
-  | {
+  | (ProviderFeaturePayload & {
       ok: true;
       locations: Location[];
       rules: DomainRule[];
       containerAssignments?: ContainerAssignment[];
-    }
+    })
   | {
       ok: false;
       error: string;

@@ -28,6 +28,7 @@ import { seedWindowSnapshot } from "@/background/main-world-injection";
 import { registerMessageRouter } from "@/background/message-router";
 import { runStorageMigration } from "@/background/migrations";
 import { registerNavListeners } from "@/background/navigation-listeners";
+import { registerPlugins } from "@/background/plugin-registration";
 import { createPopupHandlers } from "@/background/popup-commands";
 import type { PreparedRuntimeDecisions } from "@/background/prepared-runtime-decisions";
 import { applyPrivacyDefaults } from "@/background/privacy";
@@ -88,7 +89,6 @@ import {
 } from "@/background/surface-evidence-tracker";
 import { createTabReloader, enableSessionStorage } from "@/background/tab-reload";
 import { createXRayHandlers, createWorkerTestCtl } from "@/background/xray-commands";
-import { registerControlD } from "@/experimental/control-d/background-entry";
 import { fireAndForget } from "@/shared/async";
 import { BRAND_DISPLAY_NAME } from "@/shared/brand";
 import { BUILD_BROWSER_TARGET, BUILD_CHANNEL } from "@/shared/build-flags";
@@ -369,7 +369,7 @@ const {
 // messages can reach the background router.
 registerRewriteListeners();
 
-registerControlD({
+registerPlugins({
   getDebugMode: async () =>
     runtimeState.getLastKnownDebugMode() ?? (await getPreferences()).debugMode,
 });

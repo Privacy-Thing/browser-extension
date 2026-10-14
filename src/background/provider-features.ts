@@ -1,9 +1,11 @@
 import { z } from "zod";
 
+import { registerFeatureProviders } from "@/background/feature-provider-registry";
 import {
   withConfigMutation,
   withConfigurationLock,
 } from "@/background/settings-import-transaction";
+import { loadLocations } from "@/background/storage/locations";
 import {
   loadFeatureState,
   saveFeatureCache,
@@ -11,8 +13,10 @@ import {
 } from "@/background/storage/provider-features";
 import { loadRules } from "@/background/storage/rules";
 import { compileDomainPattern } from "@/shared/domain-match";
+import type { FeaturePlugin } from "@/shared/plugin";
 import {
   FEATURE_COMMANDS,
+  bindingPatterns,
   type ProviderFeature,
   type ProviderFeatureCommand,
   type ProviderFeatureMatch,
@@ -20,19 +24,11 @@ import {
   type ProviderFeatureState,
   type RuleFeatureBinding,
 } from "@/shared/provider-feature";
+import { getRuleGroupPatterns, projectFeatureBindings } from "@/shared/rule-groups";
+import type { DomainRule } from "@/shared/types";
 
-export type FeatureProvider = {
-  id: string;
-  name: string;
-  capabilities: { catalogue: boolean; domainRecognition: boolean; ruleSync: boolean };
-  getStatus: (binding?: RuleFeatureBinding | null) => Promise<{
-    available: boolean;
-    syncStatus: string;
-    error: string | null;
-  }>;
-  getFeatures: () => Promise<ProviderFeature[]>;
-  recognizeDomain: (hostname: string) => Promise<ProviderFeatureMatch>;
-};
+/** Compatibility name for existing generic provider registrations. */
+export type FeatureProvider = FeaturePlugin;
 
 const commandSchema = z.object({
   type: z.enum([
@@ -49,6 +45,9 @@ const commandSchema = z.object({
     .transform((value) => value.trim().toLowerCase()),
   hostname: z.string().max(253),
   featureId: z.string().min(1).max(200).optional(),
+  locationId: z.string().min(1).max(200).nullable().optional(),
+  ruleEnabled: z.boolean().optional(),
+  contextFeatureId: z.string().min(1).max(200).optional(),
 });
 
 export const isFeatureCommand = (value: unknown): boolean =>
@@ -71,6 +70,23 @@ export const normalizeFeatureHost = (input: string): string => {
   return hostname;
 };
 
+/** Canonical stored rules for this provider, one per binding source pattern. */
+const ruleConfigurationsFor = (
+  providerId: string,
+  bindings: readonly RuleFeatureBinding[],
+  rules: readonly DomainRule[],
+): DomainRule[] => {
+  const seen = new Set<string>();
+  const configurations: DomainRule[] = [];
+  for (const binding of bindings) {
+    if (binding.providerId !== providerId || seen.has(binding.rulePattern)) continue;
+    seen.add(binding.rulePattern);
+    const rule = rules.find((candidate) => candidate.pattern === binding.rulePattern);
+    if (rule) configurations.push(rule);
+  }
+  return configurations;
+};
+
 const unavailableState = (): ProviderFeatureState => ({
   available: false,
   providerId: "",
@@ -89,29 +105,105 @@ const sameMatch = (left: ProviderFeatureMatch, right: ProviderFeatureMatch): boo
   left.featureId === right.featureId &&
   left.status === right.status;
 
+const badgeMetadata = (provider: FeatureProvider) => ({
+  ...(provider.badgeColors ? { badgeColors: provider.badgeColors } : {}),
+});
+
+const operationErrorCode = (failure: unknown): { errorCode?: string } =>
+  typeof failure === "object" &&
+  failure !== null &&
+  "code" in failure &&
+  typeof failure.code === "string"
+    ? { errorCode: failure.code }
+    : {};
+
+const normalizeCommand = (
+  parsed: z.infer<typeof commandSchema>,
+): ProviderFeatureCommand => {
+  const { locationId, ruleEnabled, contextFeatureId, ...base } = parsed;
+  return {
+    ...base,
+    ...(locationId !== undefined ? { locationId } : {}),
+    ...(ruleEnabled !== undefined ? { ruleEnabled } : {}),
+    ...(contextFeatureId !== undefined ? { contextFeatureId } : {}),
+  };
+};
+
 class FeatureController {
   private readonly pending = new Map<string, Promise<ProviderFeatureMatch>>();
   private readonly lastQueryAt = new Map<string, number>();
 
-  constructor(private readonly providers: readonly FeatureProvider[]) {}
+  constructor(private readonly providers: readonly FeatureProvider[]) {
+    registerFeatureProviders(providers);
+  }
+
+  private async ruleContext(
+    provider: FeatureProvider,
+    command: ProviderFeatureCommand,
+    {
+      binding,
+      featureBindings,
+      rules,
+    }: {
+      binding: RuleFeatureBinding | null;
+      featureBindings: RuleFeatureBinding[];
+      rules: DomainRule[];
+    },
+  ) {
+    const contextBinding = command.contextFeatureId
+      ? featureBindings.find(
+          (item) =>
+            item.providerId === provider.id &&
+            item.featureId === command.contextFeatureId,
+        )
+      : binding;
+    const sourceRule = rules.find(
+      (rule) => rule.pattern === (contextBinding?.rulePattern ?? command.rulePattern),
+    );
+    const joining =
+      command.contextFeatureId !== undefined && contextBinding !== undefined;
+    const locationId =
+      !joining && command.locationId !== undefined
+        ? command.locationId
+        : (sourceRule?.locationId ?? null);
+    const location = locationId
+      ? (await loadLocations()).find((item) => item.id === locationId)
+      : undefined;
+    return {
+      rulePattern: command.rulePattern,
+      locationId,
+      enabled: joining
+        ? (sourceRule?.enabled ?? true)
+        : (command.ruleEnabled ?? sourceRule?.enabled ?? true),
+      ...(location ? { locationName: location.label } : {}),
+    };
+  }
 
   private async readState(
     provider: FeatureProvider,
     command: ProviderFeatureCommand,
   ): Promise<ProviderFeatureState> {
     const stored = await loadFeatureState();
+    const rules = await loadRules();
+    const featureBindings = projectFeatureBindings(stored.featureBindings, rules);
     const binding =
-      stored.featureBindings.find(
+      featureBindings.find(
         (item) =>
-          item.rulePattern === command.rulePattern && item.providerId === provider.id,
+          bindingPatterns(item).includes(command.rulePattern) &&
+          item.providerId === provider.id,
       ) ?? null;
-    let status = await provider.getStatus(binding);
+    const context = await this.ruleContext(provider, command, {
+      binding,
+      featureBindings,
+      rules,
+    });
+    let status = await provider.getStatus(binding, context);
     let features: ProviderFeature[] = [];
     let error = status.error;
     if (status.available && provider.capabilities.catalogue) {
       try {
         features = await provider.getFeatures();
-        status = await provider.getStatus(binding);
+        status = await provider.getStatus(binding, context);
         error = status.error;
       } catch (failure) {
         error =
@@ -125,7 +217,12 @@ class FeatureController {
       stored.featureMatches.find(
         (item) => item.providerId === provider.id && item.hostname === hostname,
       ) ?? null;
-    if (binding?.confirmedAt && binding.matchSource) {
+    if (
+      !match &&
+      binding?.confirmedAt &&
+      binding.matchSource &&
+      (!hostname || !binding.matchedHostname || hostname === binding.matchedHostname)
+    ) {
       match = {
         hostname: binding.matchedHostname ?? hostname,
         providerId: provider.id,
@@ -140,9 +237,39 @@ class FeatureController {
       error,
       providerId: provider.id,
       providerName: provider.name,
+      ...badgeMetadata(provider),
+      providerInitials:
+        provider.initials ??
+        provider.name
+          .split(/\s+/)
+          .map((word) => word[0])
+          .join("")
+          .slice(0, 2),
       features,
       match,
       binding,
+      bindings: featureBindings.filter((item) => item.providerId === provider.id),
+      ruleConfigurations: ruleConfigurationsFor(provider.id, featureBindings, rules),
+      groupPatterns: binding ? bindingPatterns(binding) : [],
+      ...(binding
+        ? {
+            decorator: {
+              providerId: provider.id,
+              providerName: provider.name,
+              ...badgeMetadata(provider),
+              initials:
+                provider.initials ??
+                provider.name
+                  .split(/\s+/)
+                  .map((word) => word[0])
+                  .join("")
+                  .slice(0, 2),
+              featureId: binding.featureId,
+              label: binding.featureName,
+              type: binding.featureType,
+            },
+          }
+        : {}),
       dismissed:
         match !== null &&
         stored.dismissedMatches.some((item) => sameMatch(item, match)),
@@ -163,15 +290,6 @@ class FeatureController {
       cached.matchSource !== "manual" &&
       Date.now() - Date.parse(cached.checkedAt) < ttl
     ) {
-      await withConfigurationLock(async () => {
-        const latest = await loadFeatureState();
-        await saveFeatureCache({
-          featureMatches: latest.featureMatches,
-          dismissedMatches: latest.dismissedMatches.filter(
-            (item) => !sameMatch(item, cached),
-          ),
-        });
-      });
       return;
     }
     let request = this.pending.get(key);
@@ -179,7 +297,16 @@ class FeatureController {
       if (Date.now() - (this.lastQueryAt.get(key) ?? -Infinity) < 5_000)
         throw new Error("Please wait before checking this domain again.");
       this.lastQueryAt.set(key, Date.now());
-      request = provider.recognizeDomain(hostname);
+      request = provider.recognizeDomain(hostname).catch((error: unknown) => {
+        if (
+          typeof error === "object" &&
+          error !== null &&
+          "code" in error &&
+          error.code === "recognition-preparing"
+        )
+          this.lastQueryAt.delete(key);
+        throw error;
+      });
       this.pending.set(key, request);
     }
     try {
@@ -193,9 +320,7 @@ class FeatureController {
             ),
             match,
           ].slice(-256),
-          dismissedMatches: latest.dismissedMatches.filter(
-            (item) => !sameMatch(item, match),
-          ),
+          dismissedMatches: latest.dismissedMatches,
         });
       });
     } finally {
@@ -212,12 +337,17 @@ class FeatureController {
     await withConfigMutation(async () => {
       const stored = await loadFeatureState();
       if (command.type === FEATURE_COMMANDS.detach) {
+        const rules = await loadRules();
+        const covered = new Set([
+          command.rulePattern,
+          ...getRuleGroupPatterns(rules, command.rulePattern),
+        ]);
         await saveFeatureState({
           ...stored,
           featureBindings: stored.featureBindings.filter(
             (binding) =>
-              binding.rulePattern !== command.rulePattern ||
-              binding.providerId !== provider.id,
+              binding.providerId !== provider.id ||
+              !bindingPatterns(binding).some((pattern) => covered.has(pattern)),
           ),
         });
         return;
@@ -247,11 +377,16 @@ class FeatureController {
           item.providerId === provider.id && item.featureId === command.featureId,
       );
       if (!feature) throw new Error("Choose an available provider feature.");
+      const rules = await loadRules();
+      const covered = new Set([
+        command.rulePattern,
+        ...getRuleGroupPatterns(rules, command.rulePattern),
+      ]);
       const conflict = stored.featureBindings.find(
         (binding) =>
           binding.providerId === provider.id &&
           binding.featureId === feature.featureId &&
-          binding.rulePattern !== command.rulePattern,
+          !bindingPatterns(binding).some((pattern) => covered.has(pattern)),
       );
       if (conflict)
         throw new Error(`This feature is already linked to ${conflict.rulePattern}.`);
@@ -268,8 +403,8 @@ class FeatureController {
         featureBindings: [
           ...stored.featureBindings.filter(
             (binding) =>
-              binding.rulePattern !== command.rulePattern ||
-              binding.providerId !== provider.id,
+              binding.providerId !== provider.id ||
+              !bindingPatterns(binding).some((pattern) => covered.has(pattern)),
           ),
           {
             rulePattern: command.rulePattern,
@@ -295,7 +430,7 @@ class FeatureController {
     const parsed = commandSchema.safeParse(input);
     if (!parsed.success)
       return { ok: false, error: "Invalid provider feature command." };
-    const command = parsed.data;
+    const command = normalizeCommand(parsed.data);
     const provider = command.providerId
       ? this.providers.find((item) => item.id === command.providerId)
       : this.providers[0];
@@ -330,6 +465,7 @@ class FeatureController {
       return {
         ok: false,
         error,
+        ...operationErrorCode(failure),
         state: { ...state, error },
       };
     }

@@ -2,6 +2,7 @@ import { useCallback, useRef, useState, type RefObject } from "react";
 
 import { EXTENSION_COMMAND_TYPES } from "@/shared/extension-contract";
 import type { FeatureFlags } from "@/shared/feature-flags";
+import type { FeatureDecision } from "@/shared/provider-feature";
 import type {
   ContainerAssignment,
   DomainRule,
@@ -93,6 +94,7 @@ export type PersistenceOptions = {
 
 /** Overrides for one `persistSettings` call. */
 export type PersistSettingsOptions = {
+  featureDecision?: FeatureDecision & { rulePattern: string };
   containerAssignments?: readonly ContainerAssignment[];
   locations?: readonly Location[];
   osmConsent?: OsmConsentState;
@@ -266,6 +268,7 @@ const saveLocationModelScope = async (
   const { refs, setters } = context;
   const response = (await sendMessageOrThrow({
     type: EXTENSION_COMMAND_TYPES.saveLocationModel,
+    ...(options.featureDecision ? { featureDecision: options.featureDecision } : {}),
     locations: [...(options.locations ?? refs.profiles.current)],
     rules: dedupeRules(options.rules ?? refs.rules.current),
     containerAssignments: [
@@ -279,6 +282,8 @@ const saveLocationModelScope = async (
 
   setters.setProfiles(response.locations);
   setters.setRules(response.rules);
+  setters.setFeatureBindings?.(response.featureBindings ?? []);
+  setters.setDecorators?.(response.decorators ?? []);
   setters.setContainerAssignments(response.containerAssignments ?? []);
 };
 

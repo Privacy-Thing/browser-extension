@@ -10,8 +10,17 @@ import { getInheritedProfileLabel } from "./popup-navigation";
 import { fireAndForget } from "@/shared/async";
 import type { CleanupPlan, CleanupResult } from "@/shared/types";
 import { t } from "@/ui/i18n";
+import { useUiLocale } from "@/ui/i18n/LocaleRefresh";
 import { icon } from "@/ui/options/utils";
 import { ProviderFeatureHost } from "@/ui/shared/ProviderFeatureHost";
+import { ruleGroupCopy } from "@/ui/shared/rule-group-copy";
+import { RuleHostList } from "@/ui/shared/RuleHosts";
+import {
+  applyJoinToPopupDraft,
+  useProviderFeatureJoin,
+  type JoinOfferChange,
+  type FeatureDecisionChange,
+} from "@/ui/shared/use-provider-feature-join";
 
 const getCleanupSurfaceLabel = (key: CleanupPlan["surfaces"][number]["key"]): string =>
   ({
@@ -56,11 +65,12 @@ const getSheetTitle = (
   if (view === "cleanup-confirm") {
     return { title: t.popup.cleanupSheetTitle, description: "" };
   }
+  const ruleTitle =
+    (controller.state.popupState?.groupPatterns?.length ?? 0) > 1
+      ? t.rules.dialog.titleEdit
+      : controller.sheets.getRuleSheetPatternLabel();
   return {
-    title:
-      view === "rule-form"
-        ? controller.sheets.getRuleSheetPatternLabel()
-        : t.popup.sheetTitle,
+    title: view === "rule-form" ? ruleTitle : t.popup.sheetTitle,
     description: t.popup.sheetLead,
   };
 };
@@ -206,12 +216,62 @@ const goBack = (controller: PopupController): void => {
   }
 };
 
+const PopupFeatureHost = ({
+  hostname,
+  patternLabel,
+  savedRulePattern,
+  locationId,
+  onDecisionChange,
+  onJoinOfferChange,
+}: {
+  hostname: string | null;
+  patternLabel: string;
+  savedRulePattern: string | null;
+  locationId: string | null;
+  onDecisionChange: FeatureDecisionChange;
+  onJoinOfferChange: JoinOfferChange;
+}) => {
+  if (!hostname) return null;
+  const savedFeatureProps = savedRulePattern ? { savedRulePattern } : {};
+  return (
+    <ProviderFeatureHost
+      key={patternLabel}
+      variant="compact"
+      rulePattern={savedRulePattern ?? patternLabel}
+      {...savedFeatureProps}
+      hostname={hostname}
+      locationId={locationId}
+      onDecisionChange={onDecisionChange}
+      onJoinOfferChange={onJoinOfferChange}
+    />
+  );
+};
+
 const updateRegionalPreset = (controller: PopupController, enabled: boolean): void => {
   if (enabled !== controller.state.isRegionalPresetOn) {
     controller.state.setRegionalPresetChanged(true);
   }
   controller.state.setRegionalPresetOn(enabled);
 };
+
+const ruleFormExtra = (
+  controller: PopupController,
+  savedRulePattern: string | null,
+  featureExtra: React.ReactNode,
+) => (
+  <>
+    {savedRulePattern ? (
+      <RuleHostList
+        patterns={(controller.state.popupState?.groupPatterns ?? []).map((pattern) =>
+          pattern === savedRulePattern
+            ? controller.sheets.getRuleSheetPatternLabel()
+            : pattern,
+        )}
+      />
+    ) : null}
+    {featureExtra}
+  </>
+);
 
 const getSavedRulePattern = ({ state }: PopupController): string | null => {
   const pattern = state.popupState?.currentRule.pattern;
@@ -225,10 +285,37 @@ const getSavedRulePattern = ({ state }: PopupController): string | null => {
 
 export const PopupSheetPane = ({ controller }: { controller: PopupController }) => {
   const { state, viewModel } = controller;
+  const groupCopy = ruleGroupCopy[useUiLocale()];
+  const patternLabel = controller.sheets.getRuleSheetPatternLabel();
+  const join = useProviderFeatureJoin(
+    patternLabel,
+    state.setFeatureDecision,
+    getSavedRulePattern(controller) === null,
+  );
   if (!state.popupState) return null;
+  const presented = applyJoinToPopupDraft(
+    {
+      selectedLocationId: state.selectedLocationId,
+      regionalPresetEnabled: state.isRegionalPresetOn,
+      serviceWorkerOverride: state.serviceWorkerOverride,
+      workerHandlingOverride: state.workerOverride,
+      relaxCspForWorkers: state.shouldRelaxWorkerCsp,
+    },
+    join,
+  );
   const copy = getSheetTitle(controller);
   const inheritedProfileLabel = getInheritedProfileLabel(state.popupState);
   const savedRulePattern = getSavedRulePattern(controller);
+  const featureExtra = (
+    <PopupFeatureHost
+      hostname={state.popupState.currentTab.hostname}
+      patternLabel={patternLabel}
+      savedRulePattern={savedRulePattern}
+      locationId={state.isRegionalPresetOn ? state.selectedLocationId : null}
+      onDecisionChange={join.onDecisionChange}
+      onJoinOfferChange={join.onJoinOfferChange}
+    />
+  );
   const titleTooltip =
     state.sheetView === "rule-form"
       ? controller.sheets.getRuleSheetPatternLabel()
@@ -242,31 +329,27 @@ export const PopupSheetPane = ({ controller }: { controller: PopupController }) 
       {...(titleTooltip ? { titleTooltip } : {})}
       description={copy.description}
       body={renderSheetBody(controller)}
-      {...(savedRulePattern
-        ? {
-            formExtra: (
-              <ProviderFeatureHost
-                variant="compact"
-                rulePattern={savedRulePattern}
-                hostname={state.popupState.currentTab.hostname}
-              />
-            ),
-          }
-        : {})}
-      selectedLocationId={state.selectedLocationId}
+      formExtra={ruleFormExtra(controller, savedRulePattern, featureExtra)}
+      selectedLocationId={presented.selectedLocationId}
+      settingsLocked={presented.settingsLocked}
+      joinSource={join.source}
       allowInheritedLocation={state.allowInheritedLocation}
       {...(inheritedProfileLabel
         ? { inheritedLocationLabel: inheritedProfileLabel }
         : {})}
       noPresetLabel={t.popup.noPresetLabel}
-      regionalPresetEnabled={state.isRegionalPresetOn}
+      regionalPresetEnabled={presented.regionalPresetEnabled}
       locations={state.popupState.availableLocations}
       ruleMode={state.selectedRuleMode}
-      serviceWorkerOverride={state.serviceWorkerOverride}
-      workerHandlingOverride={state.workerOverride}
-      relaxCspForWorkers={state.shouldRelaxWorkerCsp}
+      serviceWorkerOverride={presented.serviceWorkerOverride}
+      workerHandlingOverride={presented.workerHandlingOverride}
+      relaxCspForWorkers={presented.relaxCspForWorkers}
       locationLabel={t.popup.currentProfileLabel}
-      ruleTypeLabel={t.popup.ruleTypeLabel}
+      ruleTypeLabel={
+        savedRulePattern && (state.popupState.groupPatterns?.length ?? 0) > 1
+          ? groupCopy.matchThisDomain
+          : t.popup.ruleTypeLabel
+      }
       exactLabel={t.popup.ruleTypeExact}
       suffixLabel={t.popup.ruleTypeSuffix}
       advancedTitle={t.popup.advancedSectionTitle}
@@ -297,13 +380,8 @@ export const PopupSheetPane = ({ controller }: { controller: PopupController }) 
         ? { errorMessage: state.mutationState.message }
         : {})}
       {...getSheetConfirmProps(controller)}
-      canDelete={
-        viewModel.supported &&
-        viewModel.hasRule &&
-        !state.creatingExactOverride &&
-        state.sheetTargetPattern === state.popupState.currentRule.pattern
-      }
-      canSave={viewModel.supported}
+      canDelete={canDeleteSheetRule(controller)}
+      canSave={viewModel.supported && !join.saveDisabled}
       onOpenChange={(open) => {
         if (!open) controller.sheets.closeSheet();
       }}
@@ -321,3 +399,9 @@ export const PopupSheetPane = ({ controller }: { controller: PopupController }) 
     />
   );
 };
+
+const canDeleteSheetRule = ({ state, viewModel }: PopupController): boolean =>
+  viewModel.supported &&
+  viewModel.hasRule &&
+  !state.creatingExactOverride &&
+  state.sheetTargetPattern === state.popupState?.currentRule.pattern;

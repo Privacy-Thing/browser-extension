@@ -70,7 +70,7 @@ const assignDomainLocation = async (
       : {}),
   });
   deps.setLastKnownProfiles(profiles);
-  await persistPopupRuleMutation(deps, nextRules, hostname, activeTab);
+  await persistPopupRuleMutation(deps, nextRules, hostname, { activeTab });
   deps.logExtensionEvent({
     enabled: deps.getLastKnownDebugMode() ?? false,
     category: LogCategory.System,
@@ -192,7 +192,12 @@ const persistRuleUpdate = async (
       rule.pattern !== replacementRule?.pattern,
   );
   nextRules.unshift(nextRule);
-  await persistPopupRuleMutation(deps, nextRules, loaded.hostname, loaded.activeTab);
+  await persistPopupRuleMutation(deps, nextRules, loaded.hostname, {
+    activeTab: loaded.activeTab,
+    ...(input.featureDecision
+      ? { featureDecision: { ...input.featureDecision, rulePattern: nextPattern } }
+      : {}),
+  });
   deps.logExtensionEvent({
     enabled: deps.getLastKnownDebugMode() ?? false,
     category: LogCategory.System,

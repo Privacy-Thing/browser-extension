@@ -1,10 +1,5 @@
 import React from "react";
 
-import {
-  ControlDFeatureToggle,
-  ControlDSubpage,
-  isIntegrationAvailable as isExperimentalIntegrationAvailable,
-} from "@/experimental/control-d/ui-entry";
 import { cn } from "@/ui/components/lib/utils";
 import {
   getSettingDescriptionId,
@@ -25,6 +20,7 @@ import {
 } from "@/ui/options/navigation";
 import { useSettings } from "@/ui/options/state/SettingsContext";
 import { icon } from "@/ui/options/utils";
+import { pluginUiContributions, pluginUiForRoute } from "@/ui/plugins/registration";
 
 const LazyLogsSubpage = React.lazy(async () => {
   const module = await import("@/ui/options/components/subpages/LogsSubpage");
@@ -104,6 +100,7 @@ const ExperimentalCard = ({
     setFeatureFlags,
     settingsLoaded,
   } = useSettings();
+  const integrations = pluginUiContributions();
   return (
     <Card
       id={SECTION_ANCHORS.advanced.experimental}
@@ -178,9 +175,10 @@ const ExperimentalCard = ({
             />
           }
         />
-        {isExperimentalIntegrationAvailable() ? (
-          <ControlDFeatureToggle onEnabledChange={onIntegrationToggle} />
-        ) : null}
+        {integrations.map((integration) => {
+          const Toggle = integration.Toggle;
+          return <Toggle key={integration.id} onEnabledChange={onIntegrationToggle} />;
+        })}
       </CardContent>
     </Card>
   );
@@ -403,9 +401,6 @@ const AdvancedOverview = () => {
 
 export const AdvancedTab = () => {
   const { logsHostFilter, settingsSubpageView } = useSettings();
-  const showExperiment =
-    settingsSubpageView === "experimentalIntegration" &&
-    isExperimentalIntegrationAvailable();
   let content = <AdvancedOverview />;
   if (settingsSubpageView === "logs") {
     content = (
@@ -413,8 +408,9 @@ export const AdvancedTab = () => {
         <LazyLogsSubpage initialHostFilter={logsHostFilter} />
       </React.Suspense>
     );
-  } else if (showExperiment) {
-    content = <ControlDSubpage />;
+  } else if (settingsSubpageView === "experimentalIntegration") {
+    const Subpage = pluginUiForRoute(settingsSubpageView)?.Subpage;
+    if (Subpage) content = <Subpage />;
   }
   return (
     <TabsContent value="advanced" data-panel="advanced" id={PAGE_ANCHORS.advanced}>
