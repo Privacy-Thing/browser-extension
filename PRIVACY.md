@@ -1,6 +1,6 @@
 # Privacy Policy for Privacy Thing
 
-Last updated: October 13, 2026
+Last updated: October 14, 2026
 
 Privacy Thing is a browser extension for per-domain location spoofing and anti-fingerprinting. This policy explains what data Privacy Thing processes, when that happens, and when data may be sent to third-party services.
 
