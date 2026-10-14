@@ -178,9 +178,7 @@ export const Join: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByText(/settings and identity/)).toBeVisible();
-    await userEvent.click(
-      canvas.getByRole("switch", { name: /Setup YouTube service/ }),
-    );
+    await userEvent.click(canvas.getByRole("switch", { name: /Add to existing rule/ }));
     await expect(
       canvasElement.querySelector("[data-provider-feature]"),
     ).toHaveAttribute("data-provider-feature-state", "staged");
