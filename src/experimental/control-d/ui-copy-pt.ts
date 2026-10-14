@@ -40,7 +40,7 @@ export const controlDPt = {
   },
   account: {
     consent:
-      "Ao conectar, são criados um perfil, um endpoint do navegador e pastas de regras com nomes aleatórios, ou uma configuração compatível é reutilizada. Os recursos permanecem após desconectar.",
+      "Ao conectar, são criados um perfil, um endpoint do navegador e pastas de regras com nomes aleatórios, ou uma configuração compatível é reutilizada. Os recursos permanecem após desconectar, a menos que você escolha excluí-los.",
     title: "Conectar conta",
     description:
       "Use uma chave de API com acesso de escrita. Ela fica nesta instalação, fora de exportações e da sincronização do navegador.",

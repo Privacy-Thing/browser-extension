@@ -37,7 +37,7 @@ export const controlDEn = {
   },
   account: {
     consent:
-      "Connecting creates a profile, browser endpoint and rule folders with random-coded names, or reuses a compatible setup. Created resources remain after disconnecting.",
+      "Connecting creates a profile, browser endpoint and rule folders with random-coded names, or reuses a compatible setup. Created resources remain after disconnecting, unless you choose to delete them.",
     title: "Connect account",
     description:
       "Use an API key with write access. It stays in this installation and is excluded from exports and browser sync.",

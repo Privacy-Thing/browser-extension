@@ -40,7 +40,7 @@ export const controlDEs = {
   },
   account: {
     consent:
-      "Al conectar se crean un perfil, un endpoint del navegador y carpetas de reglas con nombres aleatorios, o se reutiliza una configuración compatible. Los recursos permanecen después de desconectar.",
+      "Al conectar se crean un perfil, un endpoint del navegador y carpetas de reglas con nombres aleatorios, o se reutiliza una configuración compatible. Los recursos permanecen después de desconectar, salvo que elijas eliminarlos.",
     title: "Conectar cuenta",
     description:
       "Usa una clave API con permiso de escritura. Se guarda en esta instalación y queda fuera de las exportaciones y la sincronización del navegador.",

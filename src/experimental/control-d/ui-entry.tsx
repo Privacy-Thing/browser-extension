@@ -817,13 +817,6 @@ export const ControlDSubpage = () => {
               {syncing ? t.common.working : t.account.connect}
             </Button>
           </div>
-          <div
-            className="h-24 overflow-auto"
-            data-control-d-key-feedback
-            aria-live="polite"
-          >
-            {stepAlert}
-          </div>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
             <Button
               type="button"
@@ -838,6 +831,9 @@ export const ControlDSubpage = () => {
                 aria-hidden="true"
               />
             </Button>
+          </div>
+          <div data-control-d-key-feedback aria-live="polite">
+            {stepAlert}
           </div>
         </div>
       )}
