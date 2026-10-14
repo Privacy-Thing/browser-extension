@@ -552,7 +552,7 @@ describe("Control D background entry", () => {
         ...changes,
       },
     });
-    registerControlD({ getDebugMode: () => false });
+    registerControlD({ hooks: createPluginHooks(), getDebugMode: () => false });
     const response = await request({ type: CONTROL_D_COMMANDS.syncNow });
     expect(response).toMatchObject({
       ok: false,
@@ -591,7 +591,7 @@ describe("Control D background entry", () => {
           return new Response(JSON.stringify({ success: true, body }));
         }),
       );
-      registerControlD({ getDebugMode: () => false });
+      registerControlD({ hooks: createPluginHooks(), getDebugMode: () => false });
       const response = await request({
         type: CONTROL_D_COMMANDS.adopt,
         profileId: "profile-id",
@@ -639,7 +639,7 @@ describe("Control D background entry", () => {
         requiresApproximationConfirmation: true,
       },
     });
-    registerControlD({ getDebugMode: () => false });
+    registerControlD({ hooks: createPluginHooks(), getDebugMode: () => false });
     await request({ type: CONTROL_D_COMMANDS.getState });
     await vi.advanceTimersByTimeAsync(1_500);
     await request({ type: CONTROL_D_COMMANDS.getState });
@@ -685,7 +685,7 @@ describe("Control D background entry", () => {
         requiresApproximationConfirmation: true,
       },
     });
-    registerControlD({ getDebugMode: () => false });
+    registerControlD({ hooks: createPluginHooks(), getDebugMode: () => false });
     expect(await request({ type: CONTROL_D_COMMANDS.preview })).toMatchObject({
       ok: true,
       state: { status: "conflict", lastError: current.lastError },

@@ -511,6 +511,23 @@ export const ControlDSubpage = () => {
     [run],
   );
 
+  const openRoutes = useCallback(
+    async (preset: string | null) => {
+      const prepared = await run({ type: CONTROL_D_COMMANDS.preview });
+      if (!prepared?.ok) return;
+      setShowRoutes(true);
+      setStepOverride(2);
+      if (
+        preset &&
+        prepared.snapshot?.diff.mappings.some(
+          (mapping) => mapping.locationId === preset,
+        )
+      )
+        setEditingLocationId(preset);
+    },
+    [run],
+  );
+
   useEffect(() => {
     void (async () => {
       const response = await run({ type: CONTROL_D_COMMANDS.getState });
@@ -521,19 +538,7 @@ export const ControlDSubpage = () => {
         response.state.setupStatus === "selected" &&
         routeLink.get("section") === "routes"
       ) {
-        const prepared = await run({ type: CONTROL_D_COMMANDS.preview });
-        if (prepared?.ok) {
-          setShowRoutes(true);
-          setStepOverride(2);
-          const preset = routeLink.get("preset");
-          if (
-            preset &&
-            prepared.snapshot?.diff.mappings.some(
-              (mapping) => mapping.locationId === preset,
-            )
-          )
-            setEditingLocationId(preset);
-        }
+        await openRoutes(routeLink.get("preset"));
       } else if (
         response?.ok &&
         response.state.connected &&
@@ -565,7 +570,7 @@ export const ControlDSubpage = () => {
         }
       }
     })();
-  }, [run, prepareAndAdvance]);
+  }, [run, prepareAndAdvance, openRoutes]);
 
   const chooseNew = async () => {
     setFlowBusy(true);
