@@ -43,8 +43,7 @@ test("loads the options page from the extension", async ({ context, extensionId 
   if (hasControlDPermission) {
     await expect(page.locator("[data-control-d-state]")).toHaveCount(0);
     await controlDToggle.click();
-    await expect(controlDToggle).toHaveAttribute("data-state", "checked");
-    await page.locator("[data-control-d-open]").click();
+    await expect(page).toHaveURL(/#page-experimental-integration$/);
     await expect(page.locator("[data-control-d-state]")).toHaveAttribute(
       "data-control-d-state",
       "disconnected",
@@ -163,9 +162,10 @@ test("shows Control D actions in View Logs when debug mode is enabled", async ({
   if ((await controlDToggle.count()) === 0) return;
 
   await controlDToggle.click();
-  await expect(
-    page.getByRole("heading", { name: "Control D", exact: true }),
-  ).toBeVisible();
+  await expect(page.locator("[data-control-d-state]")).toHaveAttribute(
+    "data-control-d-state",
+    "disconnected",
+  );
   await page.goto(`${optionsUrl}#page-logs`);
 
   await expect(

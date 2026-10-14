@@ -124,6 +124,7 @@ export const hashControlDInputs = (
     enabled: config.enabled,
     connected: config.connected,
     resourceIdentity: config.resourceIdentity,
+    adoptionKind: config.adoptionKind,
     profileId: config.profileId,
     endpointId: config.endpointId,
     managedFolders: config.managedFolders,

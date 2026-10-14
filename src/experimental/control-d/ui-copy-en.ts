@@ -11,7 +11,7 @@ export const controlDEn = {
     purpose:
       "Control D is a DNS and traffic-routing service. This integration syncs your regional rules to a separate Control D profile so those sites use matching exits. Sync is one-way, from this extension. You need your own Control D account and an API key with write access.",
     resources:
-      "After you connect and apply, a profile, a browser endpoint and rule folders (one per exit) are created. Service recognition can optionally create a lookup profile and endpoint. These resources remain in your Control D account after you disconnect, unless you choose to delete them while disconnecting.",
+      "After you connect, a profile, a browser endpoint and rule folders (one per exit) are created. Service recognition can optionally create a lookup profile and endpoint. These resources remain in your Control D account after you disconnect, unless you choose to delete them while disconnecting.",
     namesTitle: "Random resource names",
     names: `Names use a random code, never your preset names: “${BRAND_DISPLAY_NAME} XXXXX-XXXXX”, “PT Browser XXXXX-XXXXX” (“PT Firefox XXXXX-XXXXX” on Firefox), “PT XXXXX-XXXXX <ROUTE>”. Optional lookup resources: “PT Lookup XXXXX-XXXXX”, “PT Probe XXXXX-XXXXX”.`,
     data: "Control D receives your domain-rule hostnames, their chosen exits and these resource names. Only with service recognition, a rule hostname is also sent as a DNS-over-HTTPS lookup asking not to be logged (no_log=1). Preset names and coordinates are not sent. Your API key stays in this installation, excluded from exports and browser sync.",
@@ -36,17 +36,23 @@ export const controlDEn = {
     active: "Active",
   },
   account: {
+    consent:
+      "Connecting creates a profile, browser endpoint and rule folders with random-coded names, or reuses a compatible setup. Created resources remain after disconnecting.",
     title: "Connect account",
     description:
       "Use an API key with write access. It stays in this installation and is excluded from exports and browser sync.",
     placeholder: "Control D API key",
     connect: "Connect",
     connectedTitle: "API access verified",
-    connectedDescription: "Account access works. No remote changes have been made.",
+    connectedDescription:
+      "Account access works. The Rules step shows synchronization changes.",
     docs: "API instructions",
     permissionDenied: "Control D API access was not granted.",
   },
   setup: {
+    adopted: (name: string) => `Reconnected to ${name}.`,
+    foreignReview:
+      "This setup contains rules not created by this extension. Review the plan before applying.",
     title: "Choose setup",
     description: `Create a separate setup or reconnect one previously created by ${BRAND_DISPLAY_NAME}.`,
     none: "No compatible setups found.",
@@ -57,10 +63,16 @@ export const controlDEn = {
     createNew: "Create new setup",
     confirmTitle: "Use this setup?",
     confirmDescription:
-      "Link this installation to the selected profile. Remote changes start only after reviewing and applying the plan.",
+      "After you connect, straightforward changes are applied automatically. Decisions are shown for review.",
     folders: (count: number) => `Folders: ${count}`,
   },
   rules: {
+    consentRequired:
+      "New or changed approximate routes need your approval before synchronization can continue.",
+    applyApproximate: "Apply with approximate routes",
+    appliedAutomatically:
+      "Rules were synchronized automatically. Configure browser DNS below.",
+    applied: "Rules synchronized. Configure browser DNS below.",
     title: "Review changes",
     description: "Review this plan before changing managed resources.",
     preview: "Refresh preview",
@@ -89,16 +101,25 @@ export const controlDEn = {
     unverifiedState: "Not verified",
   },
   overview: {
+    codeTitle: "Resource identification code",
+    codeDescription:
+      "This random code identifies the profile, endpoint and folders for reconnecting.",
     title: "Integration overview",
     account: "API access",
     rules: "Managed rules",
     dns: "Browser DNS",
-    review: "Review routes",
+    review: "Review changes",
     verify: "Check DNS again",
     setupLabel: (code: string) => `Setup ${code}`,
     syncedAt: (time: string) => `Synced ${time}`,
   },
   summary: {
+    created: (p: number, e: number, f: number) =>
+      `Created: profile ${p}, endpoint ${e}, folders ${f}`,
+    willCreate: (p: number, e: number, f: number) =>
+      `Will create: profile ${p}, endpoint ${e}, folders ${f}`,
+    ruleChanges: (a: number, u: number, r: number) =>
+      `Rules: add ${a}, update ${u}, remove ${r}`,
     profiles: "Profiles",
     endpoints: "Endpoints",
     folders: "Folders",
@@ -114,6 +135,7 @@ export const controlDEn = {
     confirm: "Disconnect",
   },
   common: {
+    dismiss: "Dismiss",
     cancel: "Cancel",
     continue: "Continue",
     notYet: "Not yet",
@@ -133,7 +155,7 @@ export const controlDEn = {
     setup: {
       title: "A separate setup",
       body: "Use a new setup or reconnect an existing one. Other setups keep their settings.",
-      note: "Remote changes start only after you apply the reviewed plan.",
+      note: "After you connect, straightforward changes are applied automatically. Decisions are shown for review.",
     },
     rules: {
       title: "Review, then apply",

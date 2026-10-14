@@ -1,8 +1,10 @@
 /* eslint-disable max-params -- Logging keeps redaction context explicit. */
+import { controlDNeedsReview } from "./auto-apply";
 import { registerControllers } from "./background-registration";
 import { ControlDApiError, ControlDClient } from "./client";
 import {
   CONTROL_D_COMMANDS,
+  CONTROL_D_NEEDS_REVIEW,
   type ControlDCommand,
   type ControlDConfig,
   type ControlDMapping,
@@ -19,6 +21,7 @@ import {
 } from "./reconcile";
 import { adoptRecoverySet, discoverRecoverySets } from "./recovery";
 import { redactControlDLogValue } from "./redaction";
+import { controlDRuleComment } from "./resource-names";
 import { generateResourceCode } from "./resource-names";
 import {
   forgetControlDApiKey,
@@ -202,6 +205,9 @@ const createController = (deps: BackgroundEntryDeps) => {
     try {
       const client = createClient(apiKey);
       const prepared = reviewed ?? (await prepareControlDSync(client, config));
+      if (!reviewed && controlDNeedsReview(prepared.diff, config.adoptionKind)) {
+        throw new ControlDConflictError(CONTROL_D_NEEDS_REVIEW);
+      }
       const next = await applyControlDSync({
         client,
         config,
@@ -437,6 +443,7 @@ const createController = (deps: BackgroundEntryDeps) => {
     if (command.type === CONTROL_D_COMMANDS.selectNew) {
       const next: ControlDConfig = {
         ...config,
+        adoptionKind: "owned",
         resourceIdentity: { code: generateResourceCode() },
         profileId: null,
         endpointId: null,
@@ -464,6 +471,14 @@ const createController = (deps: BackgroundEntryDeps) => {
           endpointId: command.endpointId,
           code: command.code,
         });
+        const customRules = await createClient(apiKey).listCustomRules(
+          command.profileId,
+        );
+        next.adoptionKind = customRules.some(
+          (rule) => rule.comment !== controlDRuleComment(command.code),
+        )
+          ? "foreign"
+          : "owned";
         await saveControlDConfig(next);
         return { ok: true, state: await toControlDPublicState(next) };
       } catch (error) {
@@ -508,7 +523,11 @@ const createController = (deps: BackgroundEntryDeps) => {
           undefined,
           apiKey,
         );
-        const resolved = await withoutResolvedConflict(config);
+        const needsReview = controlDNeedsReview(prepared.diff, config.adoptionKind);
+        const resolved =
+          config.status === "conflict" && needsReview
+            ? config
+            : await withoutResolvedConflict(config);
         const token = crypto.randomUUID();
         preview = { token, inputHash: prepared.inputHash, prepared };
         return {

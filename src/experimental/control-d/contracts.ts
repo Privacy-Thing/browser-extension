@@ -5,6 +5,8 @@ export const CONTROL_D_API_GUIDE_URL =
   "https://docs.controld.com/reference/get-started";
 export const CONTROL_D_GUIDE_URL = "https://docs.controld.com/docs/browsers-platform";
 export const CONTROL_D_STATUS_URL = "https://controld.com/status";
+export const CONTROL_D_NEEDS_REVIEW =
+  "Review the pending routes and changes before synchronizing.";
 
 export const CONTROL_D_COMMANDS = {
   getState: "pt.control-d.get-state",
@@ -36,6 +38,7 @@ export type ControlDMapping = {
   proxyPk: string | null;
   status: "exact" | "approximate" | "skipped";
   confirmed: boolean;
+  routeFingerprint?: string | undefined;
 };
 
 export type ControlDManagedFolder = {
@@ -82,6 +85,7 @@ export type ControlDServiceConflict = {
 
 export type ControlDConfigV2 = {
   version: 2;
+  adoptionKind?: "owned" | "foreign" | undefined;
   enabled: boolean;
   connected: boolean;
   autoSyncEnabled: boolean;
@@ -168,6 +172,7 @@ export type ControlDPreparedSnapshot = {
 };
 
 export type ControlDPublicState = {
+  adoptionKind?: "owned" | "foreign" | undefined;
   enabled: boolean;
   connected: boolean;
   autoSyncEnabled: boolean;
@@ -197,6 +202,7 @@ const mappingSchema = z.object({
   proxyPk: z.string().min(1).nullable(),
   status: z.enum(["exact", "approximate", "skipped"]),
   confirmed: z.boolean(),
+  routeFingerprint: z.string().optional(),
 });
 
 const managedFolderSchema = z.object({
@@ -220,6 +226,7 @@ const managedServiceSchema = z.object({
 
 export const controlDConfigSchema = z.object({
   version: z.literal(2),
+  adoptionKind: z.enum(["owned", "foreign"]).optional(),
   enabled: z.boolean(),
   connected: z.boolean(),
   autoSyncEnabled: z.boolean(),

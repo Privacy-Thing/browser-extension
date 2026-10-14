@@ -6,6 +6,15 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ## [Unreleased]
 
+### Changed
+
+- Control D setup now opens when enabled and automatically creates or reconnects a
+  single ready setup and applies safe plans. One explicit action remembers consent
+  for approximate routes; changed routes, removals and conflicts require review.
+- Control D shows labeled setup steps, clearer planned changes and a dismissible
+  sync summary. Disconnect is available throughout setup, resource codes are
+  explained, and API-key errors reserve space below the field.
+
 ### Added
 
 - Domain rules can include several explicit patterns sharing one configuration and
@@ -30,10 +39,10 @@ The format is based on Keep a Changelog and the project follows Semantic Version
   beta builds label the integration with a Beta badge.
 
 - Added an experimental, one-way Control D regional DNS integration to local
-  and beta builds. It previews managed rule changes, requires confirmation
-  before the first sync, preserves unrelated Control D resources, and guides
+  and beta builds. It previews managed rule changes internally, asks for review
+  when a decision is needed, preserves unrelated Control D resources, and guides
   users through manual browser DoH setup. The dedicated four-step flow can
-  explicitly recover setups created with the v2 Privacy Thing naming scheme
+  recover setups created with the v2 Privacy Thing naming scheme
   after reinstalling, while release builds preserve but never load its private
   storage namespace.
 - A “Site not working?” assistant offers one temporary Service Worker or

@@ -1,4 +1,5 @@
 /* eslint-disable max-lines-per-function, max-params, sonarjs/cognitive-complexity -- Reconcile keeps remote ownership checks in one module. */
+import { controlDMappingConsent } from "./auto-apply";
 import type { ControlDClient } from "./client";
 import {
   ControlDApiError,
@@ -155,6 +156,13 @@ export const prepareControlDSync = async (
     proxies,
     storedMappings: config.locationMappings,
   });
+  for (const [id, mapping] of Object.entries(compilation.mappings)) {
+    compilation.mappings[id] = controlDMappingConsent(
+      mapping,
+      config.locationMappings[id],
+      proxies.find((proxy) => proxy.pk === mapping.proxyPk),
+    );
+  }
   const opened = openServiceSync({
     rules,
     bindings,
@@ -604,6 +612,7 @@ export const applyControlDSync = async ({
     ...nextConfig,
     ...serviceState.managedPatch,
     connected: true,
+    adoptionKind: "owned",
     autoSyncEnabled: true,
     status: "ready",
     profileId,
