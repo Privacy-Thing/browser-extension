@@ -135,9 +135,10 @@ An explicit “not applicable” is valid; silently checking only one path is no
   the sidecar width (720 px). The repository is public: use test data only, with no real
   hostnames, accounts, API keys or personal data.
 - Never point a PR description at a file on your own machine or at an external host.
-  `gh` cannot upload images, so attach them through the GitHub web editor. If you
-  cannot, say so in the description and give the user the local file paths; do not omit
-  the section or substitute a text description.
+  Attach images with `gh pr create|edit|comment --attach '<file>#<alt text>'` (gh 2.102
+  or newer), or paste them into the GitHub web editor, then use the asset links GitHub
+  returns. If you cannot attach them, say so in the description and give the user the
+  local file paths; do not omit the section or substitute a text description.
 
 ## Generated files and commands
 
