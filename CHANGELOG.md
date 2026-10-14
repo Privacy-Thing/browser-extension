@@ -8,13 +8,16 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ### Added
 
+- The optional Control D integration is now included in production builds for Chromium
+  and Firefox, with API access requested only when connecting.
+
 - Domain rules can include several explicit patterns sharing one configuration and
   identity. The editor manages all patterns, the rule list shows one configuration,
   and the popup lists its complete scope. Pattern edits reject empty, duplicate or
   conflicting membership. Groups work independently of plugins and survive service
   unlinking, restart and settings backups.
 
-- Experimental local and beta builds automatically suggest matching Control D services
+- Privacy Thing automatically suggests matching Control D services
   when creating or editing a domain rule. The editor and popup let users choose, change
   or unlink a service, with a compact plugin badge and visible request progress; Save
   commits the choice with the rule. A service already linked to another rule offers
@@ -23,19 +26,17 @@ The format is based on Keep a Changelog and the project follows Semantic Version
   Control D prepares recognition automatically, synchronizes eligible redirects and
   preserves unrelated remote rules. Help and preset guidance explain synchronization
   and the service's potentially wider scope; Privacy Thing protects only the rule's
-  explicit patterns. The plugin is excluded from release builds.
+  explicit patterns.
 
 - Added a compact Control D introduction explaining account resources, data sharing,
   retained resources and manual DNS setup, with both privacy policy links. Local and
   beta builds label the integration with a Beta badge.
 
-- Added an experimental, one-way Control D regional DNS integration to local
-  and beta builds. It previews managed rule changes, requires confirmation
+- Added an optional, one-way Control D regional DNS integration. It previews managed rule changes, requires confirmation
   before the first sync, preserves unrelated Control D resources, and guides
   users through manual browser DoH setup. The dedicated four-step flow can
   explicitly recover setups created with the v2 Privacy Thing naming scheme
-  after reinstalling, while release builds preserve but never load its private
-  storage namespace.
+  after reinstalling.
 - A “Site not working?” assistant offers one temporary Service Worker or
   SharedWorker policy test for the exact top-document host. Failed, cancelled
   and expired tests restore current settings; saving a host exception requires

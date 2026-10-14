@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createManifest } from "../../config/manifest";
 import {
@@ -24,20 +24,19 @@ describe("extension manifest", () => {
     expect(resolveBrandDisplayName("stable")).toBe("Privacy Thing (Preview)");
   });
 
-  it("declares Control D API access only for beta and local builds", () => {
-    const releaseManifest = createManifest({ buildChannel: "release" });
-    const betaManifest = createManifest({ buildChannel: "beta" });
-    const localManifest = createManifest({ buildChannel: "local" });
+  afterEach(() => vi.unstubAllEnvs());
 
-    expect(releaseManifest).not.toHaveProperty("optional_host_permissions");
-    expect(betaManifest.optional_host_permissions).toEqual([
-      "https://api.controld.com/*",
-    ]);
-    expect(localManifest.optional_host_permissions).toEqual([
-      "https://api.controld.com/*",
-    ]);
-    expect(releaseManifest.permissions).not.toContain("proxy");
-  });
+  it.each(["release", "beta", "local"])(
+    "declares optional Control D API access in %s builds",
+    (channel) => {
+      vi.stubEnv("PT_BUILD_CHANNEL", channel);
+      const manifest = createManifest();
+      expect(manifest.optional_host_permissions).toEqual([
+        "https://api.controld.com/*",
+      ]);
+      expect(manifest.permissions).not.toContain("proxy");
+    },
+  );
 
   it("declares Firefox toolbar theme icons without adding them to Chromium", () => {
     const firefoxManifest = createManifest({ browserTarget: "firefox" });
