@@ -614,19 +614,6 @@ const createController = (deps: BackgroundEntryDeps) => {
         }
       }),
     scheduleAutomatic,
-    runRelated: <T>(operation: () => Promise<T>) =>
-      syncQueue.run(async () => {
-        cleanup.invalidate();
-        preview = null;
-        try {
-          return await operation();
-        } finally {
-          if (rerunRequested) {
-            rerunRequested = false;
-            scheduleAutomatic();
-          }
-        }
-      }),
   };
 };
 

@@ -19,7 +19,6 @@ import { logExtensionEvent } from "@/background/logger";
 import { createPluginHooks } from "@/background/plugin-hooks";
 import { LOCATIONS_STORAGE_KEY } from "@/background/storage/locations";
 import { RULES_STORAGE_KEY } from "@/background/storage/rules";
-import { FEATURE_COMMANDS } from "@/shared/provider-feature";
 
 vi.mock("./recognition-setup", async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
@@ -577,30 +576,6 @@ describe("Control D background entry", () => {
     timeoutSpy.mockRestore();
     clearTimeoutSpy.mockRestore();
   });
-  it("reschedules an automatic sync that expired while a related provider operation was running", async () => {
-    storageState[CONTROL_D_STORE_KEYS[0]] = fixtureConfig();
-    registerControlD({ getDebugMode: async () => false });
-    const gate = deferred<void>();
-    vi.mocked(chrome.storage.local.get).mockImplementation((async (key: string) => {
-      await gate.promise;
-      return key in storageState ? { [key]: storageState[key] } : {};
-    }) as never);
-    const reply = request({
-      type: FEATURE_COMMANDS.getState,
-      providerId: "control-d",
-      rulePattern: "example.com",
-      hostname: "example.com",
-    });
-    storageListener({ [RULES_STORAGE_KEY]: { newValue: [] } }, "local");
-    await vi.advanceTimersByTimeAsync(1_500);
-    const timeoutSpy = vi.spyOn(globalThis, "setTimeout");
-    gate.resolve();
-    await reply;
-
-    expect(timeoutSpy).toHaveBeenCalledWith(expect.any(Function), 1_500);
-    timeoutSpy.mockRestore();
-  });
-
   it("waits for in-flight sync before acknowledging disconnect and cannot reconnect afterward", async () => {
     const config = fixtureConfig();
     storageState[CONTROL_D_STORE_KEYS[0]] = config;

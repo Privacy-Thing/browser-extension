@@ -3,7 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { registerControlD } from "./background-entry";
 import { CONTROL_D_COMMANDS, type CleanupPlan, type CleanupReport } from "./contracts";
-import { DIAGNOSTIC_COMMANDS, RECOGNITION_STORE_KEY } from "./recognition-setup";
+import type * as RecognitionModule from "./recognition-setup";
+import { RECOGNITION_STORE_KEY, whenRecognitionSettled } from "./recognition-setup";
 import {
   loadControlDApiKey,
   loadControlDConfig,
@@ -11,7 +12,13 @@ import {
   saveControlDConfig,
 } from "./storage";
 
+import { createPluginHooks } from "@/background/plugin-hooks";
+
 vi.mock("@/background/logger", () => ({ logExtensionEvent: vi.fn() }));
+vi.mock("./recognition-setup", async (importOriginal) => {
+  const actual = await importOriginal<typeof RecognitionModule>();
+  return { ...actual, whenRecognitionSettled: vi.fn(actual.whenRecognitionSettled) };
+});
 let listener: (
   message: unknown,
   sender: { id: string; url: string },
@@ -104,7 +111,7 @@ beforeEach(async () => {
     status: "ready",
   });
   await saveControlDApiKey("fake-key-only");
-  registerControlD({ getDebugMode: () => false });
+  registerControlD({ hooks: createPluginHooks(), getDebugMode: () => false });
 });
 afterEach(() => vi.unstubAllGlobals());
 const request = (message: unknown) =>
@@ -142,15 +149,32 @@ describe("Control D cleanup command boundary", () => {
     expect((await execute(plan.token)).ok).toBe(false);
   });
 
-  it.each([
-    CONTROL_D_COMMANDS.getState,
-    CONTROL_D_COMMANDS.setEnabled,
-    DIAGNOSTIC_COMMANDS.getState,
-  ])("invalidates a token after %s", async (type) => {
-    const plan = await preview();
-    await request({ type, enabled: true });
-    expect((await execute(plan.token)).ok).toBe(false);
-    expect(writes).toEqual([]);
+  it.each([CONTROL_D_COMMANDS.getState, CONTROL_D_COMMANDS.setEnabled])(
+    "invalidates a token after %s",
+    async (type) => {
+      const plan = await preview();
+      await request({ type, enabled: true });
+      expect((await execute(plan.token)).ok).toBe(false);
+      expect(writes).toEqual([]);
+    },
+  );
+
+  it("waits for a running recognition sweep before planning or deleting", async () => {
+    let settle: () => void = () => undefined;
+    vi.mocked(whenRecognitionSettled).mockImplementationOnce(
+      () => new Promise<void>((resolve) => (settle = resolve)),
+    );
+    let planned = false;
+    const pending = preview().then((plan) => {
+      planned = true;
+      return plan;
+    });
+    await vi.waitFor(() => expect(whenRecognitionSettled).toHaveBeenCalled());
+    await Promise.resolve();
+    expect(planned).toBe(false);
+    expect(fetchMock).not.toHaveBeenCalled();
+    settle();
+    expect((await pending).resources).not.toHaveLength(0);
   });
 
   it("invalidates a token after local config changes", async () => {
@@ -164,7 +188,7 @@ describe("Control D cleanup command boundary", () => {
     lookup = true;
     probe = true;
     stored[RECOGNITION_STORE_KEY] = {
-      version: 1,
+      version: 2,
       phase: "ready",
       code: "ABCDE-FGHJK",
       profileId: "lookup",
@@ -181,7 +205,7 @@ describe("Control D cleanup command boundary", () => {
       first.report?.results.filter((item) => item.status === "failed"),
     ).toHaveLength(4);
     expect(stored[RECOGNITION_STORE_KEY]).toMatchObject({
-      phase: "error",
+      phase: "not-setup",
       resolverDoh: null,
     });
     expect(first.report?.retryAvailable).toBe(true);

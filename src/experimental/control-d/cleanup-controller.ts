@@ -11,7 +11,11 @@ import {
   type CleanupResponse,
   type ControlDCommand,
 } from "./contracts";
-import { loadRecognitionState, saveRecognitionState } from "./recognition-setup";
+import {
+  loadRecognitionState,
+  saveRecognitionState,
+  whenRecognitionSettled,
+} from "./recognition-setup";
 import { hashControlDValue } from "./service-reconcile";
 import {
   forgetControlDApiKey,
@@ -37,6 +41,8 @@ export const createCleanupController = () => {
       reviewed = null;
     },
     respond: async (command: ControlDCommand): Promise<CleanupResponse> => {
+      // The Bypass sweep saves recognition state while it runs; cleanup must not race it.
+      await whenRecognitionSettled();
       const state = await loadState();
       const apiKey = await loadControlDApiKey();
       const publicState = await toControlDPublicState(state.config);
@@ -84,7 +90,7 @@ export const createCleanupController = () => {
         };
         state.recognition = {
           ...state.recognition,
-          phase: state.recognition.code ? "error" : "not-setup",
+          phase: "not-setup",
           resolverDoh: null,
           lastError: null,
         };

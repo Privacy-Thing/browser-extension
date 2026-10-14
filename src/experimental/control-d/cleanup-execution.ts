@@ -50,7 +50,7 @@ const forgetDeleted = (state: CleanupLocalState, item: CleanupResource) => {
   if (item.kind === "endpoint" && item.id === lookup.endpointId) {
     lookup.endpointId = null;
     lookup.resolverDoh = null;
-    lookup.phase = "error";
+    lookup.phase = "not-setup";
   }
   if (item.kind === "profile" && item.id === lookup.profileId) {
     lookup.profileId = null;
