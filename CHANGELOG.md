@@ -25,6 +25,10 @@ The format is based on Keep a Changelog and the project follows Semantic Version
   and the service's potentially wider scope; Privacy Thing protects only the rule's
   explicit patterns. The plugin is excluded from release builds.
 
+- Added a compact Control D introduction explaining account resources, data sharing,
+  retained resources and manual DNS setup, with both privacy policy links. Local and
+  beta builds label the integration with a Beta badge.
+
 - Added an experimental, one-way Control D regional DNS integration to local
   and beta builds. It previews managed rule changes, requires confirmation
   before the first sync, preserves unrelated Control D resources, and guides
