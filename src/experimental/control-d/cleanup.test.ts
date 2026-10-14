@@ -262,6 +262,31 @@ describe("Control D cleanup ownership and execution", () => {
     expect(await f.run()).toEqual([]);
   });
 
+  it("treats a repeated folder DELETE (HTTP 400, code 40003) as deleted only when the folder is gone", async () => {
+    const gone = await fixture();
+    vi.mocked(gone.client.deleteGroup)
+      .mockReset()
+      .mockImplementationOnce(async () => {
+        gone.groups.p = [];
+        gone.rules.p = [];
+        throw new ControlDApiError("missing", 400, null, null, null, null, 40003);
+      });
+    const goneResults = await gone.run();
+    expect(goneResults[0]).toMatchObject({
+      status: "deleted",
+      reason: "already-deleted",
+    });
+
+    const present = await fixture();
+    vi.mocked(present.client.deleteGroup)
+      .mockReset()
+      .mockRejectedValueOnce(
+        new ControlDApiError("invalid", 400, null, null, null, null, 40003),
+      );
+    const presentResults = await present.run();
+    expect(presentResults[0]).toMatchObject({ status: "failed" });
+  });
+
   it("returns sanitized per-resource failures and retries only remaining IDs", async () => {
     const f = await fixture();
     vi.mocked(f.client.deleteGroup).mockRejectedValueOnce(

@@ -38,6 +38,12 @@ export type CleanupClient = Pick<
 export const isCleanupNotFound = (error: unknown): boolean =>
   error instanceof ControlDApiError && error.status === 404;
 
+// Live API: a repeated DELETE of a folder or service answers HTTP 400 with code 40003
+// ("does not exist" / "not configured") instead of 404. The code is generic, so callers
+// must confirm the resource is absent before treating it as already deleted.
+export const isCleanupMaybeMissing = (error: unknown): boolean =>
+  error instanceof ControlDApiError && error.status === 400 && error.apiCode === 40003;
+
 // A disappearing profile is safe to treat as absent, never as an empty owned profile.
 const absentOn404 = async <T>(read: () => Promise<T[]>): Promise<T[]> => {
   try {

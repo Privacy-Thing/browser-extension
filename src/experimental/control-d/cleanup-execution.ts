@@ -1,4 +1,9 @@
-import { isCleanupNotFound, planControlDCleanup, type CleanupClient } from "./cleanup";
+import {
+  isCleanupMaybeMissing,
+  isCleanupNotFound,
+  planControlDCleanup,
+  type CleanupClient,
+} from "./cleanup";
 import { ControlDApiError } from "./client";
 import type { CleanupResource, CleanupResult, ControlDConfig } from "./contracts";
 import type { RecognitionState } from "./recognition-setup";
@@ -74,6 +79,22 @@ const outcome = (
   message: string | null = null,
 ): CleanupResult => ({ resource, status, reason, message });
 
+const isConfirmedAbsent = async (
+  client: CleanupClient,
+  item: CleanupResource,
+  state: CleanupLocalState,
+): Promise<boolean> => {
+  try {
+    const current = await planControlDCleanup(client, state.config, state.recognition);
+    return (
+      current.find((candidate) => candidate.key === item.key)?.reason ===
+      "already-deleted"
+    );
+  } catch {
+    return false;
+  }
+};
+
 const deleteReviewed = async (
   client: CleanupClient,
   item: CleanupResource,
@@ -95,6 +116,8 @@ const deleteReviewed = async (
     return outcome(item, "deleted", fresh.reason);
   } catch (error) {
     if (isCleanupNotFound(error)) return outcome(item, "deleted", "already-deleted");
+    if (isCleanupMaybeMissing(error) && (await isConfirmedAbsent(client, item, state)))
+      return outcome(item, "deleted", "already-deleted");
     throw error;
   }
 };
