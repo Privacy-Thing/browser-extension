@@ -6,7 +6,7 @@ export const cleanupPt = {
   deleteChoice: `Desconectar e excluir o que o ${BRAND_DISPLAY_NAME} criou`,
   keepChoice: "Desconectar",
   keepDescription:
-    "Esquece a chave API e interrompe a sincronização. Os recursos remotos e o DNS do navegador permanecem.",
+    "Esquece a chave de API e interrompe a sincronização. Os recursos remotos e o DNS do navegador permanecem.",
   review: "Revisar plano de exclusão",
   planTitle: "Revisar o que será excluído",
   planDescription:
@@ -18,8 +18,8 @@ export const cleanupPt = {
   resultTitle: "Resultados da limpeza",
   retry: "Revisar e tentar novamente as falhas",
   retainedKey:
-    "A sincronização foi interrompida. A chave API e os registros de propriedade restantes são mantidos localmente para tentar novamente. Desconecte sem excluir para esquecer a chave agora.",
-  finished: "A sincronização foi interrompida e a chave API foi esquecida.",
+    "A sincronização foi interrompida. A chave de API e os registros de propriedade restantes são mantidos localmente para tentar novamente. Desconecte sem excluir para esquecer a chave agora.",
+  finished: "A sincronização foi interrompida e a chave de API foi esquecida.",
   close: "Fechar",
   cancel: "Cancelar",
   working: "Processando…",

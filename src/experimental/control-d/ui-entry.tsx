@@ -1,6 +1,7 @@
 /* eslint-disable max-lines */
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 
+import { requestApiAccess } from "./api-access";
 import { controlDAutoApply } from "./auto-apply";
 import { isConflictEntered } from "./conflict-transition";
 import {
@@ -65,12 +66,6 @@ const CONTROL_D_PRIVACY_URL = "https://controld.com/privacy";
 const EMPTY_PROXIES: ControlDPreparedSnapshot["proxies"] = [];
 const send = async (message: unknown): Promise<UiResponse> =>
   (await chrome.runtime.sendMessage(message)) as UiResponse;
-
-const requestApiAccess = async (): Promise<boolean> => {
-  const permission = { origins: [CONTROL_D_API_ORIGIN] };
-  if (await chrome.permissions.contains(permission)) return true;
-  return chrome.permissions.request(permission);
-};
 
 export const isIntegrationAvailable = (): boolean =>
   (chrome.runtime.getManifest().optional_host_permissions ?? []).includes(

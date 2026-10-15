@@ -394,7 +394,7 @@ const LogDetails = ({ entry }: { entry: ExtensionLogEntry }) => {
 };
 
 const LogCard = ({ entry }: { entry: ExtensionLogEntry }) => (
-  <Card className="overflow-hidden">
+  <Card className="overflow-hidden" data-log-event={entry.event}>
     <CardHeader className="flex flex-row items-baseline justify-between gap-4 space-y-0 border-b bg-muted/30 px-4 py-3">
       <CardTitle className="max-w-full truncate text-[15px]">{entry.event}</CardTitle>
       <div className="flex shrink-0 items-center gap-2">
