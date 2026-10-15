@@ -19,7 +19,7 @@ export const controlDEs = {
     names: `Los nombres usan un código aleatorio, nunca los nombres de tus preajustes: «${BRAND_DISPLAY_NAME} XXXXX-XXXXX», «PT Browser XXXXX-XXXXX» («PT Firefox XXXXX-XXXXX» en Firefox), «PT XXXXX-XXXXX <ROUTE>». Recursos de consulta opcionales: «PT Lookup XXXXX-XXXXX», «PT Probe XXXXX-XXXXX».`,
     data: "Control D recibe los nombres de host de tus reglas de dominio, las salidas elegidas y estos nombres de recursos. Solo con el reconocimiento de servicios, se envía también un host de una regla como consulta DNS sobre HTTPS que solicita no registrarse (no_log=1). No se envían nombres ni coordenadas de preajustes. Tu clave API queda en esta instalación, fuera de las exportaciones y la sincronización del navegador.",
     limits:
-      "Esta extensión no cambia automáticamente el DNS del navegador ni cambia tu dirección IP por sí sola. Configuras el DNS seguro en un paso posterior; Control D solo enruta el tráfico tras configurar su resolutor.",
+      "Esta extensión no cambia automáticamente el DNS del navegador ni cambia tu dirección IP por sí sola. Configuras el DNS seguro en un paso posterior; Control D solo enruta el tráfico tras configurar su resolvedor.",
   },
   open: "Abrir Control D",
   back: "Volver a Avanzado",
