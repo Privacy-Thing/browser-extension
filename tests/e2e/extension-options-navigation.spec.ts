@@ -169,7 +169,7 @@ test("shows Control D actions in View Logs when debug mode is enabled", async ({
   await page.goto(`${optionsUrl}#page-logs`);
 
   await expect(
-    page.getByText("control-d.integration.toggled", { exact: true }),
+    page.locator('[data-log-event="control-d.integration.toggled"]'),
   ).toBeVisible();
 });
 
