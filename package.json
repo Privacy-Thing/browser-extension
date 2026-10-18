@@ -145,7 +145,7 @@
     "tsx": "^4.23.15",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "vite": "^8.3.4",
-    "vitest": "^4.1.11",
+    "vitest": "^4.1.12",
     "web-ext": "^10.7.0"
   }
 }
