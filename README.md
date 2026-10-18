@@ -70,7 +70,7 @@ Early-stage releases are available from your browser's extension store:
 
 ### From source
 
-Requires Node.js 24 and pnpm 11. Corepack activates the version pinned by the
+Requires Node.js 24 and pnpm 12. Corepack activates the version pinned by the
 `packageManager` field in `package.json`.
 
 ```bash

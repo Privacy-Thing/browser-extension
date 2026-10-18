@@ -64,8 +64,14 @@ If the reviewer has to guess what changed, the change is much less likely to be 
 
 ## Setup
 
-Node.js 24 and pnpm 11, activated through Corepack using the `packageManager` field in
+Node.js 24 and pnpm 12, activated through Corepack using the `packageManager` field in
 `package.json`.
+
+The workspace enables pnpm's global virtual store (`virtualStoreType: global`).
+Run tools through `pnpm task` or `pnpm exec` so they receive pnpm's module resolution
+environment. `tsc` runs TypeScript 7 via the `@typescript/native` alias; the
+`typescript` alias provides the TypeScript 6 API required by ESLint and Storybook,
+following [Microsoft's compatibility guidance](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/#running-side-by-side-with-typescript-6.0).
 
 ```bash
 pnpm install

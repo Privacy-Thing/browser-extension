@@ -32,13 +32,13 @@ The distributed add-on is bundled with Vite, so the original source code is incl
 
 - Node.js 24
 - Corepack available (bundled with Node.js 24)
-- pnpm 11, activated through Corepack using the packageManager field from package.json
+- pnpm 12, activated through Corepack using the packageManager field from package.json
 
 ## Install Dependencies
 
 \`\`\`bash
 corepack enable
-corepack prepare pnpm@11.5.0 --activate
+corepack prepare pnpm@12.14.0 --activate
 pnpm install --frozen-lockfile
 \`\`\`
 

@@ -2,6 +2,8 @@ packages:
   - .
   - packages/*
 
+virtualStoreType: global
+
 overrides:
   # react and react-dom are a matched pair and MUST resolve to the same single
   # version. Without this exact pin, a lockfile regeneration (e.g. any Dependabot

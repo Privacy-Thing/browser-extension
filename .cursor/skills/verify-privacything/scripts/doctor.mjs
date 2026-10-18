@@ -43,7 +43,7 @@ if (!existsSync(path.join(repoRoot, "node_modules"))) {
 try {
   execFileSync("pnpm", ["-v"], { cwd: repoRoot, stdio: "pipe" });
 } catch {
-  fail("pnpm is not runnable. Enable Corepack or install pnpm 11.");
+  fail("pnpm is not runnable. Enable Corepack or install pnpm 12.");
 }
 
 if (!existsSync(manifestPath)) {

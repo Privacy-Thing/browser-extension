@@ -387,7 +387,7 @@ const ComboboxContent = (props: ComboboxContentProps) => (
           {props.options.map((option) => (
             <CommandItem
               key={option.value}
-              ref={(node) => {
+              ref={(node: React.ComponentRef<typeof CommandItem> | null) => {
                 if (node) props.optionRefs.current.set(option.value, node);
                 else props.optionRefs.current.delete(option.value);
               }}
