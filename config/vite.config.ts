@@ -17,12 +17,12 @@ import {
   MANIFEST_LOCALE_CODES,
 } from "../scripts/build-channel-config.mjs";
 
-import baseManifest from "./manifest";
+import baseManifest from "./manifest.ts";
 import {
   configDirectory,
   repositoryRootDirectory,
   uiAliasEntries,
-} from "./path-aliases";
+} from "./path-aliases.ts";
 
 type BuildTarget = "chromium" | "firefox";
 
@@ -208,6 +208,9 @@ const BUILD_ID_DEFINES = Object.fromEntries(
 );
 const BUILD_ID_VALUES = Object.values(BUILD_ID_DEFINITIONS);
 const BUILD_ID_SEMANTIC_KEYS = Object.keys(BUILD_IDS);
+// Nested worker builds and esbuild minification dominate JS callback time by
+// design. Profile their actual cost when needed instead of warning on the ratio.
+const bundlerChecks = { bundlerTimings: false };
 const CLUSTERED_LITERALS =
   /(?:[A-Za-z_$][\w$]*=(?:"[^"\\]{4,40}"|`[^`\\]{4,40}`),){2,}/g;
 
@@ -593,6 +596,7 @@ export default defineConfig({
     ...(extraEntry && extraEntry in extraEntryBuilds
       ? {
           rollupOptions: {
+            checks: bundlerChecks,
             input: extraEntryBuilds[extraEntry as keyof typeof extraEntryBuilds].input,
             output:
               extraEntryBuilds[extraEntry as keyof typeof extraEntryBuilds].output,
@@ -600,6 +604,7 @@ export default defineConfig({
         }
       : {
           rollupOptions: {
+            checks: bundlerChecks,
             input: {
               options: "src/ui/options/index.html",
               popup: "src/ui/popup/index.html",
