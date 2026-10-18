@@ -1,4 +1,4 @@
-import packageJson from "../package.json";
+import packageJson from "../package.json" with { type: "json" };
 
 // Brand name and short description are no longer inlined here: they are emitted
 // per-locale into _locales/<locale>/messages.json by manifestPlugin (see
