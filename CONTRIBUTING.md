@@ -74,9 +74,34 @@ environment. `tsc` runs TypeScript 7 via the `@typescript/native` alias; the
 following [Microsoft's compatibility guidance](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/#running-side-by-side-with-typescript-6.0).
 
 ```bash
-pnpm install
+corepack enable
+pnpm install --frozen-lockfile
 pnpm task verify:quick
 ```
+
+### Global virtual store
+
+Each checkout or Git worktree still needs its own `pnpm install --frozen-lockfile`.
+With the [global virtual store](https://pnpm.io/global-virtual-store), matching dependency
+graphs reuse the same packages through symlinks; do not copy `node_modules` between
+worktrees. Leave `storeDir` and `virtualStoreDir` unset locally so all checkouts use
+the machine's default pnpm store.
+
+To check the effective configuration and store location:
+
+```bash
+pnpm config get virtualStoreType # should print global
+pnpm store path
+pnpm exec node -p 'require("node:fs").realpathSync("node_modules/vite")'
+```
+
+The resolved Vite path should be inside the store's `links` directory. If the setting
+is `global` but the installed dependencies still point into a checkout-local virtual
+store, rerun `pnpm install --frozen-lockfile` to apply the configuration.
+
+CI uses its configured job store and caches it where the workflow supports caching;
+it does not use a developer's local store. No machine-specific absolute paths belong
+in the workspace configuration.
 
 ## What CI expects
 
