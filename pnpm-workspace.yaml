@@ -2,6 +2,8 @@ packages:
   - .
   - packages/*
 
+# Share dependency graphs across local checkouts and worktrees. Keep the default
+# store location so each machine can reuse its pnpm store without a repo-local pin.
 virtualStoreType: global
 
 overrides:
