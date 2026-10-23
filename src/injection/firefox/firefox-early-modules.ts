@@ -291,7 +291,8 @@ class FxEarlyModuleInstaller {
         target,
         "webdriver",
         () => {
-          if (shouldReportFxFp(this.#deps.getState())) markSurfaceUsed("navigator");
+          if (shouldReportFxFp(this.#deps.getState()))
+            markSurfaceUsed("navigator", methodIds.webdriver);
           this.#deps.emitLog("Navigator", "get webdriver", [], false);
           return false;
         },
@@ -309,7 +310,7 @@ class FxEarlyModuleInstaller {
             property,
             () => {
               if (shouldReportFxFp(this.#deps.getState())) {
-                markSurfaceUsed("navigator");
+                markSurfaceUsed("navigator", methodIds[property]);
               }
               const value = getter();
               if (value !== undefined) {

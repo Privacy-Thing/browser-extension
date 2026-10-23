@@ -1,3 +1,4 @@
+import { bindAnalystTraps } from "@privacy-brand/refract-core/runtime/analyst-traps";
 import {
   createPrivateMap,
   createPrivateSet,
@@ -6,7 +7,11 @@ import {
   privateSetAdd,
 } from "@privacy-brand/refract-core/runtime/primordials";
 
-import type { XRaySurfaceCategory, SpoofingSurfaceMethodId } from "@/shared/types";
+import type {
+  RuntimeSnapshot,
+  XRaySurfaceCategory,
+  SpoofingSurfaceMethodId,
+} from "@/shared/types";
 
 export type SurfaceUsageSnapshot = {
   sourceId: string;
@@ -171,7 +176,7 @@ const parseRegistrationDetail = (
  * diagnostic identifiers from the spoofing-surface catalog, not localized UI
  * labels.
  */
-export const markSurfaceUsed = (
+export const recordSurfaceUsed = (
   category: XRaySurfaceCategory,
   methodId?: SpoofingSurfaceMethodId,
 ): void => {
@@ -188,6 +193,16 @@ export const markSurfaceUsed = (
   dirty = true;
 
   scheduleFlush();
+};
+
+export let markSurfaceUsed = recordSurfaceUsed;
+let usageActivated = false;
+export const activateSurfaceUsage = (snapshot: {
+  analystTraps?: RuntimeSnapshot["analystTraps"];
+}): void => {
+  if (usageActivated) return;
+  usageActivated = true;
+  markSurfaceUsed = bindAnalystTraps(recordSurfaceUsed, snapshot.analystTraps);
 };
 
 export const setSurfaceUsageSourceId = (sourceId: string): void => {

@@ -22,6 +22,7 @@ import {
 } from "@privacy-brand/refract-browser/common/firefox-shim-state";
 import { markSurfaceEvidence } from "@privacy-brand/refract-browser/common/surface-error-emitter";
 import {
+  activateSurfaceUsage,
   markSurfaceUsed,
   setSurfaceUsageSourceId,
 } from "@privacy-brand/refract-browser/common/surface-usage-emitter";
@@ -413,6 +414,7 @@ import type { XRaySurfaceCategory } from "@/shared/types";
 
   const stateRevisionGate = createFxRevisionGate<FirefoxShimState>((state) => {
     latestShimState = state;
+    activateSurfaceUsage(state);
     activeDebugState = state.debug;
 
     if (!geolocationBridge.isResolved() && state.geoStatus === "absent") {

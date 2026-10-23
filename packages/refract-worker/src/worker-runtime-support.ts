@@ -2,6 +2,7 @@ import {
   createIntegrityRegistry,
   registerInstalledDesc,
 } from "@privacy-brand/refract-core/integrity/surface-integrity-registry";
+import { bindAnalystTraps } from "@privacy-brand/refract-core/runtime/analyst-traps";
 import {
   createPrivateMap,
   createPrivateRecord,
@@ -285,7 +286,10 @@ export const createWorkerSupport = (
     integrity,
     isSharedWorker: bus.isSharedWorker,
     loggers: createWorkerLoggers(snapshot, channel, bus),
-    markSurfaceUsed: createUsageReporter(channel, bus),
+    markSurfaceUsed: bindAnalystTraps(
+      createUsageReporter(channel, bus),
+      bus.isSharedWorker() ? undefined : snapshot.analystTraps,
+    ),
     register: (input) => registerWorkerDesc(integrity, input),
   };
 };

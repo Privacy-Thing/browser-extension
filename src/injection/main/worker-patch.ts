@@ -75,7 +75,7 @@ const createBlockedError = (
   kind: "Worker" | "SharedWorker",
   scriptURL: string | URL,
 ): Error => {
-  const message = `${kind} script ${String(scriptURL)} was blocked by Privacy Thing strict mode because spoofing could not be confirmed.`;
+  const message = `${kind} script ${String(scriptURL)} was blocked by strict mode because spoofing could not be confirmed.`;
   if (typeof DOMException !== "undefined") {
     return new DOMException(message, "SecurityError");
   }
