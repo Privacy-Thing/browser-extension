@@ -403,3 +403,40 @@ test("Firefox merge import handles prototype-like IDs and same-tick zone correct
     await ui.close();
   }
 });
+
+test("Firefox import rejects an unsupported preset time zone with a readable error", async ({
+  context,
+  extensionOrigin,
+  debuggerPort,
+}) => {
+  const ui = await openFxOptionsProbe({ context, extensionOrigin, debuggerPort });
+  const driver = createImportDriver(ui);
+  try {
+    await expect.poll(() => driver.isPresent('[data-tab="advanced"]')).toBe(true);
+    await driver.click('[data-tab="advanced"]');
+    await expect.poll(() => driver.isPresent("#import-settings-file")).toBe(true);
+    await driver.chooseFile({
+      ...IMPORT_FIXTURE,
+      locations: [
+        {
+          ...IMPORT_FIXTURE.locations[0]!,
+          id: "mars",
+          label: "Mars",
+          timeZone: "Mars/Olympus",
+        },
+      ],
+      rules: [],
+    });
+    await expect.poll(() => driver.isPresent("[data-import-error]")).toBe(true);
+    expect(
+      await ui.evaluate<string[]>(
+        `Array.from(document.querySelectorAll("[data-import-error-item]"), (item) => item.getAttribute("data-import-error-item"))`,
+      ),
+    ).toEqual(["timeZone"]);
+    expect(await driver.isPresent('[data-import-error-hint="timeZone"]')).toBe(true);
+    expect(await driver.isPresent("[data-import-error-details]")).toBe(true);
+    expect(await driver.isEnabled("#settings-import-confirm")).toBe(false);
+  } finally {
+    await ui.close();
+  }
+});

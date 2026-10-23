@@ -14,6 +14,7 @@ import {
 import { XRayStoryShell } from "./XRayStoryShell";
 
 import { t } from "@/ui/i18n";
+import { expectNoSideScroll } from "@/ui/shared/dialog-overflow-assertion";
 
 type XRayStoryHarnessProps = {
   scenario: XRayStoryScenario;
@@ -93,5 +94,16 @@ export const DiagnosticReport: Story = {
       "included",
     );
     await expect(preview.value).toContain("maps.example.test");
+  },
+};
+
+export const ReportNoSideScroll: Story = {
+  args: { scenario: "evidence-states" },
+  tags: ["!dev", "!autodocs"],
+  play: async ({ canvasElement }) => {
+    await userEvent.click(
+      within(canvasElement).getByRole("button", { name: t.sidebar.report.prepare }),
+    );
+    expectNoSideScroll(within(canvasElement.ownerDocument.body).getByRole("dialog"));
   },
 };

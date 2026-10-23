@@ -3,6 +3,7 @@ import { expect, fn, userEvent, waitFor, within } from "storybook/test";
 
 import type { SettingsImportPreview } from "@/shared/settings-import";
 import { SettingsImportDialogView } from "@/ui/options/components/modals/SettingsImportDialog";
+import { expectNoSideScroll } from "@/ui/shared/dialog-overflow-assertion";
 
 const preview: SettingsImportPreview = {
   token: "storybook-preview",
@@ -66,6 +67,14 @@ export const Preview: Story = {
     ).toBeVisible();
     await userEvent.click(dialog.querySelector("#settings-import-confirm")!);
     await expect(args.confirm).toHaveBeenCalledOnce();
+  },
+};
+export const NoSideScroll: Story = {
+  tags: ["!dev", "!autodocs"],
+  play: async () => {
+    const dialog = within(document.body).getByRole("dialog");
+    await waitFor(() => expect(dialog).toBeVisible());
+    expectNoSideScroll(dialog);
   },
 };
 export const UnresolvedConflict: Story = {

@@ -37,4 +37,6 @@ export const settingsImport = {
   resolve: "Resolve the listed conflicts before confirming.",
   selectAll: "Select all",
   skipAll: "Skip all",
+  technicalDetails: "Technical details",
+  timeZoneHint: "Edit the file to use a supported time zone, then import it again.",
 } as const;

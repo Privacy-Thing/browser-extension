@@ -52,10 +52,12 @@ The format is based on Keep a Changelog and the project follows Semantic Version
   DoH setup. The dedicated four-step flow can recover setups created with the v2
   Privacy Thing naming scheme after reinstalling.
 - A “Site not working?” assistant offers one temporary Service Worker or
-  SharedWorker policy test for the exact top-document host. Failed, cancelled
-  and expired tests restore current settings; saving a host exception requires
-  a separate confirmation. Redacted before/after reports stay local. Global
-  WebRTC policy is unchanged.
+  SharedWorker policy test for the exact top-document host. From the popup it opens
+  as its own compact window sized to its content, so the site stays usable during
+  the test. Failed, cancelled and expired tests restore current settings; saving a
+  host exception requires a separate confirmation and ends the test with its
+  result. Redacted before/after reports stay local. Global WebRTC policy is
+  unchanged.
 
 - Regional preset editing, generation, and import now show advisory coordinate/time-zone
   checks and previews of browser languages, Accept-Language, and seasonal date/number
@@ -77,8 +79,10 @@ The format is based on Keep a Changelog and the project follows Semantic Version
   next configuration edit). Undo restores configuration, not website sessions.
 - Import can merge selected presets and rules with explicit ID/pattern conflict
   choices, remapped preset references, and manual Firefox container mapping.
-  Presets with IDs such as `constructor` import like any other, and several
-  time zone corrections made at once in the preview are all kept.
+  Import errors are shown as readable messages with a next step (for example, an
+  unsupported preset time zone), with technical details collapsed. Presets with IDs
+  such as `constructor` import like any other, and several time zone corrections
+  made at once in the preview are all kept.
 
 - Added complete Spanish and Portuguese interface translations, selected
   automatically from the browser interface language with English as the fallback.
@@ -120,6 +124,10 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 - Connecting Control D in Firefox no longer fails after access to all websites was
   turned off for the extension.
+
+- Dialogs use a thin neutral frame with a subtle accent line instead of a thick
+  accent-coloured border, and scrollbars follow neutral colours in every accent preset.
+  The troubleshooter, report and import dialogs no longer scroll sideways.
 
 - Pickers no longer draw option rows outside their popup on short windows.
 

@@ -23,6 +23,7 @@ import {
 import { t } from "@/ui/i18n";
 import { readImportChoice } from "@/ui/options/components/modals/import-choice";
 import { ImportRegionalReview } from "@/ui/options/components/modals/ImportRegionalReview";
+import { parseImportError } from "@/ui/options/state/import-error";
 import { useSettings } from "@/ui/options/state/SettingsContext";
 
 export type ImportDialogProps = {
@@ -275,6 +276,37 @@ const ImportChanges = ({ changes }: { changes: SettingsImportChange[] }) => (
   </section>
 );
 
+const ImportErrorAlert = ({ error }: { error: string }) => {
+  const { items, technical } = parseImportError(error);
+  const timeZoneIssue = items.some((item) => item.field === "timeZone");
+  return (
+    <div role="alert" data-import-error className="space-y-2 text-sm text-destructive">
+      {items.length === 1 ? (
+        <p data-import-error-item={items[0]?.field ?? ""}>{items[0]?.message}</p>
+      ) : (
+        <ul className="list-disc space-y-1 pl-5">
+          {items.map((item) => (
+            <li key={item.message} data-import-error-item={item.field ?? ""}>
+              {item.message}
+            </li>
+          ))}
+        </ul>
+      )}
+      {timeZoneIssue ? (
+        <p data-import-error-hint="timeZone">{t.settingsImport.timeZoneHint}</p>
+      ) : null}
+      {technical ? (
+        <details data-import-error-details className="text-xs text-muted-foreground">
+          <summary className="cursor-pointer">
+            {t.settingsImport.technicalDetails}
+          </summary>
+          <pre className="mt-1 whitespace-pre-wrap break-words">{technical}</pre>
+        </details>
+      ) : null}
+    </div>
+  );
+};
+
 export const SettingsImportDialogView = (props: ImportDialogProps) => {
   const { preview, busy, error, saveInFlight, cancel, confirm, update } = props;
   return (
@@ -338,11 +370,7 @@ export const SettingsImportDialogView = (props: ImportDialogProps) => {
               <ImportChanges changes={preview.changes} />
             </>
           ) : null}
-          {error ? (
-            <p role="alert" data-import-error className="text-sm text-destructive">
-              {error}
-            </p>
-          ) : null}
+          {error ? <ImportErrorAlert error={error} /> : null}
           <p className="text-xs text-muted-foreground">{t.settingsImport.retention}</p>
         </div>
         <DialogFooter>
