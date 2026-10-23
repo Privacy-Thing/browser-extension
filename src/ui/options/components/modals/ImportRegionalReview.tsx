@@ -1,5 +1,6 @@
 import type { SettingsImportPreview } from "@/shared/settings-import";
 import { t } from "@/ui/i18n";
+import { readImportChoice } from "@/ui/options/components/modals/import-choice";
 import { RegionalProfileReview } from "@/ui/options/components/modals/RegionalProfileReview";
 
 export const ImportRegionalReview = ({
@@ -13,9 +14,7 @@ export const ImportRegionalReview = ({
 }) => {
   const profiles = preview.source.locations.filter((profile) => {
     if (preview.selection.mode === "replace") return true;
-    const choice = Object.hasOwn(preview.selection.locations, profile.id)
-      ? preview.selection.locations[profile.id]
-      : undefined;
+    const choice = readImportChoice(preview.selection, "locations", profile.id);
     return (
       choice === "import" ||
       choice === "copy" ||

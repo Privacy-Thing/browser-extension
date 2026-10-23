@@ -81,28 +81,48 @@ const undoImport = async (input: {
   }
 };
 
+const errorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : t.settingsImport.failed;
+
+/** Latest requested source and selection while a preview request is still in flight. */
+type ImportDraft = { source: ExportedSettings; selection: SettingsImportSelection };
+
 const createImportUpdates = (
   importPreview: SettingsImportPreview | null,
+  draftRef: RefObject<ImportDraft | null>,
   preview: (
     settings: ExportedSettings,
     selection?: SettingsImportSelection,
   ) => Promise<void>,
-) => ({
-  updateImportTimeZone: (id: string, timeZone: string) =>
-    importPreview
-      ? preview(
-          {
-            ...importPreview.source,
-            locations: importPreview.source.locations.map((profile) =>
-              profile.id === id ? { ...profile, timeZone } : profile,
-            ),
-          },
-          importPreview.selection,
-        )
-      : Promise.resolve(),
-  updateImportSelection: (selection: SettingsImportSelection) =>
-    importPreview ? preview(importPreview.source, selection) : Promise.resolve(),
-});
+) => {
+  // Build on the draft, not the rendered preview, so corrections made before a
+  // rerender (or before the previous preview response) are not lost.
+  const request = (patch: (draft: ImportDraft) => ImportDraft): Promise<void> => {
+    if (!importPreview) return Promise.resolve();
+    const draft = patch(
+      draftRef.current ?? {
+        source: importPreview.source,
+        selection: importPreview.selection,
+      },
+    );
+    draftRef.current = draft;
+    return preview(draft.source, draft.selection);
+  };
+  return {
+    updateImportTimeZone: (id: string, timeZone: string) =>
+      request((draft) => ({
+        ...draft,
+        source: {
+          ...draft.source,
+          locations: draft.source.locations.map((profile) =>
+            profile.id === id ? { ...profile, timeZone } : profile,
+          ),
+        },
+      })),
+    updateImportSelection: (selection: SettingsImportSelection) =>
+      request((draft) => ({ ...draft, selection })),
+  };
+};
 
 export const useSettingsImport = (options: ImportOptions) => {
   const [importPreview, setImportPreview] = useState<SettingsImportPreview | null>(
@@ -113,6 +133,7 @@ export const useSettingsImport = (options: ImportOptions) => {
   const { importUndoAvailable, refreshUndo } = useImportUndoStatus();
   const onAppliedRef = useRef<(() => void) | undefined>(undefined);
   const requestIdRef = useRef(0);
+  const draftRef = useRef<ImportDraft | null>(null);
   useEffect(
     () => () => {
       requestIdRef.current++;
@@ -135,13 +156,11 @@ export const useSettingsImport = (options: ImportOptions) => {
         ...(importPreview ? { previousToken: importPreview.token } : {}),
       })) as ImportPreviewResponse;
       if (requestId !== requestIdRef.current) return;
+      draftRef.current = null;
       if (!response.ok) throw new Error(response.error);
       setImportPreview(response.preview);
     } catch (error) {
-      if (requestId === requestIdRef.current)
-        setImportError(
-          error instanceof Error ? error.message : t.settingsImport.failed,
-        );
+      if (requestId === requestIdRef.current) setImportError(errorMessage(error));
     } finally {
       if (requestId === requestIdRef.current) setImportBusy(false);
     }
@@ -156,6 +175,7 @@ export const useSettingsImport = (options: ImportOptions) => {
     const fileRequest = ++requestIdRef.current;
     setImportBusy(true);
     onAppliedRef.current = onboarding?.onApplied;
+    draftRef.current = null;
     setImportPreview(null);
     setImportError(null);
     try {
@@ -177,6 +197,7 @@ export const useSettingsImport = (options: ImportOptions) => {
   };
   const cancelImport = (): void => {
     requestIdRef.current++;
+    draftRef.current = null;
     setImportPreview(null);
     setImportError(null);
     setImportBusy(false);
@@ -205,7 +226,7 @@ export const useSettingsImport = (options: ImportOptions) => {
       );
       await refreshUndo();
     } catch (error) {
-      setImportError(error instanceof Error ? error.message : t.settingsImport.failed);
+      setImportError(errorMessage(error));
     } finally {
       setImportBusy(false);
     }
@@ -221,6 +242,6 @@ export const useSettingsImport = (options: ImportOptions) => {
     handleUndoImport,
     cancelImport,
     applyImport,
-    ...createImportUpdates(importPreview, preview),
+    ...createImportUpdates(importPreview, draftRef, preview),
   };
 };
