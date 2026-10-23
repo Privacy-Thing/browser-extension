@@ -257,6 +257,86 @@ export const sidebar = {
     },
   },
 
+  inspector: {
+    toggle: "Inspector",
+    toggleHint: "Choose spoofed APIs that pause DevTools when the page uses them",
+    armedIndicator: "Inspector armed",
+    intro:
+      "Pick the spoofed APIs that should pause DevTools when a page script uses them. Open DevTools for this tab first.",
+    loading: "Checking Inspector state…",
+    loadError: (message: string) => `Couldn't read the Inspector state: ${message}`,
+    status: {
+      idle: "Not armed",
+      armed: (count: number) =>
+        `Armed — ${count} ${count === 1 ? "method" : "methods"}`,
+      changed: "Selection changed",
+    },
+    hint: {
+      empty: "Select at least one method below.",
+      ready: (count: number) =>
+        `${count} ${count === 1 ? "method" : "methods"} selected.`,
+      changed: "Apply to update what is armed, or revert your changes.",
+      changedToEmpty: "Nothing is selected. Disarm to stop pausing.",
+      active: "Active on this page.",
+      appliedLive: "Active on this page — no reload needed.",
+      pendingArm: "Will apply after the page reloads.",
+      pendingDisarm: "Pausing stops after the page reloads.",
+    },
+    reloadNote: "Reloading loses unsaved changes on the page.",
+    actions: {
+      arm: "Arm",
+      armReload: "Arm and reload",
+      armNextLoad: "Arm on next load",
+      apply: "Apply",
+      applyReload: "Apply and reload",
+      applyNextLoad: "Apply on next load",
+      disarm: "Disarm",
+      disarmReload: "Disarm and reload",
+      disarmNextLoad: "Disarm on next load",
+      revert: "Revert",
+      reloadNow: "Reload now",
+    },
+    result: {
+      armed: (count: number) =>
+        `Armed — ${count} ${count === 1 ? "method" : "methods"}.`,
+      disarmed: "Disarmed.",
+      live: "Applied live.",
+      reload: "Reloading the page.",
+      nextLoad: "Applies on the next page load.",
+    },
+    actionError: (message: string) => `Couldn't apply: ${message}`,
+    everyCall: "Pause on every call",
+    firstCallHint: "Pauses once per method per page load.",
+    everyCallWarning:
+      "Popular APIs such as time reads can pause very often. Select only the methods you need.",
+    pauseNotice: "A pause is real, so the page can notice the delay.",
+    firefoxNotice: `In Firefox DevTools, turn on Settings › Ignore Known Third-party Scripts to hide ${BRAND_DISPLAY_NAME} frames from the call stack.`,
+    unavailable: {
+      title: "Inspector isn't available here",
+      unsupportedUrl: `${BRAND_DISPLAY_NAME} can't run on this page, so there is nothing to inspect.`,
+      trustedSite:
+        "This Domain is a Trusted Site. Protection is fully off, so nothing is spoofed.",
+      protectionPaused:
+        "Protection is paused for this Domain. Resume it to inspect spoofed APIs.",
+      noRuntime: `The ${BRAND_DISPLAY_NAME} runtime isn't reachable on this page. Reload the page and try again.`,
+    },
+    list: {
+      label: "Methods to pause on",
+      search: "Search methods",
+      usedOnly: "Used on this page",
+      noMatches: "No methods match.",
+      clearFilters: "Clear filters",
+      selectedOfTotal: (selected: number, total: number) => `${selected}/${total}`,
+      selectedSummary: (selected: number, total: number) =>
+        `${selected} of ${total} selected`,
+      methodsOf: (category: string) => `${category} methods`,
+      used: (count: number) => (count === 1 ? "Used once" : `Used ${count} times`),
+      notSpoofed: "Not spoofed",
+      notSpoofedReason:
+        "The rule for this Domain doesn't spoof this method, so there is nothing to pause on.",
+    },
+  },
+
   why: {
     title: "Why these settings apply",
     sourcesShort: {

@@ -262,6 +262,87 @@ export const sidebar = {
     },
   },
 
+  inspector: {
+    toggle: "Inspector",
+    toggleHint: "Elige las API falseadas que pausan DevTools cuando la página las usa",
+    armedIndicator: "activo",
+    intro:
+      "Elige las API falseadas que deben pausar DevTools cuando un script de la página las use. Abre antes DevTools en esta pestaña.",
+    loading: "Comprobando el estado del Inspector…",
+    loadError: (message: string) =>
+      `No se pudo leer el estado del Inspector: ${message}`,
+    status: {
+      idle: "Sin activar",
+      armed: (count: number) =>
+        `Activo — ${count} ${count === 1 ? "método" : "métodos"}`,
+      changed: "Selección modificada",
+    },
+    hint: {
+      empty: "Selecciona al menos un método abajo.",
+      ready: (count: number) =>
+        `${count} ${count === 1 ? "método seleccionado" : "métodos seleccionados"}.`,
+      changed: "Aplica para actualizar lo que está activo o revierte tus cambios.",
+      changedToEmpty: "No hay nada seleccionado. Desactiva para dejar de pausar.",
+      active: "Activo en esta página.",
+      appliedLive: "Activo en esta página, sin recargar.",
+      pendingArm: "Se aplicará cuando se recargue la página.",
+      pendingDisarm: "Las pausas terminan cuando se recargue la página.",
+    },
+    reloadNote: "Al recargar se pierden los cambios no guardados de la página.",
+    actions: {
+      arm: "Activar",
+      armReload: "Activar y recargar",
+      armNextLoad: "Activar en la próxima carga",
+      apply: "Aplicar",
+      applyReload: "Aplicar y recargar",
+      applyNextLoad: "Aplicar en la próxima carga",
+      disarm: "Desactivar",
+      disarmReload: "Desactivar y recargar",
+      disarmNextLoad: "Desactivar en la próxima carga",
+      revert: "Revertir",
+      reloadNow: "Recargar ahora",
+    },
+    result: {
+      armed: (count: number) =>
+        `Activo — ${count} ${count === 1 ? "método" : "métodos"}.`,
+      disarmed: "Desactivado.",
+      live: "Aplicado sin recargar.",
+      reload: "Recargando la página.",
+      nextLoad: "Se aplica en la próxima carga de la página.",
+    },
+    actionError: (message: string) => `No se pudo aplicar: ${message}`,
+    everyCall: "Pausar en cada llamada",
+    firstCallHint: "Pausa una vez por método en cada carga de la página.",
+    everyCallWarning:
+      "Las API habituales, como las lecturas de la hora, pueden pausar muy a menudo. Selecciona solo los métodos que necesites.",
+    pauseNotice: "La pausa es real, así que la página puede notar el retraso.",
+    firefoxNotice: `En DevTools de Firefox, activa Ajustes › Ignorar scripts de terceros conocidos para ocultar los marcos de ${BRAND_DISPLAY_NAME} en la pila de llamadas.`,
+    unavailable: {
+      title: "El Inspector no está disponible aquí",
+      unsupportedUrl: `${BRAND_DISPLAY_NAME} no puede ejecutarse en esta página, así que no hay nada que inspeccionar.`,
+      trustedSite:
+        "Este dominio es un sitio de confianza. La protección está desactivada por completo y no se falsea nada.",
+      protectionPaused:
+        "La protección está en pausa para este dominio. Reanúdala para inspeccionar las API falseadas.",
+      noRuntime: `No se puede contactar con el entorno de ${BRAND_DISPLAY_NAME} en esta página. Recarga la página y vuelve a intentarlo.`,
+    },
+    list: {
+      label: "Métodos en los que pausar",
+      search: "Buscar métodos",
+      usedOnly: "Usados en esta página",
+      noMatches: "Ningún método coincide.",
+      clearFilters: "Borrar filtros",
+      selectedOfTotal: (selected: number, total: number) => `${selected}/${total}`,
+      selectedSummary: (selected: number, total: number) =>
+        `${selected} de ${total} seleccionados`,
+      methodsOf: (category: string) => `Métodos de ${category}`,
+      used: (count: number) => (count === 1 ? "Usado una vez" : `Usado ${count} veces`),
+      notSpoofed: "No falseado",
+      notSpoofedReason:
+        "La regla de este dominio no falsea este método, así que no hay nada en lo que pausar.",
+    },
+  },
+
   why: {
     title: "Por qué se aplica esta configuración",
     sourcesShort: {
