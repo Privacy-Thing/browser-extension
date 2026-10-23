@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./inspector-commands": "./src/inspector-commands.ts",
     "./diagnostic-report": "./src/diagnostic-report.ts"
   },
   "dependencies": {
