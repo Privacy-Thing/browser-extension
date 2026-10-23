@@ -3,13 +3,14 @@ import type { ReactNode } from "react";
 
 import { cn } from "@/ui/components/lib/utils";
 
-type StorySurface = "component" | "popup" | "sidebar" | "options";
+type StorySurface = "component" | "popup" | "sidebar" | "options" | "window";
 
 const surfaceClassNames: Record<StorySurface, string> = {
   component: "w-full max-w-5xl",
   popup: "w-full max-w-[360px]",
   sidebar: "w-full max-w-[360px] overflow-hidden",
   options: "w-full max-w-7xl",
+  window: "w-[560px]",
 };
 
 export const StoryFrame = ({ surface, children }: { surface: StorySurface; children: ReactNode }) => (

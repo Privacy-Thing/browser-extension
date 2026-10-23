@@ -609,6 +609,7 @@ export default defineConfig({
               options: "src/ui/options/index.html",
               popup: "src/ui/popup/index.html",
               sidebar: "src/ui/sidebar/index.html",
+              troubleshooter: "src/ui/troubleshooter/index.html",
               // Background is now a direct entry
               background: "src/background/index.ts",
             },

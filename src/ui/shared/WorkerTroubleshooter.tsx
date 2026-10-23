@@ -1,5 +1,3 @@
-import { useEffect, useRef } from "react";
-
 import {
   Dialog,
   DialogContent,
@@ -10,6 +8,7 @@ import {
 } from "@/ui/components/ui/dialog";
 import { t } from "@/ui/i18n";
 import { useWorkerTroubleshooter } from "@/ui/shared/useWorkerTroubleshooter";
+import { WORKER_TEST_WINDOW_PATH } from "@/ui/shared/worker-test-window";
 import { WorkerTroubleshooterView } from "@/ui/shared/WorkerTroubleshooterView";
 
 export const WorkerTroubleshooter = ({
@@ -23,15 +22,8 @@ export const WorkerTroubleshooter = ({
 }) => {
   const { target, data, xray, pending, error, now, open, action, close, setError } =
     useWorkerTroubleshooter(tabId);
-  const persistent = new URLSearchParams(window.location.search).has("workerTest");
-  const opened = useRef(false);
-  useEffect(() => {
-    if (!persistent || opened.current) return;
-    opened.current = true;
-    void open();
-  }, [persistent, open]);
   const show = async () => {
-    if (!launchInWindow || persistent) return open();
+    if (!launchInWindow) return open();
     try {
       const tab =
         tabId === undefined
@@ -40,12 +32,11 @@ export const WorkerTroubleshooter = ({
       if (tab?.id === undefined || !tab.url || !/^https?:/.test(tab.url))
         throw new Error("unsupported");
       await chrome.windows.create({
-        url: chrome.runtime.getURL(
-          `src/ui/popup/index.html?tabId=${tab.id}&workerTest=1`,
-        ),
+        url: chrome.runtime.getURL(`${WORKER_TEST_WINDOW_PATH}?tabId=${tab.id}`),
         type: "popup",
         width: 560,
-        height: 760,
+        // Initial estimate only; the window view fits its height to the content.
+        height: 640,
       });
     } catch {
       setError(t.sidebar.troubleshooter.error);
