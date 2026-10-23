@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 
-import type { Page, Frame } from "@playwright/test";
+import type { BrowserContext, Page, Frame } from "@playwright/test";
 
 import { EXAMPLE_LOCATIONS } from "../../src/background/storage/locations";
 import { EXTENSION_COMMAND_TYPES as commands } from "../../src/shared/extension-contract";
@@ -12,8 +12,13 @@ const openAssistant = async (context: BrowserContext, source: Page): Promise<Pag
   const created = context.waitForEvent("page");
   await source.locator("[data-worker-test-open]").click();
   const assistant = await created;
-  await assistant.waitForURL(/workerTest=1/);
+  await assistant.waitForURL(/\/src\/ui\/troubleshooter\/index\.html\?tabId=\d+$/);
   await source.close();
+  // The window is the container: no popup app, dialog or backdrop inside it.
+  await expect(assistant.locator("[data-worker-test-window]")).toBeVisible();
+  await expect(assistant.locator(".gw-popup-layout")).toHaveCount(0);
+  await expect(assistant.locator('[role="dialog"]')).toHaveCount(0);
+  await expect(assistant.locator(".gw-dialog-overlay")).toHaveCount(0);
   return assistant;
 };
 const registration = async (page: Page | Frame) =>
@@ -144,6 +149,7 @@ test("shared worker assistant needs two decisions to save a narrow exception and
         type: commands.saveSimpleSettings,
         globalFallbackRule: { enabled: true, locationId: "spf-warsaw" },
         sharedWorkerHandlingMode: "strict",
+        sharedSpoofing: { serviceWorker: true },
       });
     },
     { commands, locations: EXAMPLE_LOCATIONS },
@@ -170,10 +176,15 @@ test("shared worker assistant needs two decisions to save a narrow exception and
     ).rules,
   ).toEqual([]);
   const restore = h.waitForEvent("domcontentloaded");
-  await popup.keyboard.press("Escape");
+  await popup.locator("[data-worker-test-cancel]").click();
   await restore;
-  await expect(popup.locator("[data-worker-troubleshooter]")).toHaveCount(0);
-  await popup.locator("[data-worker-test-open]").click();
+  await expect(popup.locator("[data-worker-test-phase]")).toHaveAttribute(
+    "data-worker-test-phase",
+    "cancelled",
+  );
+  await expect(popup.locator("[data-worker-test-window]")).not.toHaveAttribute(
+    "data-worker-test-finished",
+  );
   const secondNavigation = h.waitForEvent("domcontentloaded");
   await popup.locator('[data-worker-test-start="shared-worker"]').click();
   await secondNavigation;
@@ -186,6 +197,17 @@ test("shared worker assistant needs two decisions to save a narrow exception and
     "data-worker-test-phase",
     "saved",
   );
+  // Saving ends the flow: the window shows the result instead of the remaining
+  // Service Worker candidate, and closing it leaves the saved exception in place.
+  await expect(popup.locator("[data-worker-test-window]")).toHaveAttribute(
+    "data-worker-test-finished",
+  );
+  await expect(popup.locator("[data-worker-test-blocked]")).toHaveCount(0);
+  await expect(popup.locator("[data-worker-test-start]")).toHaveCount(0);
+  await expect(popup.locator("[data-worker-test-empty]")).toHaveCount(0);
+  const closed = popup.waitForEvent("close");
+  await popup.locator("[data-worker-test-close]").click();
+  await closed;
   const settings = await options.evaluate(
     async (type) => chrome.runtime.sendMessage({ type }),
     commands.getSettings,
@@ -252,4 +274,49 @@ test("closing the persistent test window restores an active worker test without 
       )
     ).rules,
   ).toEqual([]);
+});
+
+test("the test window Close action restores an active worker test and closes the window", async ({
+  context,
+  extensionId,
+  serverUrl,
+  openPopup,
+}) => {
+  await ackReleaseNotices(context, extensionId, { reduceMotion: true });
+  const options = await context.newPage();
+  await options.goto(`chrome-extension://${extensionId}/src/ui/options/index.html`);
+  await options.evaluate(
+    async ({ commands, locations }) => {
+      await chrome.runtime.sendMessage({
+        type: commands.saveLocationModel,
+        locations,
+        rules: [],
+      });
+      await chrome.runtime.sendMessage({
+        type: commands.saveSimpleSettings,
+        globalFallbackRule: { enabled: true, locationId: "spf-warsaw" },
+        sharedSpoofing: { serviceWorker: true },
+      });
+    },
+    { commands, locations: EXAMPLE_LOCATIONS },
+  );
+  const h = await context.newPage();
+  await h.goto(getProbeHostUrl(serverUrl));
+  await expect.poll(() => h.evaluate(() => navigator.language)).toBe("pl");
+  const popup = await openAssistant(context, await openPopup(h));
+  const navigation = h.waitForEvent("domcontentloaded");
+  await popup.locator('[data-worker-test-start="service-worker"]').click();
+  await navigation;
+  await expect(popup.locator("[data-worker-test-helped]")).toBeEnabled();
+  expect(await registration(h)).toBe("allowed");
+  const restored = h.waitForEvent("domcontentloaded");
+  const closed = popup.waitForEvent("close");
+  await popup.locator("[data-worker-test-close]").click();
+  await Promise.all([restored, closed]);
+  expect(await registration(h)).toBe("SecurityError");
+  const reopened = await openAssistant(context, await openPopup(h));
+  await expect(reopened.locator("[data-worker-test-phase]")).toHaveAttribute(
+    "data-worker-test-phase",
+    "cancelled",
+  );
 });

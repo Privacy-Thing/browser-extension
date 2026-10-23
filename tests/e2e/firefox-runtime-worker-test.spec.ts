@@ -4,7 +4,11 @@ import type { Page, Frame } from "@playwright/test";
 import { EXTENSION_COMMAND_TYPES as commands } from "../../src/shared/extension-contract";
 import type { WorkerTestResponse } from "../../src/shared/worker-test";
 
-import { openFxOptionsProbe, test } from "./firefox-runtime.shared";
+import {
+  openFxOptionsProbe,
+  openFxWorkerTestProbe,
+  test,
+} from "./firefox-runtime.shared";
 
 const probe = async (page: Page | Frame, kind: "service-worker" | "shared-worker") => {
   await page.evaluate((workerKind) => {
@@ -243,6 +247,91 @@ test("Firefox saved worker exceptions preserve first-call protection in unrelate
         'browser.permissions.remove({ permissions: ["userScripts"] })',
       );
     }
+    await options.close();
+  }
+});
+
+test("Firefox worker test window renders on its own and its Close action restores the test", async ({
+  context,
+  serverUrl,
+  extensionOrigin,
+  debuggerPort,
+}) => {
+  const options = await openFxOptionsProbe({ context, extensionOrigin, debuggerPort });
+  const command = <T>(type: string, fields: Record<string, unknown> = {}) =>
+    options.evaluate<T>(
+      `chrome.runtime.sendMessage(${JSON.stringify({ type, ...fields })})`,
+    );
+  const h = await context.newPage();
+  try {
+    const settings = await command<{ locations: { id: string; timeZone: string }[] }>(
+      commands.getSettings,
+    );
+    const location = settings.locations.find(
+      (item) => item.timeZone === "Europe/Warsaw",
+    )!;
+    expect(
+      (
+        await command<{ ok: boolean }>(commands.saveSimpleSettings, {
+          globalFallbackRule: { enabled: true, locationId: location.id },
+          sharedSpoofing: { serviceWorker: true },
+        })
+      ).ok,
+    ).toBe(true);
+    await h.goto(serverUrl + "/?pt36-window");
+    await expect.poll(() => h.evaluate(() => navigator.language)).toBe("pl");
+    const before = await command(commands.getSettings);
+    const tabs = await options.evaluate<{ id: number; url: string }[]>(
+      "chrome.tabs.query({})",
+    );
+    const tabId = tabs.find((tab) => tab.url === h.url())!.id;
+    expect(await probe(h, "service-worker")).toMatch(/^SecurityError:/);
+    const assistant = await openFxWorkerTestProbe(
+      { context, extensionOrigin, debuggerPort },
+      tabId,
+    );
+    const view = () =>
+      assistant.evaluate<{
+        window: boolean;
+        popup: number;
+        dialogs: number;
+        phase: string | null;
+        start: boolean;
+      }>(
+        `(() => ({
+          window: document.querySelector("[data-worker-test-window]") !== null,
+          popup: document.querySelectorAll(".gw-popup-layout").length,
+          dialogs: document.querySelectorAll('[role="dialog"]').length,
+          phase: document.querySelector("[data-worker-test-phase]")?.getAttribute("data-worker-test-phase") ?? null,
+          start: document.querySelector('[data-worker-test-start="service-worker"]:enabled') !== null,
+        }))()`,
+      );
+    await expect
+      .poll(view)
+      .toEqual({ window: true, popup: 0, dialogs: 0, phase: "ready", start: true });
+    const navigation = h.waitForEvent("domcontentloaded");
+    await assistant.evaluate(
+      `(document.querySelector('[data-worker-test-start="service-worker"]').click(), true)`,
+    );
+    await navigation;
+    await expect.poll(async () => (await view()).phase).toBe("testing");
+    expect(await probe(h, "service-worker")).toBe("allowed");
+    const restored = h.waitForEvent("domcontentloaded");
+    await assistant.evaluate(
+      `(document.querySelector("[data-worker-test-close]").click(), true)`,
+    );
+    await restored;
+    expect(await probe(h, "service-worker")).toMatch(/^SecurityError:/);
+    await expect
+      .poll(async () =>
+        (await options.evaluate<{ url?: string }[]>("chrome.tabs.query({})")).some(
+          (tab) => tab.url?.includes("/src/ui/troubleshooter/") ?? false,
+        ),
+      )
+      .toBe(false);
+    expect(await command(commands.getSettings)).toEqual(before);
+  } finally {
+    await h.close();
     await options.close();
   }
 });

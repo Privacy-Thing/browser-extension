@@ -52,10 +52,12 @@ The format is based on Keep a Changelog and the project follows Semantic Version
   DoH setup. The dedicated four-step flow can recover setups created with the v2
   Privacy Thing naming scheme after reinstalling.
 - A “Site not working?” assistant offers one temporary Service Worker or
-  SharedWorker policy test for the exact top-document host. Failed, cancelled
-  and expired tests restore current settings; saving a host exception requires
-  a separate confirmation. Redacted before/after reports stay local. Global
-  WebRTC policy is unchanged.
+  SharedWorker policy test for the exact top-document host. From the popup it opens
+  as its own compact window sized to its content, so the site stays usable during
+  the test. Failed, cancelled and expired tests restore current settings; saving a
+  host exception requires a separate confirmation and ends the test with its
+  result. Redacted before/after reports stay local. Global WebRTC policy is
+  unchanged.
 
 - Regional preset editing, generation, and import now show advisory coordinate/time-zone
   checks and previews of browser languages, Accept-Language, and seasonal date/number

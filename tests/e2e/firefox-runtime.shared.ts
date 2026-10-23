@@ -5190,3 +5190,7 @@ export const openFxOptionsProbe = (input: Parameters<typeof openFxUiProbe>[0]) =
   openFxUiProbe(input, "/src/ui/options/index.html?pt-e2e-import=preview");
 export const openFxSidebarProbe = (input: Parameters<typeof openFxUiProbe>[0]) =>
   openFxUiProbe(input, "/src/ui/sidebar/index.html?pt-e2e-report=preview");
+export const openFxWorkerTestProbe = (
+  input: Parameters<typeof openFxUiProbe>[0],
+  tabId: number,
+) => openFxUiProbe(input, `/src/ui/troubleshooter/index.html?tabId=${tabId}`);

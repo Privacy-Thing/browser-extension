@@ -92,8 +92,10 @@ const CandidateTests = ({
   pending,
   onAction,
   phase,
-}: PanelProps & { phase: string }) => {
+  finished,
+}: PanelProps & { phase: string; finished: boolean }) => {
   const session = data.session;
+  const listed = !data.blocked && !finished;
   return (
     <>
       {session ? (
@@ -105,10 +107,10 @@ const CandidateTests = ({
           {getResultCopy(phase)}
         </p>
       ) : null}
-      {!data.blocked && data.candidates.length === 0 ? (
+      {listed && data.candidates.length === 0 ? (
         <p data-worker-test-empty>{t.sidebar.troubleshooter.noCandidates}</p>
       ) : null}
-      {!data.blocked
+      {listed
         ? data.candidates.map((candidate) => (
             <section
               key={candidate.kind}
@@ -192,12 +194,15 @@ export const WorkerTroubleshooterView = ({
   pending,
   onAction,
   now,
+  finished = false,
 }: {
   data: WorkerTestState;
   xray: GetXRayStateResponse | null;
   pending: boolean;
   onAction: (action: WorkerTestAction) => void;
   now: number;
+  /** The decision ended the flow; show only its result, not further candidates. */
+  finished?: boolean;
 }) => {
   const session = data.session;
   const active =
@@ -255,6 +260,7 @@ export const WorkerTroubleshooterView = ({
           onAction={onAction}
           now={now}
           phase={phase}
+          finished={finished}
         />
       )}
       <details className="text-xs text-muted-foreground">

@@ -12,8 +12,9 @@ Stories show one Privacy Thing surface at a time. Use the global light/dark tool
 - **Popup**: the real 360px popup width.
 - **Sidebar**: the real 360px X-Ray side-panel width.
 - **Options**: a desktop-width page composition.
+- **Window**: the 560px extension window that hosts the worker troubleshooter.
 
-The default is `component`. Set `parameters.privacyThing.surface` explicitly to `popup`, `sidebar`, or `options` only when the story renders that complete product surface. A workbench containing a popup remains a component canvas; the 360px frame belongs around the popup itself, not its controls.
+The default is `component`. Set `parameters.privacyThing.surface` explicitly to `popup`, `sidebar`, `options`, or `window` only when the story renders that complete product surface. A workbench containing a popup remains a component canvas; the 360px frame belongs around the popup itself, not its controls.
 
 Each product surface also owns its visual viewport: popup and X-Ray use 360px, while Options uses a 1440px desktop snapshot. Stories are rendered in both toolbar themes.
 
