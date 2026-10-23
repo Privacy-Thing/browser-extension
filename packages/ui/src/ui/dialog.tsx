@@ -53,7 +53,7 @@ const DialogContent = forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "gw-dialog-content gw-animated-accent-border gw-animated-accent-halo gw-animated-accent-halo-surface gw-dialog-content--animated-border gw-dialog-surface fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 p-6 outline-none focus:outline-none focus-visible:outline-none",
+        "gw-dialog-content gw-animated-accent-border gw-animated-accent-halo gw-animated-accent-halo-surface gw-dialog-content--animated-border gw-dialog-surface fixed left-[50%] top-[50%] z-50 grid grid-cols-[minmax(0,1fr)] w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 p-6 outline-none focus:outline-none focus-visible:outline-none",
         className,
       )}
       data-animation-timing={animationTiming}
