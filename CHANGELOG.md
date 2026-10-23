@@ -79,6 +79,8 @@ The format is based on Keep a Changelog and the project follows Semantic Version
   next configuration edit). Undo restores configuration, not website sessions.
 - Import can merge selected presets and rules with explicit ID/pattern conflict
   choices, remapped preset references, and manual Firefox container mapping.
+  Import errors are shown as readable messages with a next step (for example, an
+  unsupported preset time zone), with technical details collapsed.
 
 - Added complete Spanish and Portuguese interface translations, selected
   automatically from the browser interface language with English as the fallback.
