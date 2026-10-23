@@ -129,3 +129,35 @@ test("regional import advice is optional and corrections only change the shown t
     REGIONAL_IMPORT_FIXTURE.locations,
   );
 });
+test("import rejects an unsupported preset time zone with a readable error", async ({
+  context,
+  extensionId,
+}) => {
+  const page = await context.newPage();
+  await page.goto(`chrome-extension://${extensionId}/src/ui/options/index.html`);
+  await saveSimpleSettings(page, { onboardingCompleted: true });
+  await page.reload();
+  await openSettingsTab(page, "advanced");
+  await chooseImportFile(page, {
+    ...IMPORT_FIXTURE,
+    locations: [
+      {
+        ...IMPORT_FIXTURE.locations[0]!,
+        id: "mars",
+        label: "Mars",
+        timeZone: "Mars/Olympus",
+      },
+    ],
+    rules: [],
+  });
+  const error = page.locator("[data-import-error]");
+  await expect(error).toBeVisible();
+  const item = error.locator("[data-import-error-item]");
+  await expect(item).toHaveCount(1);
+  await expect(item).toHaveAttribute("data-import-error-item", "timeZone");
+  await expect(item).toContainText("Mars/Olympus");
+  await expect(item).not.toContainText('"code"');
+  await expect(error.locator('[data-import-error-hint="timeZone"]')).toBeVisible();
+  await expect(error.locator("[data-import-error-details] pre")).toBeHidden();
+  await expect(page.locator("#settings-import-confirm")).toBeDisabled();
+});

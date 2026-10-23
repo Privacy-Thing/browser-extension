@@ -37,4 +37,7 @@ export const settingsImport = {
   resolve: "Resuelve los conflictos indicados antes de confirmar.",
   selectAll: "Seleccionar todo",
   skipAll: "Omitir todo",
+  technicalDetails: "Detalles técnicos",
+  timeZoneHint:
+    "Edite el archivo para usar una zona horaria compatible y vuelva a importarlo.",
 } as const;
