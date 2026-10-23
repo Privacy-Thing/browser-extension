@@ -119,6 +119,10 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 - Connecting Control D in Firefox no longer fails after access to all websites was
   turned off for the extension.
 
+- Dialogs use a thin neutral frame with a subtle accent line instead of a thick
+  accent-coloured border, and scrollbars follow neutral colours in every accent preset.
+  The troubleshooter, report and import dialogs no longer scroll sideways.
+
 - Pickers no longer draw option rows outside their popup on short windows.
 
 - Control D keeps saved route overrides when all rules for a region are disabled,
