@@ -23,12 +23,19 @@ import {
   repositoryRootDirectory,
   uiAliasEntries,
 } from "./path-aliases.ts";
+import { runtimeDebugMapPlugin } from "./runtime-debug-map";
 
 type BuildTarget = "chromium" | "firefox";
 
 const buildTarget =
   (process.env.PT_BROWSER_TARGET as BuildTarget) === "firefox" ? "firefox" : "chromium";
 const extraEntry = process.env.PT_EXTRA_ENTRY ?? "";
+const trapEntry = [
+  "chromium-main-early",
+  "chromium-main-runtime",
+  "firefox-main-early",
+  "firefox-main-runtime",
+].includes(extraEntry);
 const outDir =
   process.env.PT_OUT_DIR ??
   (buildTarget === "firefox" ? "build/firefox" : "build/chrome");
@@ -493,7 +500,7 @@ export default defineConfig({
   root: repositoryRootDirectory,
   plugins:
     extraEntry in extraEntryBuilds
-      ? [buildIdReplacePlugin()]
+      ? [buildIdReplacePlugin(), ...(trapEntry ? [runtimeDebugMapPlugin()] : [])]
       : [react(), buildIdReplacePlugin(), manifestPlugin(buildTarget)],
   css: {
     postcss: configDirectory,
@@ -588,7 +595,7 @@ export default defineConfig({
     // keep the broader UI/background build on the established minifier.
     minify: extraEntry ? "oxc" : "esbuild",
     emptyOutDir: process.env.PT_EMPTY_OUT_DIR !== "false",
-    sourcemap: shouldEmitBuildSourceMaps(buildChannel),
+    sourcemap: trapEntry ? false : shouldEmitBuildSourceMaps(buildChannel),
     copyPublicDir: !(extraEntry && extraEntry in extraEntryBuilds),
     // Options/popup UI bundles intentionally ship MapLibre and extension-only
     // assets, so Vite's default 500 kB warning is too noisy for this project.
@@ -598,8 +605,18 @@ export default defineConfig({
           rollupOptions: {
             checks: bundlerChecks,
             input: extraEntryBuilds[extraEntry as keyof typeof extraEntryBuilds].input,
-            output:
-              extraEntryBuilds[extraEntry as keyof typeof extraEntryBuilds].output,
+            output: {
+              ...extraEntryBuilds[extraEntry as keyof typeof extraEntryBuilds].output,
+              ...(trapEntry
+                ? {
+                    minify: {
+                      compress: { dropDebugger: false },
+                      mangle: true,
+                      codegen: true,
+                    },
+                  }
+                : {}),
+            },
           },
         }
       : {
