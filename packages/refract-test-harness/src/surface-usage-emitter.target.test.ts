@@ -35,6 +35,19 @@ describe("markSurfaceUsed", () => {
   // Runs after the emitter's queued flush microtask, so dispatch is observable.
   const flush = (): Promise<void> => new Promise((resolve) => queueMicrotask(resolve));
 
+  it("keeps the exported emitter identical to the plain function when unarmed", async () => {
+    const mod =
+      await import("@privacy-brand/refract-browser/common/surface-usage-emitter");
+    const plain = mod.recordSurfaceUsed;
+    expect(mod.markSurfaceUsed).toBe(plain);
+    mod.activateSurfaceUsage({});
+    expect(mod.markSurfaceUsed).toBe(plain);
+    mod.activateSurfaceUsage({
+      analystTraps: { methods: ["date.now"], mode: "every-call" },
+    });
+    expect(mod.markSurfaceUsed).toBe(plain);
+  });
+
   it("dispatches a coalesced CustomEvent after the microtask flush", async () => {
     const markSurfaceUsed = await getEmitter();
     markSurfaceUsed("geolocation");
