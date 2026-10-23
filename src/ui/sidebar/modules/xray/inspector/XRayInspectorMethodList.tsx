@@ -30,7 +30,7 @@ const MethodMeta = ({
       <span
         id={reasonId}
         title={t.sidebar.inspector.list.notSpoofedReason}
-        className="shrink-0 text-[11px] text-muted-foreground/80"
+        className="shrink-0 text-[11px] text-muted-foreground"
       >
         {t.sidebar.inspector.list.notSpoofed}
         <span className="sr-only">. {t.sidebar.inspector.list.notSpoofedReason}</span>
@@ -81,7 +81,7 @@ const MethodItem = ({
       <label
         htmlFor={id}
         title={method.id}
-        className={`min-w-0 flex-1 truncate font-mono text-[11px] ${method.trappable ? "cursor-pointer text-foreground/90" : "cursor-not-allowed text-muted-foreground/70"}`}
+        className={`min-w-0 flex-1 truncate font-mono text-[11px] ${method.trappable ? "cursor-pointer text-foreground/90" : "cursor-not-allowed text-muted-foreground"}`}
       >
         {method.label}
       </label>
