@@ -133,10 +133,21 @@
   min-height: 0;
   flex: 1 1 auto;
   overflow-y: auto;
-  /* The rule card is laid out for the full popup width, so this scroller draws no
-     scrollbar and reserves no gutter; a zero-width scrollbar cannot shift it. */
-  scrollbar-width: none;
-  padding: var(--gw-popup-section-pt) 1.5rem var(--gw-popup-section-pb);
+  /* The rule card is laid out for the full popup width. By default this scroller draws
+     no scrollbar and reserves no gutter, so a zero-width scrollbar cannot shift it.
+     High contrast shows a scrollbar in a reserved gutter taken from the end padding,
+     so the card keeps its width (tokens.css). */
+  scrollbar-width: var(--gw-popup-main-scrollbar-width);
+  scrollbar-gutter: var(--gw-popup-main-scrollbar-gutter);
+  padding: var(--gw-popup-section-pt)
+    calc(1.5rem - var(--gw-popup-main-scrollbar-allowance)) var(--gw-popup-section-pb)
+    1.5rem;
+}
+
+/* Chromium before 121 ignores scrollbar-width and reads only these pseudo-elements. */
+.gw-popup-main-section::-webkit-scrollbar {
+  width: var(--gw-popup-main-scrollbar-allowance);
+  height: 0;
 }
 
 .gw-popup-content-stack {

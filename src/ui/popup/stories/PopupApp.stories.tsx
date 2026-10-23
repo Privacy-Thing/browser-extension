@@ -35,7 +35,10 @@ import type { PopupNotification, SharedWorkerHandlingMode } from "@/shared/types
 import { BrandHorizontalLogo } from "@/ui/branding/BrandHorizontalLogo";
 import { t } from "@/ui/i18n";
 import { icon } from "@/ui/options/utils";
-import { expectHiddenScrollbar } from "@/ui/shared/scrollbar-assertion";
+import {
+  expectHiddenScrollbar,
+  withHighContrast,
+} from "@/ui/shared/scrollbar-assertion";
 
 type PopupStoryWorkspace =
   | "closed"
@@ -1121,8 +1124,16 @@ export const HiddenScrollbar: Story = {
     showWorkbench: false,
   },
   tags: ["!dev", "!autodocs"],
-  play: ({ canvasElement }) =>
-    expectHiddenScrollbar(
-      canvasElement.querySelector<HTMLElement>(".gw-popup-main-section")!,
-    ),
+  play: ({ canvasElement }) => {
+    const section = canvasElement.querySelector<HTMLElement>(".gw-popup-main-section")!;
+    expectHiddenScrollbar(section);
+    // The rule card is laid out for the full popup width: the scrollbar that high
+    // contrast shows must not narrow it (a narrower card pushes the pause control out).
+    const cardWidth = () =>
+      canvasElement.querySelector(".gw-popup-rule-card")!.getBoundingClientRect().width;
+    const width = cardWidth();
+    withHighContrast(section, () =>
+      expect(cardWidth(), "rule card width in high contrast").toBe(width),
+    );
+  },
 };
