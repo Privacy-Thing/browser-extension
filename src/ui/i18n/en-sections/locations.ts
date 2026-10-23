@@ -47,6 +47,8 @@ export const locations = {
       `Time zone ${saved} differs from the suggested ${suggested}.`,
     approximation:
       "You can keep your choice. Changing the time zone leaves languages unchanged. The suggestion is approximate near borders and at sea.",
+    outsideLand:
+      "These coordinates point outside land, so no time zone is suggested. Check the latitude and longitude; your time zone stays as chosen.",
     applyTimeZone: (zone: string) => `Use ${zone}`,
     scope:
       "Values shown when time and language protection is on. Site rules may disable it. English preference changes website languages; dates and numbers keep the regional format.",
