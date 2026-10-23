@@ -18,6 +18,7 @@ import {
 } from "@/ui/components/ui/dialog";
 import { t } from "@/ui/i18n";
 import { expectNoSideScroll } from "@/ui/shared/dialog-overflow-assertion";
+import { expectHiddenScrollbar } from "@/ui/shared/scrollbar-assertion";
 import { WorkerTroubleshooterView } from "@/ui/shared/WorkerTroubleshooterView";
 
 const now = 1_800_000_000_000;
@@ -70,4 +71,21 @@ export const NoSideScroll: Story = {
     await waitFor(() => expect(dialog).toBeVisible());
     expectNoSideScroll(dialog);
   },
+};
+
+const expectDialogScrollbar: Story["play"] = async ({ canvasElement }) => {
+  const dialog = within(canvasElement.ownerDocument.body).getByRole("dialog");
+  await waitFor(() => expect(dialog).toBeVisible());
+  expectHiddenScrollbar(dialog);
+};
+
+export const ScrollbarGutter: Story = {
+  tags: ["!dev", "!autodocs"],
+  play: expectDialogScrollbar,
+};
+
+export const ScrollbarGutterDark: Story = {
+  tags: ["!dev", "!autodocs"],
+  globals: { theme: "dark" },
+  play: expectDialogScrollbar,
 };

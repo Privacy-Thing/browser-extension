@@ -35,6 +35,7 @@ import type { PopupNotification, SharedWorkerHandlingMode } from "@/shared/types
 import { BrandHorizontalLogo } from "@/ui/branding/BrandHorizontalLogo";
 import { t } from "@/ui/i18n";
 import { icon } from "@/ui/options/utils";
+import { expectHiddenScrollbar } from "@/ui/shared/scrollbar-assertion";
 
 type PopupStoryWorkspace =
   | "closed"
@@ -1109,4 +1110,19 @@ export const AllBaseVariants: Story = {
       ))}
     </div>
   ),
+};
+
+export const HiddenScrollbar: Story = {
+  args: {
+    variant: "rule-active",
+    context: "baseline",
+    workspace: "closed",
+    viewport: "compact",
+    showWorkbench: false,
+  },
+  tags: ["!dev", "!autodocs"],
+  play: ({ canvasElement }) =>
+    expectHiddenScrollbar(
+      canvasElement.querySelector<HTMLElement>(".gw-popup-main-section")!,
+    ),
 };

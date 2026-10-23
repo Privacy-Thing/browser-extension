@@ -102,9 +102,10 @@
   --tone-neutral-text:    240 4% 40%;
   --tone-neutral-border:  240 6% 88%;
 
-  --scrollbar-track:      hsl(var(--muted) / 0.65);
-  --scrollbar-thumb:      hsl(var(--muted-foreground) / 0.55);
-  --scrollbar-thumb-hover:hsl(var(--muted-foreground) / 0.8);
+  /* Scrollbars are not drawn; their gutter stays reserved (see "Scrollbars"). */
+  --scrollbar-track:      transparent;
+  --scrollbar-thumb:      transparent;
+  --scrollbar-thumb-hover:transparent;
   --gw-form-field-surface: hsl(var(--background));
   --gw-form-field-hover-surface: hsl(var(--accent) / 0.04);
   --gw-form-panel-surface: hsl(var(--card));
@@ -179,9 +180,10 @@
   --tone-neutral-text:    240 4% 60%;
   --tone-neutral-border:  240 4% 20%;
 
-  --scrollbar-track:      hsl(var(--muted) / 0.72);
-  --scrollbar-thumb:      hsl(var(--muted-foreground) / 0.55);
-  --scrollbar-thumb-hover:hsl(var(--muted-foreground) / 0.8);
+  /* Scrollbars are not drawn; their gutter stays reserved (see "Scrollbars"). */
+  --scrollbar-track:      transparent;
+  --scrollbar-thumb:      transparent;
+  --scrollbar-thumb-hover:transparent;
   --gw-form-field-surface: hsl(var(--background));
   --gw-form-field-hover-surface: hsl(var(--accent) / 0.04);
   --gw-form-panel-surface: hsl(var(--card));
@@ -886,8 +888,27 @@
   background-color: hsl(var(--destructive) / 0.2) !important;
 }
 
+/* ─── Scrollbars ───────────────────────────────────────────────────────────────
+
+  The light and dark skins draw no scrollbar: the tokens are transparent, while the
+  scrollbar itself stays, so wheel, touch, keyboard, programmatic scrolling and
+  dragging in the gutter keep working. High contrast keeps visible tokens because
+  that skin is chosen for maximum visibility. Chromium 121+ and Firefox read the
+  standard scrollbar-color; the ::-webkit-scrollbar rules only cover older Chromium.
+
+  Scroll containers reserve the gutter so their content width does not change when
+  content starts or stops overflowing. :where() keeps the rule at zero specificity,
+  so a component that owns its gutter (the popup workspace) still decides. The popup
+  document has a fixed width and scrolls inside its workspace, so its root keeps the
+  default gutter.
+*/
 html {
   scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+:where(html:not(.gw-popup-document)),
+:where(.overflow-auto, .overflow-y-auto, .overflow-scroll, .overflow-y-scroll) {
+  scrollbar-gutter: stable;
 }
 
 * {

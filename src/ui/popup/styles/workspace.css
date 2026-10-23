@@ -228,6 +228,7 @@
   flex: 1;
   padding: 28px 20px;
   overflow-y: auto;
+  scrollbar-gutter: stable;
   text-align: center;
 }
 

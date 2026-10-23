@@ -410,8 +410,6 @@ export const ContainerEditorModal = (props: ContainerEditorProps) => {
           "--gw-dialog-accent-color": dialogAccentColor,
           "--primary": dialogAccentTokens,
           "--ring": dialogAccentTokens,
-          "--scrollbar-thumb": dialogAccentColor,
-          "--scrollbar-thumb-hover": "var(--gw-dialog-accent-peak)",
         } as React.CSSProperties
       }
       {...(headerProps ? { headerProps } : {})}

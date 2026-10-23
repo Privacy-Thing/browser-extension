@@ -133,6 +133,9 @@
   min-height: 0;
   flex: 1 1 auto;
   overflow-y: auto;
+  /* The rule card is laid out for the full popup width, so this scroller draws no
+     scrollbar and reserves no gutter; a zero-width scrollbar cannot shift it. */
+  scrollbar-width: none;
   padding: var(--gw-popup-section-pt) 1.5rem var(--gw-popup-section-pb);
 }
 
