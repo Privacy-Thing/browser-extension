@@ -27,6 +27,10 @@ export const CSP_RESOURCE_TYPES = [
   "main_frame",
   "sub_frame",
 ] as chrome.declarativeNetRequest.ResourceType[];
+// Chrome rejects the whole updateSessionRules call for a non-integer rule id, and
+// tab ids are the only externally supplied input to those ids.
+export const isValidTabId = (tabId: unknown): tabId is number =>
+  typeof tabId === "number" && Number.isInteger(tabId) && tabId >= 0;
 export const toTabRuleId = (tabId: number): number => TAB_RULE_ID_BASE + tabId;
 export const buildTabHeaderCondition = (
   tabId: number,
