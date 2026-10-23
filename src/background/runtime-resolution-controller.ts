@@ -5,9 +5,12 @@ import {
 
 import { syncDynamicHeaderRules } from "@/background/dnr";
 import { createFxRewriteHandlers } from "@/background/firefox-shared-worker-rewrite";
+import { registerInspector } from "@/background/inspector-controller";
+import { withInspector } from "@/background/inspector-state";
 import {
   restoreFxHashUrl,
   seedFxEarlyState,
+  seedFxWindowState,
   seedWindowSnapshot,
   setMainWorldSnapshot,
 } from "@/background/main-world-injection";
@@ -32,6 +35,7 @@ import {
   getHostPause,
   initializeHostPauses,
 } from "@/background/storage/host-protection-pauses";
+import { initializeInspectors } from "@/background/storage/inspector-sessions";
 import {
   loadSeenHosts,
   rememberSeenHost,
@@ -243,9 +247,13 @@ const createRuntimeResolver =
     hostname: string,
     cookieStoreId?: string,
     exactOrigin?: string,
-    options: { trackSeenHost?: boolean; respectHostPause?: boolean } = {},
+    options: {
+      trackSeenHost?: boolean;
+      respectHostPause?: boolean;
+      tabId?: number;
+    } = {},
   ): Promise<ResolutionDecision> => {
-    await initializeHostPauses();
+    await Promise.all([initializeHostPauses(), initializeInspectors()]);
     const state = await deps.getCachedState();
     if (state.controlState.panicMode) {
       deps.logResolverEvent(state.debugMode, "resolver.snapshot-skipped", {
@@ -311,14 +319,36 @@ const createRuntimeResolver =
     }
     const latestPause =
       options.respectHostPause === false ? undefined : getHostPause(hostname);
-    return latestPause && !decision.trustedSiteMatched
-      ? {
-          ...decision,
-          snapshot: applyHostOverride(decision.snapshot, latestPause),
-          hostPause: latestPause,
-        }
-      : decision;
+    const resolved =
+      latestPause && !decision.trustedSiteMatched
+        ? {
+            ...decision,
+            snapshot: applyHostOverride(decision.snapshot, latestPause),
+            hostPause: latestPause,
+          }
+        : decision;
+    return options.tabId === undefined
+      ? resolved
+      : withInspector(options.tabId, hostname, resolved);
   };
+
+const seedFirefoxWindow = async (
+  tabId: number,
+  hostname: string,
+  decision: ResolutionDecision,
+): Promise<void> => {
+  const state = buildFirefoxShimState(decision.snapshot);
+  await chrome.scripting.executeScript({
+    target: { tabId, frameIds: [0] },
+    world: MAIN_WORLD,
+    func: seedFxWindowState,
+    args: [
+      { entries: [{ pattern: hostname, state }], containerState: null },
+      WINDOW_SEED_PREFIX,
+      __PT_SHIM_GUARD_KEY__,
+    ],
+  });
+};
 
 const createInjectionHandlers = () => {
   const injectFrameSnapshot = async (
@@ -441,6 +471,7 @@ const createInjectionHandlers = () => {
     seedChromiumWindow,
     injectFxEarlyState,
     cleanupFxHashUrl,
+    seedFirefoxWindow,
   };
 };
 
@@ -450,7 +481,7 @@ export const createRuntimeResolverCtl = (deps: ResolutionControllerDeps) => {
     hostname: string,
     cookieStoreId?: string,
     exactOrigin?: string,
-    options?: { trackSeenHost?: boolean; respectHostPause?: boolean },
+    options?: { trackSeenHost?: boolean; respectHostPause?: boolean; tabId?: number },
   ) =>
     (await resolveRuntimeDecision(hostname, cookieStoreId, exactOrigin, options))
       .snapshot;
@@ -476,7 +507,31 @@ export const createRuntimeResolverCtl = (deps: ResolutionControllerDeps) => {
     readTopDecision,
     updateSnapshotCache,
   });
+  const injections = createInjectionHandlers();
+  const inspectorCommand = registerInspector({
+    resolveRuntimeDecision,
+    ...injections,
+    injectFxWindowSeed: async (input) => {
+      const tab = (await chrome.tabs.get(input.tabId)) as chrome.tabs.Tab & {
+        cookieStoreId?: string;
+      };
+      if (!tab.url || !/^https?:/.test(tab.url)) return;
+      const decision = await resolveRuntimeDecision(
+        new URL(tab.url).hostname,
+        tab.cookieStoreId,
+        undefined,
+        { tabId: input.tabId },
+      );
+      await injections.seedFirefoxWindow(
+        input.tabId,
+        new URL(tab.url).hostname,
+        decision,
+      );
+    },
+    invalidate: (tabId) => deps.runtimeState.effectiveSnapshotCache.removeTab(tabId),
+  });
   return {
+    inspectorCommand,
     resolveRuntimeDecision,
     resolveCachedSnapshot,
     updateSnapshotCache,
@@ -495,7 +550,7 @@ export const createRuntimeResolverCtl = (deps: ResolutionControllerDeps) => {
       clearSurfaceAccess(tabId);
       deps.runtimeState.rewriteTracker.clearTab(tabId);
     },
-    ...createInjectionHandlers(),
+    ...injections,
     handleResolveSnapshot,
   };
 };

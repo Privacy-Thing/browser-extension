@@ -27,7 +27,10 @@ import { logExtensionEvent } from "@/background/logger";
 import { seedWindowSnapshot } from "@/background/main-world-injection";
 import { registerMessageRouter } from "@/background/message-router";
 import { runStorageMigration } from "@/background/migrations";
-import { registerNavListeners } from "@/background/navigation-listeners";
+import {
+  listenFxTopRequests,
+  registerNavListeners,
+} from "@/background/navigation-listeners";
 import { registerPlugins } from "@/background/plugin-registration";
 import { createPopupHandlers } from "@/background/popup-commands";
 import type { PreparedRuntimeDecisions } from "@/background/prepared-runtime-decisions";
@@ -168,6 +171,7 @@ const {
 });
 
 const {
+  inspectorCommand,
   resolveRuntimeDecision,
   resolveCachedSnapshot,
   updateSnapshotCache,
@@ -375,6 +379,7 @@ registerPlugins({
 });
 
 registerMessageRouter({
+  inspectorCommand,
   isSupportedWebUrl,
   workerTest: createWorkerTestCtl(getXRayState, hostPauseController.activate),
   setHostProtectionPause: hostPauseController.setPause,
@@ -578,18 +583,7 @@ registerNavListeners({
     rewriteTracker.clearTab(tabId);
     publishSidebarEvent({ type: "doctor-state-invalidated", tabId });
   },
-  listenFirefoxRequest: (listener) => {
-    firefoxBrowserApi?.webRequest?.onBeforeRequest?.addListener(
-      listener,
-      {
-        // Firefox URL match patterns need explicit protocol coverage here.
-        // eslint-disable-next-line sonarjs/no-clear-text-protocols
-        urls: ["http://*/*", "https://*/*"],
-        types: ["main_frame"],
-      },
-      ["blocking"],
-    );
-  },
+  listenFirefoxRequest: listenFxTopRequests,
   loadRuntimeCaches: async () => {
     await ensureRuntimeCache();
     await hostPauseController.reconcile();

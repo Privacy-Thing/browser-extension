@@ -1,3 +1,4 @@
+import { buildFxSeededUrl } from "@privacy-brand/refract-browser/common/firefox-shim-state";
 import {
   buildFirefoxShimState,
   parseFirefoxHashSeed,
@@ -15,6 +16,7 @@ import {
   buildWindowSeedLog,
   type WindowSeedTrigger,
 } from "@/background/firefox-window-name-seed-log";
+import { withInspector } from "@/background/inspector-state";
 import { seedFxWindowState } from "@/background/main-world-injection";
 import { persistPreloadSafe, writePreloadState } from "@/background/preload-persist";
 import {
@@ -28,6 +30,10 @@ import {
   getHostPauses,
   initializeHostPauses,
 } from "@/background/storage/host-protection-pauses";
+import {
+  initializeInspectors,
+  readInspector,
+} from "@/background/storage/inspector-sessions";
 import { loadLocations } from "@/background/storage/locations";
 import {
   getDebugMode,
@@ -287,6 +293,29 @@ const logSeedFailure = async (
   });
 };
 
+const inspectorSeed = async (
+  deps: FirefoxBootstrapDeps,
+  tabId: number,
+  context: { hostname: string; cookieStoreId: string | undefined },
+  seed: FirefoxWindowSeedState,
+): Promise<FirefoxWindowSeedState> => {
+  const { hostname, cookieStoreId } = context;
+  await initializeInspectors();
+  if (!readInspector(tabId, hostname)) return seed;
+  const decision = deps.runtimeState
+    .getPreparedDecisions()
+    ?.resolveDecision(hostname, cookieStoreId, false);
+  if (!decision) return seed;
+  const scoped = withInspector(tabId, hostname, decision);
+  return {
+    ...seed,
+    entries: [
+      ...seed.entries.filter((entry) => entry.pattern !== hostname),
+      { pattern: hostname, state: buildFirefoxShimState(scoped.snapshot) },
+    ],
+  };
+};
+
 const createWindowSeed =
   (deps: FirefoxBootstrapDeps, syncPreloadedState: () => Promise<void>) =>
   async ({
@@ -300,14 +329,14 @@ const createWindowSeed =
     let resolvedCookieStoreId = cookieStoreId;
     try {
       const liveTab =
-        cookieStoreId === undefined && deps.isSupportedWebUrl(navigationUrl)
+        cookieStoreId === undefined || navigationUrl === undefined
           ? await deps.getPopupTabById(tabId)
           : undefined;
       resolvedCookieStoreId = cookieStoreId ?? liveTab?.cookieStoreId;
-      const hostname =
-        navigationUrl && deps.isSupportedWebUrl(navigationUrl)
-          ? deps.getExactHostname(navigationUrl)
-          : undefined;
+      const targetUrl = navigationUrl ?? liveTab?.url;
+      const hostname = deps.isSupportedWebUrl(targetUrl)
+        ? deps.getExactHostname(targetUrl)
+        : undefined;
       const seedHostname = hostname || undefined;
       let seedState =
         deps.runtimeState
@@ -319,6 +348,14 @@ const createWindowSeed =
           deps.runtimeState
             .getPreparedDecisions()
             ?.getFxWindowSeed(resolvedCookieStoreId, seedHostname) ?? null;
+      }
+      if (seedState && seedHostname) {
+        seedState = await inspectorSeed(
+          deps,
+          tabId,
+          { hostname: seedHostname, cookieStoreId: resolvedCookieStoreId },
+          seedState,
+        );
       }
       if (seedHostname) {
         await persistPreloadSafe(deps.runtimeState);
@@ -383,6 +420,30 @@ const createWindowSeed =
     }
   };
 
+const inspectorRedirect = (
+  request: {
+    tabId: number | undefined;
+    hostname: string;
+    url: string;
+    currentUrl: string | undefined;
+  },
+  seedState: FirefoxWindowSeedState | null,
+): string | null => {
+  const { tabId, hostname, url, currentUrl } = request;
+  const entry = tabId === undefined ? undefined : readInspector(tabId, hostname);
+  const state = entry
+    ? seedState?.entries.find((row) => row.pattern === hostname)?.state
+    : undefined;
+  return state && !parseFirefoxHashSeed(new URL(url).hash)
+    ? buildFxSeededUrl(url, state)
+    : buildFxHashRedirect({
+        ...(currentUrl ? { currentTabUrl: currentUrl } : {}),
+        method: "GET",
+        url,
+        seedState,
+      });
+};
+
 export const createFxBootstrap = (deps: FirefoxBootstrapDeps) => {
   const syncUserScripts = createUserScriptSync(deps);
   const syncPreloadedState = createPreloadSync(deps, syncUserScripts);
@@ -446,6 +507,14 @@ export const createFxBootstrap = (deps: FirefoxBootstrapDeps) => {
           .getPreparedDecisions()
           ?.getFxWindowSeed(cookieStoreId, seedHostname) ?? null;
     }
+    if (seedState && seedHostname && tabId !== undefined) {
+      seedState = await inspectorSeed(
+        deps,
+        tabId,
+        { hostname: seedHostname, cookieStoreId },
+        seedState,
+      );
+    }
     if (seedHostname) {
       await persistPreloadSafe(deps.runtimeState);
     }
@@ -456,12 +525,10 @@ export const createFxBootstrap = (deps: FirefoxBootstrapDeps) => {
     } catch {
       skipSameHostDocument = false;
     }
-    const redirectUrl = buildFxHashRedirect({
-      ...(activeTab?.url ? { currentTabUrl: activeTab.url } : {}),
-      method: "GET",
-      url,
+    const redirectUrl = inspectorRedirect(
+      { tabId, hostname, url, currentUrl: activeTab?.url },
       seedState,
-    });
+    );
     deps.logBootstrapEvent("navigation.firefox-hash-seed-decision", {
       hostname,
       details: {

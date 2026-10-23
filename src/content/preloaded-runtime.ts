@@ -4,7 +4,10 @@
  */
 
 import { matchRule } from "@/shared/domain-match";
-import { STORAGE_PRELOADED_STATE } from "@/shared/extension-contract";
+import {
+  EXTENSION_STORAGE_KEYS,
+  STORAGE_PRELOADED_STATE,
+} from "@/shared/extension-contract";
 import {
   findHostPause,
   applyHostOverride,
@@ -139,7 +142,13 @@ export const readPreloadedState = async (): Promise<PreloadedRuntimeState | null
   }
 
   try {
-    const result = await chrome.storage.session.get(PRELOAD_STATE_KEY);
+    const result = await chrome.storage.session.get([
+      PRELOAD_STATE_KEY,
+      EXTENSION_STORAGE_KEYS.inspectorSessions,
+    ]);
+    const inspectors = result[EXTENSION_STORAGE_KEYS.inspectorSessions] as
+      object | undefined;
+    if (inspectors && Object.keys(inspectors).length > 0) return null;
     const state = result[PRELOAD_STATE_KEY];
     return isPreloadedRuntimeState(state) ? state : null;
   } catch {

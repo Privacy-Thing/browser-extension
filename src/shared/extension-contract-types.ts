@@ -1,3 +1,5 @@
+import type { XRayInspectorCommand } from "@privacy-brand/xray-protocol";
+
 /**
  * Message and response contracts exchanged with the extension background worker.
  */
@@ -58,6 +60,7 @@ export type ResolveSnapshotResponse = {
  * canonical source for extension message types across UI, content, and tests.
  */
 export type ExtensionCommand =
+  | XRayInspectorCommand
   | WorkerTestCommand
   | SetHostPauseCommand
   | {
@@ -620,11 +623,9 @@ export type UpdateRuleResponse =
 export type ToggleRuleResponse =
   { ok: true; state: PopupState } | { ok: false; error: string };
 
-export type DeleteRuleResponse =
-  { ok: true; state: PopupState } | { ok: false; error: string };
+export type DeleteRuleResponse = ToggleRuleResponse;
 
-export type ApplySuggestionResponse =
-  { ok: true; state: PopupState } | { ok: false; error: string };
+export type ApplySuggestionResponse = ToggleRuleResponse;
 
 export type LocationDraftResponse =
   | {
