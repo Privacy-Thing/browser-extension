@@ -68,7 +68,7 @@ export const WorkerTroubleshooter = ({
         }}
       >
         <DialogContent
-          className="max-h-[92vh] w-[calc(100%-1.5rem)] max-w-lg min-w-0 overflow-y-auto p-4"
+          className="max-h-[92vh] max-w-lg min-w-0 overflow-y-auto p-4"
           data-worker-troubleshooter
         >
           <DialogCloseButton label={t.common.actions.close} />

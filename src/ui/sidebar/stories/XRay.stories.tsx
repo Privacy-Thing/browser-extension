@@ -14,7 +14,11 @@ import {
 import { XRayStoryShell } from "./XRayStoryShell";
 
 import { t } from "@/ui/i18n";
-import { expectNoSideScroll } from "@/ui/shared/dialog-overflow-assertion";
+import {
+  expectDialogFillsSurface,
+  expectNoSideScroll,
+  expectVisibleDialogFrame,
+} from "@/ui/shared/dialog-overflow-assertion";
 
 type XRayStoryHarnessProps = {
   scenario: XRayStoryScenario;
@@ -105,5 +109,18 @@ export const ReportNoSideScroll: Story = {
       within(canvasElement).getByRole("button", { name: t.sidebar.report.prepare }),
     );
     expectNoSideScroll(within(canvasElement.ownerDocument.body).getByRole("dialog"));
+  },
+};
+
+export const ReportFrameAndEdgeGap: Story = {
+  args: { scenario: "evidence-states" },
+  tags: ["!dev", "!autodocs"],
+  play: async ({ canvasElement }) => {
+    await userEvent.click(
+      within(canvasElement).getByRole("button", { name: t.sidebar.report.prepare }),
+    );
+    const dialog = within(canvasElement.ownerDocument.body).getByRole("dialog");
+    expectVisibleDialogFrame(dialog);
+    expectDialogFillsSurface(dialog);
   },
 };

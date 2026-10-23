@@ -11,7 +11,7 @@ describe("shared animated surface contract", () => {
     expect(styles).toContain(
       "gw-animated-border-rotate var(--gw-animated-border-animation-duration)",
     );
-    expect(styles).toContain("--gw-dialog-border-width: 1px");
+    expect(styles).toContain("--gw-dialog-border-width: 2px");
   });
 
   it("switches animated borders to their static accent under reduced motion", () => {

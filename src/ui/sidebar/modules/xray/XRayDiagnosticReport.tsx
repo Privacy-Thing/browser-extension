@@ -95,7 +95,7 @@ const ReportPreview = ({ session, error, update, cancel, download }: DialogProps
       : serializeDiagnosticText(report);
   return (
     <DialogContent
-      className="max-h-[92vh] max-w-2xl w-[calc(100%-1.5rem)] min-w-0 grid-rows-[auto_auto_auto_minmax(0,1fr)_auto] gap-3 p-4"
+      className="max-h-[92vh] max-w-2xl min-w-0 grid-rows-[auto_auto_auto_minmax(0,1fr)_auto] gap-3 p-4"
       data-diagnostic-report
       data-report-status={report.status}
       data-report-format={session.format}
