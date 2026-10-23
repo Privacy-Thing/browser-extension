@@ -4,6 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { SettingsImportPreview } from "@/shared/settings-import";
 import {
   SettingsImportDialogView,
   type ImportDialogProps,
@@ -78,5 +79,155 @@ describe("import error alert", () => {
     expect(items()).toEqual([text]);
     expect(document.querySelector("[data-import-error-details]")).toBeNull();
     expect(document.querySelector("[data-import-error-hint]")).toBeNull();
+  });
+});
+
+describe("time zone choice for rejected presets", () => {
+  const mars = issue(0, "Mars", "mars", "Mars/Olympus");
+  const venus = issue(1, "Venus", "venus", "Venus/Cloud");
+  const correction = (id: string, label: string, rejected: string, zone?: string) => ({
+    id,
+    label,
+    rejectedTimeZone: rejected,
+    timeZone: zone ?? null,
+  });
+  const preview: SettingsImportPreview = {
+    token: "accepted",
+    source: {
+      version: 3,
+      exportedAt: "2026-10-02T12:00:00Z",
+      rules: [],
+      locations: [],
+    },
+    selection: { mode: "replace", locations: {}, rules: {}, containers: {} },
+    conflicts: { locations: [], rules: [] },
+    localContainers: [],
+    changes: [],
+    problems: [],
+  };
+  const renderChoice = async (props: Partial<ImportDialogProps>) => {
+    const full: ImportDialogProps = {
+      preview: null,
+      busy: false,
+      error: null,
+      saveInFlight: false,
+      cancel: vi.fn(),
+      confirm: vi.fn(),
+      update: vi.fn(),
+      applyTimeZone: vi.fn(),
+      ...props,
+    };
+    await act(async () => root.render(<SettingsImportDialogView {...full} />));
+  };
+  const picker = (id: string) =>
+    document.querySelector<HTMLElement>(`[data-import-time-zone-correction="${id}"]`);
+  const nameOf = (element: Element | null | undefined) =>
+    (element?.getAttribute("aria-labelledby") ?? "")
+      .split(" ")
+      .map((id) => document.getElementById(id)?.textContent)
+      .join(" ");
+  const confirmButton = () =>
+    document.querySelector<HTMLButtonElement>("#settings-import-confirm");
+
+  beforeEach(() => {
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    );
+    Element.prototype.scrollIntoView = () => {};
+  });
+
+  it("keeps the readable error and offers one named picker instead of the edit hint", async () => {
+    await renderChoice({
+      error: JSON.stringify([mars]),
+      timeZoneCorrections: [correction("mars", "Mars", "Mars/Olympus")],
+    });
+    expect(alert()?.getAttribute("role")).toBe("alert");
+    expect(items()).toEqual([mars.message]);
+    expect(document.querySelector("[data-import-error-hint]")).toBeNull();
+    expect(picker("mars")?.dataset.importTimeZoneState).toBe("missing");
+    expect(picker("mars")?.dataset.importRejectedTimeZone).toBe("Mars/Olympus");
+    const combobox = picker("mars")?.querySelector('[role="combobox"]');
+    expect(nameOf(combobox)).toContain("Mars (mars)");
+    expect(nameOf(combobox)).toContain("Mars/Olympus");
+    expect(confirmButton()?.disabled).toBe(true);
+  });
+
+  it("names a separate picker for each rejected preset", async () => {
+    await renderChoice({
+      error: JSON.stringify([mars, venus]),
+      timeZoneCorrections: [
+        correction("mars", "Mars", "Mars/Olympus", "Asia/Tokyo"),
+        correction("venus", "Venus", "Venus/Cloud"),
+      ],
+    });
+    const comboboxes = [
+      ...document.querySelectorAll(
+        "[data-import-time-zone-correction] [role=combobox]",
+      ),
+    ];
+    expect(comboboxes.map(nameOf)).toEqual([
+      expect.stringContaining("Mars (mars)"),
+      expect.stringContaining("Venus (venus)"),
+    ]);
+    expect(picker("mars")?.dataset.importTimeZoneState).toBe("chosen");
+    expect(picker("venus")?.dataset.importTimeZoneState).toBe("missing");
+    expect(
+      document
+        .querySelector("[data-import-time-zone-corrections]")
+        ?.getAttribute("data-import-time-zone-missing"),
+    ).toBe("1");
+  });
+
+  it("lists only supported zones and reports the chosen one for its preset", async () => {
+    const applyTimeZone = vi.fn();
+    await renderChoice({
+      error: JSON.stringify([mars, venus]),
+      applyTimeZone,
+      timeZoneCorrections: [
+        correction("mars", "Mars", "Mars/Olympus"),
+        correction("venus", "Venus", "Venus/Cloud"),
+      ],
+    });
+    await act(async () =>
+      picker("venus")?.querySelector<HTMLElement>('[role="combobox"]')?.click(),
+    );
+    const offered = [...document.querySelectorAll("[data-combobox-option-value]")].map(
+      (option) => option.getAttribute("data-combobox-option-value"),
+    );
+    expect(new Set(offered)).toEqual(
+      new Set(["UTC", ...Intl.supportedValuesOf("timeZone")]),
+    );
+    expect(offered).not.toContain("Venus/Cloud");
+    await act(async () =>
+      document
+        .querySelector<HTMLElement>('[data-combobox-option-value="Europe/Paris"]')
+        ?.click(),
+    );
+    expect(applyTimeZone).toHaveBeenCalledExactlyOnceWith("venus", "Europe/Paris");
+  });
+
+  it("enables Confirm only once the corrected preview has a zone for every preset", async () => {
+    await renderChoice({
+      preview,
+      timeZoneCorrections: [
+        correction("mars", "Mars", "Mars/Olympus", "Asia/Tokyo"),
+        correction("venus", "Venus", "Venus/Cloud"),
+      ],
+    });
+    expect(confirmButton()?.disabled).toBe(true);
+    await renderChoice({
+      preview,
+      timeZoneCorrections: [
+        correction("mars", "Mars", "Mars/Olympus", "Asia/Tokyo"),
+        correction("venus", "Venus", "Venus/Cloud", "Europe/Paris"),
+      ],
+    });
+    expect(confirmButton()?.disabled).toBe(false);
+    expect(document.querySelector("[data-import-error]")).toBeNull();
   });
 });

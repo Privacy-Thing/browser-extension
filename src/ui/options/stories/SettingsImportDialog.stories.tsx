@@ -149,3 +149,77 @@ export const RegionalPreview: Story = {
     await expect(args.applyTimeZone).toHaveBeenCalledWith("paris", "Europe/Paris");
   },
 };
+
+const rejectedIssue = (index: number, label: string, id: string, timeZone: string) => ({
+  code: "custom",
+  path: [index, "timeZone"],
+  message: `Profile "${label}" (${id}): timeZone "${timeZone}" is unsupported. Choose a supported time zone before saving or activating this profile.`,
+});
+export const RejectedTimeZone: Story = {
+  args: {
+    preview: null,
+    applyTimeZone: fn(),
+    error: JSON.stringify([rejectedIssue(0, "Mars base", "mars", "Mars/Olympus")]),
+    timeZoneCorrections: [
+      {
+        id: "mars",
+        label: "Mars base",
+        rejectedTimeZone: "Mars/Olympus",
+        timeZone: null,
+      },
+    ],
+  },
+  play: async ({ args }) => {
+    const dialog = within(document.body).getByRole("dialog");
+    await waitFor(() => expect(dialog).toBeVisible());
+    await expect(dialog.querySelector("[data-import-error-hint]")).toBeNull();
+    await expect(dialog.querySelector("#settings-import-confirm")).toBeDisabled();
+    expectNoSideScroll(dialog);
+    await userEvent.click(within(dialog).getByRole("combobox", { name: /Mars base/ }));
+    const option = await waitFor(() => {
+      const element = document.querySelector(
+        '[data-combobox-option-value="Asia/Tokyo"]',
+      );
+      if (!element) throw new Error("Time zone list is not open yet.");
+      return element;
+    });
+    await userEvent.click(option);
+    await expect(args.applyTimeZone).toHaveBeenCalledWith("mars", "Asia/Tokyo");
+  },
+};
+export const RejectedTimeZones: Story = {
+  args: {
+    preview: null,
+    applyTimeZone: fn(),
+    error: JSON.stringify([
+      rejectedIssue(0, "Mars base", "mars", "Mars/Olympus"),
+      rejectedIssue(
+        2,
+        "Venus orbit with a deliberately long preset name",
+        "venus",
+        "Venus/Cloud",
+      ),
+    ]),
+    timeZoneCorrections: [
+      {
+        id: "mars",
+        label: "Mars base",
+        rejectedTimeZone: "Mars/Olympus",
+        timeZone: "Asia/Tokyo",
+      },
+      {
+        id: "venus",
+        label: "Venus orbit with a deliberately long preset name",
+        rejectedTimeZone: "Venus/Cloud",
+        timeZone: null,
+      },
+    ],
+  },
+  play: async () => {
+    const dialog = within(document.body).getByRole("dialog");
+    await waitFor(() => expect(dialog).toBeVisible());
+    await expect(within(dialog).getAllByRole("combobox")).toHaveLength(2);
+    await expect(dialog.querySelector("#settings-import-confirm")).toBeDisabled();
+    expectNoSideScroll(dialog);
+  },
+};

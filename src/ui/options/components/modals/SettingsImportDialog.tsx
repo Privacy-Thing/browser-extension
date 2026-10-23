@@ -23,7 +23,9 @@ import {
 import { t } from "@/ui/i18n";
 import { readImportChoice } from "@/ui/options/components/modals/import-choice";
 import { ImportRegionalReview } from "@/ui/options/components/modals/ImportRegionalReview";
+import { ImportZoneCorrections } from "@/ui/options/components/modals/ImportZoneCorrections";
 import { parseImportError } from "@/ui/options/state/import-error";
+import type { ImportTimeZoneCorrection } from "@/ui/options/state/import-time-zones";
 import { useSettings } from "@/ui/options/state/SettingsContext";
 
 export type ImportDialogProps = {
@@ -35,6 +37,8 @@ export type ImportDialogProps = {
   confirm: () => void;
   update: (selection: SettingsImportSelection) => void;
   applyTimeZone?: ((id: string, timeZone: string) => void) | undefined;
+  /** Presets whose rejected time zone the user replaces from the dialog. */
+  timeZoneCorrections?: ImportTimeZoneCorrection[] | undefined;
 };
 
 const collectionLabels = () => ({
@@ -276,9 +280,16 @@ const ImportChanges = ({ changes }: { changes: SettingsImportChange[] }) => (
   </section>
 );
 
-const ImportErrorAlert = ({ error }: { error: string }) => {
+const ImportErrorAlert = ({
+  error,
+  pickerShown,
+}: {
+  error: string;
+  pickerShown: boolean;
+}) => {
   const { items, technical } = parseImportError(error);
-  const timeZoneIssue = items.some((item) => item.field === "timeZone");
+  // Editing the file is the fallback only when no picker can repair the preset.
+  const timeZoneIssue = !pickerShown && items.some((item) => item.field === "timeZone");
   return (
     <div role="alert" data-import-error className="space-y-2 text-sm text-destructive">
       {items.length === 1 ? (
@@ -309,9 +320,15 @@ const ImportErrorAlert = ({ error }: { error: string }) => {
 
 export const SettingsImportDialogView = (props: ImportDialogProps) => {
   const { preview, busy, error, saveInFlight, cancel, confirm, update } = props;
+  const corrections = props.timeZoneCorrections ?? [];
+  const pendingTimeZone = corrections.some((item) => item.timeZone === null);
+  const errorAlert = error ? (
+    <ImportErrorAlert error={error} pickerShown={corrections.length > 0} />
+  ) : null;
   return (
     <Dialog
-      open={preview !== null || error !== null}
+      // Stay open while the corrected file is previewed again.
+      open={preview !== null || error !== null || corrections.length > 0}
       onOpenChange={(open) => {
         if (!open && !busy) cancel();
       }}
@@ -327,6 +344,14 @@ export const SettingsImportDialogView = (props: ImportDialogProps) => {
           <DialogDescription>{t.settingsImport.description}</DialogDescription>
         </DialogHeader>
         <div className="max-h-[60vh] overflow-y-auto space-y-5 pr-2">
+          {preview ? null : errorAlert}
+          {props.applyTimeZone ? (
+            <ImportZoneCorrections
+              corrections={corrections}
+              disabled={busy || saveInFlight}
+              applyTimeZone={props.applyTimeZone}
+            />
+          ) : null}
           {preview ? (
             <>
               <ChoiceSelect
@@ -370,7 +395,7 @@ export const SettingsImportDialogView = (props: ImportDialogProps) => {
               <ImportChanges changes={preview.changes} />
             </>
           ) : null}
-          {error ? <ImportErrorAlert error={error} /> : null}
+          {preview ? errorAlert : null}
           <p className="text-xs text-muted-foreground">{t.settingsImport.retention}</p>
         </div>
         <DialogFooter>
@@ -400,6 +425,7 @@ export const SettingsImportDialogView = (props: ImportDialogProps) => {
               busy ||
               saveInFlight ||
               preview.problems.length > 0 ||
+              pendingTimeZone ||
               error !== null
             }
           >
@@ -423,6 +449,7 @@ export const SettingsImportDialog = () => {
       confirm={() => void settings.applyImport()}
       update={(selection) => void settings.updateImportSelection(selection)}
       applyTimeZone={(id, timeZone) => void settings.updateImportTimeZone(id, timeZone)}
+      timeZoneCorrections={settings.importTimeZoneCorrections}
     />
   );
 };

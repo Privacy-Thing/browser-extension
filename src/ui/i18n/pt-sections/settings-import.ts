@@ -40,4 +40,10 @@ export const settingsImport = {
   technicalDetails: "Detalhes técnicos",
   timeZoneHint:
     "Edite o arquivo para usar um fuso horário compatível e importe-o novamente.",
+  timeZoneTitle: "Escolha fusos horários compatíveis",
+  timeZoneHelp:
+    "Este navegador não é compatível com o fuso horário dos perfis abaixo. Escolha um fuso horário para cada um. A importação é verificada novamente quando todos tiverem um.",
+  timeZoneRejected: (timeZone: string) =>
+    `Fuso horário incompatível no arquivo: ${timeZone}`,
+  timeZoneChoose: "Escolha um fuso horário",
 } as const;
