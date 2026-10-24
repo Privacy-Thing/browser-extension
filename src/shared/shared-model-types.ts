@@ -4,6 +4,7 @@
  */
 
 import type {
+  AnalystTraps,
   SharedWorkerStatus,
   SurfaceActivity,
   SurfaceApplicability,
@@ -295,6 +296,7 @@ export type OsmConsentState = "unknown" | "granted" | "denied";
  * background state.
  */
 export type RuntimeSnapshot = {
+  analystTraps?: AnalystTraps;
   /** Deadline of a narrow temporary activation, including inherited frame seeds. */
   hostOverrideExpiresAt?: number | undefined;
   geo: {

@@ -1,3 +1,5 @@
+import type { AnalystTraps } from "@privacy-brand/xray-protocol";
+
 export type BrowserClientHintBrand = {
   brand: string;
   version: string;
@@ -62,6 +64,7 @@ export type BrowserFingerprint = {
 };
 
 export type RuntimeSnapshot = {
+  analystTraps?: AnalystTraps;
   geo: {
     latitude: number;
     longitude: number;

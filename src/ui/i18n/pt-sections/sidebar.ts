@@ -258,6 +258,105 @@ export const sidebar = {
     },
   },
 
+  inspector: {
+    toggle: "Inspetor",
+    toggleHint:
+      "Escolha as APIs falsificadas que interrompem a execução de scripts quando a página as usa",
+    intro:
+      "Escolha as APIs falsificadas que devem interromper a execução de scripts quando um script da página as usar. Funciona enquanto as ferramentas de desenvolvedor do navegador estiverem abertas nesta aba.",
+    loading: "Verificando o estado do Inspetor…",
+    loadError: (message: string) =>
+      `Não foi possível ler o estado do Inspetor: ${message}`,
+    status: {
+      idle: "Desativado",
+      armed: (count: number) =>
+        `Ativo — ${count} ${count === 1 ? "método" : "métodos"}`,
+      changed: "Ativo — seleção alterada",
+    },
+    hint: {
+      empty: "Selecione pelo menos um método abaixo.",
+      ready: (count: number) =>
+        `${count} ${count === 1 ? "método selecionado" : "métodos selecionados"}.`,
+      changed: "Aplique para atualizar o que está ativo ou desfaça suas alterações.",
+      changedToEmpty:
+        "Nada está selecionado. Desative para que os scripts não sejam mais interrompidos.",
+      active: "Ativo nesta página.",
+      appliedLive: "Ativo nesta página, sem recarregar.",
+      pendingArm: "Será aplicado quando a página recarregar.",
+      pendingDisarm:
+        "Os scripts deixam de ser interrompidos quando a página recarregar.",
+      partialLive: "Ativo nesta página. Alguns quadros aplicam após recarregar.",
+      partialDisarm:
+        "Desativado nesta página. Alguns quadros continuam sendo interrompidos até recarregar.",
+    },
+    reloadNote: "Recarregar perde as alterações não salvas na página.",
+    actions: {
+      arm: "Ativar",
+      armReload: "Ativar e recarregar",
+      armNextLoad: "Ativar no próximo carregamento",
+      apply: "Aplicar",
+      applyReload: "Aplicar e recarregar",
+      applyNextLoad: "Aplicar no próximo carregamento",
+      disarm: "Desativar",
+      disarmReload: "Desativar e recarregar",
+      disarmNextLoad: "Desativar no próximo carregamento",
+      revert: "Desfazer",
+      reloadNow: "Recarregar agora",
+    },
+    result: {
+      armed: (count: number) =>
+        `Ativo — ${count} ${count === 1 ? "método" : "métodos"}.`,
+      disarmed: "Desativado.",
+      live: "Aplicado sem recarregar.",
+      reload: "Recarregando a página.",
+      nextLoad: "Aplica-se no próximo carregamento da página.",
+    },
+    actionError: (message: string) => `Não foi possível aplicar: ${message}`,
+    everyCall: "Interromper em cada chamada",
+    firstCallHint: "Interrompe uma vez por método a cada carregamento da página.",
+    everyCallWarning:
+      "APIs populares, como leituras de horário, podem interromper a página com muita frequência. Selecione apenas os métodos de que precisa.",
+    pauseNotice:
+      "Enquanto a execução está interrompida, a página fica congelada, mas o relógio continua correndo, então a página pode perceber o atraso.",
+    firefoxNotice: `Nas ferramentas de desenvolvedor do Firefox, ative Configurações › Ignorar scripts de terceiros conhecidos para ocultar os quadros do ${BRAND_DISPLAY_NAME} na pilha de chamadas.`,
+    coverage: {
+      pending: (count: number, reasons: string) =>
+        `${count} ${count === 1 ? "quadro aplica" : "quadros aplicam"} no próximo carregamento: ${reasons}.`,
+      reasons: {
+        openedWindow: "esta janela foi aberta por um script",
+        sameOriginFrame: "quadros da mesma origem",
+        noChannel: "quadros sem conexão ao vivo",
+        lateRuntime: "quadros que carregaram antes de a proteção começar",
+      },
+    },
+    workerNotice:
+      "Workers que já estão em execução mantêm a seleção anterior até iniciarem de novo.",
+    unavailable: {
+      title: "O Inspetor não está disponível aqui",
+      unsupportedUrl: `O ${BRAND_DISPLAY_NAME} não pode ser executado nesta página, então não há nada para inspecionar.`,
+      trustedSite:
+        "Este domínio é um site confiável. A proteção está totalmente desligada e nada é falsificado.",
+      protectionPaused:
+        "A proteção está pausada para este domínio. Retome-a para inspecionar as APIs falsificadas.",
+      noRuntime: `Não é possível alcançar o ambiente do ${BRAND_DISPLAY_NAME} nesta página. Recarregue a página e tente novamente.`,
+    },
+    list: {
+      label: "Métodos em que interromper",
+      search: "Pesquisar métodos",
+      usedOnly: "Usados nesta página",
+      noMatches: "Nenhum método corresponde.",
+      clearFilters: "Limpar filtros",
+      selectedOfTotal: (selected: number, total: number) => `${selected}/${total}`,
+      selectedSummary: (selected: number, total: number) =>
+        `${selected} de ${total} selecionados`,
+      methodsOf: (category: string) => `Métodos de ${category}`,
+      used: (count: number) => (count === 1 ? "Usado uma vez" : `Usado ${count} vezes`),
+      notTrappable: "Indisponível",
+      notTrappableReason:
+        "O Inspetor não pode interromper a execução neste método aqui: a regra deste domínio não o falsifica ou este navegador não permite interceptá-lo.",
+    },
+  },
+
   why: {
     title: "Por que essas configurações se aplicam",
     sourcesShort: {

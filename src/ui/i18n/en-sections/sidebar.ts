@@ -257,6 +257,101 @@ export const sidebar = {
     },
   },
 
+  inspector: {
+    toggle: "Inspector",
+    toggleHint:
+      "Choose spoofed APIs that stop script execution when the page uses them",
+    intro:
+      "Pick the spoofed APIs that should stop script execution when a page script uses them. Works while browser developer tools are open for this tab.",
+    loading: "Checking Inspector state…",
+    loadError: (message: string) => `Couldn't read the Inspector state: ${message}`,
+    status: {
+      idle: "Not armed",
+      armed: (count: number) =>
+        `Armed — ${count} ${count === 1 ? "method" : "methods"}`,
+      changed: "Armed — selection changed",
+    },
+    hint: {
+      empty: "Select at least one method below.",
+      ready: (count: number) =>
+        `${count} ${count === 1 ? "method" : "methods"} selected.`,
+      changed: "Apply to update what is armed, or revert your changes.",
+      changedToEmpty: "Nothing is selected. Disarm so scripts no longer stop.",
+      active: "Active on this page.",
+      appliedLive: "Active on this page — no reload needed.",
+      pendingArm: "Will apply after the page reloads.",
+      pendingDisarm: "Scripts no longer stop after the page reloads.",
+      partialLive: "Active on this page. Some frames apply it after a reload.",
+      partialDisarm: "Disarmed on this page. Some frames keep stopping until a reload.",
+    },
+    reloadNote: "Reloading loses unsaved changes on the page.",
+    actions: {
+      arm: "Arm",
+      armReload: "Arm and reload",
+      armNextLoad: "Arm on next load",
+      apply: "Apply",
+      applyReload: "Apply and reload",
+      applyNextLoad: "Apply on next load",
+      disarm: "Disarm",
+      disarmReload: "Disarm and reload",
+      disarmNextLoad: "Disarm on next load",
+      revert: "Revert",
+      reloadNow: "Reload now",
+    },
+    result: {
+      armed: (count: number) =>
+        `Armed — ${count} ${count === 1 ? "method" : "methods"}.`,
+      disarmed: "Disarmed.",
+      live: "Applied live.",
+      reload: "Reloading the page.",
+      nextLoad: "Applies on the next page load.",
+    },
+    actionError: (message: string) => `Couldn't apply: ${message}`,
+    everyCall: "Stop on every call",
+    firstCallHint: "Stops once per method per page load.",
+    everyCallWarning:
+      "Popular APIs such as time reads can stop the page very often. Select only the methods you need.",
+    pauseNotice:
+      "While execution is stopped, the page is frozen but the clock keeps running, so the page can notice the delay.",
+    firefoxNotice: `In Firefox's developer tools, turn on Settings › Ignore Known Third-party Scripts to hide ${BRAND_DISPLAY_NAME} frames from the call stack.`,
+    coverage: {
+      pending: (count: number, reasons: string) =>
+        `${count} ${count === 1 ? "frame applies" : "frames apply"} it on the next load: ${reasons}.`,
+      reasons: {
+        openedWindow: "this window was opened by a script",
+        sameOriginFrame: "same-origin frames",
+        noChannel: "frames without a live connection",
+        lateRuntime: "frames that loaded before protection started",
+      },
+    },
+    workerNotice:
+      "Workers that are already running keep their previous selection until they start again.",
+    unavailable: {
+      title: "Inspector isn't available here",
+      unsupportedUrl: `${BRAND_DISPLAY_NAME} can't run on this page, so there is nothing to inspect.`,
+      trustedSite:
+        "This Domain is a Trusted Site. Protection is fully off, so nothing is spoofed.",
+      protectionPaused:
+        "Protection is paused for this Domain. Resume it to inspect spoofed APIs.",
+      noRuntime: `The ${BRAND_DISPLAY_NAME} runtime isn't reachable on this page. Reload the page and try again.`,
+    },
+    list: {
+      label: "Methods to stop on",
+      search: "Search methods",
+      usedOnly: "Used on this page",
+      noMatches: "No methods match.",
+      clearFilters: "Clear filters",
+      selectedOfTotal: (selected: number, total: number) => `${selected}/${total}`,
+      selectedSummary: (selected: number, total: number) =>
+        `${selected} of ${total} selected`,
+      methodsOf: (category: string) => `${category} methods`,
+      used: (count: number) => (count === 1 ? "Used once" : `Used ${count} times`),
+      notTrappable: "Not available",
+      notTrappableReason:
+        "Inspector can't stop on this method here: the rule for this Domain doesn't spoof it, or this browser has no hook for it.",
+    },
+  },
+
   why: {
     title: "Why these settings apply",
     sourcesShort: {

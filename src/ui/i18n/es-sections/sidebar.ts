@@ -262,6 +262,104 @@ export const sidebar = {
     },
   },
 
+  inspector: {
+    toggle: "Inspector",
+    toggleHint:
+      "Elige las API falseadas que detienen la ejecución de scripts cuando la página las usa",
+    intro:
+      "Elige las API falseadas que deben detener la ejecución de scripts cuando un script de la página las use. Funciona mientras las herramientas para desarrolladores del navegador están abiertas en esta pestaña.",
+    loading: "Comprobando el estado del Inspector…",
+    loadError: (message: string) =>
+      `No se pudo leer el estado del Inspector: ${message}`,
+    status: {
+      idle: "Sin activar",
+      armed: (count: number) =>
+        `Activo — ${count} ${count === 1 ? "método" : "métodos"}`,
+      changed: "Activo — selección modificada",
+    },
+    hint: {
+      empty: "Selecciona al menos un método abajo.",
+      ready: (count: number) =>
+        `${count} ${count === 1 ? "método seleccionado" : "métodos seleccionados"}.`,
+      changed: "Aplica para actualizar lo que está activo o revierte tus cambios.",
+      changedToEmpty:
+        "No hay nada seleccionado. Desactiva para que los scripts dejen de detenerse.",
+      active: "Activo en esta página.",
+      appliedLive: "Activo en esta página, sin recargar.",
+      pendingArm: "Se aplicará cuando se recargue la página.",
+      pendingDisarm: "Los scripts dejarán de detenerse cuando se recargue la página.",
+      partialLive: "Activo en esta página. Algunos marcos lo aplican tras recargar.",
+      partialDisarm:
+        "Desactivado en esta página. Algunos marcos se siguen deteniendo hasta recargar.",
+    },
+    reloadNote: "Al recargar se pierden los cambios no guardados de la página.",
+    actions: {
+      arm: "Activar",
+      armReload: "Activar y recargar",
+      armNextLoad: "Activar en la próxima carga",
+      apply: "Aplicar",
+      applyReload: "Aplicar y recargar",
+      applyNextLoad: "Aplicar en la próxima carga",
+      disarm: "Desactivar",
+      disarmReload: "Desactivar y recargar",
+      disarmNextLoad: "Desactivar en la próxima carga",
+      revert: "Revertir",
+      reloadNow: "Recargar ahora",
+    },
+    result: {
+      armed: (count: number) =>
+        `Activo — ${count} ${count === 1 ? "método" : "métodos"}.`,
+      disarmed: "Desactivado.",
+      live: "Aplicado sin recargar.",
+      reload: "Recargando la página.",
+      nextLoad: "Se aplica en la próxima carga de la página.",
+    },
+    actionError: (message: string) => `No se pudo aplicar: ${message}`,
+    everyCall: "Detener en cada llamada",
+    firstCallHint: "Se detiene una vez por método en cada carga de la página.",
+    everyCallWarning:
+      "Las API habituales, como las lecturas de la hora, pueden detener la página muy a menudo. Selecciona solo los métodos que necesites.",
+    pauseNotice:
+      "Mientras la ejecución está detenida, la página se queda congelada, pero el reloj sigue corriendo, así que la página puede notar el retraso.",
+    firefoxNotice: `En las herramientas para desarrolladores de Firefox, activa Ajustes › Ignorar scripts de terceros conocidos para ocultar los marcos de ${BRAND_DISPLAY_NAME} en la pila de llamadas.`,
+    coverage: {
+      pending: (count: number, reasons: string) =>
+        `${count} ${count === 1 ? "marco lo aplica" : "marcos lo aplican"} en la próxima carga: ${reasons}.`,
+      reasons: {
+        openedWindow: "esta ventana la abrió un script",
+        sameOriginFrame: "marcos del mismo origen",
+        noChannel: "marcos sin conexión en vivo",
+        lateRuntime: "marcos que cargaron antes de que empezara la protección",
+      },
+    },
+    workerNotice:
+      "Los workers que ya están en marcha mantienen la selección anterior hasta que vuelvan a iniciarse.",
+    unavailable: {
+      title: "El Inspector no está disponible aquí",
+      unsupportedUrl: `${BRAND_DISPLAY_NAME} no puede ejecutarse en esta página, así que no hay nada que inspeccionar.`,
+      trustedSite:
+        "Este dominio es un sitio de confianza. La protección está desactivada por completo y no se falsea nada.",
+      protectionPaused:
+        "La protección está en pausa para este dominio. Reanúdala para inspeccionar las API falseadas.",
+      noRuntime: `No se puede contactar con el entorno de ${BRAND_DISPLAY_NAME} en esta página. Recarga la página y vuelve a intentarlo.`,
+    },
+    list: {
+      label: "Métodos en los que detenerse",
+      search: "Buscar métodos",
+      usedOnly: "Usados en esta página",
+      noMatches: "Ningún método coincide.",
+      clearFilters: "Borrar filtros",
+      selectedOfTotal: (selected: number, total: number) => `${selected}/${total}`,
+      selectedSummary: (selected: number, total: number) =>
+        `${selected} de ${total} seleccionados`,
+      methodsOf: (category: string) => `Métodos de ${category}`,
+      used: (count: number) => (count === 1 ? "Usado una vez" : `Usado ${count} veces`),
+      notTrappable: "No disponible",
+      notTrappableReason:
+        "El Inspector no puede detenerse en este método aquí: la regla de este dominio no lo falsea o este navegador no permite interceptarlo.",
+    },
+  },
+
   why: {
     title: "Por qué se aplica esta configuración",
     sourcesShort: {

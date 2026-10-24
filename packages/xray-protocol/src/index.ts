@@ -1,5 +1,8 @@
 import { z } from "zod";
 
+import { AnalystTrapsSchema, type AnalystTraps } from "./inspector";
+import { SurfaceMethodIdSchema, type SpoofingSurfaceMethodId } from "./surface-methods";
+
 // 1. Surface Categories
 export const XRayCategorySchema = z.enum([
   "geolocation",
@@ -26,82 +29,9 @@ export type XRaySurfaceCategory = z.infer<typeof XRayCategorySchema>;
  * not UI copy and must stay stable across runtime refactors unless the XRay
  * protocol intentionally changes.
  */
-export const SurfaceMethodIdSchema = z.enum([
-  "geolocation.getCurrentPosition",
-  "geolocation.watchPosition",
-  "geolocation.clearWatch",
-  "geolocation.permissionsQuery",
-  "date.constructor",
-  "date.now",
-  "date.parse",
-  "date.getTimezoneOffset",
-  "date.toString",
-  "date.toLocaleString",
-  "intl.constructor",
-  "intl.resolvedOptions",
-  "intl.DateTimeFormat.format",
-  "intl.DateTimeFormat.formatToParts",
-  "temporal.Now.instant",
-  "temporal.Now.timeZoneId",
-  "temporal.Now.plainDateTimeISO",
-  "temporal.Now.zonedDateTimeISO",
-  "temporal.Now.plainDateISO",
-  "temporal.Now.plainTimeISO",
-  "temporal.Duration.toLocaleString",
-  "temporal.Instant.toLocaleString",
-  "temporal.PlainDate.toLocaleString",
-  "temporal.PlainDateTime.toLocaleString",
-  "temporal.PlainMonthDay.toLocaleString",
-  "temporal.PlainTime.toLocaleString",
-  "temporal.PlainYearMonth.toLocaleString",
-  "temporal.ZonedDateTime.toLocaleString",
-  "canvas.getImageData",
-  "canvas.toDataURL",
-  "canvas.toBlob",
-  "webGL.readPixels",
-  "webGL.getExtension",
-  "webGL.getSupportedExtensions",
-  "webGL.getParameter",
-  "audio.getFloatFrequencyData",
-  "audio.getByteFrequencyData",
-  "audio.getFloatTimeDomainData",
-  "audio.getByteTimeDomainData",
-  "audio.getChannelData",
-  "navigator.webdriver",
-  "navigator.hardwareConcurrency",
-  "navigator.deviceMemory",
-  "navigator.maxTouchPoints",
-  "navigator.platform",
-  "navigator.userAgent",
-  "navigator.vendor",
-  "navigator.appVersion",
-  "screen.width",
-  "screen.height",
-  "screen.availWidth",
-  "screen.availHeight",
-  "screen.colorDepth",
-  "screen.pixelDepth",
-  "screen.devicePixelRatio",
-  "clientHints.brands",
-  "clientHints.mobile",
-  "clientHints.platform",
-  "clientHints.toJSON",
-  "clientHints.getHighEntropyValues",
-  "battery.getBattery",
-  "battery.manager.charging",
-  "battery.manager.chargingTime",
-  "battery.manager.dischargingTime",
-  "battery.manager.level",
-  "webRTC.constructor",
-  "webRTC.createOffer",
-  "webRTC.createAnswer",
-  "worker.constructor",
-  "serviceWorker.register",
-  "sharedWorker.constructor",
-]);
-
-/** Stable protocol-facing key for one spoofed API method. */
-export type SpoofingSurfaceMethodId = z.infer<typeof SurfaceMethodIdSchema>;
+export { SurfaceMethodIdSchema } from "./surface-methods";
+export type { SpoofingSurfaceMethodId } from "./surface-methods";
+export * from "./inspector";
 
 export const XRayAccessSchema = z.record(XRayCategorySchema, z.literal(true));
 
@@ -366,6 +296,7 @@ export type SharedWorkerStatus = z.infer<typeof SharedWorkerStatusSchema>;
 
 // 2. Runtime Snapshot
 export const RuntimeSnapshotSchema = z.object({
+  analystTraps: AnalystTrapsSchema.optional(),
   hostOverrideExpiresAt: z.number().finite().optional(),
   geo: z.object({
     latitude: z.number(),
@@ -401,6 +332,7 @@ export const RuntimeSnapshotSchema = z.object({
 });
 
 export type RuntimeSnapshot = {
+  analystTraps?: AnalystTraps;
   /** Deadline of a narrow temporary activation, including inherited frame seeds. */
   hostOverrideExpiresAt?: number | undefined;
   geo: {

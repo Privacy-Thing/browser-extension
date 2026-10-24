@@ -1,8 +1,15 @@
 import type { SurfaceAssessment } from "@privacy-brand/xray-protocol";
 
+import type { XRayInspectorController } from "./inspector/useXRayInspector";
+import { XRayInspectorMethodList } from "./inspector/XRayInspectorMethodList";
+import { XRayInspectorPanel } from "./inspector/XRayInspectorPanel";
+import { XRayInspectorToggle } from "./inspector/XRayInspectorToggle";
 import { XRayStatusDot } from "./XRayRows";
 
-import type { SpoofingSurfaceMethodId } from "@/shared/spoofing-surfaces";
+import type {
+  SpoofingSurfaceMethodId,
+  SurfaceMethodQueryCounts,
+} from "@/shared/spoofing-surfaces";
 import type { XRaySurfaceCategory } from "@/shared/types";
 import { t } from "@/ui/i18n";
 import { getSurfaceMethodLabels } from "@/ui/shared/surface-method-labels";
@@ -91,26 +98,78 @@ const statusLabel = (status: CategoryStatus): string => {
   }
 };
 
+export interface XRayInspectorBinding {
+  active: boolean;
+  onActiveChange: (active: boolean) => void;
+  controller: XRayInspectorController;
+  showFirefoxHint: boolean;
+}
+
+const mergeMethodCounts = (
+  assessments: readonly SurfaceAssessment[],
+): SurfaceMethodQueryCounts =>
+  Object.assign(
+    {},
+    ...assessments.map((assessment) => assessment.activity.methodCounts),
+  );
+
 export const XRayAccessAccordion = ({
   assessments,
   surfaceSyncPending,
+  inspector,
 }: {
   assessments: SurfaceAssessment[];
   surfaceSyncPending: boolean;
+  inspector?: XRayInspectorBinding;
 }) => {
   const methodLabels = getSurfaceMethodLabels();
+  const applicable = assessments.filter(
+    (assessment) => assessment.applicability === "applicable",
+  );
+  const inspectorState = inspector?.active ? inspector.controller.state : null;
+  const selecting = inspectorState?.available === true;
   return (
-    <section className="flex flex-col gap-1" data-xray-section="page-activity">
-      <h3 className="text-xs font-semibold uppercase tracking-wide mb-1">
-        {t.sidebar.accessed.title}
-      </h3>
+    <section
+      className="flex flex-col gap-1"
+      data-xray-section="page-activity"
+      data-xray-inspector={inspector?.active ? "on" : "off"}
+    >
+      <div className="mb-1 flex min-h-7 items-center justify-between gap-2">
+        <h3 className="text-xs font-semibold uppercase tracking-wide">
+          {t.sidebar.accessed.title}
+        </h3>
+        {inspector ? (
+          <XRayInspectorToggle
+            active={inspector.active}
+            onActiveChange={inspector.onActiveChange}
+            controller={inspector.controller}
+          />
+        ) : null}
+      </div>
       <p className="text-xs text-muted-foreground mb-2">
         {t.sidebar.accessed.description}
       </p>
-      <div className="flex flex-col gap-0.5">
-        {assessments
-          .filter((assessment) => assessment.applicability === "applicable")
-          .map((assessment) => {
+      {inspector?.active ? (
+        <div className="mb-3">
+          <XRayInspectorPanel
+            controller={inspector.controller}
+            showFirefoxHint={inspector.showFirefoxHint}
+          />
+        </div>
+      ) : null}
+      {selecting && inspector ? (
+        <XRayInspectorMethodList
+          categories={applicable.map((assessment) => assessment.key)}
+          categoryLabel={categoryLabel}
+          methodCounts={mergeMethodCounts(applicable)}
+          trappableMethodIds={inspectorState.trappableMethodIds}
+          selection={inspector.controller.selection}
+          disabled={inspector.controller.pending !== null}
+          onSelectionChange={inspector.controller.setSelection}
+        />
+      ) : (
+        <div className="flex flex-col gap-0.5">
+          {applicable.map((assessment) => {
             const cat = assessment.key;
             const status = getCategoryStatus(assessment, surfaceSyncPending);
             const count = assessment.activity.queryCount;
@@ -167,7 +226,8 @@ export const XRayAccessAccordion = ({
               </details>
             );
           })}
-      </div>
+        </div>
+      )}
     </section>
   );
 };

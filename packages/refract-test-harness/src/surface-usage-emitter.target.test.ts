@@ -2,6 +2,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SHIM_GUARD_KEY, SURFACE_USAGE_REG_TYPE } from "@/shared/build-id-test-values";
 
+const stops = vi.hoisted(() => ({ count: 0 }));
+vi.mock("@privacy-brand/refract-core/runtime/analyst-trap", () => ({
+  pause: () => {
+    stops.count++;
+  },
+}));
+
 // The emitter uses a module-scope Set; re-import fresh per test to avoid
 // cross-test state leakage.
 describe("markSurfaceUsed", () => {
@@ -15,6 +22,7 @@ describe("markSurfaceUsed", () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     vi.stubGlobal("document", { dispatchEvent, addEventListener: vi.fn() });
     dispatchEvent.mockClear();
+    stops.count = 0;
   });
 
   afterEach(() => {
@@ -34,6 +42,105 @@ describe("markSurfaceUsed", () => {
 
   // Runs after the emitter's queued flush microtask, so dispatch is observable.
   const flush = (): Promise<void> => new Promise((resolve) => queueMicrotask(resolve));
+
+  it("restores the identical plain binding and ignores stale revisions", async () => {
+    const mod =
+      await import("@privacy-brand/refract-browser/common/surface-usage-emitter");
+    const plain = mod.recordSurfaceUse;
+    expect(mod.markSurfaceUsed).toBe(plain);
+    mod.setAnalystTraps(null, 0);
+    expect(mod.markSurfaceUsed).toBe(plain);
+    mod.setAnalystTraps({ methods: ["date.now"], mode: "first-call" }, 2);
+    const armed = mod.markSurfaceUsed;
+    expect(armed).not.toBe(plain);
+    mod.markSurfaceUsed("timeLocale", "date.now");
+    mod.setAnalystTraps(null, 1);
+    mod.setAnalystTraps({ methods: ["date.now"], mode: "first-call" }, 2);
+    expect(mod.markSurfaceUsed).toBe(armed);
+    mod.markSurfaceUsed("timeLocale", "date.now");
+    expect(stops.count).toBe(1);
+    mod.setAnalystTraps(null, 3);
+    expect(mod.markSurfaceUsed).toBe(plain);
+    mod.setAnalystTraps({ methods: ["date.now"], mode: "first-call" }, 4);
+    mod.markSurfaceUsed("timeLocale", "date.now");
+    expect(stops.count).toBe(2);
+  });
+
+  for (const mode of ["first-call", "every-call"] as const) {
+    it(`preserves plain reporter counters and scheduling in the single-function ${mode} copy`, async () => {
+      const replay = async (armed: boolean) => {
+        vi.resetModules();
+        dispatchEvent.mockClear();
+        const mod =
+          await import("@privacy-brand/refract-browser/common/surface-usage-emitter");
+        mod.setAnalystTraps(armed ? { methods: ["date.now"], mode } : null, 0);
+        mod.setSurfaceUsageSourceId("test:parity");
+        mod.markSurfaceUsed("timeLocale", "date.now");
+        mod.markSurfaceUsed("timeLocale", "date.parse");
+        mod.markSurfaceUsed("canvas");
+        mod.markSurfaceUsed("timeLocale", "date.now");
+        await flush();
+        mod.markSurfaceUsed("canvas", "canvas.toDataURL");
+        await flush();
+        expect(dispatchEvent).toHaveBeenCalledTimes(1);
+        await vi.advanceTimersByTimeAsync(250);
+        await flush();
+        const payloads = dispatchEvent.mock.calls.map(
+          ([event]) => JSON.parse((event as CustomEvent<string>).detail) as unknown,
+        );
+        expect(dispatchEvent).toHaveBeenCalledTimes(2);
+        await vi.advanceTimersByTimeAsync(250);
+        return payloads;
+      };
+      const plain = await replay(false);
+      const armed = await replay(true);
+      expect(armed).toEqual(plain);
+      expect(stops.count).toBe(mode === "first-call" ? 1 : 2);
+    });
+  }
+
+  it("uses captured scheduling, Set and Reflect operations after page hooks change", async () => {
+    const mod =
+      await import("@privacy-brand/refract-browser/common/surface-usage-emitter");
+    const enqueue = globalThis.queueMicrotask;
+    const hooks = { queue: 0, timeout: 0, has: 0, apply: 0 };
+    const has = Set.prototype.has;
+    const apply = Reflect.apply;
+    vi.stubGlobal("queueMicrotask", () => {
+      hooks.queue++;
+    });
+    vi.stubGlobal("setTimeout", () => {
+      hooks.timeout++;
+    });
+    const applyHook = vi
+      .spyOn(Reflect, "apply")
+      .mockImplementation((target, receiver, args) => {
+        hooks.apply++;
+        return apply(target, receiver, args);
+      });
+    Set.prototype.has = function (value) {
+      hooks.has++;
+      return apply(has, this, [value]);
+    };
+    try {
+      mod.setAnalystTraps({ methods: ["date.now"], mode: "first-call" }, 0);
+      mod.markSurfaceUsed("timeLocale", "date.parse");
+      mod.markSurfaceUsed("timeLocale", "date.now");
+      mod.markSurfaceUsed("timeLocale", "date.now");
+      mod.setAnalystTraps({ methods: ["date.now"], mode: "every-call" }, 1);
+      mod.markSurfaceUsed("timeLocale", "date.parse");
+      mod.markSurfaceUsed("timeLocale", "date.now");
+      mod.setAnalystTraps(null, 2);
+      mod.markSurfaceUsed("canvas");
+    } finally {
+      Set.prototype.has = has;
+      applyHook.mockRestore();
+    }
+    await new Promise<void>((resolve) => enqueue(resolve));
+    vi.unstubAllGlobals();
+    expect(hooks).toEqual({ queue: 0, timeout: 0, has: 0, apply: 0 });
+    expect(dispatchEvent).toHaveBeenCalledOnce();
+  });
 
   it("dispatches a coalesced CustomEvent after the microtask flush", async () => {
     const markSurfaceUsed = await getEmitter();

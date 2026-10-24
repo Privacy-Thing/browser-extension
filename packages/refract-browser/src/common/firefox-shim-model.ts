@@ -2,6 +2,7 @@ import { privateDateNow } from "@privacy-brand/refract-core/runtime/primordials"
 import { getTimeZoneOffsetMinutes } from "@privacy-brand/refract-core/time/timezone-offset";
 
 import { serializeAcceptLanguage } from "@/shared/accept-language";
+import { isAnalystTraps } from "@/shared/analyst-traps";
 import {
   isHostPauseActive,
   isHostProtectionPause,
@@ -48,6 +49,7 @@ export type FirefoxGeoState = {
 };
 
 export type FirefoxShimState = {
+  analystTraps?: RuntimeSnapshot["analystTraps"];
   hostPause?: HostProtectionPause;
   bootstrap: FirefoxBootstrapRevision;
   geolocationEnabled?: boolean | undefined;
@@ -195,6 +197,7 @@ export const buildFirefoxShimState = (
           }
         : null,
     blockServiceWorkerRegistration: snapshot.blockServiceWorkerRegistration ?? false,
+    ...(snapshot.analystTraps ? { analystTraps: snapshot.analystTraps } : {}),
     ...(snapshot.authKey ? { authKey: snapshot.authKey } : {}),
   };
 };
@@ -336,6 +339,8 @@ export const normalizeFxState = (
   { legacyRevision = 0 }: { legacyRevision?: number } = {},
 ): FirefoxShimState | null => {
   if (!isFxRecord(value)) return null;
+  if (value.analystTraps !== undefined && !isAnalystTraps(value.analystTraps))
+    return null;
   const debug = value.debug;
   const sharedWorkerHandlingMode = value.sharedWorkerHandlingMode;
   const workerCompat = value.sharedWorkerCompatibilityMode;
@@ -361,6 +366,7 @@ export const normalizeFxState = (
     ...(normalizedWorkerMode ? { sharedWorkerHandlingMode: normalizedWorkerMode } : {}),
     ...(workerCompat === false ? { sharedWorkerCompatibilityMode: false } : {}),
     blockServiceWorkerRegistration: blockServiceWorkers === true,
+    ...(isAnalystTraps(value.analystTraps) ? { analystTraps: value.analystTraps } : {}),
     ...pickAuthKey(value),
   };
 };
@@ -428,6 +434,7 @@ export const toSnapshotFromFxState = (
       ? { sharedWorkerCompatibilityMode: false }
       : {}),
     blockServiceWorkerRegistration: state.blockServiceWorkerRegistration === true,
+    ...(state.analystTraps ? { analystTraps: state.analystTraps } : {}),
     ...pickAuthKey(state),
   };
 };

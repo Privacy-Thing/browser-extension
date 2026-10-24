@@ -11,6 +11,9 @@ import {
 } from "./primordials";
 
 const canonicalFields = [
+  "analystTraps",
+  "methods",
+  "mode",
   "geo",
   "latitude",
   "longitude",

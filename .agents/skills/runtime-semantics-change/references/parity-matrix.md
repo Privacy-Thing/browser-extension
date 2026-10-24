@@ -24,9 +24,28 @@ Allowed decisions are `changed`, `reused shared helper`, `mirrored inline` and
 | Canvas, WebGL, audio, screen       | `packages/refract-core/src/fingerprint`                            | main installers, iframe/worker where applicable |
 | Worker construction                | `packages/refract-browser/src/common`                              | main and early wrappers                         |
 | Surface integrity                  | `packages/refract-core/src/integrity`                              | runtime installers and X-Ray reporting          |
+| X-Ray Inspector trap binding       | `packages/refract-browser/src/common/surface-usage-emitter.ts`     | snapshot `analystTraps`, live endpoint, worker  |
 
 Confirm actual imports before relying on this map; it describes ownership, not proof that
 every surface applies to every target.
+
+## Inspector trap delivery
+
+Each bundle swaps its own emitter through `setAnalystTraps(config | null, revision)`; while
+disarmed the binding is `recordSurfaceUse` itself. A new document receives the selection in
+its snapshot. A loaded document receives it live only through its private endpoint
+(`src/injection/main/analyst-channel.ts` to `src/content/analyst-endpoints.ts`).
+
+| Runtime path          | New document                          | Loaded document                                   |
+| --------------------- | ------------------------------------- | ------------------------------------------------- |
+| Chromium main         | snapshot, revision 0                  | live: top and cross-origin frames                 |
+| Chromium early-inline | snapshot, revision 0                  | live with the main bundle of the same document    |
+| Firefox pre-bootstrap | revision-gated shim state             | live; Date/Intl early adapters have no method IDs |
+| Worker runtime        | worker bootstrap snapshot (dedicated) | next load only; SharedWorkers are never armed     |
+
+Script-opened windows, same-origin child frames with their own runtime and documents whose
+runtime arrived after page scripts apply on the next load. Parent-owned realms follow their
+parent's binding.
 
 ## Change checklist
 

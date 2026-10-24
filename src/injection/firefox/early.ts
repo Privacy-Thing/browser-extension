@@ -3,6 +3,7 @@
 // Patches APIs immediately, owns revisioned state in this bundle, and publishes
 // disposable snapshots for the later Firefox MAIN-world runtime.
 
+import "@/injection/main/analyst-channel-early";
 import "@privacy-brand/refract-core/runtime/primordials";
 
 import {
@@ -21,10 +22,7 @@ import {
   type FirefoxTimeLocaleState,
 } from "@privacy-brand/refract-browser/common/firefox-shim-state";
 import { markSurfaceEvidence } from "@privacy-brand/refract-browser/common/surface-error-emitter";
-import {
-  markSurfaceUsed,
-  setSurfaceUsageSourceId,
-} from "@privacy-brand/refract-browser/common/surface-usage-emitter";
+import * as usage from "@privacy-brand/refract-browser/common/surface-usage-emitter";
 import { createFxGeoBridge } from "@privacy-brand/refract-core/geolocation/firefox-geolocation-bridge";
 import { getOrCreateGeoPermState } from "@privacy-brand/refract-core/geolocation/geolocation-permissions";
 import {
@@ -34,7 +32,7 @@ import {
 } from "@privacy-brand/refract-core/runtime/primordials";
 import { installRefractStateOnce } from "@privacy-brand/refract-core/runtime/state";
 
-setSurfaceUsageSourceId("firefox-early");
+usage.setSurfaceUsageSourceId("firefox-early");
 
 import {
   type FirefoxBootstrapConsumer,
@@ -394,13 +392,13 @@ import type { XRaySurfaceCategory } from "@/shared/types";
     syncBootstrapState: () => syncBootstrapState(),
     logGeolocation: (method, args, result) => {
       if (shouldReportFxGeo(latestShimState)) {
-        markSurfaceUsed("geolocation", getGeoMethodId(method));
+        usage.markSurfaceUsed("geolocation", getGeoMethodId(method));
       }
       emitFirefoxRuntimeLog("Geolocation", method, args, result);
     },
     logPermissions: (method, args, result) => {
       if (method === "query [geolocation]" && shouldReportFxGeo(latestShimState)) {
-        markSurfaceUsed("geolocation", "geolocation.permissionsQuery");
+        usage.markSurfaceUsed("geolocation", "geolocation.permissionsQuery");
       }
       emitFirefoxRuntimeLog("Permissions", method, args, result);
     },
@@ -413,6 +411,7 @@ import type { XRaySurfaceCategory } from "@/shared/types";
 
   const stateRevisionGate = createFxRevisionGate<FirefoxShimState>((state) => {
     latestShimState = state;
+    usage.setAnalystTraps(state.analystTraps, state.bootstrap.revision);
     activeDebugState = state.debug;
 
     if (!geolocationBridge.isResolved() && state.geoStatus === "absent") {
