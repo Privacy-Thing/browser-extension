@@ -24,9 +24,11 @@ import {
   EXTENSION_STORAGE_KEYS as KEY,
 } from "@/shared/extension-contract";
 import { DEFAULT_PREFERENCES } from "@/shared/settings-defaults";
-import type {
-  SettingsImportSelection,
-  SettingsImportPreview,
+import {
+  RESERVED_IMPORT_NAME,
+  type ReservedImportNameIssue,
+  type SettingsImportSelection,
+  type SettingsImportPreview,
 } from "@/shared/settings-import";
 import type { ExportedSettings, Location } from "@/shared/types";
 
@@ -575,5 +577,108 @@ describe("selected import conflicts and dependencies", () => {
     expect(await configurationFingerprint({ a: 1, b: { c: 2, d: 3 } })).toBe(
       await configurationFingerprint({ b: { d: 3, c: 2 }, a: 1 }),
     );
+  });
+});
+
+describe("reserved names in an import file", () => {
+  const reserved = (path: ReservedImportNameIssue["path"], name: string) => ({
+    code: RESERVED_IMPORT_NAME,
+    path,
+    name,
+    scope: path.length > 1 ? path[0] : "",
+    message: expect.stringContaining(name),
+  });
+  const rejection = async (settings: unknown) => {
+    const effects = deps();
+    const result = await createImportHandlers(effects).previewSettingsImport({
+      type: CMD.previewSettingsImport,
+      settings: settings as ExportedSettings,
+    });
+    expect(set).not.toHaveBeenCalled();
+    expect(effects.ensureStorageMigration).not.toHaveBeenCalled();
+    if (result.ok) throw new Error("The import was not rejected.");
+    return JSON.parse(result.error) as unknown;
+  };
+
+  it.each(["constructor", "prototype", "__proto__", "toString", "hasOwnProperty"])(
+    "rejects the preset ID %s before any preview",
+    async (id) => {
+      expect(
+        await rejection(
+          backup({
+            locations: [location("imported"), location(id)],
+            rules: [{ pattern: "example.com", locationId: id, enabled: true }],
+          }),
+        ),
+      ).toEqual([reserved(["locations", 1, "id"], id)]);
+    },
+  );
+
+  it("rejects own __proto__ keys that JSON.parse keeps anywhere in the file", async () => {
+    // Prepend an own "__proto__" key to the preset object's JSON text.
+    const preset = `{"__proto__":{"id":"polluted"},${JSON.stringify(location("imported")).slice(1)}`;
+    const file: unknown = JSON.parse(`{
+      "version": 3,
+      "exportedAt": "2026-10-02T09:00:00Z",
+      "__proto__": { "debugMode": true },
+      "locations": [${preset}],
+      "rules": [],
+      "workerPolicyExceptions": { "__proto__": { "serviceWorker": false } }
+    }`);
+    expect(Object.hasOwn(file as object, "__proto__")).toBe(true);
+    const issues = await rejection(file);
+    expect(issues).toHaveLength(3);
+    expect(issues).toEqual(
+      expect.arrayContaining([
+        reserved(["__proto__"], "__proto__"),
+        reserved(["locations", 0, "__proto__"], "__proto__"),
+        reserved(["workerPolicyExceptions", "__proto__"], "__proto__"),
+      ]),
+    );
+  });
+
+  it("rejects reserved rule patterns and container IDs as stored", async () => {
+    expect(
+      await rejection(backup({ rules: [{ pattern: " __PROTO__ ", enabled: true }] })),
+    ).toEqual([reserved(["rules", 0, "pattern"], "__proto__")]);
+    expect(
+      await rejection(
+        backup({
+          containerAssignments: [
+            { cookieStoreId: " constructor ", locationId: "imported" },
+          ],
+        }),
+      ),
+    ).toEqual([reserved(["containerAssignments", 0, "cookieStoreId"], "constructor")]);
+  });
+
+  it("keeps hostnames and slugs that only resemble reserved names", async () => {
+    const value = await preview(
+      createImportHandlers(deps()),
+      backup({
+        locations: [location("tostring", "toString")],
+        rules: [
+          { pattern: "constructor", locationId: "tostring", enabled: true },
+          { pattern: "prototype", enabled: true },
+        ],
+      }),
+    );
+    expect(value.source.locations.map((item) => item.id)).toEqual(["tostring"]);
+    expect(value.source.rules.map((rule) => rule.pattern)).toEqual([
+      "constructor",
+      "prototype",
+    ]);
+  });
+
+  it("rejects the file on the direct import path too", async () => {
+    const result = await createImportHandlers(deps()).importSettings({
+      type: CMD.importSettings,
+      settings: backup({ locations: [location("constructor")], rules: [] }),
+    });
+    expect(result).toMatchObject({ ok: false });
+    expect(JSON.parse(result.ok ? "[]" : result.error)).toEqual([
+      reserved(["locations", 0, "id"], "constructor"),
+    ]);
+    expect(set).not.toHaveBeenCalled();
   });
 });

@@ -127,6 +127,47 @@ test("Firefox import UI previews, cancels, detects edits, merges and undoes", as
   }
 });
 
+test("Firefox import rejects reserved preset IDs and keys before any preview", async ({
+  context,
+  extensionOrigin,
+  debuggerPort,
+}) => {
+  const ui = await openFxOptionsProbe({ context, extensionOrigin, debuggerPort });
+  const driver = createImportDriver(ui);
+  const reported = () =>
+    ui.evaluate<string[][]>(
+      `Array.from(document.querySelectorAll("[data-import-error-item]"), (item) => ["data-import-error-item", "data-import-error-name", "data-import-error-scope"].map((name) => item.getAttribute(name)))`,
+    );
+  try {
+    await expect.poll(() => driver.isPresent('[data-tab="advanced"]')).toBe(true);
+    await driver.click('[data-tab="advanced"]');
+    await expect.poll(() => driver.isPresent("#import-settings-file")).toBe(true);
+    const before = await driver.exported();
+    await driver.chooseFile({
+      ...IMPORT_FIXTURE,
+      locations: [{ ...IMPORT_FIXTURE.locations[0]!, id: "constructor" }],
+      rules: [{ pattern: "127.0.0.1", locationId: "constructor", enabled: true }],
+    });
+    await expect.poll(reported).toEqual([["reservedName", "constructor", "locations"]]);
+    expect(await driver.isPresent("[data-import-changes]")).toBe(false);
+    expect(await driver.isEnabled("#settings-import-confirm")).toBe(false);
+    await driver.click("#settings-import-cancel");
+    await expect.poll(() => driver.isPresent("[data-import-error]")).toBe(false);
+    // Firefox messaging clones the parsed file; its own "__proto__" key survives.
+    await driver.chooseFile({
+      ...IMPORT_FIXTURE,
+      workerPolicyExceptions: JSON.parse('{"__proto__":{"serviceWorker":false}}'),
+    });
+    await expect
+      .poll(reported)
+      .toEqual([["reservedName", "__proto__", "workerPolicyExceptions"]]);
+    expect(await driver.isEnabled("#settings-import-confirm")).toBe(false);
+    expect(await driver.exported()).toEqual(before);
+  } finally {
+    await ui.close();
+  }
+});
+
 test("Firefox container import requires a local mapping and undo survives browser restart", async ({
   context,
   extensionOrigin,
@@ -354,6 +395,41 @@ test("Firefox regional import advice keeps intentional choices and changes only 
     expect((await driver.exported()).locations).toEqual(
       REGIONAL_IMPORT_FIXTURE.locations,
     );
+  } finally {
+    await ui.close();
+  }
+});
+
+test("Firefox keeps two time zone corrections made in the same tick", async ({
+  context,
+  extensionOrigin,
+  debuggerPort,
+}) => {
+  const ui = await openFxOptionsProbe({ context, extensionOrigin, debuggerPort });
+  const driver = createImportDriver(ui);
+  const profile = REGIONAL_IMPORT_FIXTURE.locations[0]!;
+  try {
+    await expect.poll(() => driver.isPresent('[data-tab="advanced"]')).toBe(true);
+    await driver.click('[data-tab="advanced"]');
+    await expect.poll(() => driver.isPresent("#import-settings-file")).toBe(true);
+    await driver.chooseFile({
+      ...REGIONAL_IMPORT_FIXTURE,
+      rules: [],
+      locations: ["a", "b", "c"].map((id) => ({ ...profile, id, label: id })),
+    });
+    await expect
+      .poll(() => driver.isPresent('[data-regional-warning="timeZone"]'))
+      .toBe(true);
+    await ui.evaluate(
+      `(() => { for (const id of ["a", "b"]) document.querySelector('[data-regional-profile="' + id + '"] [data-regional-apply-timezone]').click(); return true; })()`,
+    );
+    await expect
+      .poll(() =>
+        ui.evaluate<string[]>(
+          `Array.from(document.querySelectorAll("[data-regional-profile]"), (item) => item.querySelector("[data-regional-warning]") ? item.getAttribute("data-regional-profile") : "")`,
+        ),
+      )
+      .toEqual(["", "", "c"]);
   } finally {
     await ui.close();
   }

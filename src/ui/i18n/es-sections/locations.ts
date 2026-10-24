@@ -48,6 +48,8 @@ export const locations = {
       `La zona ${saved} difiere de la sugerida: ${suggested}.`,
     approximation:
       "Puedes mantener tu elección. Cambiar la zona horaria no modifica los idiomas. La sugerencia es aproximada cerca de fronteras y en el mar.",
+    outsideLand:
+      "Estas coordenadas quedan fuera de tierra firme, así que no se sugiere ninguna zona horaria. Revisa la latitud y la longitud; tu zona horaria no cambia.",
     applyTimeZone: (zone: string) => `Usar ${zone}`,
     scope:
       "Valores con la protección de hora e idioma activa. Las reglas por sitio pueden desactivarla. Preferir inglés cambia los idiomas de los sitios; las fechas y los números conservan el formato regional.",

@@ -273,11 +273,22 @@ const ImportErrorAlert = ({ error }: { error: string }) => {
   return (
     <div role="alert" data-import-error className="space-y-2 text-sm text-destructive">
       {items.length === 1 ? (
-        <p data-import-error-item={items[0]?.field ?? ""}>{items[0]?.message}</p>
+        <p
+          data-import-error-item={items[0]?.field ?? ""}
+          data-import-error-name={items[0]?.reserved?.name}
+          data-import-error-scope={items[0]?.reserved?.scope}
+        >
+          {items[0]?.message}
+        </p>
       ) : (
         <ul className="list-disc space-y-1 pl-5">
           {items.map((item) => (
-            <li key={item.message} data-import-error-item={item.field ?? ""}>
+            <li
+              key={item.message}
+              data-import-error-item={item.field ?? ""}
+              data-import-error-name={item.reserved?.name}
+              data-import-error-scope={item.reserved?.scope}
+            >
               {item.message}
             </li>
           ))}
@@ -309,7 +320,9 @@ export const SettingsImportDialogView = (props: ImportDialogProps) => {
     >
       <DialogContent
         id="settings-import-dialog"
-        className="max-w-3xl"
+        // The change list shrinks first, so the header, the notice and the actions stay
+        // inside short windows.
+        className="max-h-[calc(100%-var(--gw-dialog-viewport-gap)*2)] max-w-3xl grid-rows-[auto_minmax(0,1fr)_auto_auto]"
         animationTiming="urgent"
       >
         <DialogCloseButton label={t.common.actions.close} disabled={busy} />
@@ -362,8 +375,11 @@ export const SettingsImportDialogView = (props: ImportDialogProps) => {
             </>
           ) : null}
           {error ? <ImportErrorAlert error={error} /> : null}
-          <p className="text-xs text-muted-foreground">{t.settingsImport.retention}</p>
         </div>
+        {/* Outside the scrolling list, so the notice is never cut off at its edge. */}
+        <p className="text-xs text-muted-foreground" data-import-retention>
+          {t.settingsImport.retention}
+        </p>
         <DialogFooter>
           <Button
             id="settings-import-cancel"

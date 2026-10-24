@@ -248,6 +248,13 @@
 }
 
 .gw-dialog-content {
+  /* Space between the dialog frame and the viewport edge. Narrow surfaces (the
+     360 px popup, the X-Ray panel) need every pixel; the frame and the scrim strip
+     beside it are enough to separate the dialog from the page behind it. */
+  --gw-dialog-viewport-gap: 0.25rem;
+  /* Header space beside the close button: its 1rem inset and 2rem size, less the
+     smallest content padding (p-4), plus a 0.25rem gap. */
+  --gw-dialog-close-clearance: 2.25rem;
   --gw-dialog-open-duration: 250ms;
   --gw-dialog-close-duration: 250ms;
   --gw-dialog-open-scale-x: 0.975;
@@ -258,14 +265,34 @@
   will-change: transform, opacity;
 }
 
+/*
+  The close button sits in the top-end corner outside the flow, so a header beside it
+  reserves that corner: long titles wrap instead of running under the button. Below
+  Tailwind's sm breakpoint DialogHeader centres its text, so it reserves the space on
+  both sides to stay centred.
+*/
+.gw-dialog-content:has(> [data-dialog-close]) > [data-dialog-header] {
+  padding-inline: var(--gw-dialog-close-clearance);
+}
+
+@media (min-width: 640px) {
+  .gw-dialog-content:has(> [data-dialog-close]) > [data-dialog-header] {
+    padding-inline-start: 0;
+  }
+}
+
+/* The animated frame is painted by the content element itself, so its animations
+   are listed next to the open/close animation instead of on a pseudo-element. */
 .gw-dialog-content[data-state="open"] {
   animation:
-    gw-dialog-content-open var(--gw-dialog-open-duration) cubic-bezier(0.22, 1, 0.36, 1) both;
+    gw-dialog-content-open var(--gw-dialog-open-duration) cubic-bezier(0.22, 1, 0.36, 1) both,
+    var(--gw-dialog-frame-animation, none);
 }
 
 .gw-dialog-content[data-state="closed"] {
   animation:
-    gw-dialog-content-close var(--gw-dialog-close-duration) cubic-bezier(0.64, 0, 0.78, 0) both;
+    gw-dialog-content-close var(--gw-dialog-close-duration) cubic-bezier(0.64, 0, 0.78, 0) both,
+    var(--gw-dialog-frame-animation, none);
 }
 
 @keyframes gw-dialog-overlay-open {
@@ -353,14 +380,12 @@
 }
 
 /*
-  Single source of truth for the dialog "surface" look: the frame fill, the
-  transparent border that opens a gap for the animated ring, and the corner
-  radius. Consumed by BOTH the Radix DialogContent
+  Single source of truth for the dialog "surface" look: the fill, the frame and the
+  corner radius. Consumed by BOTH the Radix DialogContent
   (packages/ui/src/ui/dialog.tsx) and the onboarding wizard frame
   (src/ui/options/components/onboarding/WelcomeWizard.tsx) so the two surfaces
-  cannot drift apart. The accent colours, border width, mask padding and corner
-  radius variables it reads live on .gw-dialog-content--animated-border; this rule
-  is purely the static surface that consumes them.
+  cannot drift apart. The accent colours, border width and corner radius variables
+  it reads live on .gw-dialog-content--animated-border.
 */
 .gw-dialog-surface {
   border-style: solid;
@@ -369,6 +394,47 @@
   border-radius: var(--gw-dialog-corner-radius);
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
+}
+
+/*
+  The dialog paints its animated frame and halo on its own box instead of the shared
+  ::before ring and ::after halo. A scrolling dialog scrolls its absolutely positioned
+  children with the content, so those pseudo-elements would drift across the content
+  and extend the scroll range. Border-box background layers and outer shadows stay
+  fixed to the frame and never add a scroll range.
+*/
+.gw-dialog-surface.gw-dialog-content--animated-border {
+  border-color: transparent;
+  background:
+    linear-gradient(hsl(var(--background)) 0 0) padding-box,
+    var(--gw-animated-border-background, var(--gw-animated-border-ring)) border-box;
+  box-shadow:
+    var(--gw-animated-accent-halo-depth-shadow, 0 28px 88px rgba(0, 0, 0, 0.34)),
+    0 0 var(--gw-animated-accent-halo-blur, 192px)
+      color-mix(in srgb, var(--gw-animated-accent-halo-source)
+        calc(var(--gw-animated-accent-halo-strength, 34%) * var(--gw-animated-accent-halo-intensity, 1)),
+        transparent);
+}
+
+.gw-dialog-surface.gw-dialog-content--animated-border::before,
+.gw-dialog-surface.gw-dialog-content--animated-border::after {
+  content: none;
+}
+
+/* The wizard frame has no open/close animation of its own to compose with. */
+.gw-dialog-surface.gw-dialog-content--animated-border:not(.gw-dialog-content) {
+  animation: var(--gw-dialog-frame-animation);
+}
+
+:root[data-reduce-motion] .gw-dialog-surface.gw-dialog-content--animated-border {
+  animation: none;
+}
+
+/* Forced colours drop gradient backgrounds, so the frame falls back to the border. */
+@media (forced-colors: active) {
+  .gw-dialog-surface.gw-dialog-content--animated-border {
+    border-color: CanvasText;
+  }
 }
 
 /*
@@ -414,7 +480,6 @@
   --gw-animated-border-boost-angle: 0deg;
   --gw-animated-border-core-band: 2.8%;
   --gw-animated-border-trail-band: 9%;
-  --gw-animated-border-mask-padding: 1px;
   --gw-animated-border-corner-radius: var(--gw-dialog-corner-radius);
   --gw-animated-border-boost-duration: 28s;
   --gw-animated-border-boost-easing: cubic-bezier(0.18, 0.52, 0.3, 1);
@@ -423,15 +488,24 @@
   --gw-animated-border-accent-trail: var(--gw-dialog-accent-trail);
   --gw-animated-border-accent-light: var(--gw-dialog-accent-light);
   --gw-animated-border-accent-peak: var(--gw-dialog-accent-peak);
-  --gw-dialog-border-width: 1px;
-  --gw-dialog-border-color: var(--gw-form-border-color);
+  /* 2px is the thinnest frame that still reads as a frame next to 1px field borders
+     and survives fractional device pixel ratios; half of the former 4px accent band. */
+  --gw-dialog-border-width: 2px;
   --gw-dialog-corner-radius: 0px;
   --gw-dialog-accent-source: var(--gw-dialog-accent-color, hsl(var(--primary)));
-  --gw-animated-border-static-accent: var(--gw-dialog-accent-source);
-  --gw-dialog-accent-base: color-mix(in srgb, var(--gw-dialog-accent-source) 15%, transparent);
-  --gw-dialog-accent-trail: color-mix(in srgb, var(--gw-dialog-accent-source) 35%, transparent);
+  /* Resting frame: the accent toned toward the neutral field border, opaque so it
+     reads the same over any backdrop. The sweep brightens it to the full accent. */
+  --gw-dialog-border-color: color-mix(in srgb, var(--gw-dialog-accent-source) 45%, var(--gw-form-border-color));
+  --gw-animated-border-static-accent: var(--gw-dialog-border-color);
+  --gw-dialog-accent-base: var(--gw-dialog-border-color);
+  --gw-dialog-accent-trail: color-mix(in srgb, var(--gw-dialog-accent-source) 70%, var(--gw-form-border-color));
   --gw-dialog-accent-light: var(--gw-dialog-accent-source);
   --gw-dialog-accent-peak: color-mix(in srgb, var(--gw-dialog-accent-source) 82%, white);
+  --gw-dialog-frame-animation:
+    var(--gw-animated-border-animation,
+      gw-animated-border-rotate var(--gw-animated-border-animation-duration) linear infinite,
+      gw-animated-border-breathe var(--gw-animated-border-animation-duration) linear infinite),
+    gw-animated-accent-halo-breathe var(--gw-animated-border-animation-duration) linear infinite;
   --gw-animated-accent-halo-source: var(--gw-dialog-accent-source);
   --gw-animated-accent-halo-outline-color: transparent;
   /* Toned resting strength; the breathe keyframe scales it. */
@@ -447,32 +521,20 @@
 
 :root:not([data-theme="dark"]) .gw-dialog-content--animated-border,
 [data-theme="light"] .gw-dialog-content--animated-border {
-  /* Monotonic toward the centre like the dark skin: base → trail → light → peak
-     increases in saturation (less white), so the peak is the most vivid point
-     rather than washing out lighter than its flanks. peak/light mirrors the
-     dark skin's 70/55 ratio. */
-  --gw-dialog-accent-base: color-mix(in srgb, var(--gw-dialog-accent-source) 26%, white);
-  --gw-dialog-accent-trail: color-mix(in srgb, var(--gw-dialog-accent-source) 52%, white);
-  --gw-dialog-accent-light: color-mix(in srgb, var(--gw-dialog-accent-source) 78%, white);
+  /* On a light skin the saturated accent is the most vivid point; mixing white would
+     wash the peak out lighter than its flanks. */
+  --gw-dialog-accent-light: color-mix(in srgb, var(--gw-dialog-accent-source) 85%, var(--gw-form-border-color));
   --gw-dialog-accent-peak: var(--gw-dialog-accent-source);
 }
 
-[data-theme="dark"] .gw-dialog-content--animated-border {
-  --gw-dialog-accent-light: color-mix(in srgb, var(--gw-dialog-accent-source) 55%, transparent);
-  --gw-dialog-accent-peak: color-mix(in srgb, var(--gw-dialog-accent-source) 70%, transparent);
-}
-
+/*
+  The ring gradient is declared on each element that paints it, because it reads that
+  element's own animated angle and band properties.
+*/
 .gw-animated-accent-border::before,
-.gw-animated-accent-surface::before {
-  content: "";
-  position: absolute;
-  inset: -1px;
-  box-sizing: border-box;
-  z-index: 0;
-  padding: var(--gw-animated-border-mask-padding);
-  border-radius: calc(var(--gw-animated-border-corner-radius) - 1px);
-  pointer-events: none;
-  background: var(--gw-animated-border-background, conic-gradient(
+.gw-animated-accent-surface::before,
+.gw-dialog-surface.gw-dialog-content--animated-border {
+  --gw-animated-border-ring: conic-gradient(
     from calc(var(--gw-animated-border-boost-angle) + var(--gw-animated-border-angle) - 90deg),
     var(--gw-animated-border-accent-base) 0%,
     var(--gw-animated-border-accent-base) calc(25% - calc(var(--gw-animated-border-trail-band) * 1.55)),
@@ -492,7 +554,20 @@
     var(--gw-animated-border-accent-trail) calc(75% + calc(var(--gw-animated-border-trail-band) * 0.9)),
     var(--gw-animated-border-accent-base) calc(75% + calc(var(--gw-animated-border-trail-band) * 1.55)),
     var(--gw-animated-border-accent-base) 100%
-  ));
+  );
+}
+
+.gw-animated-accent-border::before,
+.gw-animated-accent-surface::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  box-sizing: border-box;
+  z-index: 0;
+  padding: var(--gw-animated-border-mask-padding);
+  border-radius: calc(var(--gw-animated-border-corner-radius) - 1px);
+  pointer-events: none;
+  background: var(--gw-animated-border-background, var(--gw-animated-border-ring));
   -webkit-mask:
     linear-gradient(#000 0 0) content-box,
     linear-gradient(#000 0 0);
@@ -504,14 +579,6 @@
   animation: var(--gw-animated-border-animation,
     gw-animated-border-rotate var(--gw-animated-border-animation-duration) linear infinite,
     gw-animated-border-breathe var(--gw-animated-border-animation-duration) linear infinite);
-}
-
-/*
-  Dialogs keep the ring inside the padding box. The shared -1px inset would extend the
-  scrollable overflow of `overflow: auto` dialogs by 1px and add a horizontal scroll range.
-*/
-.gw-dialog-content--animated-border::before {
-  inset: 0;
 }
 
 .gw-animated-accent-border[data-animation-timing="steady"],

@@ -49,6 +49,47 @@ test("selected merge resolves ID/pattern conflicts and remaps dependent rules", 
   );
 });
 
+test("import rejects reserved preset IDs and keys before any preview", async ({
+  context,
+  extensionId,
+}) => {
+  const page = await context.newPage();
+  await page.goto(`chrome-extension://${extensionId}/src/ui/options/index.html`);
+  await saveSimpleSettings(page, { onboardingCompleted: true });
+  await page.reload();
+  await openSettingsTab(page, "advanced");
+  const before = await exportSettings<ExportedSettings>(page);
+  const item = page.locator("[data-import-error] [data-import-error-item]");
+  await chooseImportFile(page, {
+    ...IMPORT_FIXTURE,
+    locations: [{ ...IMPORT_FIXTURE.locations[0]!, id: "constructor" }],
+    rules: [{ pattern: "127.0.0.1", locationId: "constructor", enabled: true }],
+  });
+  await expect(item).toHaveCount(1);
+  await expect(item).toHaveAttribute("data-import-error-item", "reservedName");
+  await expect(item).toHaveAttribute("data-import-error-name", "constructor");
+  await expect(item).toHaveAttribute("data-import-error-scope", "locations");
+  await expect(page.locator("[data-import-changes]")).toHaveCount(0);
+  await expect(page.locator("#settings-import-confirm")).toBeDisabled();
+  await page.locator("#settings-import-cancel").click();
+  // JSON.parse keeps "__proto__" as an own key, so the file carries it as data.
+  await chooseImportFile(page, {
+    ...IMPORT_FIXTURE,
+    workerPolicyExceptions: JSON.parse('{"__proto__":{"serviceWorker":false}}'),
+  });
+  await expect(item).toHaveAttribute("data-import-error-name", "__proto__");
+  await expect(item).toHaveAttribute(
+    "data-import-error-scope",
+    "workerPolicyExceptions",
+  );
+  await expect(page.locator("#settings-import-confirm")).toBeDisabled();
+  await page.locator("#settings-import-cancel").click();
+  const after = await exportSettings<ExportedSettings>(page);
+  expect(after.locations).toEqual(before.locations);
+  expect(after.rules).toEqual(before.rules);
+  expect(after.workerPolicyExceptions).toEqual(before.workerPolicyExceptions);
+});
+
 test("onboarding import uses the same preview and preserves undo without an extra save", async ({
   context,
   extensionId,
@@ -129,6 +170,40 @@ test("regional import advice is optional and corrections only change the shown t
     REGIONAL_IMPORT_FIXTURE.locations,
   );
 });
+
+test("two regional corrections in one tick are both kept", async ({
+  context,
+  extensionId,
+}) => {
+  const page = await context.newPage();
+  await page.goto(`chrome-extension://${extensionId}/src/ui/options/index.html`);
+  await saveSimpleSettings(page, { onboardingCompleted: true });
+  await page.reload();
+  await openSettingsTab(page, "advanced");
+  await chooseImportFile(page, {
+    ...REGIONAL_IMPORT_FIXTURE,
+    rules: [],
+    locations: ["a", "b", "c"].map((id) => ({
+      ...REGIONAL_IMPORT_FIXTURE.locations[0]!,
+      id,
+      label: id,
+    })),
+  });
+  await expect(page.locator('[data-regional-warning="timeZone"]')).toHaveCount(3);
+  await page.evaluate(() => {
+    for (const id of ["a", "b"])
+      document
+        .querySelector<HTMLElement>(
+          `[data-regional-profile="${id}"] [data-regional-apply-timezone]`,
+        )
+        ?.click();
+  });
+  await expect(page.locator('[data-regional-warning="timeZone"]')).toHaveCount(1);
+  await expect(
+    page.locator('[data-regional-profile="c"] [data-regional-warning="timeZone"]'),
+  ).toBeVisible();
+});
+
 test("import rejects an unsupported preset time zone with a readable error", async ({
   context,
   extensionId,
@@ -160,4 +235,32 @@ test("import rejects an unsupported preset time zone with a readable error", asy
   await expect(error.locator('[data-import-error-hint="timeZone"]')).toBeVisible();
   await expect(error.locator("[data-import-error-details] pre")).toBeHidden();
   await expect(page.locator("#settings-import-confirm")).toBeDisabled();
+});
+
+test("regional import flags coordinates outside land instead of suggesting an Etc zone", async ({
+  context,
+  extensionId,
+}) => {
+  const page = await context.newPage();
+  await page.goto(`chrome-extension://${extensionId}/src/ui/options/index.html`);
+  await saveSimpleSettings(page, { onboardingCompleted: true });
+  await page.reload();
+  await openSettingsTab(page, "advanced");
+  const at = (latitude: number, longitude: number, timeZone: string) => ({
+    ...REGIONAL_IMPORT_FIXTURE,
+    locations: [
+      { ...REGIONAL_IMPORT_FIXTURE.locations[0]!, latitude, longitude, timeZone },
+    ],
+  });
+  for (const [latitude, longitude, timeZone] of [
+    [0, 48.8566, "UTC"],
+    [30, -40, "Europe/Warsaw"],
+  ] as const) {
+    await chooseImportFile(page, at(latitude, longitude, timeZone));
+    await expect(page.locator('[data-regional-warning="coordinates"]')).toBeVisible();
+    await expect(page.locator('[data-regional-warning="timeZone"]')).toHaveCount(0);
+    await expect(page.locator("[data-regional-apply-timezone]")).toHaveCount(0);
+    await expect(page.locator("#settings-import-confirm")).toBeEnabled();
+    await page.locator("#settings-import-cancel").click();
+  }
 });

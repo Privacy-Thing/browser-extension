@@ -14,7 +14,12 @@ import {
 import { XRayStoryShell } from "./XRayStoryShell";
 
 import { t } from "@/ui/i18n";
-import { expectNoSideScroll } from "@/ui/shared/dialog-overflow-assertion";
+import {
+  expectDialogCoversPanel,
+  expectHeaderClearsClose,
+  expectNoSideScroll,
+  expectVisibleDialogFrame,
+} from "@/ui/shared/dialog-overflow-assertion";
 
 type XRayStoryHarnessProps = {
   scenario: XRayStoryScenario;
@@ -105,5 +110,50 @@ export const ReportNoSideScroll: Story = {
       within(canvasElement).getByRole("button", { name: t.sidebar.report.prepare }),
     );
     expectNoSideScroll(within(canvasElement.ownerDocument.body).getByRole("dialog"));
+  },
+};
+
+/** Short panels the report must fit without covering or hiding its actions. */
+const SHORT_PANELS_PX = [
+  [360, 520],
+  [720, 480],
+] as const;
+
+export const ReportFillsPanel: Story = {
+  args: { scenario: "evidence-states" },
+  tags: ["!dev", "!autodocs"],
+  play: async ({ canvasElement }) => {
+    await userEvent.click(
+      within(canvasElement).getByRole("button", { name: t.sidebar.report.prepare }),
+    );
+    const dialog = within(canvasElement.ownerDocument.body).getByRole("dialog");
+    expectVisibleDialogFrame(dialog);
+    expectDialogCoversPanel(dialog);
+    expectHeaderClearsClose(dialog);
+
+    // The preview shrinks first: it never runs into the actions, which stay in view.
+    const body = canvasElement.ownerDocument.body;
+    const preview = dialog.querySelector<HTMLElement>("[data-report-preview]")!;
+    const actions = dialog.querySelector<HTMLElement>("[data-report-cancel]")!;
+    try {
+      body.style.transform = "translateZ(0)";
+      for (const [width, height] of SHORT_PANELS_PX) {
+        body.style.width = `${width}px`;
+        body.style.height = `${height}px`;
+        body.style.minHeight = "0";
+        await expect(
+          preview.offsetTop + preview.offsetHeight,
+          `preview end on a ${width}x${height} panel`,
+        ).toBeLessThan(actions.offsetTop);
+        await expect(dialog.scrollHeight, `report scroll on ${width}x${height}`).toBe(
+          dialog.clientHeight,
+        );
+      }
+    } finally {
+      body.style.removeProperty("transform");
+      body.style.removeProperty("width");
+      body.style.removeProperty("height");
+      body.style.removeProperty("min-height");
+    }
   },
 };

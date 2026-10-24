@@ -4,6 +4,7 @@ import { BUILD_BROWSER_TARGET } from "@/shared/build-flags";
 import {
   buildRegionalPreview,
   getSuggestedTimeZone,
+  pointsOutsideLand,
   REGIONAL_SAMPLE_EPOCHS,
 } from "@/shared/regional-profile";
 import { buildRuntimeSnapshot } from "@/shared/runtime-snapshot-builder";
@@ -72,6 +73,54 @@ describe("regional profile advice", () => {
       expect(buildRegionalPreview(profile, BUILD_BROWSER_TARGET)).toBeNull();
     },
   );
+
+  it.each([
+    { name: "sea east of Africa", latitude: 0, longitude: 48.8566, timeZone: "UTC" },
+    {
+      name: "mid Atlantic",
+      latitude: 30,
+      longitude: -40,
+      timeZone: "Europe/Warsaw",
+    },
+  ])(
+    "never suggests a fixed-offset Etc zone for coordinates outside land: $name",
+    ({ latitude, longitude, timeZone }) => {
+      const profile = { ...warsaw, latitude, longitude, timeZone };
+      expect(getSuggestedTimeZone(profile)).toBeNull();
+      expect(pointsOutsideLand(profile)).toBe(true);
+    },
+  );
+
+  it.each([
+    {
+      zone: "Asia/Kolkata",
+      alias: "Asia/Calcutta",
+      latitude: 28.6139,
+      longitude: 77.209,
+    },
+    {
+      zone: "Europe/Kyiv",
+      alias: "Europe/Kiev",
+      latitude: 50.4501,
+      longitude: 30.5234,
+    },
+  ])("keeps alias handling without a false warning: $alias", (c) => {
+    for (const timeZone of [c.zone, c.alias]) {
+      const profile = {
+        ...warsaw,
+        latitude: c.latitude,
+        longitude: c.longitude,
+        timeZone,
+      };
+      expect(getSuggestedTimeZone(profile)).toBeNull();
+      expect(pointsOutsideLand(profile)).toBe(false);
+    }
+  });
+
+  it("does not flag land coordinates as outside land", () => {
+    expect(pointsOutsideLand(warsaw)).toBe(false);
+    expect(pointsOutsideLand({ latitude: NaN, longitude: 0 })).toBe(false);
+  });
 
   it("does not suggest for invalid coordinates", () => {
     expect(getSuggestedTimeZone({ ...warsaw, latitude: NaN })).toBeNull();
