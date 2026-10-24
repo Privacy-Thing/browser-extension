@@ -202,16 +202,19 @@ export const recordSurfaceUse = (
 
 export let markSurfaceUsed = recordSurfaceUse;
 let trapRevision = -1;
-/** Snapshot activation seam; older or duplicate revisions cannot reset first-call. */
+/**
+ * Single seam for snapshot activation and live Inspector commands. Older or
+ * duplicate revisions cannot reset first-call; returns whether it applied.
+ */
 export const setAnalystTraps = (
   config: RuntimeSnapshot["analystTraps"] | null,
   revision: number,
-): void => {
-  if (revision <= trapRevision) return;
+): boolean => {
+  if (revision <= trapRevision) return false;
   trapRevision = revision;
   if (!config) {
     markSurfaceUsed = recordSurfaceUse;
-    return;
+    return true;
   }
   const { methods, first } = createAnalystTrapState(config);
   // Keep the reporter in one frame. Counter parity is covered against the plain copy.
@@ -233,6 +236,7 @@ export const setAnalystTraps = (
     dirty = true;
     scheduleFlush();
   };
+  return true;
 };
 
 export const setSurfaceUsageSourceId = (sourceId: string): void => {

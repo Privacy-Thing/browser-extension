@@ -3,6 +3,7 @@
 // Patches APIs immediately, owns revisioned state in this bundle, and publishes
 // disposable snapshots for the later Firefox MAIN-world runtime.
 
+import "@/injection/main/analyst-channel-early";
 import "@privacy-brand/refract-core/runtime/primordials";
 
 import {

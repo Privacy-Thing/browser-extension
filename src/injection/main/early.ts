@@ -1,3 +1,4 @@
+import "@/injection/main/analyst-channel-early";
 import { readEarlySnapshot } from "@privacy-brand/refract-browser/chromium";
 import "@privacy-brand/refract-core/runtime/primordials";
 import {

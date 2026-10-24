@@ -16,6 +16,7 @@
 // ──▐▄▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▄▌──────
 // ────▀▄▄▀▀▀▀▀▄▄▀▀▀▀▀▀▀▄▄▀▀▀▀▀▄▄▀────────
 
+import "@/injection/main/analyst-channel-runtime";
 import "@privacy-brand/refract-core/runtime/primordials";
 
 import {
