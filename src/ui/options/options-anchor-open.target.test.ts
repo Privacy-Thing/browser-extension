@@ -430,12 +430,8 @@ describe("Options deeplink auto-open", () => {
     expect(dialog?.style.getPropertyValue("--ring")).toBe(
       CONTAINER_COLOR_TOKENS.orange,
     );
-    expect(dialog?.style.getPropertyValue("--scrollbar-thumb")).toBe(
-      CONTAINER_COLOR_SWATCHES.orange,
-    );
-    expect(dialog?.style.getPropertyValue("--scrollbar-thumb-hover")).toBe(
-      "var(--gw-dialog-accent-peak)",
-    );
+    // The scroll handle keeps neutral tokens in every dialog; the accent does not tint it.
+    expect(dialog?.style.getPropertyValue("--scrollbar-thumb")).toBe("");
     expect(document.activeElement?.id).toBe("container-editor-name");
   });
 

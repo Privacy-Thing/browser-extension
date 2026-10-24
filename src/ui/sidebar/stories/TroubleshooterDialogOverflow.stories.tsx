@@ -18,6 +18,7 @@ import {
 } from "@/ui/components/ui/dialog";
 import { t } from "@/ui/i18n";
 import { expectNoSideScroll } from "@/ui/shared/dialog-overflow-assertion";
+import { expectScrollHandle } from "@/ui/shared/scrollbar-assertion";
 import { WorkerTroubleshooterView } from "@/ui/shared/WorkerTroubleshooterView";
 
 const now = 1_800_000_000_000;
@@ -70,4 +71,28 @@ export const NoSideScroll: Story = {
     await waitFor(() => expect(dialog).toBeVisible());
     expectNoSideScroll(dialog);
   },
+};
+
+const expectDialogScrollHandle: Story["play"] = async ({ canvasElement }) => {
+  const document = canvasElement.ownerDocument;
+  const dialog = within(document.body).getByRole("dialog");
+  await waitFor(() => expect(dialog).toBeVisible());
+  expectScrollHandle(dialog);
+  // The open dialog locks the page scroll. The root gutter yields to the lock's body
+  // margin, so the scrim covers the whole window instead of stopping at the gutter.
+  await expect(document.body).toHaveAttribute("data-scroll-locked");
+  await expect(getComputedStyle(document.documentElement).scrollbarGutter).toBe("auto");
+  const scrim = document.querySelector(".gw-dialog-overlay")!.getBoundingClientRect();
+  await expect(scrim.width, "scrim width").toBe(document.defaultView!.innerWidth);
+};
+
+export const ScrollHandle: Story = {
+  tags: ["!dev", "!autodocs"],
+  play: expectDialogScrollHandle,
+};
+
+export const ScrollHandleDark: Story = {
+  tags: ["!dev", "!autodocs"],
+  globals: { theme: "dark" },
+  play: expectDialogScrollHandle,
 };

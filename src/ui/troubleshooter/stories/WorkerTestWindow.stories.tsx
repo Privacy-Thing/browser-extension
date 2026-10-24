@@ -4,6 +4,7 @@ import { useState } from "react";
 import { expect, fn, userEvent, within } from "storybook/test";
 
 import type { WorkerTestState, WorkerTestSession } from "@/shared/worker-test";
+import { expectScrollHandle } from "@/ui/shared/scrollbar-assertion";
 import type { WorkerTestAction } from "@/ui/shared/WorkerTroubleshooterView";
 import { createXRayStoryState } from "@/ui/sidebar/stories/xray-story-fixtures";
 import { WorkerTestWindowView } from "@/ui/troubleshooter/WorkerTestWindow";
@@ -97,4 +98,14 @@ export const SaveFinishesTheWindow: Story = {
     await userEvent.click(view.querySelector("[data-worker-test-close]")!);
     await expect(args.onClose).toHaveBeenCalledTimes(1);
   },
+};
+// The window scrolls its document once the content outgrows the screen height.
+export const ScrollHandle: Story = {
+  tags: ["!dev", "!autodocs"],
+  play: ({ canvasElement }) =>
+    expectScrollHandle(canvasElement.ownerDocument.documentElement),
+};
+export const ScrollHandleDark: Story = {
+  ...ScrollHandle,
+  globals: { theme: "dark" },
 };
