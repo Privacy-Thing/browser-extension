@@ -259,9 +259,10 @@ export const sidebar = {
 
   inspector: {
     toggle: "Inspector",
-    toggleHint: "Choose spoofed APIs that pause DevTools when the page uses them",
+    toggleHint:
+      "Choose spoofed APIs that pause browser developer tools when the page uses them",
     intro:
-      "Pick the spoofed APIs that should pause DevTools when a page script uses them. Open DevTools for this tab first.",
+      "Pick the spoofed APIs that should pause browser developer tools when a page script uses them. Open developer tools for this tab first.",
     loading: "Checking Inspector state…",
     loadError: (message: string) => `Couldn't read the Inspector state: ${message}`,
     status: {
@@ -309,7 +310,7 @@ export const sidebar = {
     everyCallWarning:
       "Popular APIs such as time reads can pause very often. Select only the methods you need.",
     pauseNotice: "A pause is real, so the page can notice the delay.",
-    firefoxNotice: `In Firefox DevTools, turn on Settings › Ignore Known Third-party Scripts to hide ${BRAND_DISPLAY_NAME} frames from the call stack.`,
+    firefoxNotice: `In Firefox's developer tools, turn on Settings › Ignore Known Third-party Scripts to hide ${BRAND_DISPLAY_NAME} frames from the call stack.`,
     unavailable: {
       title: "Inspector isn't available here",
       unsupportedUrl: `${BRAND_DISPLAY_NAME} can't run on this page, so there is nothing to inspect.`,

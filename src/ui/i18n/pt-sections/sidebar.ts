@@ -261,9 +261,9 @@ export const sidebar = {
   inspector: {
     toggle: "Inspetor",
     toggleHint:
-      "Escolha as APIs falsificadas que pausam o DevTools quando a página as usa",
+      "Escolha as APIs falsificadas que pausam as ferramentas de desenvolvedor do navegador quando a página as usa",
     intro:
-      "Escolha as APIs falsificadas que devem pausar o DevTools quando um script da página as usar. Abra o DevTools nesta aba antes.",
+      "Escolha as APIs falsificadas que devem pausar as ferramentas de desenvolvedor do navegador quando um script da página as usar. Abra as ferramentas de desenvolvedor nesta aba antes.",
     loading: "Verificando o estado do Inspetor…",
     loadError: (message: string) =>
       `Não foi possível ler o estado do Inspetor: ${message}`,
@@ -312,7 +312,7 @@ export const sidebar = {
     everyCallWarning:
       "APIs populares, como leituras de horário, podem pausar com muita frequência. Selecione apenas os métodos de que precisa.",
     pauseNotice: "A pausa é real, então a página pode perceber o atraso.",
-    firefoxNotice: `No DevTools do Firefox, ative Configurações › Ignorar scripts de terceiros conhecidos para ocultar os quadros do ${BRAND_DISPLAY_NAME} na pilha de chamadas.`,
+    firefoxNotice: `Nas ferramentas de desenvolvedor do Firefox, ative Configurações › Ignorar scripts de terceiros conhecidos para ocultar os quadros do ${BRAND_DISPLAY_NAME} na pilha de chamadas.`,
     unavailable: {
       title: "O Inspetor não está disponível aqui",
       unsupportedUrl: `O ${BRAND_DISPLAY_NAME} não pode ser executado nesta página, então não há nada para inspecionar.`,

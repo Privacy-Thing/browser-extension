@@ -18,9 +18,9 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ### Added
 
-- X-Ray Inspector can pause DevTools when a page reads a chosen spoofed API,
-  once per method or on every call. Turn on Inspector in Page activity, pick
-  categories or single methods with search and a "used on this page" filter,
+- X-Ray Inspector can pause browser developer tools when a page reads a chosen
+  spoofed API, once per method or on every call. Turn on Inspector in Page activity,
+  pick categories or single methods with search and a "used on this page" filter,
   then arm with a reload or on the next load; X-Ray shows what is armed, flags
   unapplied selection changes, and explains when Inspector is unavailable for a
   Trusted Site, paused protection or an unsupported page. Methods that cannot be
