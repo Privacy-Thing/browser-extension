@@ -184,6 +184,7 @@
   max-width: calc(100vw - 24px);
   max-height: var(--radix-popover-content-available-height);
   overflow-y: auto;
+  scrollbar-gutter: stable;
   padding: 14px;
   border: 1px solid hsl(var(--border));
   border-radius: var(--gw-popup-panel-radius);

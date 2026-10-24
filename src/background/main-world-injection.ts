@@ -208,7 +208,7 @@ export const seedWindowSnapshot = (
   const options =
     typeof reservation === "number" ? { expiresAt: reservation } : reservation;
   const expiresAt = options?.expiresAt;
-  let nextLoad = options?.nextLoad === true;
+  const nextLoad = options?.nextLoad === true;
   if (!snapshot && !runtimeDisabled) {
     return;
   }
@@ -232,9 +232,7 @@ export const seedWindowSnapshot = (
       const decoded = new TextDecoder().decode(bytes);
       const existing = JSON.parse(decoded) as {
         previousName?: string;
-        nextLoad?: boolean;
       };
-      nextLoad ||= existing.nextLoad === true;
       previousName = existing.previousName ?? "";
     } catch {
       previousName = "";

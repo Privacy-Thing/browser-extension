@@ -97,19 +97,15 @@ export const createInspectorHandlers = (deps: InspectorDeps) => {
     return current;
   };
 
-  /** Seeds the tab's documents, then reloads only when asked to apply now. */
-  const applyByLoad = async (
+  /** Seeds the top document right before the reload, like a host pause. */
+  const reloadSeeded = async (
     current: NonNullable<Awaited<ReturnType<typeof resolve>>>,
-    reload: boolean,
   ): Promise<void> => {
     const { tabId, hostname } = current.context;
-    // Seed even for next-load: window.name survives the next unload, while the
-    // active runtime keeps its original activation until a new document loads.
     await deps.prepare(
       current.context,
       withInspector(tabId, hostname, current.decision),
     );
-    if (!reload) return;
     if ((await supportedTab(tabId))?.hostname !== hostname)
       throw new Error("The tab navigated while applying Inspector.");
     await chrome.tabs.reload(tabId);
@@ -130,9 +126,10 @@ export const createInspectorHandlers = (deps: InspectorDeps) => {
       // New frames and documents of this tab now resolve the selection.
       deps.invalidate(tabId);
       // Live first: it writes nothing into the documents. Reload is the fallback.
+      // A next-load selection is resolved when the tab next navigates.
       const live = apply === "now" ? await deps.applyLive(tabId, desired) : undefined;
-      if (!live?.top) await applyByLoad(current, live !== undefined);
-      else if (live.coverage.notLive === 0) await recordLiveInspector(tabId, hostname);
+      if (live && !live.top) await reloadSeeded(current);
+      else if (live?.coverage.notLive === 0) await recordLiveInspector(tabId, hostname);
       deps.publish(tabId);
       let appliedVia: XRayInspectorApplyResult["appliedVia"] = "next-load";
       if (live) appliedVia = live.top ? "live" : "reload";

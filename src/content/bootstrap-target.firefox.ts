@@ -8,6 +8,7 @@ import {
   resolveFirefoxSnapshot,
 } from "@privacy-brand/refract-browser/firefox";
 
+import { markLateEarlyBundle } from "@/content/analyst-endpoints";
 import type { TargetBootstrapContext } from "@/content/bootstrap-common";
 import {
   reportBootstrapChannel,
@@ -58,6 +59,8 @@ const finishFirefoxBootstrap = (
 ): void => {
   injectRuntimeConfig(snapshot);
   if (injectShim && !isParentOwnedRealm(globalThis)) {
+    // A bundle injected now runs after page scripts and cannot take live updates.
+    if (__PT_BUILD_CHANNEL__ !== "release") markLateEarlyBundle();
     injectMainWorldScript("main-world-early.js");
   }
 };

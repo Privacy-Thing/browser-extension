@@ -22,6 +22,23 @@ const canonicalTimeZone = (timeZone: string): string =>
   new Intl.DateTimeFormat("en", { timeZone: timeZone.trim() }).resolvedOptions()
     .timeZone;
 
+/**
+ * tz-lookup answers with fixed-offset `Etc/GMT±N` zones for points outside land. They
+ * have no DST and an inverted sign, so they are a sign of bad coordinates, not a zone.
+ */
+const isOffshoreZone = (timeZone: string): boolean => timeZone.startsWith("Etc/");
+
+/** True when the coordinates fall outside every land time zone. Advice, never validation. */
+export const pointsOutsideLand = (
+  profile: Pick<RegionalProfile, "latitude" | "longitude">,
+): boolean => {
+  try {
+    return isOffshoreZone(tzLookup(profile.latitude, profile.longitude));
+  } catch {
+    return false;
+  }
+};
+
 /** tz-lookup is approximate, especially at borders. This is advice, never validation. */
 export const getSuggestedTimeZone = (
   profile: Pick<RegionalProfile, "latitude" | "longitude" | "timeZone">,
@@ -29,7 +46,7 @@ export const getSuggestedTimeZone = (
   if (!isSupportedTimeZone(profile.timeZone)) return null;
   try {
     const suggested = tzLookup(profile.latitude, profile.longitude);
-    if (!isSupportedTimeZone(suggested)) return null;
+    if (isOffshoreZone(suggested) || !isSupportedTimeZone(suggested)) return null;
     return canonicalTimeZone(suggested) === canonicalTimeZone(profile.timeZone)
       ? null
       : suggested;

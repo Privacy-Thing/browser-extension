@@ -3,7 +3,15 @@ import { expect, fn, userEvent, waitFor, within } from "storybook/test";
 
 import type { SettingsImportPreview } from "@/shared/settings-import";
 import { SettingsImportDialogView } from "@/ui/options/components/modals/SettingsImportDialog";
-import { expectNoSideScroll } from "@/ui/shared/dialog-overflow-assertion";
+import {
+  expectDialogFillsSurface,
+  expectDialogFitsHeight,
+  expectFooterGap,
+  expectHeaderClearsClose,
+  expectNoSideScroll,
+  expectVisibleDialogFrame,
+} from "@/ui/shared/dialog-overflow-assertion";
+import { expectScrollHandle } from "@/ui/shared/scrollbar-assertion";
 
 const preview: SettingsImportPreview = {
   token: "storybook-preview",
@@ -77,6 +85,21 @@ export const NoSideScroll: Story = {
     expectNoSideScroll(dialog);
   },
 };
+export const FrameAndViewportGap: Story = {
+  tags: ["!dev", "!autodocs"],
+  play: async () => {
+    const dialog = within(document.body).getByRole("dialog");
+    await waitFor(() => expect(dialog).toBeVisible());
+    expectVisibleDialogFrame(dialog);
+    expectDialogFillsSurface(dialog);
+    expectDialogFitsHeight(dialog);
+    expectHeaderClearsClose(dialog);
+    expectFooterGap(dialog.querySelector<HTMLElement>("[data-dialog-footer]")!);
+    // The retention notice sits outside the scrolling list, so its edge cannot cut it.
+    const retention = dialog.querySelector<HTMLElement>("[data-import-retention]")!;
+    await expect(retention.parentElement).toBe(dialog);
+  },
+};
 export const UnresolvedConflict: Story = {
   args: {
     preview: { ...preview, problems: ["Choose how to resolve preset ID: paris"] },
@@ -147,5 +170,87 @@ export const RegionalPreview: Story = {
     await expect(dialog.querySelector("[data-regional-preview]")).toBeVisible();
     await userEvent.click(dialog.querySelector("[data-regional-apply-timezone]")!);
     await expect(args.applyTimeZone).toHaveBeenCalledWith("paris", "Europe/Paris");
+  },
+};
+export const ScrollHandle: Story = {
+  tags: ["!dev", "!autodocs"],
+  play: async () => {
+    const dialog = within(document.body).getByRole("dialog");
+    await waitFor(() => expect(dialog).toBeVisible());
+    expectScrollHandle(dialog.querySelector<HTMLElement>(".overflow-y-auto")!);
+  },
+};
+
+const rejectedIssue = (index: number, label: string, id: string, timeZone: string) => ({
+  code: "custom",
+  path: [index, "timeZone"],
+  message: `Profile "${label}" (${id}): timeZone "${timeZone}" is unsupported. Choose a supported time zone before saving or activating this profile.`,
+});
+export const RejectedTimeZone: Story = {
+  args: {
+    preview: null,
+    applyTimeZone: fn(),
+    error: JSON.stringify([rejectedIssue(0, "Mars base", "mars", "Mars/Olympus")]),
+    timeZoneCorrections: [
+      {
+        id: "mars",
+        label: "Mars base",
+        rejectedTimeZone: "Mars/Olympus",
+        timeZone: null,
+      },
+    ],
+  },
+  play: async ({ args }) => {
+    const dialog = within(document.body).getByRole("dialog");
+    await waitFor(() => expect(dialog).toBeVisible());
+    await expect(dialog.querySelector("[data-import-error-hint]")).toBeNull();
+    await expect(dialog.querySelector("#settings-import-confirm")).toBeDisabled();
+    expectNoSideScroll(dialog);
+    await userEvent.click(within(dialog).getByRole("combobox", { name: /Mars base/ }));
+    const option = await waitFor(() => {
+      const element = document.querySelector(
+        '[data-combobox-option-value="Asia/Tokyo"]',
+      );
+      if (!element) throw new Error("Time zone list is not open yet.");
+      return element;
+    });
+    await userEvent.click(option);
+    await expect(args.applyTimeZone).toHaveBeenCalledWith("mars", "Asia/Tokyo");
+  },
+};
+export const RejectedTimeZones: Story = {
+  args: {
+    preview: null,
+    applyTimeZone: fn(),
+    error: JSON.stringify([
+      rejectedIssue(0, "Mars base", "mars", "Mars/Olympus"),
+      rejectedIssue(
+        2,
+        "Venus orbit with a deliberately long preset name",
+        "venus",
+        "Venus/Cloud",
+      ),
+    ]),
+    timeZoneCorrections: [
+      {
+        id: "mars",
+        label: "Mars base",
+        rejectedTimeZone: "Mars/Olympus",
+        timeZone: "Asia/Tokyo",
+      },
+      {
+        id: "venus",
+        label: "Venus orbit with a deliberately long preset name",
+        rejectedTimeZone: "Venus/Cloud",
+        timeZone: null,
+      },
+    ],
+  },
+  play: async () => {
+    const dialog = within(document.body).getByRole("dialog");
+    await waitFor(() => expect(dialog).toBeVisible());
+    await expect(within(dialog).getAllByRole("combobox")).toHaveLength(2);
+    await expect(dialog.querySelector("#settings-import-confirm")).toBeDisabled();
+    expectNoSideScroll(dialog);
   },
 };

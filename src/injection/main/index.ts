@@ -34,10 +34,12 @@ import {
   isRuntimeDisabled,
   observeConfigInsertion,
   readInitialSnapshot,
+  readRuntimeConfigElement,
   removeConfigElement,
   writeRuntimeWindowSeed,
 } from "@privacy-brand/refract-browser/common/runtime-config";
 import {
+  getAnalystTraps,
   setAnalystTraps,
   setSurfaceUsageSourceId,
 } from "@privacy-brand/refract-browser/common/surface-usage-emitter";
@@ -115,6 +117,27 @@ const install = (snapshot: RuntimeSnapshot | null): RefractRuntimeState | null =
   );
   if (snapshot) setAnalystTraps(snapshot.analystTraps, 0);
   return state;
+};
+
+type AnalystTraps = RuntimeSnapshot["analystTraps"] | null;
+
+const sameTraps = (a: AnalystTraps, b: AnalystTraps): boolean => {
+  if (!a || !b) return !a && !b;
+  if (a.mode !== b.mode || a.methods.length !== b.methods.length) return false;
+  for (let index = 0; index < a.methods.length; index += 1) {
+    if (a.methods[index] !== b.methods[index]) return false;
+  }
+  return true;
+};
+
+/**
+ * A document can start from the snapshot its previous document stored at unload.
+ * The background's tab-aware delivery after commit settles the Inspector
+ * selection; an unchanged selection keeps its first-call state.
+ */
+const settleAnalystTraps = (snapshot: RuntimeSnapshot | null): void => {
+  const next = snapshot?.analystTraps ?? null;
+  if (snapshot && !sameTraps(getAnalystTraps(), next)) setAnalystTraps(next, 1);
 };
 
 const syncRuntimePatchState = (snapshot: RuntimeSnapshot): void => {
@@ -223,6 +246,7 @@ const installWhenReady = (): void => {
 
   const consumeNextConfig = (): void => {
     if (runtimeInstalled) {
+      settleAnalystTraps(readRuntimeConfigElement());
       removeConfigElement();
       return;
     }

@@ -15,6 +15,7 @@ import {
   RESOURCE_TYPES,
   CSP_RESOURCE_TYPES,
   toTabRuleId,
+  isValidTabId,
   buildTabHeaderCondition,
   RULE_PRIORITY_BASE,
   MAX_HOST_PATTERN_LENGTH,
@@ -395,7 +396,7 @@ export const buildHeaderRules = ({
   const nextRules: DynamicHeaderRule[] = [];
 
   for (const context of contexts) {
-    if (!context.hostname) {
+    if (!context.hostname || !isValidTabId(context.tabId)) {
       continue;
     }
 
@@ -451,18 +452,21 @@ export const buildHeaderRules = ({
 
 export const buildPauseHeaderRule = (
   context: EffectiveTabContext,
-): DynamicHeaderRule => ({
-  id: toTabRuleId(context.tabId),
-  priority: TAB_RULE_PRIORITY + 1,
-  action: { type: ALLOW },
-  condition: buildTabHeaderCondition(context.tabId),
-});
+): DynamicHeaderRule | null =>
+  isValidTabId(context.tabId)
+    ? {
+        id: toTabRuleId(context.tabId),
+        priority: TAB_RULE_PRIORITY + 1,
+        action: { type: ALLOW },
+        condition: buildTabHeaderCondition(context.tabId),
+      }
+    : null;
 
 export const buildSnapshotHeaderRule = (
   context: EffectiveTabContext,
   snapshot: RuntimeSnapshot | null,
 ): DynamicHeaderRule | null => {
-  if (!snapshot || !context.hostname) {
+  if (!snapshot || !context.hostname || !isValidTabId(context.tabId)) {
     return null;
   }
 
@@ -489,6 +493,7 @@ export const syncContextHeaderRule = (
   syncHeaderRulesInFlight = syncHeaderRulesInFlight
     .catch(() => undefined)
     .then(async () => {
+      if (!isValidTabId(context.tabId)) return;
       await initializeHostPauses();
       const pause = getHostPause(context.hostname);
       const rule =

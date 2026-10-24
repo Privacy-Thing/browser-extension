@@ -46,6 +46,21 @@ describe("location drafts", () => {
     expect(draft.timeZone).toBe("Europe/Warsaw");
   });
 
+  it("does not use a reserved name as the preset ID", () => {
+    const draft = buildLocationDraft(
+      {
+        lat: "52.2297",
+        lon: "21.0122",
+        display_name: "Constructor",
+        address: { city: "Constructor", country_code: "pl" },
+      },
+      [],
+    );
+
+    expect(draft.id).toBe("constructor-2");
+    expect(draft.label).toBe("Constructor");
+  });
+
   it("fetches the first location draft from nominatim-style results", async () => {
     const rawFetchMock = vi.fn(
       async (_input: RequestInfo | URL, _init?: RequestInit) => ({

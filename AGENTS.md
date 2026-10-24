@@ -4,6 +4,10 @@ Privacy Thing is an MV3 extension for per-domain anti-fingerprinting and locatio
 spoofing. Optimize for spoofing correctness, invisibility to page scripts,
 cross-browser behavior and low overhead. `CLAUDE.md` links to this file.
 
+## Progress tracking
+- Linear (main), `PT` prefix
+- GitHub Issues 
+
 ## Stack and boundaries
 
 - Use `pnpm`. Keep TypeScript `strict`, `noUncheckedIndexedAccess` and
@@ -95,7 +99,8 @@ reload the tab. The only live runtime update is the X-Ray Inspector trap binding
 from the static isolated bootstrap to MAIN-world bundles over a private detached-node endpoint
 established at document_start. It never changes spoofed values. Paths without such an
 endpoint (late injection, script-opened windows, same-origin child frames with their own
-runtime, workers) apply on the next load.
+runtime, running workers) apply on the next load; dedicated workers started later use the
+document's current binding. Release builds contain no endpoint.
 
 ## Check every affected surface
 

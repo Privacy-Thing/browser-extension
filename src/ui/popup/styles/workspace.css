@@ -228,6 +228,7 @@
   flex: 1;
   padding: 28px 20px;
   overflow-y: auto;
+  scrollbar-gutter: stable;
   text-align: center;
 }
 
@@ -450,15 +451,9 @@
   min-height: 100%;
 }
 
+/* The scroll handle's gutter is taken from the 29px end padding. */
 .gw-popup-protection-details > .gw-popup-workspace-scroll {
-  padding: 20px 29px 0 20px;
-  scrollbar-width: none;
-  scrollbar-gutter: auto;
-}
-
-.gw-popup-protection-details > .gw-popup-workspace-scroll::-webkit-scrollbar {
-  width: 0;
-  height: 0;
+  padding: 20px calc(29px - var(--gw-scrollbar-size)) 0 20px;
 }
 
 .gw-popup-protection-group {

@@ -13,7 +13,6 @@ export type InspectorLiveCommand = {
 /** Sent by the background to one frame; `command: null` only probes the frame. */
 export type InspectorLiveMessage = {
   type: typeof CMD_XRAY_INSPECTOR_LIVE;
-  opened: boolean;
   command: InspectorLiveCommand | null;
 };
 
@@ -46,9 +45,8 @@ const isLiveCommand = (value: unknown): value is InspectorLiveCommand =>
 export const isInspectorLiveMessage = (value: unknown): value is InspectorLiveMessage =>
   isRecord(value) &&
   value.type === CMD_XRAY_INSPECTOR_LIVE &&
-  typeof value.opened === "boolean" &&
   (value.command === null || isLiveCommand(value.command)) &&
-  Object.keys(value).length === 3;
+  Object.keys(value).length === 2;
 
 export const isLiveFrameResult = (value: unknown): value is InspectorLiveFrameResult =>
   isRecord(value) &&

@@ -42,6 +42,27 @@ export const GeographicWarning: Story = {
     await expect(args.applyTimeZone).toHaveBeenCalledWith("Europe/Paris");
   },
 };
+export const OutsideLandCoordinates: Story = {
+  args: {
+    profile: {
+      ...meta.args.profile,
+      latitude: 30,
+      longitude: -40,
+      timeZone: "Europe/Warsaw",
+    },
+  },
+  play: async ({ canvasElement }) => {
+    await expect(
+      canvasElement.querySelector('[data-regional-warning="coordinates"]'),
+    ).toBeVisible();
+    await expect(
+      canvasElement.querySelector('[data-regional-warning="timeZone"]'),
+    ).toBeNull();
+    await expect(
+      canvasElement.querySelector("[data-regional-apply-timezone]"),
+    ).toBeNull();
+  },
+};
 export const EnglishPreference: Story = {
   args: { profile: { ...meta.args.profile, timeZone: "Europe/Paris" } },
   play: async ({ canvasElement }) => {

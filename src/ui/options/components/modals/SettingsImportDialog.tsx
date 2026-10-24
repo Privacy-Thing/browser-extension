@@ -22,7 +22,9 @@ import {
 } from "@/ui/components/ui/select";
 import { t } from "@/ui/i18n";
 import { ImportRegionalReview } from "@/ui/options/components/modals/ImportRegionalReview";
+import { ImportZoneCorrections } from "@/ui/options/components/modals/ImportZoneCorrections";
 import { parseImportError } from "@/ui/options/state/import-error";
+import type { ImportTimeZoneCorrection } from "@/ui/options/state/import-time-zones";
 import { useSettings } from "@/ui/options/state/SettingsContext";
 
 export type ImportDialogProps = {
@@ -34,6 +36,8 @@ export type ImportDialogProps = {
   confirm: () => void;
   update: (selection: SettingsImportSelection) => void;
   applyTimeZone?: ((id: string, timeZone: string) => void) | undefined;
+  /** Presets whose rejected time zone the user replaces from the dialog. */
+  timeZoneCorrections?: ImportTimeZoneCorrection[] | undefined;
 };
 
 const collectionLabels = () => ({
@@ -267,17 +271,35 @@ const ImportChanges = ({ changes }: { changes: SettingsImportChange[] }) => (
   </section>
 );
 
-const ImportErrorAlert = ({ error }: { error: string }) => {
+const ImportErrorAlert = ({
+  error,
+  pickerShown,
+}: {
+  error: string;
+  pickerShown: boolean;
+}) => {
   const { items, technical } = parseImportError(error);
-  const timeZoneIssue = items.some((item) => item.field === "timeZone");
+  // Editing the file is the fallback only when no picker can repair the preset.
+  const timeZoneIssue = !pickerShown && items.some((item) => item.field === "timeZone");
   return (
     <div role="alert" data-import-error className="space-y-2 text-sm text-destructive">
       {items.length === 1 ? (
-        <p data-import-error-item={items[0]?.field ?? ""}>{items[0]?.message}</p>
+        <p
+          data-import-error-item={items[0]?.field ?? ""}
+          data-import-error-name={items[0]?.reserved?.name}
+          data-import-error-scope={items[0]?.reserved?.scope}
+        >
+          {items[0]?.message}
+        </p>
       ) : (
         <ul className="list-disc space-y-1 pl-5">
           {items.map((item) => (
-            <li key={item.message} data-import-error-item={item.field ?? ""}>
+            <li
+              key={item.message}
+              data-import-error-item={item.field ?? ""}
+              data-import-error-name={item.reserved?.name}
+              data-import-error-scope={item.reserved?.scope}
+            >
               {item.message}
             </li>
           ))}
@@ -300,16 +322,24 @@ const ImportErrorAlert = ({ error }: { error: string }) => {
 
 export const SettingsImportDialogView = (props: ImportDialogProps) => {
   const { preview, busy, error, saveInFlight, cancel, confirm, update } = props;
+  const corrections = props.timeZoneCorrections ?? [];
+  const pendingTimeZone = corrections.some((item) => item.timeZone === null);
+  const errorAlert = error ? (
+    <ImportErrorAlert error={error} pickerShown={corrections.length > 0} />
+  ) : null;
   return (
     <Dialog
-      open={preview !== null || error !== null}
+      // Stay open while the corrected file is previewed again.
+      open={preview !== null || error !== null || corrections.length > 0}
       onOpenChange={(open) => {
         if (!open && !busy) cancel();
       }}
     >
       <DialogContent
         id="settings-import-dialog"
-        className="max-w-3xl"
+        // The change list shrinks first, so the header, the notice and the actions stay
+        // inside short windows.
+        className="max-h-[calc(100%-var(--gw-dialog-viewport-gap)*2)] max-w-3xl grid-rows-[auto_minmax(0,1fr)_auto_auto]"
         animationTiming="urgent"
       >
         <DialogCloseButton label={t.common.actions.close} disabled={busy} />
@@ -318,6 +348,14 @@ export const SettingsImportDialogView = (props: ImportDialogProps) => {
           <DialogDescription>{t.settingsImport.description}</DialogDescription>
         </DialogHeader>
         <div className="max-h-[60vh] overflow-y-auto space-y-5 pr-2">
+          {preview ? null : errorAlert}
+          {props.applyTimeZone ? (
+            <ImportZoneCorrections
+              corrections={corrections}
+              disabled={busy || saveInFlight}
+              applyTimeZone={props.applyTimeZone}
+            />
+          ) : null}
           {preview ? (
             <>
               <ChoiceSelect
@@ -361,9 +399,12 @@ export const SettingsImportDialogView = (props: ImportDialogProps) => {
               <ImportChanges changes={preview.changes} />
             </>
           ) : null}
-          {error ? <ImportErrorAlert error={error} /> : null}
-          <p className="text-xs text-muted-foreground">{t.settingsImport.retention}</p>
+          {preview ? errorAlert : null}
         </div>
+        {/* Outside the scrolling list, so the notice is never cut off at its edge. */}
+        <p className="text-xs text-muted-foreground" data-import-retention>
+          {t.settingsImport.retention}
+        </p>
         <DialogFooter>
           <Button
             id="settings-import-cancel"
@@ -391,6 +432,7 @@ export const SettingsImportDialogView = (props: ImportDialogProps) => {
               busy ||
               saveInFlight ||
               preview.problems.length > 0 ||
+              pendingTimeZone ||
               error !== null
             }
           >
@@ -414,6 +456,7 @@ export const SettingsImportDialog = () => {
       confirm={() => void settings.applyImport()}
       update={(selection) => void settings.updateImportSelection(selection)}
       applyTimeZone={(id, timeZone) => void settings.updateImportTimeZone(id, timeZone)}
+      timeZoneCorrections={settings.importTimeZoneCorrections}
     />
   );
 };
