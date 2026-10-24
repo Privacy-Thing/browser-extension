@@ -35,6 +35,8 @@ export const settingsImport = {
   containerAssignments: "Asignaciones de contenedores",
   conflict: "Conflicto",
   resolve: "Resuelve los conflictos indicados antes de confirmar.",
+  reservedName: (name: string, scope: string) =>
+    `“${name}” en ${scope} es un nombre reservado y no se puede importar. Cámbielo en el archivo y vuelva a importarlo.`,
   selectAll: "Seleccionar todo",
   skipAll: "Omitir todo",
   technicalDetails: "Detalles técnicos",

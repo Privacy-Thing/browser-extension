@@ -6,6 +6,11 @@ import {
   removeWildcardRules,
   runStorageMigration,
 } from "@/background/migrations";
+import { findReservedImportNames } from "@/background/settings-import-names";
+import {
+  IMPORT_CONFIG_KEYS,
+  configurationToExport,
+} from "@/background/settings-import-storage";
 import { CONTAINERS_STORAGE_KEY } from "@/background/storage/container-assignments";
 import { CONTROL_STORAGE_KEY } from "@/background/storage/control-state";
 import { LEGACY_BEHAVIOR_KEY } from "@/background/storage/legacy-behavior-data";
@@ -362,6 +367,103 @@ describe("runStorageMigration", () => {
       canvas: true,
     });
     expect(storageState[LEGACY_SPOOFING_KEY]).toBeUndefined();
+  });
+
+  it("renames a stored preset with a reserved ID and relinks every reference", async () => {
+    const preset = (id: string) => ({
+      id,
+      label: "Constructor",
+      latitude: 52.2297,
+      longitude: 21.0122,
+      accuracy: 25,
+      noiseRadius: 50,
+      language: "pl-PL",
+      languages: ["pl-PL", "pl"],
+      timeZone: "Europe/Warsaw",
+    });
+    const rules = [
+      {
+        pattern: "shop.example.com",
+        locationId: "constructor",
+        enabled: true,
+        ruleSeedKey: "seed01",
+        authKey: "auth0001",
+        relaxCspForWorkers: false,
+      },
+      {
+        pattern: "other.example.com",
+        locationId: "constructor-2",
+        enabled: true,
+        ruleSeedKey: "seed02",
+        authKey: "auth0002",
+        relaxCspForWorkers: false,
+      },
+    ];
+    storageState[LOCATIONS_STORAGE_KEY] = [
+      preset("constructor"),
+      preset("constructor-2"),
+    ];
+    storageState[RULES_STORAGE_KEY] = rules;
+    storageState[CONTAINERS_STORAGE_KEY] = [
+      { cookieStoreId: "firefox-container-1", locationId: "constructor" },
+    ];
+    storageState[FALLBACK_STORAGE_KEY] = {
+      enabled: true,
+      locationId: "constructor",
+      ruleSeedKey: "seed03",
+      authKey: "auth0003",
+    };
+
+    await runStorageMigration();
+
+    expect(storageState[LOCATIONS_STORAGE_KEY]).toEqual([
+      preset("constructor-3"),
+      preset("constructor-2"),
+    ]);
+    expect(storageState[RULES_STORAGE_KEY]).toEqual([
+      { ...rules[0], locationId: "constructor-3" },
+      rules[1],
+    ]);
+    expect(storageState[CONTAINERS_STORAGE_KEY]).toEqual([
+      expect.objectContaining({
+        cookieStoreId: "firefox-container-1",
+        locationId: "constructor-3",
+      }),
+    ]);
+    expect(storageState[FALLBACK_STORAGE_KEY]).toEqual({
+      enabled: true,
+      locationId: "constructor-3",
+      ruleSeedKey: "seed03",
+      authKey: "auth0003",
+    });
+    expect(
+      findReservedImportNames(
+        configurationToExport(await chrome.storage.local.get([...IMPORT_CONFIG_KEYS])),
+      ),
+    ).toEqual([]);
+  });
+
+  it("does not write presets when no stored ID is reserved", async () => {
+    storageState[LOCATIONS_STORAGE_KEY] = [{ id: "tostring", label: "toString" }];
+    storageState[RULES_STORAGE_KEY] = [
+      {
+        pattern: "constructor",
+        locationId: "tostring",
+        enabled: true,
+        ruleSeedKey: "seed01",
+        relaxCspForWorkers: false,
+      },
+    ];
+    const set = vi.mocked(chrome.storage.local.set);
+
+    await runStorageMigration();
+
+    expect(set).not.toHaveBeenCalledWith(
+      expect.objectContaining({ [LOCATIONS_STORAGE_KEY]: expect.anything() }),
+    );
+    expect(storageState[LOCATIONS_STORAGE_KEY]).toEqual([
+      { id: "tostring", label: "toString" },
+    ]);
   });
 
   it("fills in ruleSeedKey for legacy rules without the field", async () => {

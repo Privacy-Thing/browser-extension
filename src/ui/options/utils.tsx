@@ -1,4 +1,3 @@
-import { slugifyToken } from "@/shared/slugify";
 import type { DomainRule, OsmConsentState } from "@/shared/types";
 import { getBrowserCapabilities } from "@/ui/shared/browser-capabilities";
 
@@ -36,25 +35,6 @@ export const getVisibleSettingsTabs = ({
 
 export const normalizeRulePattern = (pattern: string): string =>
   pattern.trim().toLowerCase();
-
-export const slugifyId = (value: string): string => slugifyToken(value);
-
-export const createUniqueLocationId = (
-  baseLabel: string,
-  existingIds: readonly string[],
-): string => {
-  const baseId = slugifyId(baseLabel) || "profile";
-  if (!existingIds.includes(baseId)) {
-    return baseId;
-  }
-
-  for (let index = 2; ; index += 1) {
-    const candidate = `${baseId}-${index}`;
-    if (!existingIds.includes(candidate)) {
-      return candidate;
-    }
-  }
-};
 
 export const dedupeRules = (rules: readonly DomainRule[]): DomainRule[] => {
   const seen = new Set<string>();

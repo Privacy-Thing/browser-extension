@@ -1,5 +1,6 @@
 import tzLookup from "@photostructure/tz-lookup";
 
+import { createUniqueLocationId } from "@/shared/location-id";
 import { matchCountryCodeToLocale } from "@/shared/osm-country-language-matcher";
 import { slugifyToken } from "@/shared/slugify";
 import type { Location, LocationSearchCandidate, ProfileDraft } from "@/shared/types";
@@ -168,23 +169,6 @@ const dedupeNominatimResults = (
 
 const slugifyId = (value: string): string => slugifyToken(value);
 
-const createUniqueLocationId = (
-  baseLabel: string,
-  existingIds: readonly string[],
-): string => {
-  const baseId = slugifyId(baseLabel) || "profile";
-  if (!existingIds.includes(baseId)) {
-    return baseId;
-  }
-
-  for (let index = 2; ; index += 1) {
-    const candidate = `${baseId}-${index}`;
-    if (!existingIds.includes(candidate)) {
-      return candidate;
-    }
-  }
-};
-
 const pickLocationLabel = (result: NominatimResult): string => {
   const address = result.address ?? {};
 
@@ -254,6 +238,7 @@ export const buildDraftFromCandidate = (
     id: createUniqueLocationId(
       candidate.label,
       existingProfiles.map((profile) => profile.id),
+      "profile",
     ),
     label: candidate.label,
     latitude: candidate.latitude,
