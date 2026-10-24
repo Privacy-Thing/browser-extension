@@ -290,7 +290,7 @@ export const sidebar = {
       pendingDisarm: "Los scripts dejarán de detenerse cuando se recargue la página.",
       partialLive: "Activo en esta página. Algunos marcos lo aplican tras recargar.",
       partialDisarm:
-        "Detenido en esta página. Algunos marcos se detienen tras recargar.",
+        "Desactivado en esta página. Algunos marcos se siguen deteniendo hasta recargar.",
     },
     reloadNote: "Al recargar se pierden los cambios no guardados de la página.",
     actions: {

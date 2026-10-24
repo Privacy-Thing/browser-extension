@@ -282,7 +282,7 @@ export const sidebar = {
       pendingArm: "Will apply after the page reloads.",
       pendingDisarm: "Scripts no longer stop after the page reloads.",
       partialLive: "Active on this page. Some frames apply it after a reload.",
-      partialDisarm: "Stopped on this page. Some frames stop after a reload.",
+      partialDisarm: "Disarmed on this page. Some frames keep stopping until a reload.",
     },
     reloadNote: "Reloading loses unsaved changes on the page.",
     actions: {

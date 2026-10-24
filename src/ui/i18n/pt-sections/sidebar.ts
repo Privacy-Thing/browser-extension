@@ -286,7 +286,8 @@ export const sidebar = {
       pendingDisarm:
         "Os scripts deixam de ser interrompidos quando a página recarregar.",
       partialLive: "Ativo nesta página. Alguns quadros aplicam após recarregar.",
-      partialDisarm: "Parado nesta página. Alguns quadros param após recarregar.",
+      partialDisarm:
+        "Desativado nesta página. Alguns quadros continuam sendo interrompidos até recarregar.",
     },
     reloadNote: "Recarregar perde as alterações não salvas na página.",
     actions: {
