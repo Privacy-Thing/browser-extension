@@ -623,9 +623,7 @@ export type UpdateRuleResponse =
 export type ToggleRuleResponse =
   { ok: true; state: PopupState } | { ok: false; error: string };
 
-export type DeleteRuleResponse = ToggleRuleResponse;
-
-export type ApplySuggestionResponse = ToggleRuleResponse;
+export type * from "./rule-command-responses";
 
 export type LocationDraftResponse =
   | {

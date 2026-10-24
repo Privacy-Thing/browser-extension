@@ -15,7 +15,6 @@ import { createCleanupHandlers } from "@/background/cleanup-commands";
 import { syncDynamicHeaderRules } from "@/background/dnr";
 import { syncFenceDnrRule } from "@/background/dnr-domain-fencing";
 import { createFxBootstrap } from "@/background/firefox-bootstrap-controller";
-import { firefoxBrowserApi } from "@/background/firefox-browser-api";
 import { configureFxTestCookie } from "@/background/firefox-test-cookie";
 import {
   createHostPauseCtl,
@@ -59,6 +58,7 @@ import {
   initializeHostPauses,
   recordPausedDocument,
 } from "@/background/storage/host-protection-pauses";
+import { recordInspectorDocument } from "@/background/storage/inspector-sessions";
 import {
   markNoticeRead as markNoticeReadStore,
   markNoticesAutoPresented as markNoticesAutoPresentedStore,
@@ -588,8 +588,10 @@ registerNavListeners({
     await ensureRuntimeCache();
     await hostPauseController.reconcile();
   },
-  onTopDocumentCommitted: (tabId, hostname, decision) =>
-    recordPausedDocument(tabId, hostname, decision.hostPause?.id),
+  onTopDocumentCommitted: async (tabId, hostname, decision) => {
+    await recordPausedDocument(tabId, hostname, decision.hostPause?.id);
+    await recordInspectorDocument(tabId, hostname, decision.snapshot);
+  },
   getPopupTabById,
   getExactHostname,
   resolveRuntimeDecision,

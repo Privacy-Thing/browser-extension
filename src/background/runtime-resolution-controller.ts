@@ -350,6 +350,42 @@ const seedFirefoxWindow = async (
   });
 };
 
+const seedChromiumWindow = async (
+  tabId: number,
+  frameId: number,
+  decision: ResolutionDecision,
+  nextLoad = false,
+): Promise<void> => {
+  const expiresAt = decision.hostPause?.expiresAt ?? undefined;
+  const reservation = nextLoad
+    ? { nextLoad: true, ...(expiresAt === undefined ? {} : { expiresAt }) }
+    : expiresAt;
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId, frameIds: [frameId] },
+      world: MAIN_WORLD,
+      injectImmediately: true,
+      func: seedWindowSnapshot,
+      args: [
+        decision.snapshot,
+        WINDOW_SEED_PREFIX,
+        decision.snapshot === null,
+        ...(reservation === undefined ? [] : [reservation]),
+      ],
+    } as chrome.scripting.ScriptInjection<
+      [
+        ReturnType<typeof resolveProfileSnapshot>,
+        string,
+        boolean,
+        (number | { nextLoad: boolean })?,
+      ],
+      void
+    > & { injectImmediately: boolean });
+  } catch {
+    // Restricted and disappearing documents cannot be seeded.
+  }
+};
+
 const createInjectionHandlers = () => {
   const injectFrameSnapshot = async (
     tabId: number,
@@ -383,34 +419,6 @@ const createInjectionHandlers = () => {
       > & { injectImmediately: boolean });
     } catch {
       // Restricted URLs and frames disappearing during navigation are expected.
-    }
-  };
-  const seedChromiumWindow = async (
-    tabId: number,
-    frameId: number,
-    decision: ResolutionDecision,
-  ): Promise<void> => {
-    try {
-      await chrome.scripting.executeScript({
-        target: { tabId, frameIds: [frameId] },
-        world: MAIN_WORLD,
-        injectImmediately: true,
-        func: seedWindowSnapshot,
-        args: [
-          decision.snapshot,
-          WINDOW_SEED_PREFIX,
-          decision.snapshot === null,
-          ...(decision.hostPause?.expiresAt === null ||
-          decision.hostPause?.expiresAt === undefined
-            ? []
-            : [decision.hostPause.expiresAt]),
-        ],
-      } as chrome.scripting.ScriptInjection<
-        [ReturnType<typeof resolveProfileSnapshot>, string, boolean, number?],
-        void
-      > & { injectImmediately: boolean });
-    } catch {
-      // Restricted and disappearing documents cannot be seeded.
     }
   };
   const injectFxEarlyState = async (
@@ -511,6 +519,8 @@ export const createRuntimeResolverCtl = (deps: ResolutionControllerDeps) => {
   const inspectorCommand = registerInspector({
     resolveRuntimeDecision,
     ...injections,
+    seedChromiumWindow: (tabId, frameId, decision) =>
+      injections.seedChromiumWindow(tabId, frameId, decision, true),
     injectFxWindowSeed: async (input) => {
       const tab = (await chrome.tabs.get(input.tabId)) as chrome.tabs.Tab & {
         cookieStoreId?: string;

@@ -44,7 +44,20 @@ const snapshot: RuntimeSnapshot = {
   temporalApiEnabled: true,
   sharedWorkerHandlingMode: "spoof",
   blockServiceWorkerRegistration: true,
-  fingerprint: {},
+  fingerprint: {
+    hardwareConcurrency: 4,
+    deviceMemory: 8,
+    maxTouchPoints: 0,
+    platform: "Linux x86_64",
+    userAgent: "Test Browser",
+    vendor: "Test Vendor",
+    appVersion: "1",
+    canvasNoiseSeed: 1,
+    audioNoiseSeed: 1,
+    webGL: {},
+    clientHints: {},
+    screen: { width: 1280, height: 720, colorDepth: 24, devicePixelRatio: 1 },
+  },
 };
 
 describe("Inspector method catalog coverage", () => {

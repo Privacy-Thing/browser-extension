@@ -56,7 +56,7 @@ describe("debug-logger", () => {
     ] = info.mock.calls[0] ?? [];
     // A single level-aware call with newline separators keeps DevTools filters working.
     expect(format).toBe("%s\n%s %o\n%s %o\n%s %o");
-    expect(headline).toBe("[Refract] Date.now intercepted");
+    expect(headline).toBe("[runtime] Date.now intercepted");
     expect(argsLabel).toBe("Arguments:");
     expect(argsValue).toEqual([{ locale: "pl-PL" }]);
     expect(resultLabel).toBe("Result:");
@@ -66,7 +66,7 @@ describe("debug-logger", () => {
     // and it carries the structured frames without the duplicated headline.
     const traceFrames = (traceValue as { frames: string[] }).frames;
     expect(Array.isArray(traceFrames)).toBe(true);
-    expect(traceFrames.join("\n")).not.toContain("[Refract] Date.now intercepted");
+    expect(traceFrames.join("\n")).not.toContain("[runtime] Date.now intercepted");
     expect(postMessage).toHaveBeenCalledTimes(1);
     expect(postMessage.mock.calls[0]).toHaveLength(1);
     const payload = postMessage.mock.calls[0]?.[0];
@@ -80,7 +80,7 @@ describe("debug-logger", () => {
         method: "now",
         kind: "intercept",
         level: ExtensionLogLevel.Info,
-        message: "[Refract] Date.now intercepted",
+        message: "[runtime] Date.now intercepted",
         args: [{ locale: "pl-PL" }],
         result: { result: 123 },
       }),
@@ -88,7 +88,7 @@ describe("debug-logger", () => {
     const forwardedStack = JSON.parse(payload.detail as string).stack;
     expect(typeof forwardedStack).toBe("string");
     // The forwarded stack is cleaned of the duplicated headline for View Log too.
-    expect(forwardedStack).not.toContain("[Refract] Date.now intercepted");
+    expect(forwardedStack).not.toContain("[runtime] Date.now intercepted");
   });
 
   it("can forward a debug event without formatting it in the page console", () => {
@@ -131,7 +131,7 @@ describe("debug-logger", () => {
         method: "parse",
         kind: "intercept",
         level: ExtensionLogLevel.Info,
-        message: "[Refract] Date.parse intercepted",
+        message: "[runtime] Date.parse intercepted",
         args: ["<Unserializable Arguments>"],
         result: "<Unserializable Result>",
       }),
@@ -270,7 +270,7 @@ describe("debug-logger", () => {
       traceValue,
     ] = debug.mock.calls[0] ?? [];
     expect(format).toBe("%s\n%s %o\n%s %o\n%s %o");
-    expect(headline).toBe("[Refract] WebGL patch installed");
+    expect(headline).toBe("[runtime] WebGL patch installed");
     expect(argsLabel).toBe("Arguments:");
     expect(argsValue).toEqual([]);
     expect(resultLabel).toBe("Configuration:");
@@ -278,11 +278,11 @@ describe("debug-logger", () => {
     expect(traceLabel).toBe("Trace:");
     const traceFrames = (traceValue as { frames: string[] }).frames;
     expect(Array.isArray(traceFrames)).toBe(true);
-    expect(traceFrames.join("\n")).not.toContain("[Refract] WebGL patch installed");
+    expect(traceFrames.join("\n")).not.toContain("[runtime] WebGL patch installed");
   });
 
   it("creates enumerable diagnostic metadata on console errors", () => {
-    const diagnostic = createConsoleDiagError("[Refract] Example", {
+    const diagnostic = createConsoleDiagError("[runtime] Example", {
       component: "Navigator",
       method: "get userAgent",
       kind: "intercept",
@@ -292,21 +292,21 @@ describe("debug-logger", () => {
 
     expect(diagnostic).toBeInstanceOf(Error);
     expect(diagnostic).toMatchObject({
-      message: "[Refract] Example",
+      message: "[runtime] Example",
       component: "Navigator",
       method: "get userAgent",
       kind: "intercept",
       args: [],
       result: "ua",
     });
-    expect(diagnostic.name).toBe("Refract");
+    expect(diagnostic.name).toBe("Error");
     expect(Object.keys(diagnostic)).toEqual(
       expect.arrayContaining(["component", "method", "kind", "args", "result"]),
     );
   });
 
   it("strips the duplicated headline from V8-style stacks", () => {
-    const headline = "[Refract] Date.now intercepted";
+    const headline = "[runtime] Date.now intercepted";
     const v8Stack = [
       `Refract: ${headline}`,
       "    at et (chrome-extension://abc/main-world-runtime.js:3:217)",
@@ -320,7 +320,7 @@ describe("debug-logger", () => {
   });
 
   it("keeps every frame for Firefox-style stacks that omit the headline", () => {
-    const headline = "[Refract] Date.now intercepted";
+    const headline = "[runtime] Date.now intercepted";
     const firefoxStack = [
       "et@moz-extension://abc/main-world-runtime.js:3:217",
       "get now@moz-extension://abc/main-world-runtime.js:10:396",
@@ -333,6 +333,6 @@ describe("debug-logger", () => {
   });
 
   it("returns an empty array when no stack is available", () => {
-    expect(toStackFrames(undefined, "[Refract] X")).toEqual([]);
+    expect(toStackFrames(undefined, "[runtime] X")).toEqual([]);
   });
 });

@@ -61,6 +61,7 @@ vi.mock("@privacy-brand/refract-browser/common/surface-error-emitter", () => ({
 }));
 
 vi.mock("@privacy-brand/refract-browser/common/surface-usage-emitter", () => ({
+  activateSurfaceUsage: vi.fn(),
   installUsageListener: vi.fn(),
   markSurfaceUsed: surfaceUsage.markSurfaceUsed,
   setSurfaceUsageSourceId: vi.fn(),
@@ -230,7 +231,7 @@ describe("Firefox early SharedWorker strict handling", () => {
     const dispatchEvent = await installFxEarlyRuntime("strict", sharedWorkerConstructs);
 
     expect(() => new SharedWorker("blob:https://example.test/worker")).toThrow(
-      /Privacy Thing strict mode/,
+      /SharedWorker script .+ was blocked by strict mode/,
     );
     expect(surfaceUsage.markSurfaceUsed).toHaveBeenCalledWith(
       "sharedWorker",
@@ -276,7 +277,7 @@ describe("Firefox early SharedWorker strict handling", () => {
     firefoxStateEvents.listener?.({ shimState: revisionTwo } as unknown as Event);
 
     expect(() => new SharedWorker("blob:https://example.test/blocked-worker")).toThrow(
-      /Privacy Thing strict mode/,
+      /SharedWorker script .+ was blocked by strict mode/,
     );
     expect(sharedWorkerConstructs).toEqual(["blob:https://example.test/native-worker"]);
   });

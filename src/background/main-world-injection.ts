@@ -203,8 +203,12 @@ export const seedWindowSnapshot = (
   snapshot: RuntimeSnapshot | null,
   windowSeedPrefix: string,
   runtimeDisabled = false,
-  expiresAt?: number,
+  reservation?: number | { expiresAt?: number; nextLoad?: boolean },
 ): void => {
+  const options =
+    typeof reservation === "number" ? { expiresAt: reservation } : reservation;
+  const expiresAt = options?.expiresAt;
+  let nextLoad = options?.nextLoad === true;
   if (!snapshot && !runtimeDisabled) {
     return;
   }
@@ -228,26 +232,24 @@ export const seedWindowSnapshot = (
       const decoded = new TextDecoder().decode(bytes);
       const existing = JSON.parse(decoded) as {
         previousName?: string;
+        nextLoad?: boolean;
       };
+      nextLoad ||= existing.nextLoad === true;
       previousName = existing.previousName ?? "";
     } catch {
       previousName = "";
     }
   }
 
+  const metadata = {
+    previousName,
+    ...(nextLoad ? { nextLoad: true, sourceHostname: location.hostname } : {}),
+    ...(expiresAt === undefined ? {} : { expiresAt }),
+  };
   const json = JSON.stringify(
     runtimeDisabled
-      ? {
-          kind: "disabled",
-          previousName,
-          ...(expiresAt === undefined ? {} : { expiresAt }),
-        }
-      : {
-          kind: "snapshot",
-          previousName,
-          ...(expiresAt === undefined ? {} : { expiresAt }),
-          snapshot,
-        },
+      ? { kind: "disabled", ...metadata }
+      : { kind: "snapshot", ...metadata, snapshot },
   );
   const bytes = new TextEncoder().encode(json);
   let binary = "";

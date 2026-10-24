@@ -1,6 +1,6 @@
 import type { AnalystTraps, XRayInspectorState } from "@privacy-brand/xray-protocol";
 
-import { FX_TRAP_EXCLUSIONS } from "@/background/inspector-support";
+import { FX_TRAP_EXCLUSIONS, hasTrapPayload } from "@/background/inspector-support";
 import type { ResolutionDecision } from "@/background/prepared-runtime-decisions";
 import { readInspector } from "@/background/storage/inspector-sessions";
 import { BUILD_BROWSER_TARGET } from "@/shared/build-flags";
@@ -29,8 +29,6 @@ export const getTrappableMethods = (
         enabled = snapshot.blockServiceWorkerRegistration === true;
         break;
       case "worker":
-        enabled = true;
-        break;
       case "sharedWorker":
         enabled =
           snapshot.sharedWorkerHandlingMode !== undefined &&
@@ -45,6 +43,7 @@ export const getTrappableMethods = (
       ? surface.methods
           .filter(
             (method) =>
+              hasTrapPayload(method.id, snapshot) &&
               (!method.id.startsWith("temporal.") ||
                 snapshot.temporalApiEnabled === true) &&
               !(

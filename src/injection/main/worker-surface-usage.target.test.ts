@@ -47,6 +47,7 @@ vi.mock("@privacy-brand/refract-browser/common/surface-error-emitter", () => ({
 }));
 
 vi.mock("@privacy-brand/refract-browser/common/surface-usage-emitter", () => ({
+  activateSurfaceUsage: vi.fn(),
   installUsageListener: vi.fn(),
   markSurfaceUsed: mocks.markSurfaceUsed,
   setSurfaceUsageSourceId: vi.fn(),

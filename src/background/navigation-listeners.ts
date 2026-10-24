@@ -1,5 +1,4 @@
 import { firefoxBrowserApi } from "@/background/firefox-browser-api";
-import { recordInspectorDocument } from "@/background/storage/inspector-sessions";
 import { isHttpUrl, resolveTopFrameDecision } from "@/background/top-frame-snapshot";
 import { BUILD_BROWSER_TARGET } from "@/shared/build-flags";
 import type { HostProtectionPause } from "@/shared/host-protection-pause";
@@ -379,7 +378,6 @@ const registerCommitted = (deps: NavigationDeps): void => {
       ]);
 
       if (details.frameId === 0) {
-        await recordInspectorDocument(details.tabId, hostname, decision.snapshot);
         await deps.onTopDocumentCommitted?.(details.tabId, hostname, decision);
         await deps.upsertTabContext(
           details.tabId,
