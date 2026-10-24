@@ -281,6 +281,8 @@ export const sidebar = {
       appliedLive: "Active on this page — no reload needed.",
       pendingArm: "Will apply after the page reloads.",
       pendingDisarm: "Pausing stops after the page reloads.",
+      partialLive: "Active on this page. Some frames apply it after a reload.",
+      partialDisarm: "Stopped on this page. Some frames stop after a reload.",
     },
     reloadNote: "Reloading loses unsaved changes on the page.",
     actions: {
@@ -311,6 +313,18 @@ export const sidebar = {
       "Popular APIs such as time reads can pause very often. Select only the methods you need.",
     pauseNotice: "A pause is real, so the page can notice the delay.",
     firefoxNotice: `In Firefox DevTools, turn on Settings › Ignore Known Third-party Scripts to hide ${BRAND_DISPLAY_NAME} frames from the call stack.`,
+    coverage: {
+      pending: (count: number, reasons: string) =>
+        `${count} ${count === 1 ? "frame applies" : "frames apply"} it on the next load: ${reasons}.`,
+      reasons: {
+        openedWindow: "this window was opened by a script",
+        sameOriginFrame: "same-origin frames",
+        noChannel: "frames without a live connection",
+        lateRuntime: "frames that loaded before protection started",
+      },
+    },
+    workerNotice:
+      "Workers that are already running keep their previous selection until they start again.",
     unavailable: {
       title: "Inspector isn't available here",
       unsupportedUrl: `${BRAND_DISPLAY_NAME} can't run on this page, so there is nothing to inspect.`,

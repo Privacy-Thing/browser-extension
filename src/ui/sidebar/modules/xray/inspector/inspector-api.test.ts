@@ -1,12 +1,12 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
-
-import { createInspectorApi, InspectorMissingError } from "./inspector-api";
 import {
   CMD_XRAY_CLEAR_INSPECTOR,
   CMD_XRAY_GET_INSPECTOR_STATE,
   CMD_XRAY_SET_INSPECTOR,
   type XRayInspectorState,
-} from "./inspector-contract";
+} from "@privacy-brand/xray-protocol";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { createInspectorApi, InspectorMissingError } from "./inspector-api";
 
 const armedState: XRayInspectorState = {
   available: true,
@@ -86,6 +86,33 @@ describe("runtime Inspector API", () => {
       });
     },
   );
+
+  it("passes live coverage through and drops a malformed one", async () => {
+    const liveCoverage = { live: 2, notLive: 1, reasons: ["same-origin-frame"] };
+    stubRuntime(() =>
+      Promise.resolve({ state: armedState, appliedVia: "live", liveCoverage }),
+    );
+    await expect(
+      createInspectorApi().clear({ tabId: 7, apply: "now" }),
+    ).resolves.toEqual({ state: armedState, appliedVia: "live", liveCoverage });
+    stubRuntime(() =>
+      Promise.resolve({
+        state: armedState,
+        appliedVia: "live",
+        liveCoverage: { ...liveCoverage, reasons: ["worker"] },
+      }),
+    );
+    await expect(
+      createInspectorApi().clear({ tabId: 7, apply: "now" }),
+    ).resolves.toEqual({ state: armedState, appliedVia: "live" });
+  });
+
+  it("reloads the inspected tab", async () => {
+    const reload = vi.fn(async () => undefined);
+    vi.stubGlobal("chrome", { runtime: { id: "test-extension" }, tabs: { reload } });
+    await createInspectorApi().reload(7);
+    expect(reload).toHaveBeenCalledWith(7);
+  });
 
   it("sends apply with the clear command", async () => {
     const disarmed = { ...armedState, armed: false, methodIds: [] };

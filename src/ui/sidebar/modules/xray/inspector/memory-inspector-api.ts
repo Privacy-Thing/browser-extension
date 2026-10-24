@@ -1,10 +1,12 @@
-import type { InspectorApi } from "./inspector-api";
 import type {
   XRayInspectorApply,
   XRayInspectorAppliedVia,
-  XRayInspectorCommandResult,
+  XRayInspectorApplyResult,
   XRayInspectorState,
-} from "./inspector-contract";
+  XRayLiveCoverage,
+} from "@privacy-brand/xray-protocol";
+
+import type { InspectorApi } from "./inspector-api";
 
 export type MemoryInspectorCall =
   | { kind: "get"; tabId: number }
@@ -15,7 +17,8 @@ export type MemoryInspectorCall =
       mode: XRayInspectorState["mode"];
       apply: XRayInspectorApply;
     }
-  | { kind: "clear"; tabId: number; apply: XRayInspectorApply };
+  | { kind: "clear"; tabId: number; apply: XRayInspectorApply }
+  | { kind: "reload"; tabId: number };
 
 export interface MemoryInspectorApi extends InspectorApi {
   readonly calls: readonly MemoryInspectorCall[];
@@ -27,6 +30,8 @@ export interface MemoryInspectorOptions {
   failWith?: string;
   /** Leave set/clear commands pending forever, to show the in-flight state. */
   holdCommands?: boolean;
+  /** Coverage reported by live updates; documents it misses stay pending. */
+  liveCoverage?: XRayLiveCoverage;
 }
 
 const appliedVia = (
@@ -52,13 +57,25 @@ export const createMemoryInspectorApi = (
   const commit = (
     next: XRayInspectorState,
     apply: XRayInspectorApply,
-  ): Promise<XRayInspectorCommandResult> => {
+  ): Promise<XRayInspectorApplyResult> => {
     if (options.holdCommands) return new Promise(() => undefined);
     if (options.failWith !== undefined) {
       return Promise.reject(new Error(options.failWith));
     }
-    state = { ...next, pendingReload: apply === "next-load" };
-    return Promise.resolve({ state, appliedVia: appliedVia(apply, state.appliesLive) });
+    const via = appliedVia(apply, state.appliesLive);
+    const coverage =
+      via === "live"
+        ? (options.liveCoverage ?? { live: 1, notLive: 0, reasons: [] })
+        : undefined;
+    state = {
+      ...next,
+      pendingReload: apply === "next-load" || (coverage?.notLive ?? 0) > 0,
+    };
+    return Promise.resolve({
+      state,
+      appliedVia: via,
+      ...(coverage ? { liveCoverage: coverage } : {}),
+    });
   };
 
   return {
@@ -77,6 +94,11 @@ export const createMemoryInspectorApi = (
     clear: ({ tabId, apply }) => {
       calls.push({ kind: "clear", tabId, apply });
       return commit({ ...state, armed: false, methodIds: [] }, apply);
+    },
+    reload: (tabId) => {
+      calls.push({ kind: "reload", tabId });
+      state = { ...state, pendingReload: false };
+      return Promise.resolve();
     },
   };
 };

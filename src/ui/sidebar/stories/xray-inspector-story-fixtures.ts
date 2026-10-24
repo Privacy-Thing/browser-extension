@@ -1,10 +1,10 @@
-import type { GetXRayStateResponse } from "@privacy-brand/xray-protocol";
-
-import { unavailableInspector } from "../modules/xray/inspector/inspector-api";
 import type {
+  GetXRayStateResponse,
   XRayInspectorState,
   XRayInspectorUnavailableReason,
-} from "../modules/xray/inspector/inspector-contract";
+} from "@privacy-brand/xray-protocol";
+
+import { unavailableInspector } from "../modules/xray/inspector/inspector-api";
 
 import { createXRayStoryState } from "./xray-story-fixtures";
 
@@ -17,6 +17,7 @@ import {
 export const INSPECTOR_STORY_PRESETS = [
   "idle",
   "live",
+  "live-partial",
   "armed",
   "pending-reload",
   "error",
@@ -104,6 +105,7 @@ export const createInspectorPreset = (
   }
   switch (preset) {
     case "live":
+    case "live-partial":
       return readyState({ appliesLive: true });
     case "armed":
       return readyState({

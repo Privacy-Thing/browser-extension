@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 
+import type { XRayInspectorState } from "@privacy-brand/xray-protocol";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import type { InspectorApi } from "./inspector-api";
-import type { XRayInspectorState } from "./inspector-contract";
 import {
   createMemoryInspectorApi,
   type MemoryInspectorApi,
@@ -265,6 +265,47 @@ describe("X-Ray Inspector", () => {
     expect(document.querySelector('[role="status"]')?.textContent).toContain(
       t.sidebar.inspector.result.live,
     );
+  });
+
+  it("names the frames a live update left for their next load and reloads only them", async () => {
+    const api = createMemoryInspectorApi(readyState({ appliesLive: true }), {
+      liveCoverage: { live: 1, notLive: 1, reasons: ["same-origin-frame"] },
+    });
+    await render(<Harness api={api} />);
+    expect(document.body.textContent).toContain(t.sidebar.inspector.workerNotice);
+    await selectToDataURL();
+    await click(button(t.sidebar.inspector.actions.arm));
+    const coverage = t.sidebar.inspector.coverage;
+    const pending = document.querySelector<HTMLElement>(
+      "[data-inspector-coverage-pending]",
+    );
+    expect(pending?.dataset.inspectorCoveragePending).toBe("1");
+    expect(pending?.textContent).toBe(
+      coverage.pending(1, coverage.reasons.sameOriginFrame),
+    );
+    expect(document.body.textContent).toContain(t.sidebar.inspector.hint.partialLive);
+    await click(button(t.sidebar.inspector.actions.reloadNow));
+    expect(lastCall(api)).toEqual({ kind: "reload", tabId: 1 });
+    expect(api.calls.filter((call) => call.kind === "set")).toHaveLength(1);
+  });
+
+  it("adds no coverage line when a live update reached every frame", async () => {
+    const api = createMemoryInspectorApi(readyState({ appliesLive: true }));
+    await render(<Harness api={api} />);
+    await selectToDataURL();
+    await click(button(t.sidebar.inspector.actions.arm));
+    expect(document.querySelector("[data-inspector-applied-via]")).toHaveProperty(
+      "dataset.inspectorAppliedVia",
+      "live",
+    );
+    expect(document.querySelector("[data-inspector-coverage-pending]")).toBeNull();
+    expect(document.body.textContent).toContain(t.sidebar.inspector.hint.appliedLive);
+  });
+
+  it("keeps the worker notice out of pages that apply on reload", async () => {
+    const api = createMemoryInspectorApi(readyState());
+    await render(<Harness api={api} />);
+    expect(document.body.textContent).not.toContain(t.sidebar.inspector.workerNotice);
   });
 
   it("sends the every-call mode with the selection", async () => {

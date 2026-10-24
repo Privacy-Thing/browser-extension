@@ -287,6 +287,9 @@ export const sidebar = {
       appliedLive: "Activo en esta página, sin recargar.",
       pendingArm: "Se aplicará cuando se recargue la página.",
       pendingDisarm: "Las pausas terminan cuando se recargue la página.",
+      partialLive: "Activo en esta página. Algunos marcos lo aplican tras recargar.",
+      partialDisarm:
+        "Detenido en esta página. Algunos marcos se detienen tras recargar.",
     },
     reloadNote: "Al recargar se pierden los cambios no guardados de la página.",
     actions: {
@@ -317,6 +320,18 @@ export const sidebar = {
       "Las API habituales, como las lecturas de la hora, pueden pausar muy a menudo. Selecciona solo los métodos que necesites.",
     pauseNotice: "La pausa es real, así que la página puede notar el retraso.",
     firefoxNotice: `En DevTools de Firefox, activa Ajustes › Ignorar scripts de terceros conocidos para ocultar los marcos de ${BRAND_DISPLAY_NAME} en la pila de llamadas.`,
+    coverage: {
+      pending: (count: number, reasons: string) =>
+        `${count} ${count === 1 ? "marco lo aplica" : "marcos lo aplican"} en la próxima carga: ${reasons}.`,
+      reasons: {
+        openedWindow: "esta ventana la abrió un script",
+        sameOriginFrame: "marcos del mismo origen",
+        noChannel: "marcos sin conexión en vivo",
+        lateRuntime: "marcos que cargaron antes de que empezara la protección",
+      },
+    },
+    workerNotice:
+      "Los workers que ya están en marcha mantienen la selección anterior hasta que vuelvan a iniciarse.",
     unavailable: {
       title: "El Inspector no está disponible aquí",
       unsupportedUrl: `${BRAND_DISPLAY_NAME} no puede ejecutarse en esta página, así que no hay nada que inspeccionar.`,

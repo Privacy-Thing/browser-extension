@@ -2,14 +2,16 @@ import {
   CMD_XRAY_CLEAR_INSPECTOR,
   CMD_XRAY_GET_INSPECTOR_STATE,
   CMD_XRAY_SET_INSPECTOR,
+  XRayLiveCoverageSchema,
+  type SpoofingSurfaceMethodId,
   type XRayInspectorApply,
   type XRayInspectorAppliedVia,
+  type XRayInspectorApplyResult,
   type XRayInspectorCommand,
-  type XRayInspectorCommandResult,
   type XRayInspectorMode,
   type XRayInspectorState,
   type XRayInspectorUnavailableReason,
-} from "./inspector-contract";
+} from "@privacy-brand/xray-protocol";
 
 import { sendMessageOrThrow } from "@/ui/shared/runtime-messaging";
 
@@ -20,11 +22,13 @@ export interface InspectorApi {
     methodIds: readonly string[];
     mode: XRayInspectorMode;
     apply: XRayInspectorApply;
-  }) => Promise<XRayInspectorCommandResult>;
+  }) => Promise<XRayInspectorApplyResult>;
   clear: (request: {
     tabId: number;
     apply: XRayInspectorApply;
-  }) => Promise<XRayInspectorCommandResult>;
+  }) => Promise<XRayInspectorApplyResult>;
+  /** Reloads the tab so documents a live update could not reach apply it. */
+  reload: (tabId: number) => Promise<void>;
 }
 
 /** Thrown when the background does not implement the Inspector commands. */
@@ -101,11 +105,17 @@ export const parseInspectorState = (value: unknown): XRayInspectorState | null =
   };
 };
 
-const parseCommandResult = (value: unknown): XRayInspectorCommandResult | null => {
+const parseCommandResult = (value: unknown): XRayInspectorApplyResult | null => {
   if (!isRecord(value)) return null;
   const state = parseInspectorState(value.state);
   const appliedVia = APPLIED_VIA.find((candidate) => candidate === value.appliedVia);
-  return state && appliedVia ? { state, appliedVia } : null;
+  if (!state || !appliedVia) return null;
+  const coverage = XRayLiveCoverageSchema.safeParse(value.liveCoverage);
+  return {
+    state,
+    appliedVia,
+    ...(coverage.success ? { liveCoverage: coverage.data } : {}),
+  };
 };
 
 // Chromium rejects with these messages when no listener answers a command;
@@ -134,7 +144,7 @@ const send = async (command: XRayInspectorCommand): Promise<unknown> => {
 
 const sendCommand = async (
   command: XRayInspectorCommand,
-): Promise<XRayInspectorCommandResult> => {
+): Promise<XRayInspectorApplyResult> => {
   const result = parseCommandResult(await send(command));
   if (!result) throw new InspectorMissingError();
   return result;
@@ -156,7 +166,15 @@ export const createInspectorApi = (): InspectorApi => ({
     }
   },
   set: ({ tabId, methodIds, mode, apply }) =>
-    sendCommand({ type: CMD_XRAY_SET_INSPECTOR, tabId, methodIds, mode, apply }),
+    sendCommand({
+      type: CMD_XRAY_SET_INSPECTOR,
+      tabId,
+      // The background validates every ID against the catalog.
+      methodIds: [...methodIds] as SpoofingSurfaceMethodId[],
+      mode,
+      apply,
+    }),
   clear: ({ tabId, apply }) =>
     sendCommand({ type: CMD_XRAY_CLEAR_INSPECTOR, tabId, apply }),
+  reload: (tabId) => chrome.tabs.reload(tabId),
 });

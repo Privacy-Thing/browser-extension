@@ -1,3 +1,10 @@
+import type {
+  XRayInspectorApply,
+  XRayInspectorAppliedVia,
+  XRayInspectorMode,
+  XRayInspectorState,
+  XRayLiveCoverage,
+} from "@privacy-brand/xray-protocol";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
@@ -5,12 +12,6 @@ import {
   unavailableInspector,
   type InspectorApi,
 } from "./inspector-api";
-import type {
-  XRayInspectorApply,
-  XRayInspectorAppliedVia,
-  XRayInspectorMode,
-  XRayInspectorState,
-} from "./inspector-contract";
 import { armableSelection, sameMethodSet } from "./inspector-selection";
 
 import { fireAndForget } from "@/shared/async";
@@ -24,6 +25,8 @@ export interface InspectorResult {
   kind: "armed" | "disarmed";
   appliedVia: XRayInspectorAppliedVia;
   count: number;
+  /** Documents of the tab a live update reached or left for their next load. */
+  liveCoverage?: XRayLiveCoverage;
 }
 
 export interface XRayInspectorController {
@@ -44,6 +47,8 @@ export interface XRayInspectorController {
   /** Arms the draft selection, or disarms when the selection is empty. */
   apply: (apply: XRayInspectorApply) => void;
   disarm: (apply: XRayInspectorApply) => void;
+  /** Reloads the tab for documents that a live update left pending. */
+  reload: () => void;
 }
 
 const errorMessage = (error: unknown) =>
@@ -200,12 +205,17 @@ export const useXRayInspector = ({
           : api.clear({ tabId, apply: action.apply });
       fireAndForget(
         request.then(
-          ({ state: next, appliedVia }) => {
+          ({ state: next, appliedVia, liveCoverage }) => {
             if (generation !== tabGenerationRef.current) return;
             setPending(null);
             adopt(next, true);
             const kind = action.kind === "set" ? "armed" : "disarmed";
-            setResult({ kind, appliedVia, count });
+            setResult({
+              kind,
+              appliedVia,
+              count,
+              ...(liveCoverage ? { liveCoverage } : {}),
+            });
           },
           (error: unknown) => {
             if (generation !== tabGenerationRef.current) return;
@@ -239,6 +249,14 @@ export const useXRayInspector = ({
   const revert = useCallback(() => {
     if (state?.armed) replace(state.methodIds, state.mode);
   }, [state, replace]);
+  const reload = useCallback(() => {
+    if (tabId === undefined) return;
+    setResult(null);
+    setActionError(null);
+    fireAndForget(
+      api.reload(tabId).catch((error: unknown) => setActionError(errorMessage(error))),
+    );
+  }, [api, tabId]);
 
   return {
     state,
@@ -255,5 +273,6 @@ export const useXRayInspector = ({
     revert,
     apply,
     disarm,
+    reload,
   };
 };

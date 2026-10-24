@@ -32,6 +32,15 @@ const InspectorHarness = ({ preset, width, browserTarget }: HarnessProps) => {
       createMemoryInspectorApi(createInspectorPreset(preset), {
         ...(preset === "error" ? { failWith: "The tab was closed." } : {}),
         ...(preset === "slow" ? { holdCommands: true } : {}),
+        ...(preset === "live-partial"
+          ? {
+              liveCoverage: {
+                live: 1,
+                notLive: 2,
+                reasons: ["late-runtime", "same-origin-frame"] as const,
+              },
+            }
+          : {}),
       }),
     [preset],
   );
@@ -266,6 +275,28 @@ export const AppliesLive: Story = {
     await expect(canvas.getByRole("status")).toHaveTextContent(
       t.sidebar.inspector.result.live,
     );
+  },
+};
+
+export const LiveFramesNextLoad: Story = {
+  args: { preset: "live-partial" },
+  play: async (context) => {
+    const canvas = await selectBatteryLevel(context);
+    await userEvent.click(
+      canvas.getByRole("button", { name: t.sidebar.inspector.actions.arm }),
+    );
+    await expectPhase(context.canvasElement, "armed");
+    const coverage = t.sidebar.inspector.coverage;
+    await expect(canvas.getByRole("status")).toHaveTextContent(
+      coverage.pending(
+        2,
+        `${coverage.reasons.lateRuntime}, ${coverage.reasons.sameOriginFrame}`,
+      ),
+    );
+    await expect(
+      canvas.getByText(new RegExp(t.sidebar.inspector.hint.partialLive)),
+    ).toBeVisible();
+    await expect(canvas.getByText(t.sidebar.inspector.workerNotice)).toBeVisible();
   },
 };
 

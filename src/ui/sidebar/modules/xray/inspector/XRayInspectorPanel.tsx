@@ -1,10 +1,11 @@
-import { useId } from "react";
-
 import type {
   XRayInspectorApply,
   XRayInspectorState,
   XRayInspectorUnavailableReason,
-} from "./inspector-contract";
+  XRayLiveReason,
+} from "@privacy-brand/xray-protocol";
+import { useId } from "react";
+
 import type { InspectorResult, XRayInspectorController } from "./useXRayInspector";
 
 import { Badge } from "@/ui/components/ui/badge";
@@ -63,6 +64,21 @@ const APPLIED_VIA_LABELS = {
   "next-load": t.sidebar.inspector.result.nextLoad,
 };
 
+const LIVE_REASON_LABELS: Record<XRayLiveReason, string> = {
+  "opened-window": t.sidebar.inspector.coverage.reasons.openedWindow,
+  "same-origin-frame": t.sidebar.inspector.coverage.reasons.sameOriginFrame,
+  "no-channel": t.sidebar.inspector.coverage.reasons.noChannel,
+  "late-runtime": t.sidebar.inspector.coverage.reasons.lateRuntime,
+};
+
+/** Frames a live update could not reach, or null when it reached all of them. */
+const pendingCoverage = (result: InspectorResult): string | null => {
+  const coverage = result.liveCoverage;
+  if (result.appliedVia !== "live" || !coverage || coverage.notLive === 0) return null;
+  const reasons = coverage.reasons.map((reason) => LIVE_REASON_LABELS[reason]);
+  return t.sidebar.inspector.coverage.pending(coverage.notLive, reasons.join(", "));
+};
+
 const resultMessage = (result: InspectorResult): string => {
   const outcome =
     result.kind === "armed"
@@ -91,6 +107,20 @@ const StatusBadge = ({
   return <Badge variant="outline">{t.sidebar.inspector.status.idle}</Badge>;
 };
 
+const armedHint = (
+  controller: XRayInspectorController,
+  state: XRayInspectorState,
+): string => {
+  if (state.pendingReload)
+    return state.appliesLive
+      ? t.sidebar.inspector.hint.partialLive
+      : t.sidebar.inspector.hint.pendingArm;
+  // Right after a reload, "no reload needed" would contradict the result line.
+  return state.appliesLive && controller.result?.appliedVia !== "reload"
+    ? t.sidebar.inspector.hint.appliedLive
+    : t.sidebar.inspector.hint.active;
+};
+
 const statusHint = (
   phase: InspectorPhase,
   controller: XRayInspectorController,
@@ -101,13 +131,11 @@ const statusHint = (
       ? t.sidebar.inspector.hint.changed
       : t.sidebar.inspector.hint.changedToEmpty;
   }
-  if (phase === "armed") {
-    if (state.pendingReload) return t.sidebar.inspector.hint.pendingArm;
+  if (phase === "armed") return armedHint(controller, state);
+  if (state.pendingReload)
     return state.appliesLive
-      ? t.sidebar.inspector.hint.appliedLive
-      : t.sidebar.inspector.hint.active;
-  }
-  if (state.pendingReload) return t.sidebar.inspector.hint.pendingDisarm;
+      ? t.sidebar.inspector.hint.partialDisarm
+      : t.sidebar.inspector.hint.pendingDisarm;
   const count = controller.armableMethodIds.length;
   return count > 0
     ? t.sidebar.inspector.hint.ready(count)
@@ -263,19 +291,34 @@ const StatusBlock = ({
             size="sm"
             className="ml-1 h-auto p-0 text-xs"
             data-inspector-reload-now
-            onClick={() =>
-              state.armed ? controller.apply("now") : controller.disarm("now")
-            }
+            onClick={() => {
+              // A live page is already up to date; only its other frames need a reload.
+              if (state.appliesLive) controller.reload();
+              else if (state.armed) controller.apply("now");
+              else controller.disarm("now");
+            }}
           >
             {t.sidebar.inspector.actions.reloadNow}
           </Button>
         ) : null}
       </p>
       {/* Always mounted so screen readers announce the apply result. */}
-      <div role="status" data-inspector-result={controller.result?.kind}>
+      <div
+        role="status"
+        data-inspector-result={controller.result?.kind}
+        data-inspector-applied-via={controller.result?.appliedVia}
+      >
         {controller.result ? (
           <p className="mt-1.5 text-xs font-medium">
             {resultMessage(controller.result)}
+          </p>
+        ) : null}
+        {controller.result && pendingCoverage(controller.result) ? (
+          <p
+            className="mt-1 text-[11px] leading-snug text-muted-foreground"
+            data-inspector-coverage-pending={controller.result.liveCoverage?.notLive}
+          >
+            {pendingCoverage(controller.result)}
           </p>
         ) : null}
       </div>
@@ -367,6 +410,9 @@ export const XRayInspectorPanel = ({
       ) : null}
       <div className="flex flex-col gap-1 border-t border-border/50 pt-2">
         <Notice icon="fa-solid fa-stopwatch">{t.sidebar.inspector.pauseNotice}</Notice>
+        {state.appliesLive ? (
+          <Notice icon="fa-solid fa-gears">{t.sidebar.inspector.workerNotice}</Notice>
+        ) : null}
         {showFirefoxHint ? (
           <Notice icon="fa-solid fa-circle-info">
             {t.sidebar.inspector.firefoxNotice}

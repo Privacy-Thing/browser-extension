@@ -284,6 +284,8 @@ export const sidebar = {
       appliedLive: "Ativo nesta página, sem recarregar.",
       pendingArm: "Será aplicado quando a página recarregar.",
       pendingDisarm: "As pausas param quando a página recarregar.",
+      partialLive: "Ativo nesta página. Alguns quadros aplicam após recarregar.",
+      partialDisarm: "Parado nesta página. Alguns quadros param após recarregar.",
     },
     reloadNote: "Recarregar perde as alterações não salvas na página.",
     actions: {
@@ -314,6 +316,18 @@ export const sidebar = {
       "APIs populares, como leituras de horário, podem pausar com muita frequência. Selecione apenas os métodos de que precisa.",
     pauseNotice: "A pausa é real, então a página pode perceber o atraso.",
     firefoxNotice: `No DevTools do Firefox, ative Configurações › Ignorar scripts de terceiros conhecidos para ocultar os quadros do ${BRAND_DISPLAY_NAME} na pilha de chamadas.`,
+    coverage: {
+      pending: (count: number, reasons: string) =>
+        `${count} ${count === 1 ? "quadro aplica" : "quadros aplicam"} no próximo carregamento: ${reasons}.`,
+      reasons: {
+        openedWindow: "esta janela foi aberta por um script",
+        sameOriginFrame: "quadros da mesma origem",
+        noChannel: "quadros sem conexão ao vivo",
+        lateRuntime: "quadros que carregaram antes de a proteção começar",
+      },
+    },
+    workerNotice:
+      "Workers que já estão em execução mantêm a seleção anterior até iniciarem de novo.",
     unavailable: {
       title: "O Inspetor não está disponível aqui",
       unsupportedUrl: `O ${BRAND_DISPLAY_NAME} não pode ser executado nesta página, então não há nada para inspecionar.`,

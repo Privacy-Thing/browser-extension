@@ -33,6 +33,7 @@ export {
 
 const tabId = z.number().int().nonnegative().safe();
 const apply = z.enum(["now", "next-load"]);
+export type XRayInspectorApply = z.infer<typeof apply>;
 export const XRayInspectorModeSchema = z.enum(["first-call", "every-call"]);
 export const AnalystTrapsSchema = z
   .object({
