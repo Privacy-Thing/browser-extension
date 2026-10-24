@@ -44,7 +44,7 @@ export const FX_GEO_SHIM_MAX_BYTES = 133 * 1024;
  * per-build obfuscated identifier variance via
  * {@link BUNDLE_SIZE_TOLERANCE}.
  */
-export const FX_MAIN_WORLD_MAX_BYTES = 167 * 1024 + 512;
+export const FX_MAIN_WORLD_MAX_BYTES = 168 * 1024;
 
 /**
  * Inspector bundles retain debugger statements and neutral inline ignore maps.
@@ -58,7 +58,8 @@ export const FX_MAIN_WORLD_MAX_BYTES = 167 * 1024 + 512;
 export const CHROME_EARLY_MAX_BYTES = 12 * 1024 + 512;
 
 /**
- * Chromium main-world runtime, including the inlined worker source.
- * Per-build identifiers vary the size of the same graph by about 200 B.
+ * Chromium main-world runtime, including the inlined worker source and the
+ * Inspector selection taken from the commit-time delivery. Per-build identifiers
+ * vary the size of the same graph by about 200 B.
  */
-export const CHROME_RUNTIME_MAX_BYTES = 191 * 1024;
+export const CHROME_RUNTIME_MAX_BYTES = 191 * 1024 + 256;
