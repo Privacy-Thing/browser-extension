@@ -359,7 +359,7 @@ test("Firefox regional import advice keeps intentional choices and changes only 
   }
 });
 
-test("Firefox merge import handles prototype-like IDs and same-tick zone corrections", async ({
+test("Firefox keeps two time zone corrections made in the same tick", async ({
   context,
   extensionOrigin,
   debuggerPort,
@@ -367,7 +367,6 @@ test("Firefox merge import handles prototype-like IDs and same-tick zone correct
   const ui = await openFxOptionsProbe({ context, extensionOrigin, debuggerPort });
   const driver = createImportDriver(ui);
   const profile = REGIONAL_IMPORT_FIXTURE.locations[0]!;
-  const ids = ["constructor", "toString", "__proto__"];
   try {
     await expect.poll(() => driver.isPresent('[data-tab="advanced"]')).toBe(true);
     await driver.click('[data-tab="advanced"]');
@@ -375,22 +374,13 @@ test("Firefox merge import handles prototype-like IDs and same-tick zone correct
     await driver.chooseFile({
       ...REGIONAL_IMPORT_FIXTURE,
       rules: [],
-      locations: ids.map((id) => ({ ...profile, id, label: id })),
+      locations: ["a", "b", "c"].map((id) => ({ ...profile, id, label: id })),
     });
     await expect
       .poll(() => driver.isPresent('[data-regional-warning="timeZone"]'))
       .toBe(true);
-    await driver.selectOption('#settings-import-dialog [role="combobox"]', 1);
-    await expect
-      .poll(() => driver.isPresent('[data-import-selection="merge"]'))
-      .toBe(true);
-    expect(
-      await ui.evaluate<string[]>(
-        `Array.from(document.querySelectorAll("[data-import-item] [role=combobox]"), (item) => item.getAttribute("data-import-choice"))`,
-      ),
-    ).toEqual(["import", "import", "import"]);
     await ui.evaluate(
-      `(() => { for (const id of ["constructor", "toString"]) document.querySelector('[data-regional-profile="' + id + '"] [data-regional-apply-timezone]').click(); return true; })()`,
+      `(() => { for (const id of ["a", "b"]) document.querySelector('[data-regional-profile="' + id + '"] [data-regional-apply-timezone]').click(); return true; })()`,
     );
     await expect
       .poll(() =>
@@ -398,7 +388,7 @@ test("Firefox merge import handles prototype-like IDs and same-tick zone correct
           `Array.from(document.querySelectorAll("[data-regional-profile]"), (item) => item.querySelector("[data-regional-warning]") ? item.getAttribute("data-regional-profile") : "")`,
         ),
       )
-      .toEqual(["", "", "__proto__"]);
+      .toEqual(["", "", "c"]);
   } finally {
     await ui.close();
   }

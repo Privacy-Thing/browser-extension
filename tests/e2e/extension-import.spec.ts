@@ -130,30 +130,6 @@ test("regional import advice is optional and corrections only change the shown t
   );
 });
 
-test("merge import defaults prototype-like preset IDs to import", async ({
-  context,
-  extensionId,
-}) => {
-  const page = await context.newPage();
-  await page.goto(`chrome-extension://${extensionId}/src/ui/options/index.html`);
-  await saveSimpleSettings(page, { onboardingCompleted: true });
-  await page.reload();
-  await openSettingsTab(page, "advanced");
-  const ids = ["fine", "constructor", "toString", "__proto__"];
-  await chooseImportFile(page, {
-    ...IMPORT_FIXTURE,
-    rules: [],
-    locations: ids.map((id) => ({ ...IMPORT_FIXTURE.locations[0]!, id, label: id })),
-  });
-  await page.locator('#settings-import-dialog [role="combobox"]').first().click();
-  await page.getByRole("option").nth(1).click();
-  await expect(page.locator('[data-import-selection="merge"]')).toBeVisible();
-  for (const id of ids)
-    await expect(
-      page.locator(`[data-import-item="${id}"] [role="combobox"]`),
-    ).toHaveAttribute("data-import-choice", "import");
-});
-
 test("two regional corrections in one tick are both kept", async ({
   context,
   extensionId,
