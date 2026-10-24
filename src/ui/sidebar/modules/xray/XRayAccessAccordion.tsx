@@ -1,9 +1,16 @@
 import type { SurfaceAssessment } from "@privacy-brand/xray-protocol";
 
+import type { XRayInspectorController } from "./inspector/useXRayInspector";
+import { XRayInspectorMethodList } from "./inspector/XRayInspectorMethodList";
+import { XRayInspectorPanel } from "./inspector/XRayInspectorPanel";
 import { XRayStatusDot } from "./XRayRows";
 
-import type { SpoofingSurfaceMethodId } from "@/shared/spoofing-surfaces";
+import type {
+  SpoofingSurfaceMethodId,
+  SurfaceMethodQueryCounts,
+} from "@/shared/spoofing-surfaces";
 import type { XRaySurfaceCategory } from "@/shared/types";
+import { Button } from "@/ui/components/ui/button";
 import { t } from "@/ui/i18n";
 import { getSurfaceMethodLabels } from "@/ui/shared/surface-method-labels";
 
@@ -91,26 +98,97 @@ const statusLabel = (status: CategoryStatus): string => {
   }
 };
 
+export interface XRayInspectorBinding {
+  active: boolean;
+  onActiveChange: (active: boolean) => void;
+  controller: XRayInspectorController;
+  showFirefoxHint: boolean;
+}
+
+const InspectorToggle = ({ inspector }: { inspector: XRayInspectorBinding }) => {
+  const armed = inspector.controller.state?.armed === true;
+  return (
+    <Button
+      variant={inspector.active ? "secondary" : "ghost"}
+      size="sm"
+      className="h-7 gap-1.5 px-2 text-xs"
+      aria-pressed={inspector.active}
+      title={t.sidebar.inspector.toggleHint}
+      data-xray-inspector-toggle={inspector.active ? "on" : "off"}
+      data-inspector-armed={armed}
+      onClick={() => inspector.onActiveChange(!inspector.active)}
+    >
+      <i className="fa-solid fa-crosshairs text-[11px]" aria-hidden="true" />
+      {t.sidebar.inspector.toggle}
+      {armed ? (
+        <>
+          <XRayStatusDot className="bg-primary" />
+          <span className="sr-only">{`(${t.sidebar.inspector.armedIndicator})`}</span>
+        </>
+      ) : null}
+    </Button>
+  );
+};
+
+const mergeMethodCounts = (
+  assessments: readonly SurfaceAssessment[],
+): SurfaceMethodQueryCounts =>
+  Object.assign(
+    {},
+    ...assessments.map((assessment) => assessment.activity.methodCounts),
+  );
+
 export const XRayAccessAccordion = ({
   assessments,
   surfaceSyncPending,
+  inspector,
 }: {
   assessments: SurfaceAssessment[];
   surfaceSyncPending: boolean;
+  inspector?: XRayInspectorBinding;
 }) => {
   const methodLabels = getSurfaceMethodLabels();
+  const applicable = assessments.filter(
+    (assessment) => assessment.applicability === "applicable",
+  );
+  const inspectorState = inspector?.active ? inspector.controller.state : null;
+  const selecting = inspectorState?.available === true;
   return (
-    <section className="flex flex-col gap-1" data-xray-section="page-activity">
-      <h3 className="text-xs font-semibold uppercase tracking-wide mb-1">
-        {t.sidebar.accessed.title}
-      </h3>
+    <section
+      className="flex flex-col gap-1"
+      data-xray-section="page-activity"
+      data-xray-inspector={inspector?.active ? "on" : "off"}
+    >
+      <div className="mb-1 flex min-h-7 items-center justify-between gap-2">
+        <h3 className="text-xs font-semibold uppercase tracking-wide">
+          {t.sidebar.accessed.title}
+        </h3>
+        {inspector ? <InspectorToggle inspector={inspector} /> : null}
+      </div>
       <p className="text-xs text-muted-foreground mb-2">
         {t.sidebar.accessed.description}
       </p>
-      <div className="flex flex-col gap-0.5">
-        {assessments
-          .filter((assessment) => assessment.applicability === "applicable")
-          .map((assessment) => {
+      {inspector?.active ? (
+        <div className="mb-3">
+          <XRayInspectorPanel
+            controller={inspector.controller}
+            showFirefoxHint={inspector.showFirefoxHint}
+          />
+        </div>
+      ) : null}
+      {selecting && inspector ? (
+        <XRayInspectorMethodList
+          categories={applicable.map((assessment) => assessment.key)}
+          categoryLabel={categoryLabel}
+          methodCounts={mergeMethodCounts(applicable)}
+          trappableMethodIds={inspectorState.trappableMethodIds}
+          selection={inspector.controller.selection}
+          disabled={inspector.controller.pending !== null}
+          onSelectionChange={inspector.controller.setSelection}
+        />
+      ) : (
+        <div className="flex flex-col gap-0.5">
+          {applicable.map((assessment) => {
             const cat = assessment.key;
             const status = getCategoryStatus(assessment, surfaceSyncPending);
             const count = assessment.activity.queryCount;
@@ -167,7 +245,8 @@ export const XRayAccessAccordion = ({
               </details>
             );
           })}
-      </div>
+        </div>
+      )}
     </section>
   );
 };

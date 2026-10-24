@@ -19,12 +19,18 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 ### Added
 
 - X-Ray Inspector can pause DevTools when a page script reads a spoofed API you
-  choose, on its first read or on every read. Arming and disarming take effect
-  immediately on the open page and its cross-origin frames, without a reload.
-  Script-opened windows, same-origin frames with their own runtime and dedicated
-  workers pick the change up on their next load, and a tab that cannot be updated live
-  is reloaded instead. A selection belongs to one tab and its current domain. Firefox
-  cannot pause on Date or Intl reads, and shared workers never pause.
+  choose, on its first read or on every read. Turn on Inspector in Page activity, pick
+  categories or single methods with search and a "used on this page" filter, then arm
+  it. On the open page and its cross-origin frames, arming and disarming take effect
+  immediately without a reload. Script-opened windows, same-origin frames with their
+  own runtime and workers pick the change up on their next load, and X-Ray says so;
+  a page that cannot be updated live offers arming with a reload or on the next load.
+  X-Ray shows what is armed, flags unapplied selection changes, and explains when
+  Inspector is unavailable for a Trusted Site, paused protection or an unsupported
+  page. Methods that cannot be paused on, because the rule does not spoof them or the
+  browser has no hook for them, are shown but cannot be selected. A selection belongs
+  to one tab and its current domain. Firefox cannot pause on Date or Intl reads, and
+  shared workers never pause. Available in beta and development builds.
 
 - The optional Control D integration is now included in production builds for Chromium
   and Firefox, with API access requested only when connecting.

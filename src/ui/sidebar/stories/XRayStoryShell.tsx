@@ -1,20 +1,35 @@
 import type { GetXRayStateResponse } from "@privacy-brand/xray-protocol";
 import { useState } from "react";
 
+import type { InspectorApi } from "../modules/xray/inspector/inspector-api";
 import { XRayModule } from "../modules/xray/XRayModule";
 
+import type { SpoofingBrowserTarget } from "@/shared/spoofing-surfaces";
 import { Button } from "@/ui/components/ui/button";
 import { t } from "@/ui/i18n";
 import { MadeWithLoveBadge } from "@/ui/shared/MadeWithLoveBadge";
+
+const SHELL_WIDTHS = {
+  360: "w-[360px]",
+  400: "w-[400px]",
+  720: "w-[720px]",
+} as const;
 
 export const XRayStoryShell = ({
   state,
   loading = false,
   surfaceSyncPending = false,
+  width = 360,
+  inspectorApi,
+  browserTarget,
 }: {
   state: GetXRayStateResponse | null;
   loading?: boolean;
   surfaceSyncPending?: boolean;
+  /** Popup (360), sidebar (400) or sidecar (720) width in pixels. */
+  width?: keyof typeof SHELL_WIDTHS;
+  inspectorApi?: InspectorApi;
+  browserTarget?: SpoofingBrowserTarget;
 }) => {
   const [lastAction, setLastAction] = useState<string | null>(null);
   const hostname = state?.ok ? state.hostname : null;
@@ -23,7 +38,9 @@ export const XRayStoryShell = ({
   const reportAction = (action: string) => setLastAction(action);
 
   return (
-    <div className="relative flex min-h-[720px] w-[360px] flex-col overflow-hidden rounded-[calc(var(--radius)+8px)] border border-border/70 bg-background text-foreground shadow-2xl shadow-foreground/10">
+    <div
+      className={`relative flex min-h-[720px] ${SHELL_WIDTHS[width]} flex-col overflow-hidden rounded-[calc(var(--radius)+8px)] border border-border/70 bg-background text-foreground shadow-2xl shadow-foreground/10`}
+    >
       <header className="flex items-center justify-between gap-2 border-b border-border/60 px-3 py-2.5">
         <div className="flex min-w-0 items-center gap-2 overflow-hidden">
           <span className="truncate text-sm font-medium text-foreground/80">
@@ -80,13 +97,15 @@ export const XRayStoryShell = ({
 
       <main className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-4">
         <XRayModule
-          tabId={undefined}
+          tabId={inspectorApi ? 1 : undefined}
           xRayState={state}
           xRayLoading={loading}
           xRaySurfaceSyncPending={surfaceSyncPending}
           refreshXRayState={() => undefined}
           locationId={locationId}
           onOpenLocation={(id) => reportAction(`${t.sidebar.openLocation}: ${id}`)}
+          {...(inspectorApi ? { xRayInspectorApi: inspectorApi } : {})}
+          {...(browserTarget ? { browserTarget } : {})}
         />
       </main>
 

@@ -1,4 +1,5 @@
 import { BRAND_DIAGNOSTICS_NAME, BRAND_DISPLAY_NAME } from "@/shared/brand";
+import { slavicCount } from "@/ui/shared/slavic-plural";
 
 export const sidebar = {
   troubleshooter: {
@@ -258,6 +259,88 @@ export const sidebar = {
       workerConstructor: "Worker()",
       serviceWorkerRegister: "serviceWorker.register",
       sharedWorkerConstructor: "SharedWorker()",
+    },
+  },
+
+  inspector: {
+    toggle: "Инспектор",
+    toggleHint:
+      "Выберите подменяемые API, при обращении к которым DevTools ставит паузу",
+    armedIndicator: "включён",
+    intro:
+      "Выберите подменяемые API, при обращении к которым из скрипта страницы DevTools должен ставить паузу. Сначала откройте DevTools для этой вкладки.",
+    loading: "Проверяем состояние инспектора…",
+    loadError: (message: string) =>
+      `Не удалось получить состояние инспектора: ${message}`,
+    status: {
+      idle: "Не включён",
+      armed: (count: number) =>
+        `Включён — ${slavicCount(count, ["метод", "метода", "методов"])}`,
+      changed: "Выбор изменён",
+    },
+    hint: {
+      empty: "Выберите хотя бы один метод ниже.",
+      ready: (count: number) =>
+        `Выбрано: ${slavicCount(count, ["метод", "метода", "методов"])}.`,
+      changed: "Примените, чтобы обновить включённые методы, или отмените изменения.",
+      changedToEmpty: "Ничего не выбрано. Выключите, чтобы паузы прекратились.",
+      active: "Действует на этой странице.",
+      appliedLive: "Действует на этой странице без перезагрузки.",
+      pendingArm: "Применится после перезагрузки страницы.",
+      pendingDisarm: "Паузы прекратятся после перезагрузки страницы.",
+    },
+    reloadNote: "При перезагрузке несохранённые изменения на странице будут потеряны.",
+    actions: {
+      arm: "Включить",
+      armReload: "Включить и перезагрузить",
+      armNextLoad: "Включить при следующей загрузке",
+      apply: "Применить",
+      applyReload: "Применить и перезагрузить",
+      applyNextLoad: "Применить при следующей загрузке",
+      disarm: "Выключить",
+      disarmReload: "Выключить и перезагрузить",
+      disarmNextLoad: "Выключить при следующей загрузке",
+      revert: "Отменить",
+      reloadNow: "Перезагрузить сейчас",
+    },
+    result: {
+      armed: (count: number) =>
+        `Включён — ${slavicCount(count, ["метод", "метода", "методов"])}.`,
+      disarmed: "Выключен.",
+      live: "Применено без перезагрузки.",
+      reload: "Страница перезагружается.",
+      nextLoad: "Применится при следующей загрузке страницы.",
+    },
+    actionError: (message: string) => `Не удалось применить: ${message}`,
+    everyCall: "Пауза при каждом вызове",
+    firstCallHint: "Одна пауза на метод за загрузку страницы.",
+    everyCallWarning:
+      "Популярные API, например чтение времени, могут вызывать паузы очень часто. Выбирайте только нужные методы.",
+    pauseNotice: "Пауза настоящая, поэтому страница может заметить задержку.",
+    firefoxNotice: `В DevTools Firefox включите «Настройки › Игнорировать известные сторонние скрипты», чтобы скрыть кадры ${BRAND_DISPLAY_NAME} в стеке вызовов.`,
+    unavailable: {
+      title: "Инспектор здесь недоступен",
+      unsupportedUrl: `${BRAND_DISPLAY_NAME} не может работать на этой странице, поэтому проверять нечего.`,
+      trustedSite:
+        "Этот домен — доверенный сайт. Защита полностью выключена, ничего не подменяется.",
+      protectionPaused:
+        "Защита для этого домена приостановлена. Возобновите её, чтобы проверять подменяемые API.",
+      noRuntime: `Среда ${BRAND_DISPLAY_NAME} на этой странице недоступна. Перезагрузите страницу и попробуйте снова.`,
+    },
+    list: {
+      label: "Методы для паузы",
+      search: "Поиск методов",
+      usedOnly: "Использованы на странице",
+      noMatches: "Подходящих методов нет.",
+      clearFilters: "Сбросить фильтры",
+      selectedOfTotal: (selected: number, total: number) => `${selected}/${total}`,
+      selectedSummary: (selected: number, total: number) =>
+        `Выбрано ${selected} из ${total}`,
+      methodsOf: (category: string) => `Методы: ${category}`,
+      used: (count: number) => `Вызовов: ${count}`,
+      notTrappable: "Недоступно",
+      notTrappableReason:
+        "Инспектор не может ставить паузу на этом методе: правило этого домена его не подменяет или этот браузер не позволяет его перехватить.",
     },
   },
 
