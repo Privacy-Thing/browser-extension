@@ -90,7 +90,12 @@ The worker payload is generated. After changing `packages/refract-core`, run
 Bootstrap order is load-bearing. Chromium uses session preload → `window.name` seed →
 committed-frame injection → bounded on-demand fallback. Firefox uses hash → embedded
 static host payload → `window.name` → late convergence. Seed/cache before bootstrap
-reads. There is no live hot-swap; settings changes refresh state and may reload the tab.
+reads. There is no live hot-swap of spoofing state; settings changes refresh state and may
+reload the tab. The only live runtime update is the X-Ray Inspector trap binding, delivered
+from the static isolated bootstrap to MAIN-world bundles over a private detached-node endpoint
+established at document_start. It never changes spoofed values. Paths without such an
+endpoint (late injection, script-opened windows, same-origin child frames with their own
+runtime, workers) apply on the next load.
 
 ## Check every affected surface
 

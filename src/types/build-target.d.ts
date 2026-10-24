@@ -24,3 +24,7 @@ declare const __PT_FX_HANDOFF_ATTR__: string;
 declare const __PT_FX_HANDOFF_READY_EVENT__: string;
 declare const __PT_STRICT_WORKER_PREFIX__: string;
 declare const __PT_WORKER_ACK_TYPE__: string;
+declare const __PT_ANALYST_HANDOFF_EARLY__: string;
+declare const __PT_ANALYST_HANDOFF_RUNTIME__: string;
+declare const __PT_ANALYST_CMD__: string;
+declare const __PT_ANALYST_ACK__: string;

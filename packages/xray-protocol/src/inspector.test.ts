@@ -6,6 +6,7 @@ import {
   CMD_XRAY_GET_INSPECTOR_STATE,
   CMD_XRAY_SET_INSPECTOR,
   XRayInspectorCommandSchema,
+  XRayLiveCoverageSchema,
 } from "./index";
 
 const set = {
@@ -41,6 +42,16 @@ describe("Inspector protocol", () => {
     expect(
       AnalystTrapsSchema.parse({ methods: ["date.now"], mode: "first-call" }).methods,
     ).toEqual(["date.now"]);
+  });
+  it("accepts live coverage with known reasons only", () => {
+    const coverage = { live: 2, notLive: 1, reasons: ["same-origin-frame"] };
+    expect(XRayLiveCoverageSchema.parse(coverage)).toEqual(coverage);
+    for (const invalid of [
+      { ...coverage, reasons: ["worker"] },
+      { ...coverage, live: -1 },
+      { ...coverage, extra: true },
+    ])
+      expect(XRayLiveCoverageSchema.safeParse(invalid).success).toBe(false);
   });
   it.each([
     { tabId: -1 },

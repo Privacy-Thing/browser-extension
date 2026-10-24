@@ -18,12 +18,13 @@ export const BUNDLE_SIZE_TOLERANCE = 256;
  * Must not pull profile resolution, generated catalogs, or domain-fencing
  * suffix tables. Fencing is finished in the background; injected graphs
  * only install the snapshot they receive. The Inspector allocation covers its
- * optional snapshot shape and session check for the tab-aware resolver.
+ * optional snapshot shape, the session check for the tab-aware resolver and the
+ * isolated endpoint registry that receives live trap bindings.
  */
-export const CHROME_BOOT_MAX_BYTES = 15 * 1024 + 256;
+export const CHROME_BOOT_MAX_BYTES = 17 * 1024 + 256;
 
 /** Gzip companion of {@link CHROME_BOOT_MAX_BYTES}. */
-export const CHROME_BOOT_GZIP_BYTES = Math.round(5.2 * 1024) + 128;
+export const CHROME_BOOT_GZIP_BYTES = Math.round(6.3 * 1024);
 
 /**
  * Firefox first-inline page runtime (`main-world-early.js`).
@@ -33,9 +34,10 @@ export const CHROME_BOOT_GZIP_BYTES = Math.round(5.2 * 1024) + 128;
  * pre-bootstrap race is patched. Put new spoofing in `refract-core`
  * instead of adding a second copy of adapters here.
  *
- * Includes the selective Inspector binding, retained pause, and neutral debug map.
+ * Includes the selective Inspector binding, its private live endpoint, retained
+ * pause, and neutral debug map.
  */
-export const FX_GEO_SHIM_MAX_BYTES = 133 * 1024;
+export const FX_GEO_SHIM_MAX_BYTES = 134 * 1024 + 256;
 
 /**
  * Firefox main-world runtime (`main-world-runtime.js`), including the
@@ -44,7 +46,7 @@ export const FX_GEO_SHIM_MAX_BYTES = 133 * 1024;
  * per-build obfuscated identifier variance via
  * {@link BUNDLE_SIZE_TOLERANCE}.
  */
-export const FX_MAIN_WORLD_MAX_BYTES = 167 * 1024 + 512;
+export const FX_MAIN_WORLD_MAX_BYTES = 169 * 1024;
 
 /**
  * Inspector bundles retain debugger statements and neutral inline ignore maps.
@@ -52,12 +54,12 @@ export const FX_MAIN_WORLD_MAX_BYTES = 167 * 1024 + 512;
  * still executes the original function without a trap check.
  *
  * Chromium first-inline script. It blocks the first page-JS read, so keep
- * it to config handoff and the Temporal early installer — not the full
- * fingerprint runtime.
+ * it to config handoff, the Temporal early installer and its Inspector
+ * endpoint — not the full fingerprint runtime.
  */
-export const CHROME_EARLY_MAX_BYTES = 12 * 1024 + 512;
+export const CHROME_EARLY_MAX_BYTES = 13.75 * 1024;
 
 /**
  * Chromium main-world runtime, including the inlined worker source.
  */
-export const CHROME_RUNTIME_MAX_BYTES = 190 * 1024 + 512;
+export const CHROME_RUNTIME_MAX_BYTES = 192 * 1024;

@@ -331,6 +331,7 @@ test("compiled chromium transport names have no semantic signatures", async () =
     /:strict_issue/i,
     /__pt[a-z]*/i,
     /pt:worker-bootstrap-ack/i,
+    /analyst[_:-](?:handoff|command|ack)/i,
     /__REFRACT_WORKER_[A-Z_]+/,
   ];
 

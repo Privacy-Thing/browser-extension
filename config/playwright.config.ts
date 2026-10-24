@@ -31,6 +31,10 @@ const PW_BUILD_GLOBAL_DEFAULTS = {
   __PT_FX_HANDOFF_READY_EVENT__: "pt:firefox-main-handoff-ready-playwright",
   __PT_STRICT_WORKER_PREFIX__: "pt-strict-shared-worker-playwright",
   __PT_WORKER_ACK_TYPE__: "pt:worker-bootstrap-ack-playwright",
+  __PT_ANALYST_HANDOFF_EARLY__: "pt:analyst-handoff-early-playwright",
+  __PT_ANALYST_HANDOFF_RUNTIME__: "pt:analyst-handoff-runtime-playwright",
+  __PT_ANALYST_CMD__: "pt:analyst-command-playwright",
+  __PT_ANALYST_ACK__: "pt:analyst-ack-playwright",
 } as const;
 
 Object.assign(globalThis, PW_BUILD_GLOBAL_DEFAULTS);
