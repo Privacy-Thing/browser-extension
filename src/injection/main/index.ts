@@ -36,7 +36,10 @@ import {
   removeConfigElement,
   writeRuntimeWindowSeed,
 } from "@privacy-brand/refract-browser/common/runtime-config";
-import { activateSurfaceUsage, setSurfaceUsageSourceId } from "@privacy-brand/refract-browser/common/surface-usage-emitter";
+import {
+  setAnalystTraps,
+  setSurfaceUsageSourceId,
+} from "@privacy-brand/refract-browser/common/surface-usage-emitter";
 import {
   getRefractRuntimeState,
   installRuntimeOnce,
@@ -109,7 +112,7 @@ const install = (snapshot: RuntimeSnapshot | null): RefractRuntimeState | null =
     },
     createRuntimeModules(BUILD_BROWSER_TARGET === "chromium"),
   );
-  if (snapshot) activateSurfaceUsage(snapshot);
+  if (snapshot) setAnalystTraps(snapshot.analystTraps, 0);
   return state;
 };
 
@@ -135,7 +138,7 @@ const installFxRuntime = (): void => {
   >((state) => {
     const nextSnapshot = toSnapshotFromFxState(state);
     if (!nextSnapshot) return false;
-    activateSurfaceUsage(nextSnapshot);
+    setAnalystTraps(nextSnapshot.analystTraps, state.bootstrap.revision);
     updateRefractSnapshot(runtimeState, nextSnapshot);
     syncRuntimePatchState(nextSnapshot);
     return true;

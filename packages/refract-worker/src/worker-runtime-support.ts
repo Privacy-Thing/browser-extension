@@ -2,9 +2,11 @@ import {
   createIntegrityRegistry,
   registerInstalledDesc,
 } from "@privacy-brand/refract-core/integrity/surface-integrity-registry";
-import { bindAnalystTraps } from "@privacy-brand/refract-core/runtime/analyst-traps";
+import { pause } from "@privacy-brand/refract-core/runtime/analyst-trap";
+import { createAnalystTrapState } from "@privacy-brand/refract-core/runtime/analyst-traps";
 import {
   createPrivateMap,
+  createPrivateSet,
   createPrivateRecord,
   createPublicArray,
   privateArrayPush,
@@ -12,6 +14,10 @@ import {
   privateMapGet,
   privateMapSet,
   privateSetAdd,
+  privateSetDelete,
+  privateSetHas,
+  privateQueueMicrotask,
+  privateSetTimeout,
   privateSetForEach,
 } from "@privacy-brand/refract-core/runtime/primordials";
 
@@ -73,7 +79,7 @@ type WorkerBus = {
 };
 
 const createWorkerBus = (): WorkerBus => {
-  const ports = new Set<any>();
+  const ports = createPrivateSet<any>();
   const isSharedWorker = (): boolean =>
     typeof SharedWorkerGlobalScope !== "undefined" &&
     globalThis instanceof SharedWorkerGlobalScope;
@@ -126,11 +132,10 @@ const createCountRecord = <TKey extends string>(
 const createUsageReporter = (
   channel: WorkerSupportChannel,
   bus: WorkerBus,
+  config: RuntimeSnapshot["analystTraps"],
 ): WorkerRuntimeSupport["markSurfaceUsed"] => {
   const callCounts = createPrivateMap<XRaySurfaceCategory, number>();
   const methodCounts = createPrivateMap<SpoofingSurfaceMethodId, number>();
-  const enqueueMicrotask = globalThis.queueMicrotask.bind(globalThis);
-  const scheduleTimeout = globalThis.setTimeout.bind(globalThis);
   let dirty = false;
   let flushQueued = false;
   let cooldownActive = false;
@@ -153,7 +158,7 @@ const createUsageReporter = (
   const scheduleFlush = (): void => {
     if (cooldownActive || flushQueued) return;
     flushQueued = true;
-    enqueueMicrotask(runFlush);
+    privateQueueMicrotask(runFlush);
   };
 
   function runFlush(): void {
@@ -162,7 +167,7 @@ const createUsageReporter = (
     dirty = false;
     bus.post(createPayload());
     cooldownActive = true;
-    scheduleTimeout(() => {
+    privateSetTimeout(() => {
       cooldownActive = false;
       if (dirty) scheduleFlush();
     }, 250);
@@ -177,6 +182,24 @@ const createUsageReporter = (
     }
   });
 
+  const recordSurfaceUse: WorkerRuntimeSupport["markSurfaceUsed"] = (
+    category,
+    methodId,
+  ) => {
+    privateMapSet(callCounts, category, (privateMapGet(callCounts, category) ?? 0) + 1);
+    if (methodId) {
+      privateMapSet(
+        methodCounts,
+        methodId,
+        (privateMapGet(methodCounts, methodId) ?? 0) + 1,
+      );
+    }
+    hasUsage = true;
+    dirty = true;
+    scheduleFlush();
+  };
+  if (!config) return recordSurfaceUse;
+  const { methods, first } = createAnalystTrapState(config);
   return (category, methodId) => {
     privateMapSet(callCounts, category, (privateMapGet(callCounts, category) ?? 0) + 1);
     if (methodId) {
@@ -185,6 +208,10 @@ const createUsageReporter = (
         methodId,
         (privateMapGet(methodCounts, methodId) ?? 0) + 1,
       );
+      if (privateSetHas(methods, methodId)) {
+        if (first) privateSetDelete(methods, methodId);
+        pause();
+      }
     }
     hasUsage = true;
     dirty = true;
@@ -230,10 +257,10 @@ const createWorkerLoggers = (
       emitLog(component, method, args, result);
     };
   const createOnceLogger = (component: string): WorkerLogger => {
-    const emittedMethods = new Set<string>();
+    const emittedMethods = createPrivateSet<string>();
     return (method, args, result) => {
-      if (emittedMethods.has(method)) return;
-      emittedMethods.add(method);
+      if (privateSetHas(emittedMethods, method)) return;
+      privateSetAdd(emittedMethods, method);
       emitLog(component, method, args, result);
     };
   };
@@ -286,8 +313,9 @@ export const createWorkerSupport = (
     integrity,
     isSharedWorker: bus.isSharedWorker,
     loggers: createWorkerLoggers(snapshot, channel, bus),
-    markSurfaceUsed: bindAnalystTraps(
-      createUsageReporter(channel, bus),
+    markSurfaceUsed: createUsageReporter(
+      channel,
+      bus,
       bus.isSharedWorker() ? undefined : snapshot.analystTraps,
     ),
     register: (input) => registerWorkerDesc(integrity, input),

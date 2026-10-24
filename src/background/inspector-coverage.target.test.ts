@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
-import { bindAnalystTraps } from "@privacy-brand/refract-core/runtime/analyst-traps";
+import * as usage from "@privacy-brand/refract-browser/common/surface-usage-emitter";
 import { describe, expect, it, vi } from "vitest";
 
 import { getTrappableMethods } from "./inspector-state";
@@ -14,6 +14,10 @@ import {
   getSurfaceDefinition,
 } from "@/shared/spoofing-surfaces";
 import type { RuntimeSnapshot } from "@/shared/types";
+
+const stop = vi.hoisted(() => vi.fn());
+vi.mock("@privacy-brand/refract-core/runtime/analyst-trap", () => ({ pause: stop }));
+let revision = 0;
 
 const read = (file: string) => readFileSync(path.resolve(process.cwd(), file), "utf8");
 // These are hook producers and their method-ID mappings, never integrity metadata.
@@ -80,13 +84,9 @@ describe("Inspector method catalog coverage", () => {
         return;
       }
       expect(available).toContain(method.id);
-      const stop = vi.fn();
-      const emit = bindAnalystTraps(
-        vi.fn(),
-        { methods: [method.id], mode: "first-call" },
-        stop,
-      );
-      emit(method.surfaceKey, method.id);
+      stop.mockClear();
+      usage.setAnalystTraps({ methods: [method.id], mode: "first-call" }, ++revision);
+      usage.markSurfaceUsed(method.surfaceKey, method.id);
       expect(stop).toHaveBeenCalledOnce();
       // BatteryManager and Temporal generate stable IDs inside their shared adapters.
       if (method.surfaceKey === "battery") {

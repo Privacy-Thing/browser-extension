@@ -9,7 +9,7 @@ import {
   getRuntimeReadyEvent,
 } from "@privacy-brand/refract-browser/common/runtime-config";
 import {
-  activateSurfaceUsage,
+  setAnalystTraps,
   markSurfaceUsed,
   setSurfaceUsageSourceId,
 } from "@privacy-brand/refract-browser/common/surface-usage-emitter";
@@ -23,7 +23,7 @@ const bootload = (): void => {
   });
 
   if (!snapshot) return;
-  activateSurfaceUsage(snapshot);
+  setAnalystTraps(snapshot.analystTraps, 0);
   finalizeRuntimeEnabled();
   // A late background write may have arrived between the transport read and
   // this entrypoint. The full runtime owns the bounded follow-up cleanup.

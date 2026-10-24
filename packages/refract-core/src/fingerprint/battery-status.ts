@@ -284,7 +284,7 @@ const captureEventPrimitives = (
   try {
     const EventConstructor = targetGlobal.Event;
     if (typeof EventConstructor === "function") {
-      const event = privateReflectConstruct<Event>(EventConstructor, ["change"]);
+      const event = privateReflectConstruct<Event>(EventConstructor, ["pt:battery"]);
       isTrusted = privateOwnDescriptor(event, "isTrusted")?.get;
     }
   } catch {

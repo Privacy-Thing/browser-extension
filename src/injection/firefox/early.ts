@@ -410,7 +410,7 @@ import type { XRaySurfaceCategory } from "@/shared/types";
 
   const stateRevisionGate = createFxRevisionGate<FirefoxShimState>((state) => {
     latestShimState = state;
-    usage.activateSurfaceUsage(state);
+    usage.setAnalystTraps(state.analystTraps, state.bootstrap.revision);
     activeDebugState = state.debug;
 
     if (!geolocationBridge.isResolved() && state.geoStatus === "absent") {

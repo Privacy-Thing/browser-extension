@@ -1,10 +1,15 @@
-import { bindAnalystTraps } from "@privacy-brand/refract-core/runtime/analyst-traps";
+import { pause } from "@privacy-brand/refract-core/runtime/analyst-trap";
+import { createAnalystTrapState } from "@privacy-brand/refract-core/runtime/analyst-traps";
 import {
   createPrivateMap,
   createPrivateSet,
   privateMapGet,
   privateMapSet,
   privateSetAdd,
+  privateSetHas,
+  privateSetDelete,
+  privateQueueMicrotask,
+  privateSetTimeout,
 } from "@privacy-brand/refract-core/runtime/primordials";
 
 import type {
@@ -115,7 +120,7 @@ const scheduleFlush = (): void => {
     return;
   }
   flushQueued = true;
-  queueMicrotask(runFlush);
+  privateQueueMicrotask(runFlush);
 };
 
 function runFlush(): void {
@@ -129,7 +134,7 @@ function runFlush(): void {
   // Open a cooldown so async-spread accesses don't dispatch per microtask; a
   // single trailing flush at the window's end carries whatever accumulated.
   cooldownActive = true;
-  setTimeout(() => {
+  privateSetTimeout(() => {
     cooldownActive = false;
     if (dirty) {
       scheduleFlush();
@@ -176,7 +181,7 @@ const parseRegistrationDetail = (
  * diagnostic identifiers from the spoofing-surface catalog, not localized UI
  * labels.
  */
-export const recordSurfaceUsed = (
+export const recordSurfaceUse = (
   category: XRaySurfaceCategory,
   methodId?: SpoofingSurfaceMethodId,
 ): void => {
@@ -195,14 +200,38 @@ export const recordSurfaceUsed = (
   scheduleFlush();
 };
 
-export let markSurfaceUsed = recordSurfaceUsed;
-let usageActivated = false;
-export const activateSurfaceUsage = (snapshot: {
-  analystTraps?: RuntimeSnapshot["analystTraps"];
-}): void => {
-  if (usageActivated) return;
-  usageActivated = true;
-  markSurfaceUsed = bindAnalystTraps(recordSurfaceUsed, snapshot.analystTraps);
+export let markSurfaceUsed = recordSurfaceUse;
+let trapRevision = -1;
+/** Snapshot activation seam; older or duplicate revisions cannot reset first-call. */
+export const setAnalystTraps = (
+  config: RuntimeSnapshot["analystTraps"] | null,
+  revision: number,
+): void => {
+  if (revision <= trapRevision) return;
+  trapRevision = revision;
+  if (!config) {
+    markSurfaceUsed = recordSurfaceUse;
+    return;
+  }
+  const { methods, first } = createAnalystTrapState(config);
+  // Keep the reporter in one frame. Counter parity is covered against the plain copy.
+  markSurfaceUsed = (category, methodId): void => {
+    privateMapSet(callCounts, category, (privateMapGet(callCounts, category) ?? 0) + 1);
+    if (methodId) {
+      privateMapSet(
+        methodCallCounts,
+        methodId,
+        (privateMapGet(methodCallCounts, methodId) ?? 0) + 1,
+      );
+      if (privateSetHas(methods, methodId)) {
+        if (first) privateSetDelete(methods, methodId);
+        pause();
+      }
+    }
+    privateSetAdd(usedCategories, category);
+    dirty = true;
+    scheduleFlush();
+  };
 };
 
 export const setSurfaceUsageSourceId = (sourceId: string): void => {

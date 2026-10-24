@@ -21,7 +21,7 @@ import {
 } from "@privacy-brand/refract-browser/common/runtime-config";
 import { markSurfaceEvidence } from "@privacy-brand/refract-browser/common/surface-error-emitter";
 import {
-  activateSurfaceUsage,
+  setAnalystTraps,
   installUsageListener,
   markSurfaceUsed,
   setSurfaceUsageSourceId,
@@ -599,7 +599,7 @@ export const installEarlyRuntime = (): void => {
   earlyRuntimeInstalled = true;
   installUsageListener(() => latestRuntimeSnapshot?.authKey);
 
-  activateSurfaceUsage(snapshot);
+  setAnalystTraps(snapshot.analystTraps, 0);
   const realmSnapshot = installSnapshot(snapshot);
   const lateSeedCleanup = installPostInitCleanup(
     () => cleanupRuntimeWindowSeed(window),
