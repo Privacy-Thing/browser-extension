@@ -400,6 +400,41 @@ test("Firefox regional import advice keeps intentional choices and changes only 
   }
 });
 
+test("Firefox keeps two time zone corrections made in the same tick", async ({
+  context,
+  extensionOrigin,
+  debuggerPort,
+}) => {
+  const ui = await openFxOptionsProbe({ context, extensionOrigin, debuggerPort });
+  const driver = createImportDriver(ui);
+  const profile = REGIONAL_IMPORT_FIXTURE.locations[0]!;
+  try {
+    await expect.poll(() => driver.isPresent('[data-tab="advanced"]')).toBe(true);
+    await driver.click('[data-tab="advanced"]');
+    await expect.poll(() => driver.isPresent("#import-settings-file")).toBe(true);
+    await driver.chooseFile({
+      ...REGIONAL_IMPORT_FIXTURE,
+      rules: [],
+      locations: ["a", "b", "c"].map((id) => ({ ...profile, id, label: id })),
+    });
+    await expect
+      .poll(() => driver.isPresent('[data-regional-warning="timeZone"]'))
+      .toBe(true);
+    await ui.evaluate(
+      `(() => { for (const id of ["a", "b"]) document.querySelector('[data-regional-profile="' + id + '"] [data-regional-apply-timezone]').click(); return true; })()`,
+    );
+    await expect
+      .poll(() =>
+        ui.evaluate<string[]>(
+          `Array.from(document.querySelectorAll("[data-regional-profile]"), (item) => item.querySelector("[data-regional-warning]") ? item.getAttribute("data-regional-profile") : "")`,
+        ),
+      )
+      .toEqual(["", "", "c"]);
+  } finally {
+    await ui.close();
+  }
+});
+
 test("Firefox import rejects an unsupported preset time zone with a readable error", async ({
   context,
   extensionOrigin,

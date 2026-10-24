@@ -86,6 +86,7 @@ The format is based on Keep a Changelog and the project follows Semantic Version
   or key, or `__proto__` as a rule pattern, is rejected with an error naming it and
   where it occurs. New presets never receive such an ID, and an existing preset with
   one (for example, named “Constructor”) gets a new ID once, so exports stay importable.
+  Several time zone corrections made at once in the preview are all kept.
 
 - Added complete Spanish and Portuguese interface translations, selected
   automatically from the browser interface language with English as the fallback.
