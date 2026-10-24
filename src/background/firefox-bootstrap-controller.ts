@@ -1,4 +1,3 @@
-import { buildFxSeededUrl } from "@privacy-brand/refract-browser/common/firefox-shim-state";
 import {
   buildFirefoxShimState,
   parseFirefoxHashSeed,
@@ -293,6 +292,10 @@ const logSeedFailure = async (
   });
 };
 
+/**
+ * Adds the tab's selection as the exact-host entry. Paused, trusted and
+ * selection-free decisions keep the shared seed, which applies them itself.
+ */
 const inspectorSeed = async (
   deps: FirefoxBootstrapDeps,
   tabId: number,
@@ -305,15 +308,21 @@ const inspectorSeed = async (
   if (!readInspector(tabId, hostname)) return seed;
   const decision = deps.runtimeState
     .getPreparedDecisions()
-    ?.resolveDecision(hostname, cookieStoreId, false);
+    ?.resolveDecision(hostname, cookieStoreId);
   if (!decision) return seed;
   const scoped = withInspector(tabId, hostname, decision);
+  if (!scoped.snapshot?.analystTraps) return seed;
+  const others = (entries: FirefoxWindowSeedState["entries"]) =>
+    entries.filter((entry) => entry.pattern !== hostname);
   return {
     ...seed,
     entries: [
-      ...seed.entries.filter((entry) => entry.pattern !== hostname),
+      ...others(seed.entries),
       { pattern: hostname, state: buildFirefoxShimState(scoped.snapshot) },
     ],
+    ...(seed.containerEntries
+      ? { containerEntries: others(seed.containerEntries) }
+      : {}),
   };
 };
 
@@ -419,30 +428,6 @@ const createWindowSeed =
     }
   };
 
-const inspectorRedirect = (
-  request: {
-    tabId: number | undefined;
-    hostname: string;
-    url: string;
-    currentUrl: string | undefined;
-  },
-  seedState: FirefoxWindowSeedState | null,
-): string | null => {
-  const { tabId, hostname, url, currentUrl } = request;
-  const entry = tabId === undefined ? undefined : readInspector(tabId, hostname);
-  const state = entry
-    ? seedState?.entries.find((row) => row.pattern === hostname)?.state
-    : undefined;
-  return state && !parseFirefoxHashSeed(new URL(url).hash)
-    ? buildFxSeededUrl(url, state)
-    : buildFxHashRedirect({
-        ...(currentUrl ? { currentTabUrl: currentUrl } : {}),
-        method: "GET",
-        url,
-        seedState,
-      });
-};
-
 export const createFxBootstrap = (deps: FirefoxBootstrapDeps) => {
   const syncUserScripts = createUserScriptSync(deps);
   const syncPreloadedState = createPreloadSync(deps, syncUserScripts);
@@ -524,10 +509,12 @@ export const createFxBootstrap = (deps: FirefoxBootstrapDeps) => {
     } catch {
       skipSameHostDocument = false;
     }
-    const redirectUrl = inspectorRedirect(
-      { tabId, hostname, url, currentUrl: activeTab?.url },
+    const redirectUrl = buildFxHashRedirect({
+      ...(activeTab?.url ? { currentTabUrl: activeTab.url } : {}),
+      method: "GET",
+      url,
       seedState,
-    );
+    });
     deps.logBootstrapEvent("navigation.firefox-hash-seed-decision", {
       hostname,
       details: {
