@@ -1,6 +1,8 @@
 import { CMD_XRAY_SET_INSPECTOR } from "@privacy-brand/xray-protocol";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { InspectorLiveResult } from "./inspector-live";
+
 import type { RuntimeSnapshot } from "@/shared/types";
 
 const snapshot: RuntimeSnapshot = {
@@ -45,11 +47,14 @@ beforeEach(() => {
         cookieStoreId: "container-1",
       })),
       reload,
+      // No document of the tab opened a live endpoint.
+      sendMessage: vi.fn(async () => undefined),
       onRemoved: { addListener: vi.fn() },
     },
     webNavigation: {
       onBeforeNavigate: navigationEvent("onBeforeNavigate"),
       onCommitted: navigationEvent("onCommitted"),
+      onCreatedNavigationTarget: navigationEvent("onCreatedNavigationTarget"),
       getAllFrames: vi.fn(async () => [
         { frameId: 0, url: "https://probe.example/path" },
         { frameId: 7, url: "https://third-party.example/frame" },
@@ -70,23 +75,31 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
+const notLive = {
+  top: false,
+  coverage: { live: 0, notLive: 1, reasons: ["no-channel" as const] },
+};
 const setup = async (
   decision = {
     snapshot: snapshot as RuntimeSnapshot | null,
     trustedSiteMatched: false,
   },
+  live: InspectorLiveResult = notLive,
 ) => {
   const { createInspectorHandlers } = await import("./inspector-commands");
   const prepare = vi.fn(async () => undefined);
+  const applyLive = vi.fn(async () => live);
   const handlers = createInspectorHandlers({
     resolveRuntimeDecision: vi.fn(async () => decision),
     prepare,
     invalidate: vi.fn(),
     publish: vi.fn(),
+    applyLive,
+    probeLive: vi.fn(async () => live.top),
   });
   const state = await import("./inspector-state");
   const store = await import("./storage/inspector-sessions");
-  return { ...handlers, ...state, ...store, prepare, decision };
+  return { ...handlers, ...state, ...store, prepare, applyLive, decision };
 };
 
 describe("tab Inspector activation", () => {
@@ -245,5 +258,56 @@ describe("tab Inspector activation", () => {
     expect(await h.inspectorCommand(command, sender)).toMatchObject({
       appliedVia: "next-load",
     });
+  });
+  it("applies a covered tab live without seeding or reloading and records the document", async () => {
+    const h = await setup(undefined, {
+      top: true,
+      coverage: { live: 2, notLive: 0, reasons: [] },
+    });
+    const result = await h.applyInspectorState(3, desired, "now");
+    expect(result).toMatchObject({
+      appliedVia: "live",
+      liveCoverage: { live: 2, notLive: 0, reasons: [] },
+      state: { armed: true, appliesLive: true, pendingReload: false },
+    });
+    expect(h.applyLive).toHaveBeenCalledWith(3, desired);
+    expect(h.prepare).not.toHaveBeenCalled();
+    expect(reload).not.toHaveBeenCalled();
+    const cleared = await h.applyInspectorState(3, null, "now");
+    expect(cleared).toMatchObject({
+      appliedVia: "live",
+      state: { armed: false, pendingReload: false },
+    });
+    expect(h.applyLive).toHaveBeenLastCalledWith(3, null);
+    expect(h.readInspector(3, "probe.example")).toBeUndefined();
+  });
+  it("keeps a partial live update pending for the documents it could not reach", async () => {
+    const h = await setup(undefined, {
+      top: true,
+      coverage: { live: 1, notLive: 1, reasons: ["same-origin-frame"] },
+    });
+    const result = await h.applyInspectorState(3, desired, "now");
+    expect(result).toMatchObject({
+      appliedVia: "live",
+      liveCoverage: { notLive: 1, reasons: ["same-origin-frame"] },
+      state: { pendingReload: true },
+    });
+    expect(reload).not.toHaveBeenCalled();
+  });
+  it("falls back to seeding and reload when the top document is not live", async () => {
+    const h = await setup();
+    const result = await h.applyInspectorState(3, desired, "now");
+    expect(result).toMatchObject({
+      appliedVia: "reload",
+      liveCoverage: notLive.coverage,
+    });
+    expect(h.applyLive.mock.invocationCallOrder[0]).toBeLessThan(
+      h.prepare.mock.invocationCallOrder[0]!,
+    );
+    expect(h.prepare.mock.invocationCallOrder[0]).toBeLessThan(
+      reload.mock.invocationCallOrder[0]!,
+    );
+    await h.applyInspectorState(3, desired, "next-load");
+    expect(h.applyLive).toHaveBeenCalledOnce();
   });
 });

@@ -4,7 +4,11 @@ import { getWindowSeedPrefix } from "@privacy-brand/refract-browser/common/runti
 import { createIntegrityRegistry } from "@privacy-brand/refract-core/integrity/surface-integrity-registry";
 import { afterEach, expect, it, vi } from "vitest";
 
-import { WORKER_PATCH_GUARD_KEY } from "@/shared/build-id-test-values";
+import {
+  ANALYST_CMD,
+  ANALYST_HANDOFF_RUNTIME,
+  WORKER_PATCH_GUARD_KEY,
+} from "@/shared/build-id-test-values";
 import type { RuntimeSnapshot } from "@/shared/types";
 
 type Installer = (state: {
@@ -94,4 +98,54 @@ it("starts each dedicated worker from the document's current Inspector selection
   });
   usage.setAnalystTraps(null, 8);
   expect(start()).not.toHaveProperty("analystTraps");
+});
+
+it("starts workers created after a live disarm without the earlier selection", async () => {
+  window.name =
+    getWindowSeedPrefix() +
+    btoa(JSON.stringify({ kind: "snapshot", previousName: "", snapshot: loaded }));
+  vi.stubGlobal(
+    "Worker",
+    class {
+      addEventListener = vi.fn();
+      postMessage = vi.fn();
+      terminate = vi.fn();
+    },
+  );
+  Object.defineProperty(URL, "createObjectURL", {
+    configurable: true,
+    value: () => "blob:https://example.test/bootstrap",
+  });
+  await import("@/injection/main/index");
+  const usage =
+    await import("@privacy-brand/refract-browser/common/surface-usage-emitter");
+  const installer =
+    mocks.installers["worker-runtime"] ?? mocks.installers["dedicated-workers"];
+  installer!({ integrity: createIntegrityRegistry(), snapshot: loaded });
+  const start = () => {
+    new Worker("https://example.test/worker.js");
+    return mocks.workerSnapshots.at(-1);
+  };
+  // The runtime bundle's private endpoint, as the isolated bootstrap receives it.
+  let endpoint: Element | null = null;
+  document.addEventListener(ANALYST_HANDOFF_RUNTIME, (event) => {
+    endpoint = (event as MouseEvent).relatedTarget as Element;
+  });
+  const channel = await import("@/injection/main/analyst-channel");
+  channel.openAnalystChannel(ANALYST_HANDOFF_RUNTIME);
+  const live = (m: string[] | null, r: number) =>
+    endpoint!.dispatchEvent(
+      new CustomEvent(ANALYST_CMD, { detail: JSON.stringify({ r, m, e: true }) }),
+    );
+  live(["date.now"], 1_999);
+  expect(start()).toMatchObject({
+    analystTraps: { methods: ["date.now"], mode: "every-call" },
+  });
+  live(null, 2_000);
+  expect(start()).not.toHaveProperty("analystTraps");
+  live(["battery.manager.level"], 2_001);
+  expect(start()).toMatchObject({
+    analystTraps: { methods: ["battery.manager.level"], mode: "every-call" },
+  });
+  expect(usage.markSurfaceUsed).not.toBe(usage.recordSurfaceUse);
 });

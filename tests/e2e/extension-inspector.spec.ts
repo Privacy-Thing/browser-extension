@@ -93,15 +93,15 @@ test("Inspector pauses only selected reads in the real runtime and leaves the pl
     ["battery.manager.level", "battery", "date"],
     ["date.now", "date", "battery"],
   ]) {
-    const navigated = page.waitForEvent("domcontentloaded");
+    // Live arming has its own spec; this one covers delivery inside a new document.
     const applied = await command(CMD_XRAY_SET_INSPECTOR, {
       tabId,
       methodIds: [methodId],
       mode: "first-call",
-      apply: "now",
+      apply: "next-load",
     });
-    expect(applied.appliedVia).toBe("reload");
-    await navigated;
+    expect(applied.appliedVia).toBe("next-load");
+    await page.reload();
     await expect
       .poll(
         async () =>
@@ -148,14 +148,13 @@ test("Inspector pauses only selected reads in the real runtime and leaves the pl
       contentType: "application/json",
     });
   }
-  const everyNavigation = page.waitForEvent("domcontentloaded");
   await command(CMD_XRAY_SET_INSPECTOR, {
     tabId,
     methodIds: ["date.now"],
     mode: "every-call",
-    apply: "now",
+    apply: "next-load",
   });
-  await everyNavigation;
+  await page.reload();
   observed.pauses.length = 0;
   await run("date");
   await run("date");
@@ -192,11 +191,10 @@ test("Inspector pauses only selected reads in the real runtime and leaves the pl
   expect(observed.pauses).toHaveLength(0);
   await run("battery");
   expect(observed.pauses).toHaveLength(1);
-  const navigated = page.waitForEvent("domcontentloaded");
   expect(
-    (await command(CMD_XRAY_CLEAR_INSPECTOR, { tabId, apply: "now" })).appliedVia,
-  ).toBe("reload");
-  await navigated;
+    (await command(CMD_XRAY_CLEAR_INSPECTOR, { tabId, apply: "next-load" })).appliedVia,
+  ).toBe("next-load");
+  await page.reload();
   observed.pauses.length = 0;
   await run("date");
   await run("battery");

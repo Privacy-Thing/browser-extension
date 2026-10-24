@@ -93,7 +93,7 @@ export const inspectorState = (
   tabId: number,
   hostname: string,
   decision: ResolutionDecision,
-  paused: boolean,
+  { paused, appliesLive }: { paused: boolean; appliesLive: boolean },
 ): XRayInspectorState => {
   let unavailableReason: XRayInspectorState["unavailableReason"];
   if (decision.trustedSiteMatched) unavailableReason = "trusted-site";
@@ -110,7 +110,7 @@ export const inspectorState = (
     methodIds: desired?.methods ?? [],
     mode: desired?.mode ?? "first-call",
     pendingReload: !sameTraps(nextLoad ?? null, session?.document ?? null),
-    appliesLive: false,
+    appliesLive: unavailableReason === undefined && appliesLive,
     trappableMethodIds: unavailableReason ? [] : getTrappableMethods(decision.snapshot),
   };
 };

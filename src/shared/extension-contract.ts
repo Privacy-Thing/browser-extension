@@ -20,6 +20,8 @@ const createFxTestEvent = <Name extends string>(name: Name) =>
   `${EXTENSION_NAMESPACE}-firefox-test-${name}` as const;
 
 export const CMD_RESOLVE_SNAPSHOT = createCommandType("resolve-runtime-snapshot");
+/** Background to isolated bootstrap only; never routed by the background. */
+export const CMD_XRAY_INSPECTOR_LIVE = createCommandType("xray-inspector-live");
 export const CMD_SAVE_SETTINGS = createCommandType("save-simple-settings");
 export const CMD_SAVE_LOCATION = createCommandType("save-location-model");
 export const CMD_CLEANUP_DOMAIN = createCommandType("cleanup-domain-state");
@@ -88,6 +90,7 @@ export const EXTENSION_COMMAND_TYPES = {
   getXRayInspectorState: CMD_XRAY_GET_INSPECTOR_STATE,
   setXRayInspector: CMD_XRAY_SET_INSPECTOR,
   clearXRayInspector: CMD_XRAY_CLEAR_INSPECTOR,
+  applyXRayInspectorLive: CMD_XRAY_INSPECTOR_LIVE,
   getXRayState: createCommandType("get-doctor-state"),
   surfaceUsage: CMD_SURFACE_USAGE,
   surfaceError: CMD_SURFACE_ERROR,

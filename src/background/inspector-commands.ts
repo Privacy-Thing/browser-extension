@@ -8,6 +8,7 @@ import {
   type XRayInspectorState,
 } from "@privacy-brand/xray-protocol";
 
+import type { InspectorLiveResult } from "@/background/inspector-live";
 import { inspectorState, withInspector } from "@/background/inspector-state";
 import type { ResolutionDecision } from "@/background/prepared-runtime-decisions";
 import { withConfigurationLock } from "@/background/settings-import-transaction";
@@ -17,6 +18,7 @@ import {
 } from "@/background/storage/host-protection-pauses";
 import {
   initializeInspectors,
+  recordLiveInspector,
   storeInspector,
 } from "@/background/storage/inspector-sessions";
 import type { EffectiveTabContext } from "@/shared/types";
@@ -32,6 +34,11 @@ type InspectorDeps = {
   ) => Promise<void>;
   invalidate: (tabId: number) => void;
   publish: (tabId: number) => void;
+  applyLive: (
+    tabId: number,
+    traps: AnalystTraps | null,
+  ) => Promise<InspectorLiveResult>;
+  probeLive: (tabId: number) => Promise<boolean>;
 };
 
 const supportedTab = async (tabId: number) => {
@@ -56,15 +63,13 @@ export const createInspectorHandlers = (deps: InspectorDeps) => {
       context.cookieStoreId,
     );
     const pause = getHostPauseStatus(context.hostname, tabId);
+    const paused = Boolean(pause.pause || pause.reloadRequired || pause.workerTest);
+    const appliesLive =
+      !paused && decision.snapshot !== null && (await deps.probeLive(tabId));
     return {
       context,
       decision,
-      state: inspectorState(
-        tabId,
-        context.hostname,
-        decision,
-        Boolean(pause.pause || pause.reloadRequired || pause.workerTest),
-      ),
+      state: inspectorState(tabId, context.hostname, decision, { paused, appliesLive }),
     };
   };
   const getInspectorState = async (tabId: number): Promise<XRayInspectorState> =>
@@ -79,6 +84,33 @@ export const createInspectorHandlers = (deps: InspectorDeps) => {
       trappableMethodIds: [],
     };
 
+  const validate = async (tabId: number, desired: AnalystTraps | null) => {
+    const current = await resolve(tabId);
+    if (!current || (desired && !current.state.available))
+      throw new Error("Inspector is unavailable for this document.");
+    if (
+      desired?.methods.some(
+        (method) => !current.state.trappableMethodIds.includes(method),
+      )
+    )
+      throw new Error("A selected method is not spoofed in this document.");
+    return current;
+  };
+
+  /** Seeds the top document right before the reload, like a host pause. */
+  const reloadSeeded = async (
+    current: NonNullable<Awaited<ReturnType<typeof resolve>>>,
+  ): Promise<void> => {
+    const { tabId, hostname } = current.context;
+    await deps.prepare(
+      current.context,
+      withInspector(tabId, hostname, current.decision),
+    );
+    if ((await supportedTab(tabId))?.hostname !== hostname)
+      throw new Error("The tab navigated while applying Inspector.");
+    await chrome.tabs.reload(tabId);
+  };
+
   const applyInspectorState = (
     tabId: number,
     desired: AnalystTraps | null,
@@ -88,36 +120,23 @@ export const createInspectorHandlers = (deps: InspectorDeps) => {
       if (desired) desired = AnalystTrapsSchema.parse(desired);
       if (apply !== "now" && apply !== "next-load")
         throw new Error("Invalid Inspector apply mode.");
-      const current = await resolve(tabId);
-      if (!current || (desired && !current.state.available))
-        throw new Error("Inspector is unavailable for this document.");
-      if (
-        desired?.methods.some(
-          (method) => !current.state.trappableMethodIds.includes(method),
-        )
-      )
-        throw new Error("A selected method is not spoofed in this document.");
-      await storeInspector(tabId, current.context.hostname, desired);
+      const current = await validate(tabId, desired);
+      const { hostname } = current.context;
+      await storeInspector(tabId, hostname, desired);
+      // New frames and documents of this tab now resolve the selection.
       deps.invalidate(tabId);
-      // A next-load selection is resolved when the tab next navigates, so nothing
-      // is written into the current documents. A reload is seeded right before it
-      // starts, like a host pause.
-      if (apply === "now") {
-        const decision = withInspector(
-          tabId,
-          current.context.hostname,
-          current.decision,
-        );
-        await deps.prepare(current.context, decision);
-        const live = await supportedTab(tabId);
-        if (live?.hostname !== current.context.hostname)
-          throw new Error("The tab navigated while applying Inspector.");
-        await chrome.tabs.reload(tabId);
-      }
+      // Live first: it writes nothing into the documents. Reload is the fallback.
+      // A next-load selection is resolved when the tab next navigates.
+      const live = apply === "now" ? await deps.applyLive(tabId, desired) : undefined;
+      if (live && !live.top) await reloadSeeded(current);
+      else if (live?.coverage.notLive === 0) await recordLiveInspector(tabId, hostname);
       deps.publish(tabId);
+      let appliedVia: XRayInspectorApplyResult["appliedVia"] = "next-load";
+      if (live) appliedVia = live.top ? "live" : "reload";
       return {
         state: (await resolve(tabId))!.state,
-        appliedVia: apply === "now" ? "reload" : "next-load",
+        appliedVia,
+        ...(live ? { liveCoverage: live.coverage } : {}),
       };
     });
 

@@ -5,12 +5,14 @@ import { pathToFileURL } from "node:url";
 import { expect } from "@playwright/test";
 
 import {
+  CMD_XRAY_CLEAR_INSPECTOR,
   CMD_XRAY_GET_INSPECTOR_STATE,
   CMD_XRAY_SET_INSPECTOR,
 } from "../../packages/xray-protocol/src/inspector-commands";
 import { EXTENSION_COMMAND_TYPES } from "../../src/shared/extension-contract";
 
 import { openFxOptionsProbe, test } from "./firefox-runtime.shared";
+import { probeHiddenEvents, readPackagedNames } from "./packaged-names";
 
 type Packet = {
   from?: string;
@@ -114,18 +116,18 @@ test("Firefox Inspector pauses at a selected native getter in the real MAIN runt
     expect(state.trappableMethodIds).toContain("navigator.webdriver");
     expect(state.trappableMethodIds).not.toContain("date.now");
     expect(state.trappableMethodIds).not.toContain("navigator.deviceMemory");
-    const navigation = page.waitForEvent("domcontentloaded");
+    // Covers delivery inside a new document; live arming has its own test below.
     expect(
       (
         await command(CMD_XRAY_SET_INSPECTOR, {
           tabId,
           methodIds: ["navigator.webdriver"],
           mode: "every-call",
-          apply: "now",
+          apply: "next-load",
         })
       ).appliedVia,
-    ).toBe("reload");
-    await navigation;
+    ).toBe("next-load");
+    await page.reload();
     const attachThread = async () => {
       const listed = await remote.client.request("listTabs");
       const tab = listed.tabs!.find((row) => row.url.startsWith(probeUrl))!;
@@ -248,6 +250,144 @@ test("Firefox Inspector pauses at a selected native getter in the real MAIN runt
         tabId: pausedTabId,
         duration: "resume",
       });
+    remote.disconnect();
+    await page.close();
+    await options.close();
+    await new Promise<void>((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
+  }
+});
+
+test("Firefox Inspector arms and clears a loaded document live", async ({
+  context,
+  extensionOrigin,
+  debuggerPort,
+}) => {
+  const options = await openFxOptionsProbe({ context, extensionOrigin, debuggerPort });
+  const command = (type: string, fields: Record<string, unknown> = {}) =>
+    options.evaluate<Record<string, unknown>>(
+      `chrome.runtime.sendMessage(${JSON.stringify({ type, ...fields })})`,
+    );
+  const page = await context.newPage();
+  // A page that knows every packaged name probes from its first script on.
+  const names = readPackagedNames(path.resolve("build/firefox"));
+  const earlyProbe = `<script>window.earlyHidden = (${probeHiddenEvents.toString()})(${JSON.stringify(names)});</script>`;
+  const server = createServer((request, response) => {
+    if (request.url === "/distinctive-firefox-live-spy.js") {
+      response.writeHead(200, { "content-type": "application/javascript" });
+      response.end(
+        [
+          'document.getElementById("read").onclick = function chosenRead() {',
+          '  const value = document.createElement("canvas").toDataURL();',
+          '  document.getElementById("result").textContent = String(++reads) + ":" + value.slice(0, 5);',
+          "};",
+          "let reads = 0;",
+        ].join("\n"),
+      );
+    } else {
+      response.writeHead(200, { "content-type": "text/html" });
+      response.end(
+        `<!doctype html>${earlyProbe}<button id="read">Read</button><output id="result"></output><script src="/distinctive-firefox-live-spy.js"></script>`,
+      );
+    }
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  if (!address || typeof address === "string") throw new Error("Missing probe port");
+  const probeUrl = `http://127.0.0.1:${address.port}/inspector-live-probe`;
+  const api = (await import(
+    pathToFileURL(path.resolve("node_modules/web-ext/lib/firefox/remote.js")).href
+  )) as {
+    connectWithMaxRetries(options: {
+      port: number;
+      maxRetries: number;
+    }): Promise<Remote>;
+  };
+  const remote = await api.connectWithMaxRetries({ port: debuggerPort, maxRetries: 0 });
+  const handleMessage = remote.client._handleMessage.bind(remote.client);
+  const pauses: Packet[] = [];
+  let onPause = (_packet: Packet): void => undefined;
+  remote.client._handleMessage = (packet) => {
+    if (packet.type === "paused") {
+      pauses.push(packet);
+      onPause(packet);
+    } else if (
+      packet.type !== "newSource" &&
+      packet.type !== "newGlobal" &&
+      packet.type !== "resource-available-form" &&
+      packet.type !== "resource-destroyed-form" &&
+      packet.type !== "resource-updated-form"
+    )
+      handleMessage(packet);
+  };
+  try {
+    const settings = await command(EXTENSION_COMMAND_TYPES.loadSampleData);
+    expect(settings.ok).toBe(true);
+    const locations = settings.locations as { id: string }[];
+    expect(
+      (
+        await command(EXTENSION_COMMAND_TYPES.saveSimpleSettings, {
+          browserFingerprintSpoofingEnabled: true,
+          globalFallbackRule: { enabled: true, locationId: locations[0]!.id },
+        })
+      ).ok,
+    ).toBe(true);
+    await page.goto(probeUrl);
+    const timeOrigin = await page.evaluate(() => performance.timeOrigin);
+    const tabs = await options.evaluate<{ id: number; url: string }[]>(
+      "chrome.tabs.query({})",
+    );
+    const tabId = tabs.find((tab) => tab.url === probeUrl)!.id;
+    const state = await command(CMD_XRAY_GET_INSPECTOR_STATE, { tabId });
+    expect(state).toMatchObject({ available: true, appliesLive: true });
+    expect(state.trappableMethodIds).toContain("canvas.toDataURL");
+
+    const listed = await remote.client.request("listTabs");
+    const tab = listed.tabs!.find((row) => row.url.startsWith(probeUrl))!;
+    const target = await remote.client.request({ to: tab.actor, type: "getTarget" });
+    const threadActor = target.frame!.threadActor!;
+    await remote.client.request({ to: threadActor, type: "attach", options: {} });
+
+    expect(await page.evaluate("window.earlyHidden")).toEqual([]);
+    expect(await page.evaluate(probeHiddenEvents, names)).toEqual([]);
+    expect(
+      await command(CMD_XRAY_SET_INSPECTOR, {
+        tabId,
+        methodIds: ["canvas.toDataURL"],
+        mode: "every-call",
+        apply: "now",
+      }),
+    ).toMatchObject({ appliedVia: "live", liveCoverage: { notLive: 0 } });
+    const paused = new Promise<Packet>((resolve) => {
+      onPause = (packet) => {
+        if (packet.why?.type === "debuggerStatement") resolve(packet);
+      };
+    });
+    // The click cannot settle while the page is paused; await it after resuming.
+    const read = page.locator("#read").click();
+    expect((await paused).why?.type).toBe("debuggerStatement");
+    const frames = await remote.client.request({
+      to: threadActor,
+      type: "frames",
+      start: 0,
+      count: 12,
+    });
+    expect(frames.frames!.map((frame) => frame.displayName)).toContain("chosenRead");
+    await remote.client.request({ to: threadActor, type: "resume" });
+    await read;
+    await expect(page.locator("#result")).toHaveText(/^1:/);
+
+    expect(
+      await command(CMD_XRAY_CLEAR_INSPECTOR, { tabId, apply: "now" }),
+    ).toMatchObject({ appliedVia: "live", state: { armed: false } });
+    const before = pauses.length;
+    await page.locator("#read").click();
+    // A paused read could not write its result, so the result proves no pause.
+    await expect(page.locator("#result")).toHaveText(/^2:/);
+    expect(pauses).toHaveLength(before);
+    expect(await page.evaluate(() => performance.timeOrigin)).toBe(timeOrigin);
+  } finally {
     remote.disconnect();
     await page.close();
     await options.close();
