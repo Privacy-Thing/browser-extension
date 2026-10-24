@@ -1,4 +1,5 @@
 import { BRAND_DIAGNOSTICS_NAME, BRAND_DISPLAY_NAME } from "@/shared/brand";
+import { slavicCount } from "@/ui/shared/slavic-plural";
 
 export const sidebar = {
   troubleshooter: {
@@ -258,6 +259,89 @@ export const sidebar = {
       workerConstructor: "Worker()",
       serviceWorkerRegister: "serviceWorker.register",
       sharedWorkerConstructor: "SharedWorker()",
+    },
+  },
+
+  inspector: {
+    toggle: "Инспектор",
+    toggleHint:
+      "Выберите подменяемые API, обращение к которым останавливает выполнение скриптов страницы",
+    intro:
+      "Выберите подменяемые API, обращение к которым из скрипта страницы должно останавливать его выполнение. Работает, пока для этой вкладки открыты инструменты разработчика браузера.",
+    loading: "Проверяем состояние инспектора…",
+    loadError: (message: string) =>
+      `Не удалось получить состояние инспектора: ${message}`,
+    status: {
+      idle: "Не включён",
+      armed: (count: number) =>
+        `Включён — ${slavicCount(count, ["метод", "метода", "методов"])}`,
+      changed: "Включён — выбор изменён",
+    },
+    hint: {
+      empty: "Выберите хотя бы один метод ниже.",
+      ready: (count: number) =>
+        `Выбрано: ${slavicCount(count, ["метод", "метода", "методов"])}.`,
+      changed: "Примените, чтобы обновить включённые методы, или отмените изменения.",
+      changedToEmpty:
+        "Ничего не выбрано. Выключите, чтобы скрипты больше не останавливались.",
+      active: "Действует на этой странице.",
+      appliedLive: "Действует на этой странице без перезагрузки.",
+      pendingArm: "Применится после перезагрузки страницы.",
+      pendingDisarm: "Скрипты перестанут останавливаться после перезагрузки страницы.",
+    },
+    reloadNote: "При перезагрузке несохранённые изменения на странице будут потеряны.",
+    actions: {
+      arm: "Включить",
+      armReload: "Включить и перезагрузить",
+      armNextLoad: "Включить при следующей загрузке",
+      apply: "Применить",
+      applyReload: "Применить и перезагрузить",
+      applyNextLoad: "Применить при следующей загрузке",
+      disarm: "Выключить",
+      disarmReload: "Выключить и перезагрузить",
+      disarmNextLoad: "Выключить при следующей загрузке",
+      revert: "Отменить",
+      reloadNow: "Перезагрузить сейчас",
+    },
+    result: {
+      armed: (count: number) =>
+        `Включён — ${slavicCount(count, ["метод", "метода", "методов"])}.`,
+      disarmed: "Выключен.",
+      live: "Применено без перезагрузки.",
+      reload: "Страница перезагружается.",
+      nextLoad: "Применится при следующей загрузке страницы.",
+    },
+    actionError: (message: string) => `Не удалось применить: ${message}`,
+    everyCall: "Останавливать при каждом вызове",
+    firstCallHint: "Одна остановка на метод за загрузку страницы.",
+    everyCallWarning:
+      "Популярные API, например чтение времени, могут останавливать страницу очень часто. Выбирайте только нужные методы.",
+    pauseNotice:
+      "Пока выполнение остановлено, страница замирает, но часы идут, поэтому страница может заметить задержку.",
+    firefoxNotice: `В инструментах разработчика Firefox включите «Настройки › Игнорировать известные сторонние скрипты», чтобы скрыть кадры ${BRAND_DISPLAY_NAME} в стеке вызовов.`,
+    unavailable: {
+      title: "Инспектор здесь недоступен",
+      unsupportedUrl: `${BRAND_DISPLAY_NAME} не может работать на этой странице, поэтому проверять нечего.`,
+      trustedSite:
+        "Этот домен — доверенный сайт. Защита полностью выключена, ничего не подменяется.",
+      protectionPaused:
+        "Защита для этого домена приостановлена. Возобновите её, чтобы проверять подменяемые API.",
+      noRuntime: `Среда ${BRAND_DISPLAY_NAME} на этой странице недоступна. Перезагрузите страницу и попробуйте снова.`,
+    },
+    list: {
+      label: "Методы для остановки",
+      search: "Поиск методов",
+      usedOnly: "Использованы на странице",
+      noMatches: "Подходящих методов нет.",
+      clearFilters: "Сбросить фильтры",
+      selectedOfTotal: (selected: number, total: number) => `${selected}/${total}`,
+      selectedSummary: (selected: number, total: number) =>
+        `Выбрано ${selected} из ${total}`,
+      methodsOf: (category: string) => `Методы: ${category}`,
+      used: (count: number) => `Вызовов: ${count}`,
+      notTrappable: "Недоступно",
+      notTrappableReason:
+        "Инспектор не может останавливать выполнение на этом методе: правило этого домена его не подменяет или этот браузер не позволяет его перехватить.",
     },
   },
 

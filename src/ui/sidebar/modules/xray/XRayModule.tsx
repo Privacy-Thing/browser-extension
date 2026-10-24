@@ -1,12 +1,20 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+
 import type { SidebarModuleContext } from "../types";
 
-import { XRayAccessAccordion } from "./XRayAccessAccordion";
+import { createInspectorApi } from "./inspector/inspector-api";
+import { useXRayInspector } from "./inspector/useXRayInspector";
+import { XRayAccessAccordion, type XRayInspectorBinding } from "./XRayAccessAccordion";
 import { XRayDiagnosticReport } from "./XRayDiagnosticReport";
 import { XRaySurfacesSection } from "./XRaySurfacesSection";
 import { XRayWhySection } from "./XRayWhySection";
 
+import { BUILD_BROWSER_TARGET, BUILD_CHANNEL } from "@/shared/build-flags";
 import { t } from "@/ui/i18n";
 import { SidebarStatusBox } from "@/ui/sidebar/SidebarStatusBox";
+
+// Inspector traps are an analyst tool; release builds keep X-Ray unchanged.
+const INSPECTOR_ENABLED = BUILD_CHANNEL !== "release";
 
 const XRayStateDetails = ({
   xRayState: state,
@@ -14,7 +22,8 @@ const XRayStateDetails = ({
   xRaySurfaceSyncPending: surfaceSyncPending,
   locationId,
   onOpenLocation,
-}: SidebarModuleContext) => {
+  inspector,
+}: SidebarModuleContext & { inspector: XRayInspectorBinding | undefined }) => {
   if (loading && !state) {
     return (
       <SidebarStatusBox>
@@ -96,6 +105,7 @@ const XRayStateDetails = ({
       <XRayAccessAccordion
         assessments={assessments}
         surfaceSyncPending={surfaceSyncPending}
+        {...(inspector ? { inspector } : {})}
       />
       <XRaySurfacesSection
         snapshot={snapshot}
@@ -115,12 +125,47 @@ const XRayStateDetails = ({
   );
 };
 
-export const XRayModule = (context: SidebarModuleContext) => (
-  <div className="flex flex-col gap-4">
-    <XRayDiagnosticReport
-      state={context.xRayState}
-      collectionPending={context.xRayLoading || context.xRaySurfaceSyncPending}
-    />
-    <XRayStateDetails {...context} />
-  </div>
-);
+/** Bumps whenever an X-Ray refresh completes, e.g. after a navigation or reload. */
+const useRefreshKey = (loading: boolean): number => {
+  const [key, setKey] = useState(0);
+  const wasLoading = useRef(loading);
+  useEffect(() => {
+    if (wasLoading.current && !loading) setKey((current) => current + 1);
+    wasLoading.current = loading;
+  }, [loading]);
+  return key;
+};
+
+export const XRayModule = (context: SidebarModuleContext) => {
+  const { xRayInspectorApi } = context;
+  const api = useMemo(
+    () => xRayInspectorApi ?? createInspectorApi(),
+    [xRayInspectorApi],
+  );
+  // Inspector mode is sidebar UI state; arming itself lives in the background.
+  // Both stay here so a reload that briefly unmounts the details keeps them.
+  const [inspectorActive, setInspectorActive] = useState(false);
+  const controller = useXRayInspector({
+    api,
+    tabId: INSPECTOR_ENABLED ? context.tabId : undefined,
+    refreshKey: useRefreshKey(context.xRayLoading),
+  });
+  const inspector: XRayInspectorBinding | undefined = INSPECTOR_ENABLED
+    ? {
+        active: inspectorActive,
+        onActiveChange: setInspectorActive,
+        controller,
+        showFirefoxHint: (context.browserTarget ?? BUILD_BROWSER_TARGET) === "firefox",
+      }
+    : undefined;
+
+  return (
+    <div className="flex flex-col gap-4">
+      <XRayDiagnosticReport
+        state={context.xRayState}
+        collectionPending={context.xRayLoading || context.xRaySurfaceSyncPending}
+      />
+      <XRayStateDetails {...context} inspector={inspector} />
+    </div>
+  );
+};

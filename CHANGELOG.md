@@ -18,6 +18,16 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ### Added
 
+- X-Ray Inspector can stop script execution when a page script uses a chosen
+  spoofed API, once per method or on every call, while browser developer tools are
+  open for the tab. Turn on Inspector in Page activity, pick categories or single
+  methods with search and a "used on this page" filter, then arm with a reload or on
+  the next load; X-Ray shows what is armed, flags unapplied selection changes, and
+  explains when Inspector is unavailable for a Trusted Site, paused protection or an
+  unsupported page. Methods Inspector cannot stop on, because the rule does not spoof
+  them or the browser has no hook for them, are shown but cannot be selected.
+  Available in beta and development builds.
+
 - The optional Control D integration is now included in production builds for Chromium
   and Firefox, with API access requested only when connecting.
 
