@@ -296,10 +296,11 @@ const logSeedFailure = async (
 const inspectorSeed = async (
   deps: FirefoxBootstrapDeps,
   tabId: number,
-  context: { hostname: string; cookieStoreId: string | undefined },
-  seed: FirefoxWindowSeedState,
-): Promise<FirefoxWindowSeedState> => {
+  context: { hostname: string | undefined; cookieStoreId: string | undefined },
+  seed: FirefoxWindowSeedState | null,
+): Promise<FirefoxWindowSeedState | null> => {
   const { hostname, cookieStoreId } = context;
+  if (!seed || !hostname) return seed;
   await initializeInspectors();
   if (!readInspector(tabId, hostname)) return seed;
   const decision = deps.runtimeState
@@ -329,14 +330,14 @@ const createWindowSeed =
     let resolvedCookieStoreId = cookieStoreId;
     try {
       const liveTab =
-        cookieStoreId === undefined || navigationUrl === undefined
+        cookieStoreId === undefined && deps.isSupportedWebUrl(navigationUrl)
           ? await deps.getPopupTabById(tabId)
           : undefined;
       resolvedCookieStoreId = cookieStoreId ?? liveTab?.cookieStoreId;
-      const targetUrl = navigationUrl ?? liveTab?.url;
-      const hostname = deps.isSupportedWebUrl(targetUrl)
-        ? deps.getExactHostname(targetUrl)
-        : undefined;
+      const hostname =
+        navigationUrl && deps.isSupportedWebUrl(navigationUrl)
+          ? deps.getExactHostname(navigationUrl)
+          : undefined;
       const seedHostname = hostname || undefined;
       let seedState =
         deps.runtimeState
@@ -349,14 +350,12 @@ const createWindowSeed =
             .getPreparedDecisions()
             ?.getFxWindowSeed(resolvedCookieStoreId, seedHostname) ?? null;
       }
-      if (seedState && seedHostname) {
-        seedState = await inspectorSeed(
-          deps,
-          tabId,
-          { hostname: seedHostname, cookieStoreId: resolvedCookieStoreId },
-          seedState,
-        );
-      }
+      seedState = await inspectorSeed(
+        deps,
+        tabId,
+        { hostname: seedHostname, cookieStoreId: resolvedCookieStoreId },
+        seedState,
+      );
       if (seedHostname) {
         await persistPreloadSafe(deps.runtimeState);
       }
