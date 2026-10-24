@@ -262,7 +262,6 @@ export const sidebar = {
     toggle: "Inspetor",
     toggleHint:
       "Escolha as APIs falsificadas que pausam o DevTools quando a página as usa",
-    armedIndicator: "ativo",
     intro:
       "Escolha as APIs falsificadas que devem pausar o DevTools quando um script da página as usar. Abra o DevTools nesta aba antes.",
     loading: "Verificando o estado do Inspetor…",
@@ -272,7 +271,7 @@ export const sidebar = {
       idle: "Desativado",
       armed: (count: number) =>
         `Ativo — ${count} ${count === 1 ? "método" : "métodos"}`,
-      changed: "Seleção alterada",
+      changed: "Ativo — seleção alterada",
     },
     hint: {
       empty: "Selecione pelo menos um método abaixo.",

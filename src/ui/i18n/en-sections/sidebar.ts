@@ -260,7 +260,6 @@ export const sidebar = {
   inspector: {
     toggle: "Inspector",
     toggleHint: "Choose spoofed APIs that pause DevTools when the page uses them",
-    armedIndicator: "Inspector armed",
     intro:
       "Pick the spoofed APIs that should pause DevTools when a page script uses them. Open DevTools for this tab first.",
     loading: "Checking Inspector state…",
@@ -269,7 +268,7 @@ export const sidebar = {
       idle: "Not armed",
       armed: (count: number) =>
         `Armed — ${count} ${count === 1 ? "method" : "methods"}`,
-      changed: "Selection changed",
+      changed: "Armed — selection changed",
     },
     hint: {
       empty: "Select at least one method below.",

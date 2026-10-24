@@ -3,6 +3,7 @@ import type { SurfaceAssessment } from "@privacy-brand/xray-protocol";
 import type { XRayInspectorController } from "./inspector/useXRayInspector";
 import { XRayInspectorMethodList } from "./inspector/XRayInspectorMethodList";
 import { XRayInspectorPanel } from "./inspector/XRayInspectorPanel";
+import { XRayInspectorToggle } from "./inspector/XRayInspectorToggle";
 import { XRayStatusDot } from "./XRayRows";
 
 import type {
@@ -10,7 +11,6 @@ import type {
   SurfaceMethodQueryCounts,
 } from "@/shared/spoofing-surfaces";
 import type { XRaySurfaceCategory } from "@/shared/types";
-import { Button } from "@/ui/components/ui/button";
 import { t } from "@/ui/i18n";
 import { getSurfaceMethodLabels } from "@/ui/shared/surface-method-labels";
 
@@ -105,31 +105,6 @@ export interface XRayInspectorBinding {
   showFirefoxHint: boolean;
 }
 
-const InspectorToggle = ({ inspector }: { inspector: XRayInspectorBinding }) => {
-  const armed = inspector.controller.state?.armed === true;
-  return (
-    <Button
-      variant={inspector.active ? "secondary" : "ghost"}
-      size="sm"
-      className="h-7 gap-1.5 px-2 text-xs"
-      aria-pressed={inspector.active}
-      title={t.sidebar.inspector.toggleHint}
-      data-xray-inspector-toggle={inspector.active ? "on" : "off"}
-      data-inspector-armed={armed}
-      onClick={() => inspector.onActiveChange(!inspector.active)}
-    >
-      <i className="fa-solid fa-crosshairs text-[11px]" aria-hidden="true" />
-      {t.sidebar.inspector.toggle}
-      {armed ? (
-        <>
-          <XRayStatusDot className="bg-primary" />
-          <span className="sr-only">{`(${t.sidebar.inspector.armedIndicator})`}</span>
-        </>
-      ) : null}
-    </Button>
-  );
-};
-
 const mergeMethodCounts = (
   assessments: readonly SurfaceAssessment[],
 ): SurfaceMethodQueryCounts =>
@@ -163,7 +138,13 @@ export const XRayAccessAccordion = ({
         <h3 className="text-xs font-semibold uppercase tracking-wide">
           {t.sidebar.accessed.title}
         </h3>
-        {inspector ? <InspectorToggle inspector={inspector} /> : null}
+        {inspector ? (
+          <XRayInspectorToggle
+            active={inspector.active}
+            onActiveChange={inspector.onActiveChange}
+            controller={inspector.controller}
+          />
+        ) : null}
       </div>
       <p className="text-xs text-muted-foreground mb-2">
         {t.sidebar.accessed.description}

@@ -7,7 +7,6 @@ import type {
 } from "./inspector-contract";
 import type { InspectorResult, XRayInspectorController } from "./useXRayInspector";
 
-import { Badge } from "@/ui/components/ui/badge";
 import { Button } from "@/ui/components/ui/button";
 import { Label } from "@/ui/components/ui/label";
 import { Switch } from "@/ui/components/ui/switch";
@@ -69,26 +68,6 @@ const resultMessage = (result: InspectorResult): string => {
       ? t.sidebar.inspector.result.armed(result.count)
       : t.sidebar.inspector.result.disarmed;
   return `${outcome} ${APPLIED_VIA_LABELS[result.appliedVia]}`;
-};
-
-const StatusBadge = ({
-  phase,
-  state,
-}: {
-  phase: InspectorPhase;
-  state: XRayInspectorState;
-}) => {
-  if (phase === "changed") {
-    return <Badge variant="warning">{t.sidebar.inspector.status.changed}</Badge>;
-  }
-  if (phase === "armed") {
-    return (
-      <Badge variant="success">
-        {t.sidebar.inspector.status.armed(state.methodIds.length)}
-      </Badge>
-    );
-  }
-  return <Badge variant="outline">{t.sidebar.inspector.status.idle}</Badge>;
 };
 
 const statusHint = (
@@ -254,8 +233,7 @@ const StatusBlock = ({
     state.pendingReload && !controller.dirty && controller.pending === null;
   return (
     <div className="flex flex-col items-start">
-      <StatusBadge phase={phase} state={state} />
-      <p className="mt-1.5 text-xs text-foreground/80">
+      <p className="text-xs text-foreground/80">
         {statusHint(phase, controller, state)}
         {canReloadNow ? (
           <Button

@@ -45,10 +45,12 @@ const Harness = ({
   api,
   tabId = 1,
   refreshKey = 0,
+  active = true,
 }: {
   api: InspectorApi;
   tabId?: number;
   refreshKey?: number;
+  active?: boolean;
 }) => {
   const controller = useXRayInspector({ api, tabId, refreshKey });
   return (
@@ -56,7 +58,7 @@ const Harness = ({
       assessments={assessments}
       surfaceSyncPending={false}
       inspector={{
-        active: true,
+        active,
         onActiveChange: () => undefined,
         controller,
         showFirefoxHint: false,
@@ -88,6 +90,11 @@ describe("X-Ray Inspector", () => {
   const panel = () =>
     document.querySelector<HTMLElement>("[data-xray-inspector-panel]");
   const phase = () => panel()?.dataset.inspectorPhase;
+  const status = () =>
+    document.querySelector<HTMLElement>("[data-inspector-status]")?.dataset
+      .inspectorStatus ?? null;
+  const toggle = () =>
+    document.querySelector<HTMLElement>("[data-xray-inspector-toggle]");
 
   const checkbox = (label: string) => {
     const match = Array.from(document.querySelectorAll("label")).find(
@@ -210,6 +217,26 @@ describe("X-Ray Inspector", () => {
       document.getElementById(width.getAttribute("aria-describedby") ?? "")
         ?.textContent,
     ).toContain(t.sidebar.inspector.list.notTrappableReason);
+  });
+
+  it("shows the arming status as a dot on the Inspector toggle", async () => {
+    const api = createMemoryInspectorApi(readyState());
+    await render(<Harness api={api} active={false} />);
+    expect(status()).toBe(null);
+
+    await render(<Harness api={api} />);
+    expect(status()).toBe("idle");
+    expect(toggle()?.textContent).toContain(`(${t.sidebar.inspector.status.idle})`);
+
+    await selectToDataURL();
+    await click(button(t.sidebar.inspector.actions.armReload));
+    expect(status()).toBe("armed");
+    expect(toggle()?.textContent).toContain(`(${t.sidebar.inspector.status.armed(1)})`);
+
+    await click(checkbox(t.sidebar.accessed.categories.webGL));
+    expect(status()).toBe("changed");
+    await render(<Harness api={api} active={false} />);
+    expect(status()).toBe("changed");
   });
 
   it("offers no arm action until a method is selected", async () => {
