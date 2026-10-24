@@ -1,3 +1,4 @@
+import "@/injection/main/analyst-channel-early";
 import { readEarlySnapshot } from "@privacy-brand/refract-browser/chromium";
 import "@privacy-brand/refract-core/runtime/primordials";
 import {
@@ -9,6 +10,7 @@ import {
   getRuntimeReadyEvent,
 } from "@privacy-brand/refract-browser/common/runtime-config";
 import {
+  setAnalystTraps,
   markSurfaceUsed,
   setSurfaceUsageSourceId,
 } from "@privacy-brand/refract-browser/common/surface-usage-emitter";
@@ -22,6 +24,7 @@ const bootload = (): void => {
   });
 
   if (!snapshot) return;
+  setAnalystTraps(snapshot.analystTraps, 0);
   finalizeRuntimeEnabled();
   // A late background write may have arrived between the transport read and
   // this entrypoint. The full runtime owns the bounded follow-up cleanup.

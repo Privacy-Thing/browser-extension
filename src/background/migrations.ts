@@ -15,6 +15,7 @@ import {
   getGlobalFallbackRule,
   saveGlobalFallbackRule,
 } from "@/background/storage/preferences";
+import { migrateReservedPresetIds } from "@/background/storage/reserved-preset-ids";
 import { RULES_STORAGE_KEY, loadRules, saveRules } from "@/background/storage/rules";
 import { migrateRetiredNamespace } from "@/background/storage-namespace-migration";
 import { EXTENSION_STORAGE_KEYS } from "@/shared/extension-contract";
@@ -294,6 +295,8 @@ export const runStorageMigration = async (): Promise<{
   const migratedGeoControls = await migrateLegacyGeoControls();
   const normalizedSeeds = await normalizeStoredSeeds();
   const consolidatedPreferences = await consolidatePreferences();
+  // Rules are read below, after their preset references follow a renamed ID.
+  await migrateReservedPresetIds();
 
   const stored = await chrome.storage.local.get(RULES_STORAGE_KEY);
   const rawRules = stored[RULES_STORAGE_KEY];

@@ -35,8 +35,16 @@ export const settingsImport = {
   containerAssignments: "Container assignments",
   conflict: "Conflict",
   resolve: "Resolve the listed conflicts before confirming.",
+  reservedName: (name: string, scope: string) =>
+    `“${name}” in ${scope} is a reserved name and cannot be imported. Rename it in the file, then import it again.`,
   selectAll: "Select all",
   skipAll: "Skip all",
   technicalDetails: "Technical details",
   timeZoneHint: "Edit the file to use a supported time zone, then import it again.",
+  timeZoneTitle: "Choose supported time zones",
+  timeZoneHelp:
+    "This browser does not support the time zone of the presets below. Choose a time zone for each one. The import is checked again once every preset has one.",
+  timeZoneRejected: (timeZone: string) =>
+    `Unsupported time zone in the file: ${timeZone}`,
+  timeZoneChoose: "Choose a time zone",
 } as const;

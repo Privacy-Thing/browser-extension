@@ -63,6 +63,10 @@ export const sharedDefine = {
   __PT_FX_HANDOFF_READY_EVENT__: JSON.stringify("tFirefoxMainHandoffReady"),
   __PT_STRICT_WORKER_PREFIX__: JSON.stringify("tStrictSharedWorker"),
   __PT_WORKER_ACK_TYPE__: JSON.stringify("tWorkerBootstrapAck"),
+  __PT_ANALYST_HANDOFF_EARLY__: JSON.stringify("tAnalystHandoffEarly"),
+  __PT_ANALYST_HANDOFF_RUNTIME__: JSON.stringify("tAnalystHandoffRuntime"),
+  __PT_ANALYST_CMD__: JSON.stringify("tAnalystCommand"),
+  __PT_ANALYST_ACK__: JSON.stringify("tAnalystAck"),
 };
 
 export const repositoryTestIncludes = [

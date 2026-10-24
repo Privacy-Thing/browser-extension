@@ -64,6 +64,46 @@ afterEach(() => {
 });
 
 describe("runtime-config", () => {
+  it.each([true, false])(
+    "keeps a seed reserved for the reloaded document through old-document cleanup (armed: %s)",
+    (armed) => {
+      const snapshot = {
+        ...createSnapshot(),
+        ...(armed
+          ? {
+              analystTraps: {
+                methods: ["date.now"] as const,
+                mode: "first-call" as const,
+              },
+            }
+          : {}),
+      };
+      const target = {
+        name:
+          getWindowSeedPrefix() +
+          btoa(
+            JSON.stringify({
+              kind: "snapshot",
+              previousName: "original",
+              sourceHostname: "probe.example",
+              nextLoad: true,
+              snapshot,
+            }),
+          ),
+      };
+      const reserved = target.name;
+      expect(cleanupRuntimeWindowSeed(target)).toBe("absent");
+      expect(target.name).toBe(reserved);
+      writeRuntimeWindowSeed(createSnapshot(), target, { preserveExistingSeed: true });
+      expect(target.name).toBe(reserved);
+      const next = consumeRuntimeWindowSeed(target);
+      expect(next?.kind).toBe("snapshot");
+      if (next?.kind === "snapshot")
+        expect(next.snapshot.analystTraps).toEqual(snapshot.analystTraps);
+      expect(target.name).toBe("original");
+    },
+  );
+
   it("revalidates a DOM runtime element before returning it", () => {
     const validSnapshot = JSON.stringify(createSnapshot());
     let reads = 0;

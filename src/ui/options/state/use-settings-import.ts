@@ -20,6 +20,12 @@ import type {
 import type { ExportedSettings, ImportSettingsResponse } from "@/shared/types";
 import { notify } from "@/ui/components/ui/toast";
 import { t } from "@/ui/i18n";
+import {
+  describeCorrections,
+  findUnsupportedTimeZones,
+  mergeCorrections,
+  withPresetTimeZone,
+} from "@/ui/options/state/import-time-zones";
 import { sendMessageOrThrow } from "@/ui/shared/runtime-messaging";
 
 const useImportUndoStatus = () => {
@@ -81,28 +87,126 @@ const undoImport = async (input: {
   }
 };
 
-const createImportUpdates = (
-  importPreview: SettingsImportPreview | null,
+const errorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : t.settingsImport.failed;
+
+const applyPreviewedImport = async (input: {
+  options: ImportOptions;
+  importPreview: SettingsImportPreview | null;
+  importBusy: boolean;
+  setImportBusy: (busy: boolean) => void;
+  setImportError: (error: string | null) => void;
+  onAppliedRef: RefObject<(() => void) | undefined>;
+  resetImportSession: () => void;
+  refreshUndo: () => Promise<void>;
+}): Promise<void> => {
+  const { options, importPreview, setImportBusy, onAppliedRef } = input;
+  if (
+    !importPreview ||
+    input.importBusy ||
+    options.saveInFlight ||
+    options.autosaveTimerRef.current
+  )
+    return;
+  setImportBusy(true);
+  try {
+    const response = (await sendMessageOrThrow({
+      type: EXTENSION_COMMAND_TYPES.importSettings,
+      previewToken: importPreview.token,
+    })) as ImportSettingsResponse;
+    if (!response.ok) throw new Error(response.error);
+    options.apply(response);
+    onAppliedRef.current?.();
+    input.resetImportSession();
+    notify.success(
+      onAppliedRef.current ? t.welcome.importSuccess : t.settingsImport.success,
+    );
+    await input.refreshUndo();
+  } catch (error) {
+    input.setImportError(errorMessage(error));
+  } finally {
+    setImportBusy(false);
+  }
+};
+
+/**
+ * Latest requested source and selection: still in flight, rejected by the background,
+ * or waiting for more time zone choices before it is sent.
+ */
+type ImportDraft = { source: ExportedSettings; selection: SettingsImportSelection };
+
+const DEFAULT_SELECTION: SettingsImportSelection = {
+  mode: "replace",
+  locations: {},
+  rules: {},
+  containers: {},
+};
+
+/** Rejected file and presets whose time zone the user still replaces in the dialog. */
+const useRejectedImport = () => {
+  const rejectedRef = useRef<ImportDraft | null>(null);
+  const [requestedSource, setRequestedSource] = useState<ExportedSettings | null>(null);
+  const [rejectedPresets, setRejectedPresets] = useState<
+    ReturnType<typeof findUnsupportedTimeZones>
+  >([]);
+  return {
+    rejectedRef,
+    setRequestedSource,
+    corrections: describeCorrections(rejectedPresets, requestedSource),
+    reject: (source: ExportedSettings, selection?: SettingsImportSelection): void => {
+      rejectedRef.current = { source, selection: selection ?? DEFAULT_SELECTION };
+      const rejected = findUnsupportedTimeZones(source);
+      setRejectedPresets((current) => mergeCorrections(current, rejected));
+    },
+    reset: (): void => {
+      rejectedRef.current = null;
+      setRequestedSource(null);
+      setRejectedPresets([]);
+    },
+  };
+};
+
+const createImportUpdates = (input: {
+  importPreview: SettingsImportPreview | null;
+  draftRef: RefObject<ImportDraft | null>;
+  rejection: Pick<
+    ReturnType<typeof useRejectedImport>,
+    "rejectedRef" | "setRequestedSource"
+  >;
   preview: (
     settings: ExportedSettings,
     selection?: SettingsImportSelection,
-  ) => Promise<void>,
-) => ({
-  updateImportTimeZone: (id: string, timeZone: string) =>
-    importPreview
-      ? preview(
-          {
-            ...importPreview.source,
-            locations: importPreview.source.locations.map((profile) =>
-              profile.id === id ? { ...profile, timeZone } : profile,
-            ),
-          },
-          importPreview.selection,
-        )
-      : Promise.resolve(),
-  updateImportSelection: (selection: SettingsImportSelection) =>
-    importPreview ? preview(importPreview.source, selection) : Promise.resolve(),
-});
+  ) => Promise<void>;
+}) => {
+  const { importPreview, draftRef, rejection, preview } = input;
+  // Build on the draft, not the rendered preview, so corrections made before a
+  // rerender (or before the previous preview response) are not lost. A rejected
+  // file has no preview yet, so its time zone choices build on the rejected source.
+  const request = (patch: (draft: ImportDraft) => ImportDraft): Promise<void> => {
+    const base =
+      draftRef.current ??
+      (importPreview
+        ? { source: importPreview.source, selection: importPreview.selection }
+        : rejection.rejectedRef.current);
+    if (!base) return Promise.resolve();
+    const draft = patch(base);
+    draftRef.current = draft;
+    rejection.setRequestedSource(draft.source);
+    // The background stays the only validator; this only avoids asking it again
+    // while presets the user still has to choose a zone for are left.
+    if (findUnsupportedTimeZones(draft.source).length > 0) return Promise.resolve();
+    return preview(draft.source, draft.selection);
+  };
+  return {
+    updateImportTimeZone: (id: string, timeZone: string) =>
+      request((draft) => ({
+        ...draft,
+        source: withPresetTimeZone(draft.source, id, timeZone),
+      })),
+    updateImportSelection: (selection: SettingsImportSelection) =>
+      request((draft) => ({ ...draft, selection })),
+  };
+};
 
 export const useSettingsImport = (options: ImportOptions) => {
   const [importPreview, setImportPreview] = useState<SettingsImportPreview | null>(
@@ -113,6 +217,8 @@ export const useSettingsImport = (options: ImportOptions) => {
   const { importUndoAvailable, refreshUndo } = useImportUndoStatus();
   const onAppliedRef = useRef<(() => void) | undefined>(undefined);
   const requestIdRef = useRef(0);
+  const draftRef = useRef<ImportDraft | null>(null);
+  const rejection = useRejectedImport();
   useEffect(
     () => () => {
       requestIdRef.current++;
@@ -120,6 +226,12 @@ export const useSettingsImport = (options: ImportOptions) => {
     [],
   );
 
+  const resetImportSession = (): void => {
+    draftRef.current = null;
+    rejection.reset();
+    setImportPreview(null);
+    setImportError(null);
+  };
   const preview = async (
     settings: ExportedSettings,
     selection?: SettingsImportSelection,
@@ -135,13 +247,15 @@ export const useSettingsImport = (options: ImportOptions) => {
         ...(importPreview ? { previousToken: importPreview.token } : {}),
       })) as ImportPreviewResponse;
       if (requestId !== requestIdRef.current) return;
-      if (!response.ok) throw new Error(response.error);
+      draftRef.current = null;
+      if (!response.ok) {
+        rejection.reject(settings, selection);
+        throw new Error(response.error);
+      }
+      rejection.rejectedRef.current = null;
       setImportPreview(response.preview);
     } catch (error) {
-      if (requestId === requestIdRef.current)
-        setImportError(
-          error instanceof Error ? error.message : t.settingsImport.failed,
-        );
+      if (requestId === requestIdRef.current) setImportError(errorMessage(error));
     } finally {
       if (requestId === requestIdRef.current) setImportBusy(false);
     }
@@ -156,12 +270,13 @@ export const useSettingsImport = (options: ImportOptions) => {
     const fileRequest = ++requestIdRef.current;
     setImportBusy(true);
     onAppliedRef.current = onboarding?.onApplied;
-    setImportPreview(null);
-    setImportError(null);
+    resetImportSession();
     try {
-      const settings = JSON.parse(await file.text()) as ExportedSettings;
+      const parsed = JSON.parse(await file.text()) as ExportedSettings;
       if (fileRequest !== requestIdRef.current) return;
-      await preview(onboarding ? { ...settings, onboardingCompleted: true } : settings);
+      const settings = onboarding ? { ...parsed, onboardingCompleted: true } : parsed;
+      rejection.setRequestedSource(settings);
+      await preview(settings);
     } catch (error) {
       if (fileRequest !== requestIdRef.current) return;
       const message =
@@ -177,50 +292,38 @@ export const useSettingsImport = (options: ImportOptions) => {
   };
   const cancelImport = (): void => {
     requestIdRef.current++;
-    setImportPreview(null);
-    setImportError(null);
+    resetImportSession();
     setImportBusy(false);
     onAppliedRef.current = undefined;
   };
-  const applyImport = async (): Promise<void> => {
-    if (
-      !importPreview ||
-      importBusy ||
-      options.saveInFlight ||
-      options.autosaveTimerRef.current
-    )
-      return;
-    setImportBusy(true);
-    try {
-      const response = (await sendMessageOrThrow({
-        type: EXTENSION_COMMAND_TYPES.importSettings,
-        previewToken: importPreview.token,
-      })) as ImportSettingsResponse;
-      if (!response.ok) throw new Error(response.error);
-      options.apply(response);
-      onAppliedRef.current?.();
-      setImportPreview(null);
-      notify.success(
-        onAppliedRef.current ? t.welcome.importSuccess : t.settingsImport.success,
-      );
-      await refreshUndo();
-    } catch (error) {
-      setImportError(error instanceof Error ? error.message : t.settingsImport.failed);
-    } finally {
-      setImportBusy(false);
-    }
-  };
+  const applyImport = () =>
+    applyPreviewedImport({
+      options,
+      importPreview,
+      importBusy,
+      setImportBusy,
+      setImportError,
+      onAppliedRef,
+      resetImportSession,
+      refreshUndo,
+    });
   const handleUndoImport = () =>
     undoImport({ options, importBusy, setImportBusy, refreshUndo });
   return {
     importPreview,
     importBusy,
     importError,
+    importTimeZoneCorrections: rejection.corrections,
     importUndoAvailable,
     handleImportSettings,
     handleUndoImport,
     cancelImport,
     applyImport,
-    ...createImportUpdates(importPreview, preview),
+    ...createImportUpdates({
+      importPreview,
+      draftRef,
+      rejection,
+      preview,
+    }),
   };
 };

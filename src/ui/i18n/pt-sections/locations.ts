@@ -47,6 +47,8 @@ export const locations = {
       `O fuso ${saved} difere do sugerido: ${suggested}.`,
     approximation:
       "Você pode manter sua escolha. Alterar o fuso horário não muda os idiomas. A sugestão é aproximada perto de fronteiras e no mar.",
+    outsideLand:
+      "Estas coordenadas ficam fora de terra firme, então nenhum fuso horário é sugerido. Verifique a latitude e a longitude; seu fuso horário continua como escolhido.",
     applyTimeZone: (zone: string) => `Usar ${zone}`,
     scope:
       "Valores com a proteção de hora e idioma ativa. Regras por site podem desativá-la. Preferir inglês muda os idiomas dos sites; datas e números mantêm o formato regional.",

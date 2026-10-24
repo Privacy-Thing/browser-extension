@@ -3,6 +3,8 @@ import {
   privateDateNow,
 } from "@privacy-brand/refract-core/runtime/primordials";
 
+import { isAnalystTraps } from "./analyst-traps";
+
 import { isSharedWorkerMode } from "@/shared/fingerprint-types";
 import type { RuntimeSnapshot } from "@/shared/types";
 
@@ -85,6 +87,7 @@ export const isRuntimeSnapshot = (value: unknown): value is RuntimeSnapshot => {
 
   const { geo, locale, date, watchPositionDelay } = value;
   return (
+    (value.analystTraps === undefined || isAnalystTraps(value.analystTraps)) &&
     (value.hostOverrideExpiresAt === undefined ||
       (isFiniteNumber(value.hostOverrideExpiresAt) &&
         privateDateNow() < value.hostOverrideExpiresAt)) &&

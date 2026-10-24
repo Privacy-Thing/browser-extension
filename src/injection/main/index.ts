@@ -16,6 +16,7 @@
 // ──▐▄▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▄▌──────
 // ────▀▄▄▀▀▀▀▀▄▄▀▀▀▀▀▀▀▄▄▀▀▀▀▀▄▄▀────────
 
+import "@/injection/main/analyst-channel-runtime";
 import "@privacy-brand/refract-core/runtime/primordials";
 
 import {
@@ -33,10 +34,15 @@ import {
   isRuntimeDisabled,
   observeConfigInsertion,
   readInitialSnapshot,
+  readRuntimeConfigElement,
   removeConfigElement,
   writeRuntimeWindowSeed,
 } from "@privacy-brand/refract-browser/common/runtime-config";
-import { setSurfaceUsageSourceId } from "@privacy-brand/refract-browser/common/surface-usage-emitter";
+import {
+  getAnalystTraps,
+  setAnalystTraps,
+  setSurfaceUsageSourceId,
+} from "@privacy-brand/refract-browser/common/surface-usage-emitter";
 import {
   getRefractRuntimeState,
   installRuntimeOnce,
@@ -99,7 +105,7 @@ const install = (snapshot: RuntimeSnapshot | null): RefractRuntimeState | null =
     return getRefractRuntimeState(globalThis, __PT_SHIM_GUARD_KEY__) ?? null;
   }
   runtimeInstalled = true;
-  return installRuntimeOnce(
+  const state = installRuntimeOnce(
     globalThis,
     snapshot,
     {
@@ -109,6 +115,29 @@ const install = (snapshot: RuntimeSnapshot | null): RefractRuntimeState | null =
     },
     createRuntimeModules(BUILD_BROWSER_TARGET === "chromium"),
   );
+  if (snapshot) setAnalystTraps(snapshot.analystTraps, 0);
+  return state;
+};
+
+type AnalystTraps = RuntimeSnapshot["analystTraps"] | null;
+
+const sameTraps = (a: AnalystTraps, b: AnalystTraps): boolean => {
+  if (!a || !b) return !a && !b;
+  if (a.mode !== b.mode || a.methods.length !== b.methods.length) return false;
+  for (let index = 0; index < a.methods.length; index += 1) {
+    if (a.methods[index] !== b.methods[index]) return false;
+  }
+  return true;
+};
+
+/**
+ * A document can start from the snapshot its previous document stored at unload.
+ * The background's tab-aware delivery after commit settles the Inspector
+ * selection; an unchanged selection keeps its first-call state.
+ */
+const settleAnalystTraps = (snapshot: RuntimeSnapshot | null): void => {
+  const next = snapshot?.analystTraps ?? null;
+  if (snapshot && !sameTraps(getAnalystTraps(), next)) setAnalystTraps(next, 1);
 };
 
 const syncRuntimePatchState = (snapshot: RuntimeSnapshot): void => {
@@ -133,6 +162,7 @@ const installFxRuntime = (): void => {
   >((state) => {
     const nextSnapshot = toSnapshotFromFxState(state);
     if (!nextSnapshot) return false;
+    setAnalystTraps(nextSnapshot.analystTraps, state.bootstrap.revision);
     updateRefractSnapshot(runtimeState, nextSnapshot);
     syncRuntimePatchState(nextSnapshot);
     return true;
@@ -216,6 +246,7 @@ const installWhenReady = (): void => {
 
   const consumeNextConfig = (): void => {
     if (runtimeInstalled) {
+      settleAnalystTraps(readRuntimeConfigElement());
       removeConfigElement();
       return;
     }

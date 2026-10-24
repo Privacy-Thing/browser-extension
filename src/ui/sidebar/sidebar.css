@@ -4,7 +4,9 @@ body {
   min-height: 100vh;
   margin: 0;
   padding: 0;
-  background: var(--background);
+  /* The tokens are HSL channels. The root background also paints the reserved
+     scrollbar gutter, which otherwise showed the browser's default canvas colour. */
+  background: hsl(var(--background));
   color: var(--foreground);
 }
 
@@ -23,26 +25,10 @@ body {
   --gw-animated-border-boost-duration: 18s;
   --gw-animated-border-boost-easing: cubic-bezier(0.22, 0.61, 0.36, 1);
   --gw-animated-border-animation-duration: 12s;
-  --gw-animated-border-accent-base: color-mix(
-    in srgb,
-    var(--gw-sidebar-status-accent) 12%,
-    transparent
-  );
-  --gw-animated-border-accent-trail: color-mix(
-    in srgb,
-    var(--gw-sidebar-status-accent) 30%,
-    transparent
-  );
-  --gw-animated-border-accent-light: color-mix(
-    in srgb,
-    var(--gw-sidebar-status-accent) 60%,
-    transparent
-  );
-  --gw-animated-border-accent-peak: color-mix(
-    in srgb,
-    var(--gw-sidebar-status-accent) 80%,
-    white
-  );
+  --gw-animated-border-accent-base:  color-mix(in srgb, var(--gw-sidebar-status-accent) 12%, transparent);
+  --gw-animated-border-accent-trail: color-mix(in srgb, var(--gw-sidebar-status-accent) 30%, transparent);
+  --gw-animated-border-accent-light: color-mix(in srgb, var(--gw-sidebar-status-accent) 60%, transparent);
+  --gw-animated-border-accent-peak:  color-mix(in srgb, var(--gw-sidebar-status-accent) 80%, white);
   --gw-animated-border-static-accent: var(--gw-sidebar-status-accent);
   background-color: hsl(var(--card) / 0.55);
   background-clip: padding-box;
@@ -51,26 +37,10 @@ body {
 
 :root:not([data-theme="dark"]) .gw-sidebar-status-box,
 [data-theme="light"] .gw-sidebar-status-box {
-  --gw-animated-border-accent-base: color-mix(
-    in srgb,
-    var(--gw-sidebar-status-accent) 22%,
-    white
-  );
-  --gw-animated-border-accent-trail: color-mix(
-    in srgb,
-    var(--gw-sidebar-status-accent) 46%,
-    white
-  );
-  --gw-animated-border-accent-light: color-mix(
-    in srgb,
-    var(--gw-sidebar-status-accent) 80%,
-    white
-  );
-  --gw-animated-border-accent-peak: color-mix(
-    in srgb,
-    var(--gw-sidebar-status-accent) 70%,
-    white
-  );
+  --gw-animated-border-accent-base:  color-mix(in srgb, var(--gw-sidebar-status-accent) 22%, white);
+  --gw-animated-border-accent-trail: color-mix(in srgb, var(--gw-sidebar-status-accent) 46%, white);
+  --gw-animated-border-accent-light: color-mix(in srgb, var(--gw-sidebar-status-accent) 80%, white);
+  --gw-animated-border-accent-peak:  color-mix(in srgb, var(--gw-sidebar-status-accent) 70%, white);
   background-color: hsl(var(--card) / 0.8);
 }
 

@@ -64,6 +64,10 @@ type FxTestCookieCommand = Extract<
 >;
 
 export type RouterDeps = {
+  inspectorCommand: (
+    message: unknown,
+    sender: chrome.runtime.MessageSender,
+  ) => Promise<unknown>;
   workerTest: (command: WorkerTestCommand) => Promise<WorkerTestResponse>;
   isSupportedWebUrl: (url: string | undefined) => url is string;
   getControlState: () => Promise<GetControlStateResponse>;

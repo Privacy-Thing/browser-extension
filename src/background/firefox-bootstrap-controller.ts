@@ -15,6 +15,7 @@ import {
   buildWindowSeedLog,
   type WindowSeedTrigger,
 } from "@/background/firefox-window-name-seed-log";
+import { withInspector } from "@/background/inspector-state";
 import { seedFxWindowState } from "@/background/main-world-injection";
 import { persistPreloadSafe, writePreloadState } from "@/background/preload-persist";
 import {
@@ -28,6 +29,10 @@ import {
   getHostPauses,
   initializeHostPauses,
 } from "@/background/storage/host-protection-pauses";
+import {
+  initializeInspectors,
+  readInspector,
+} from "@/background/storage/inspector-sessions";
 import { loadLocations } from "@/background/storage/locations";
 import {
   getDebugMode,
@@ -287,6 +292,40 @@ const logSeedFailure = async (
   });
 };
 
+/**
+ * Adds the tab's selection as the exact-host entry. Paused, trusted and
+ * selection-free decisions keep the shared seed, which applies them itself.
+ */
+const inspectorSeed = async (
+  deps: FirefoxBootstrapDeps,
+  tabId: number,
+  context: { hostname: string | undefined; cookieStoreId: string | undefined },
+  seed: FirefoxWindowSeedState | null,
+): Promise<FirefoxWindowSeedState | null> => {
+  const { hostname, cookieStoreId } = context;
+  if (!seed || !hostname) return seed;
+  await initializeInspectors();
+  if (!readInspector(tabId, hostname)) return seed;
+  const decision = deps.runtimeState
+    .getPreparedDecisions()
+    ?.resolveDecision(hostname, cookieStoreId);
+  if (!decision) return seed;
+  const scoped = withInspector(tabId, hostname, decision);
+  if (!scoped.snapshot?.analystTraps) return seed;
+  const others = (entries: FirefoxWindowSeedState["entries"]) =>
+    entries.filter((entry) => entry.pattern !== hostname);
+  return {
+    ...seed,
+    entries: [
+      ...others(seed.entries),
+      { pattern: hostname, state: buildFirefoxShimState(scoped.snapshot) },
+    ],
+    ...(seed.containerEntries
+      ? { containerEntries: others(seed.containerEntries) }
+      : {}),
+  };
+};
+
 const createWindowSeed =
   (deps: FirefoxBootstrapDeps, syncPreloadedState: () => Promise<void>) =>
   async ({
@@ -320,6 +359,12 @@ const createWindowSeed =
             .getPreparedDecisions()
             ?.getFxWindowSeed(resolvedCookieStoreId, seedHostname) ?? null;
       }
+      seedState = await inspectorSeed(
+        deps,
+        tabId,
+        { hostname: seedHostname, cookieStoreId: resolvedCookieStoreId },
+        seedState,
+      );
       if (seedHostname) {
         await persistPreloadSafe(deps.runtimeState);
       }
@@ -445,6 +490,14 @@ export const createFxBootstrap = (deps: FirefoxBootstrapDeps) => {
         deps.runtimeState
           .getPreparedDecisions()
           ?.getFxWindowSeed(cookieStoreId, seedHostname) ?? null;
+    }
+    if (seedState && seedHostname && tabId !== undefined) {
+      seedState = await inspectorSeed(
+        deps,
+        tabId,
+        { hostname: seedHostname, cookieStoreId },
+        seedState,
+      );
     }
     if (seedHostname) {
       await persistPreloadSafe(deps.runtimeState);

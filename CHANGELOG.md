@@ -18,15 +18,23 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ### Added
 
-- X-Ray Inspector can stop script execution when a page script uses a chosen
-  spoofed API, once per method or on every call, while browser developer tools are
-  open for the tab. Turn on Inspector in Page activity, pick categories or single
-  methods with search and a "used on this page" filter, then arm with a reload or on
-  the next load; X-Ray shows what is armed, flags unapplied selection changes, and
+- X-Ray Inspector can stop script execution when a page script uses a spoofed API
+  you choose, on its first call or on every call, while browser developer tools are
+  open for the tab. Turn on Inspector in Page activity and pick whole categories or
+  single methods, with search and a "used on this page" filter; a category shows
+  whether all, some or none of its methods are selected. Methods Inspector cannot
+  stop on, because the rule does not spoof them or the browser has no hook for them,
+  are shown but cannot be selected. A status dot on the Inspector toggle shows
+  whether a selection is armed, not armed or changed since it was armed, and X-Ray
   explains when Inspector is unavailable for a Trusted Site, paused protection or an
-  unsupported page. Methods Inspector cannot stop on, because the rule does not spoof
-  them or the browser has no hook for them, are shown but cannot be selected.
-  Available in beta and development builds.
+  unsupported page. Arming and disarming take effect immediately on the open page and
+  its cross-origin frames, without a reload, or can wait for the next load.
+  Script-opened windows and same-origin frames with their own runtime pick the change
+  up on their next load, dedicated workers started afterwards use it while running
+  ones keep the earlier selection until the page reloads, and a tab that cannot be
+  updated live is reloaded instead. A selection belongs to one tab and its current
+  domain. Firefox cannot stop on Date or Intl calls, and shared workers are never
+  stopped. Available in beta and development builds.
 
 - The optional Control D integration is now included in production builds for Chromium
   and Firefox, with API access requested only when connecting.
@@ -72,7 +80,8 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 - Regional preset editing, generation, and import now show advisory coordinate/time-zone
   checks and previews of browser languages, Accept-Language, and seasonal date/number
   formatting. Applying a suggestion changes only the time zone; intentional differences
-  can still be saved or imported.
+  can still be saved or imported. Coordinates outside land show a coordinates warning
+  instead of a fixed-offset `Etc/GMT` zone suggestion.
 - Pause spoofing for an exact top-document host for 10 minutes or until browser
   exit. Matching tabs and their supported frames/workers share the exception;
   permanent configuration and global WebRTC policy remain unchanged. Deadline
@@ -89,8 +98,16 @@ The format is based on Keep a Changelog and the project follows Semantic Version
   next configuration edit). Undo restores configuration, not website sessions.
 - Import can merge selected presets and rules with explicit ID/pattern conflict
   choices, remapped preset references, and manual Firefox container mapping.
-  Import errors are shown as readable messages with a next step (for example, an
-  unsupported preset time zone), with technical details collapsed.
+  Import errors are shown as readable messages, with technical details collapsed.
+  A file that uses a reserved name such as `constructor` or `__proto__` as a preset
+  ID, container ID or key, or `__proto__` as a rule pattern, is rejected with an
+  error naming it and where it occurs. New presets never receive such an ID, and an
+  existing preset with one (for example, named “Constructor”) gets a new ID once, so
+  exports stay importable. When a file's preset uses a time zone this browser does
+  not support, the import dialog offers the usual time zone list for each such
+  preset and previews the file again, including the regional review, once every
+  preset has a supported zone; the file itself is not changed. Several time zone
+  corrections made at once in the preview are all kept.
 
 - Added complete Spanish and Portuguese interface translations, selected
   automatically from the browser interface language with English as the fallback.
@@ -133,9 +150,17 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 - Connecting Control D in Firefox no longer fails after access to all websites was
   turned off for the extension.
 
-- Dialogs use a thin neutral frame with a subtle accent line instead of a thick
-  accent-coloured border, and scrollbars follow neutral colours in every accent preset.
-  The troubleshooter, report and import dialogs no longer scroll sideways.
+- Dialogs use a thinner animated accent frame instead of the thick accent-coloured
+  border. In the X-Ray panel they fill the whole panel; elsewhere they use nearly the
+  full width of narrow windows such as the popup. Long titles wrap beside the close
+  button instead of running under it, and stacked action buttons keep a gap. The
+  troubleshooter, report and import dialogs no longer scroll sideways, the frame stays
+  in place while a long dialog scrolls, and the report keeps its actions in view on
+  short panels. Scrollbars are a thin, rounded, draggable handle in the accent colour,
+  without arrows, that stays faint until you point at or focus the scroll area; in
+  Chrome it also widens when the pointer reaches it, without moving the content. High
+  contrast keeps it fully visible. Scroll areas keep their scrollbar space, so content
+  no longer shifts sideways when it starts or stops scrolling.
 
 - Pickers no longer draw option rows outside their popup on short windows.
 

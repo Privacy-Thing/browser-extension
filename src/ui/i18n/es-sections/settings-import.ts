@@ -35,9 +35,17 @@ export const settingsImport = {
   containerAssignments: "Asignaciones de contenedores",
   conflict: "Conflicto",
   resolve: "Resuelve los conflictos indicados antes de confirmar.",
+  reservedName: (name: string, scope: string) =>
+    `“${name}” en ${scope} es un nombre reservado y no se puede importar. Cámbielo en el archivo y vuelva a importarlo.`,
   selectAll: "Seleccionar todo",
   skipAll: "Omitir todo",
   technicalDetails: "Detalles técnicos",
   timeZoneHint:
     "Edite el archivo para usar una zona horaria compatible y vuelva a importarlo.",
+  timeZoneTitle: "Elige zonas horarias compatibles",
+  timeZoneHelp:
+    "Este navegador no admite la zona horaria de los siguientes perfiles. Elige una zona horaria para cada uno. La importación se vuelve a comprobar cuando todos tengan una.",
+  timeZoneRejected: (timeZone: string) =>
+    `Zona horaria no compatible en el archivo: ${timeZone}`,
+  timeZoneChoose: "Elige una zona horaria",
 } as const;

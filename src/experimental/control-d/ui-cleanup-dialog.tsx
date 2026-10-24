@@ -332,7 +332,7 @@ export const CleanupDialogView = (props: CleanupDialogProps) => {
       }}
     >
       <DialogContent
-        className="flex max-h-[90dvh] w-[calc(100vw-2rem)] max-w-xl flex-col overflow-y-auto"
+        className="flex max-h-[90dvh] max-w-xl flex-col overflow-y-auto"
         data-control-d-cleanup={phase}
         aria-busy={busy}
       >

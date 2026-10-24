@@ -2,6 +2,8 @@ export const E2E_OWNERSHIP_LANES = {
   core: [
     "extension-fingerprint.spec.ts",
     "extension-runtime.spec.ts",
+    "extension-inspector.spec.ts",
+    "extension-inspector-live.spec.ts",
     "extension-host-pause.spec.ts",
     "extension-worker-test.spec.ts",
   ],
@@ -30,6 +32,7 @@ export const E2E_OWNERSHIP_LANES = {
     "firefox-runtime-bootstrap-followup.spec.ts",
     "firefox-runtime-bootstrap.spec.ts",
     "firefox-runtime-core.spec.ts",
+    "firefox-runtime-inspector.spec.ts",
     "firefox-runtime-host-pause.spec.ts",
     "firefox-runtime-control-d.spec.ts",
     "firefox-runtime-worker-test.spec.ts",

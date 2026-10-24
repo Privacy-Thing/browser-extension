@@ -59,6 +59,7 @@ type ObserveConfigOptions = {
 };
 
 export type RuntimeWindowSeedPayload = {
+  nextLoad?: boolean;
   previousName: string;
   sourceHostname?: string;
 } & (
@@ -315,6 +316,7 @@ export const parseRuntimeWindowSeed = (
       expiresAt?: unknown;
       previousName?: unknown;
       sourceHostname?: unknown;
+      nextLoad?: unknown;
       snapshot?: unknown;
     };
     if (typeof parsed.previousName !== "string") {
@@ -326,9 +328,10 @@ export const parseRuntimeWindowSeed = (
     ) {
       return null;
     }
+    const nextLoad = parsed.nextLoad === true ? { nextLoad: true } : {};
     const sourceHostname =
       typeof parsed.sourceHostname === "string"
-        ? { sourceHostname: parsed.sourceHostname }
+        ? { sourceHostname: parsed.sourceHostname, ...nextLoad }
         : {};
     if (
       parsed.expiresAt !== undefined &&
@@ -434,7 +437,12 @@ const takeRuntimeWindowSeed = (targetWindow: {
 /** Removes a runtime seed without exposing or applying its snapshot. */
 export const cleanupRuntimeWindowSeed = (
   targetWindow: { name?: string } = globalThis as typeof globalThis & { name?: string },
-): SeedCleanupResult => takeRuntimeWindowSeed(targetWindow).status;
+): SeedCleanupResult => {
+  // A seed written right before a reload is meant for the next document and must
+  // survive cleanup in the old one. The new document consumes it as usual.
+  if (parseRuntimeWindowSeed(targetWindow.name ?? "")?.nextLoad) return "absent";
+  return takeRuntimeWindowSeed(targetWindow).status;
+};
 
 /**
  * Briefly removes seeds that arrive after the runtime has accepted its snapshot.

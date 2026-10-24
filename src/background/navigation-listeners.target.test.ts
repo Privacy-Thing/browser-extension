@@ -123,6 +123,7 @@ describe("registerNavListeners — per-frame resolution", () => {
       "publer.com",
       undefined,
       "https://publer.com/",
+      { tabId: 1 },
     );
     expect(cacheDecision).toHaveBeenCalledWith({
       tabId: 1,
@@ -149,6 +150,7 @@ describe("registerNavListeners — per-frame resolution", () => {
       "publer.com",
       undefined,
       "https://publer.com/",
+      { tabId: 1 },
     );
     expect(cacheDecision).toHaveBeenCalledWith({
       tabId: 1,
@@ -282,6 +284,7 @@ describe("registerNavListeners — per-frame resolution", () => {
       "challenges.cloudflare.com",
       undefined,
       "https://challenges.cloudflare.com/",
+      { tabId: 2 },
     );
     expect(cacheDecision).toHaveBeenCalledWith({
       tabId: 2,
@@ -319,6 +322,7 @@ describe("registerNavListeners — per-frame resolution", () => {
       "publer.com",
       undefined,
       "https://publer.com/dashboard",
+      { tabId: 1 },
     );
     expect(cacheDecision).not.toHaveBeenCalledWith(
       expect.objectContaining({ tabId: 1, frameId: 0 }),

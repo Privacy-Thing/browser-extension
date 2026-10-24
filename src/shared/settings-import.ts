@@ -33,3 +33,15 @@ export type ImportUndoStatusResponse = {
   available: boolean;
   expiresAt: number | null;
 };
+
+/** Issue code for an import file that uses a reserved name as an ID or key. */
+export const RESERVED_IMPORT_NAME = "reserved_name";
+export type ReservedImportNameIssue = {
+  code: typeof RESERVED_IMPORT_NAME;
+  /** Where the name occurs in the file, e.g. `["locations", 0, "id"]`. */
+  path: Array<string | number>;
+  name: string;
+  /** Top-level field holding the name; empty for a top-level key. */
+  scope: string;
+  message: string;
+};
