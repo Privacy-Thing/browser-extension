@@ -29,11 +29,11 @@ const MethodMeta = ({
     return (
       <span
         id={reasonId}
-        title={t.sidebar.inspector.list.notSpoofedReason}
+        title={t.sidebar.inspector.list.notTrappableReason}
         className="shrink-0 text-[11px] text-muted-foreground"
       >
-        {t.sidebar.inspector.list.notSpoofed}
-        <span className="sr-only">. {t.sidebar.inspector.list.notSpoofedReason}</span>
+        {t.sidebar.inspector.list.notTrappable}
+        <span className="sr-only">. {t.sidebar.inspector.list.notTrappableReason}</span>
       </span>
     );
   }
@@ -165,7 +165,7 @@ const CategoryItem = ({
               </span>
             </>
           ) : (
-            t.sidebar.inspector.list.notSpoofed
+            t.sidebar.inspector.list.notTrappable
           )}
         </span>
       </div>

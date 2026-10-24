@@ -211,7 +211,7 @@ describe("X-Ray Inspector", () => {
     expect(
       document.getElementById(width.getAttribute("aria-describedby") ?? "")
         ?.textContent,
-    ).toContain(t.sidebar.inspector.list.notSpoofedReason);
+    ).toContain(t.sidebar.inspector.list.notTrappableReason);
   });
 
   it("offers no arm action until a method is selected", async () => {

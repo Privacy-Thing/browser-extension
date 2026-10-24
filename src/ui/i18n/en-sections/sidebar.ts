@@ -331,9 +331,9 @@ export const sidebar = {
         `${selected} of ${total} selected`,
       methodsOf: (category: string) => `${category} methods`,
       used: (count: number) => (count === 1 ? "Used once" : `Used ${count} times`),
-      notSpoofed: "Not spoofed",
-      notSpoofedReason:
-        "The rule for this Domain doesn't spoof this method, so there is nothing to pause on.",
+      notTrappable: "Not available",
+      notTrappableReason:
+        "Inspector can't pause on this method here: the rule for this Domain doesn't spoof it, or this browser has no hook for it.",
     },
   },
 

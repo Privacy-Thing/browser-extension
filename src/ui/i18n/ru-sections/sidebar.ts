@@ -338,9 +338,9 @@ export const sidebar = {
         `Выбрано ${selected} из ${total}`,
       methodsOf: (category: string) => `Методы: ${category}`,
       used: (count: number) => `Вызовов: ${count}`,
-      notSpoofed: "Не подменяется",
-      notSpoofedReason:
-        "Правило этого домена не подменяет этот метод, поэтому ставить паузу не на чем.",
+      notTrappable: "Недоступно",
+      notTrappableReason:
+        "Инспектор не может ставить паузу на этом методе: правило этого домена его не подменяет или этот браузер не позволяет его перехватить.",
     },
   },
 

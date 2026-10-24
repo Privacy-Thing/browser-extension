@@ -212,7 +212,7 @@ export const UnspoofedMethods: Story = {
     });
     await expect(width).toBeDisabled();
     await expect(width).toHaveAccessibleDescription(
-      new RegExp(t.sidebar.inspector.list.notSpoofed),
+      new RegExp(t.sidebar.inspector.list.notTrappable),
     );
   },
 };

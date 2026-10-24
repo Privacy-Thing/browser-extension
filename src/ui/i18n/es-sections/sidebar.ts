@@ -337,9 +337,9 @@ export const sidebar = {
         `${selected} de ${total} seleccionados`,
       methodsOf: (category: string) => `Métodos de ${category}`,
       used: (count: number) => (count === 1 ? "Usado una vez" : `Usado ${count} veces`),
-      notSpoofed: "No falseado",
-      notSpoofedReason:
-        "La regla de este dominio no falsea este método, así que no hay nada en lo que pausar.",
+      notTrappable: "No disponible",
+      notTrappableReason:
+        "El Inspector no puede pausar en este método aquí: la regla de este dominio no lo falsea o este navegador no permite interceptarlo.",
     },
   },
 
