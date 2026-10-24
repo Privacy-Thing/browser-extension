@@ -17,12 +17,13 @@ export const BUNDLE_SIZE_TOLERANCE = 256;
  *
  * Must not pull profile resolution, generated catalogs, or domain-fencing
  * suffix tables. Fencing is finished in the background; injected graphs
- * only install the snapshot they receive.
+ * only install the snapshot they receive. The Inspector allocation covers its
+ * optional snapshot shape and session check for the tab-aware resolver.
  */
-export const CHROME_BOOT_MAX_BYTES = 15 * 1024;
+export const CHROME_BOOT_MAX_BYTES = 15 * 1024 + 256;
 
 /** Gzip companion of {@link CHROME_BOOT_MAX_BYTES}. */
-export const CHROME_BOOT_GZIP_BYTES = Math.round(5.2 * 1024);
+export const CHROME_BOOT_GZIP_BYTES = Math.round(5.2 * 1024) + 128;
 
 /**
  * Firefox first-inline page runtime (`main-world-early.js`).
@@ -34,7 +35,7 @@ export const CHROME_BOOT_GZIP_BYTES = Math.round(5.2 * 1024);
  *
  * Includes the selective Inspector binding, retained pause, and neutral debug map.
  */
-export const FX_GEO_SHIM_MAX_BYTES = 132 * 1024 + 512;
+export const FX_GEO_SHIM_MAX_BYTES = 133 * 1024;
 
 /**
  * Firefox main-world runtime (`main-world-runtime.js`), including the

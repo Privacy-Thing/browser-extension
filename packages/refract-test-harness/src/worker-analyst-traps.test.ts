@@ -89,7 +89,10 @@ it("keeps worker scheduling and selection on captured primitives", async () => {
   vi.resetModules();
   const { createWorkerSupport } =
     await import("../../refract-worker/src/worker-runtime-support");
-  const support = createWorkerSupport(snapshot, channel);
+  const support = createWorkerSupport(
+    { ...snapshot, analystTraps: { methods: ["date.now"], mode: "every-call" } },
+    channel,
+  );
   const enqueue = globalThis.queueMicrotask;
   const queue = vi.fn();
   const timer = vi.fn();

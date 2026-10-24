@@ -208,8 +208,9 @@ const createUsageReporter = (
         methodId,
         (privateMapGet(methodCounts, methodId) ?? 0) + 1,
       );
-      if (privateSetHas(methods, methodId)) {
-        if (first) privateSetDelete(methods, methodId);
+      if (
+        first ? privateSetDelete(methods, methodId) : privateSetHas(methods, methodId)
+      ) {
         pause();
       }
     }

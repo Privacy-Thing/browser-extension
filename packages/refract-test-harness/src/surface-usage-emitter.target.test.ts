@@ -127,7 +127,10 @@ describe("markSurfaceUsed", () => {
       mod.markSurfaceUsed("timeLocale", "date.parse");
       mod.markSurfaceUsed("timeLocale", "date.now");
       mod.markSurfaceUsed("timeLocale", "date.now");
-      mod.setAnalystTraps(null, 1);
+      mod.setAnalystTraps({ methods: ["date.now"], mode: "every-call" }, 1);
+      mod.markSurfaceUsed("timeLocale", "date.parse");
+      mod.markSurfaceUsed("timeLocale", "date.now");
+      mod.setAnalystTraps(null, 2);
       mod.markSurfaceUsed("canvas");
     } finally {
       Set.prototype.has = has;

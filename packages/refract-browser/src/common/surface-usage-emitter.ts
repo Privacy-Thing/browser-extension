@@ -223,8 +223,9 @@ export const setAnalystTraps = (
         methodId,
         (privateMapGet(methodCallCounts, methodId) ?? 0) + 1,
       );
-      if (privateSetHas(methods, methodId)) {
-        if (first) privateSetDelete(methods, methodId);
+      if (
+        first ? privateSetDelete(methods, methodId) : privateSetHas(methods, methodId)
+      ) {
         pause();
       }
     }

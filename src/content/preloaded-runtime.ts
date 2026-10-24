@@ -146,9 +146,8 @@ export const readPreloadedState = async (): Promise<PreloadedRuntimeState | null
       PRELOAD_STATE_KEY,
       EXTENSION_STORAGE_KEYS.inspectorSessions,
     ]);
-    const inspectors = result[EXTENSION_STORAGE_KEYS.inspectorSessions] as
-      object | undefined;
-    if (inspectors && Object.keys(inspectors).length > 0) return null;
+    if (Object.keys(result[EXTENSION_STORAGE_KEYS.inspectorSessions] ?? {}).length)
+      return null;
     const state = result[PRELOAD_STATE_KEY];
     return isPreloadedRuntimeState(state) ? state : null;
   } catch {
