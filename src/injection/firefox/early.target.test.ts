@@ -231,7 +231,7 @@ describe("Firefox early SharedWorker strict handling", () => {
     const dispatchEvent = await installFxEarlyRuntime("strict", sharedWorkerConstructs);
 
     expect(() => new SharedWorker("blob:https://example.test/worker")).toThrow(
-      /SharedWorker script .+ was blocked by strict mode/,
+      /Privacy Thing strict mode/,
     );
     expect(surfaceUsage.markSurfaceUsed).toHaveBeenCalledWith(
       "sharedWorker",
@@ -277,7 +277,7 @@ describe("Firefox early SharedWorker strict handling", () => {
     firefoxStateEvents.listener?.({ shimState: revisionTwo } as unknown as Event);
 
     expect(() => new SharedWorker("blob:https://example.test/blocked-worker")).toThrow(
-      /SharedWorker script .+ was blocked by strict mode/,
+      /Privacy Thing strict mode/,
     );
     expect(sharedWorkerConstructs).toEqual(["blob:https://example.test/native-worker"]);
   });

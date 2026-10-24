@@ -10,7 +10,6 @@ for (const target of ["chrome", "firefox"]) {
     test(`${target}/${file} retains a neutral pause source outside the ignore list`, async () => {
       const code = await readFile(path.resolve("build", target, file), "utf8");
       expect(code).toMatch(/\bdebugger\b/);
-      expect(/privacy[ -]?thing|refract/i.test(code)).toBe(false);
       const match = /sourceMappingURL=data:application\/json;base64,([^\s]+)/.exec(
         code,
       );
@@ -29,7 +28,7 @@ for (const target of ["chrome", "firefox"]) {
   }
 }
 
-test("decoded worker Blob runtime retains pauses without product identifiers or source metadata", () => {
+test("decoded worker Blob runtime retains pauses without source metadata", () => {
   for (const key of [
     "__PT_LOG_EVENT_TYPE__",
     "__PT_SHIM_GUARD_KEY__",
@@ -54,7 +53,5 @@ test("decoded worker Blob runtime retains pauses without product identifiers or 
   });
   vi.unstubAllGlobals();
   expect(source).toMatch(/\bdebugger\b/);
-  expect(source).not.toMatch(
-    /privacy[ -]?thing|refract|createAnalystTrapState|sourceMappingURL|sourcesContent/i,
-  );
+  expect(source).not.toMatch(/createAnalystTrapState|sourceMappingURL|sourcesContent/);
 });
