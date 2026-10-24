@@ -4,6 +4,9 @@ Privacy Thing is an MV3 extension for per-domain anti-fingerprinting and locatio
 spoofing. Optimize for spoofing correctness, invisibility to page scripts,
 cross-browser behavior and low overhead. `CLAUDE.md` links to this file.
 
+## Progress tracking
+- Linear, `PT` prefix. 
+
 ## Stack and boundaries
 
 - Use `pnpm`. Keep TypeScript `strict`, `noUncheckedIndexedAccess` and
