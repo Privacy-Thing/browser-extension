@@ -29,7 +29,8 @@ const DialogLayoutProvider = ({
 
 const useDialogLayout = () => useContext(DialogLayoutContext);
 
-const fillLayoutClassName = "h-full max-h-none w-full max-w-none";
+// Rows pack at the top; a dialog that needs a growing row declares its own template.
+const fillLayoutClassName = "h-full max-h-none w-full max-w-none content-start";
 
 const DialogCloseButton = forwardRef<
   React.ComponentRef<typeof DialogPrimitive.Close>,

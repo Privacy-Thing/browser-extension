@@ -82,6 +82,8 @@ const onSurface = (
  */
 export const expectDialogCoversPanel = (dialog: HTMLElement) => {
   expect(dialog).toHaveAttribute("data-layout", "fill");
+  // The panel's extra height stays below the content instead of spreading it out.
+  expect(getComputedStyle(dialog).alignContent, "row packing").toBe("flex-start");
   for (const [width, height] of SIDEBAR_SURFACES_PX) {
     onSurface(dialog, width, height, () => {
       expect(dialog.offsetWidth, `dialog width on a ${width}px panel`).toBe(width);
