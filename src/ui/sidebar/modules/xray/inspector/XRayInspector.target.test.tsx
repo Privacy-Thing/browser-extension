@@ -30,15 +30,13 @@ const readyState = (
   mode: "first-call",
   pendingReload: false,
   appliesLive: false,
-  // Screen is deliberately not trappable.
+  // Screen is deliberately not trappable. Canvas applies on both targets.
   trappableMethodIds: [
-    "battery.getBattery",
-    "battery.manager.charging",
-    "battery.manager.chargingTime",
-    "battery.manager.dischargingTime",
-    "battery.manager.level",
-    "date.now",
+    "canvas.getImageData",
     "canvas.toDataURL",
+    "canvas.toBlob",
+    "date.now",
+    "webGL.getParameter",
   ],
   ...overrides,
 });
@@ -116,12 +114,12 @@ describe("X-Ray Inspector", () => {
     });
   };
 
-  const battery = t.sidebar.accessed.categories.battery;
-  const batteryLevel = t.sidebar.accessed.methods.batteryManagerLevel;
+  const canvasCategory = t.sidebar.accessed.categories.canvas;
+  const canvasToDataURL = t.sidebar.accessed.methods.canvasToDataURL;
 
-  const selectBatteryLevel = async () => {
-    await click(button(t.sidebar.inspector.list.methodsOf(battery)));
-    await click(checkbox(batteryLevel));
+  const selectToDataURL = async () => {
+    await click(button(t.sidebar.inspector.list.methodsOf(canvasCategory)));
+    await click(checkbox(canvasToDataURL));
   };
 
   const lastCall = (api: MemoryInspectorApi) => api.calls.at(-1);
@@ -148,47 +146,47 @@ describe("X-Ray Inspector", () => {
 
   it("drives the category checkbox through none, mixed and all", async () => {
     await render(<Harness api={createMemoryInspectorApi(readyState())} />);
-    const category = checkbox(battery);
+    const category = checkbox(canvasCategory);
     expect(category.checked).toBe(false);
     expect(category.indeterminate).toBe(false);
 
-    await selectBatteryLevel();
+    await selectToDataURL();
     expect(category.indeterminate).toBe(true);
     expect(category.checked).toBe(false);
     expect(
       document
-        .querySelector('[data-inspector-category="battery"]')
+        .querySelector('[data-inspector-category="canvas"]')
         ?.getAttribute("data-selection"),
     ).toBe("some");
 
     await click(category);
     expect(category.indeterminate).toBe(false);
     expect(category.checked).toBe(true);
-    expect(checkbox(t.sidebar.accessed.methods.batteryGetBattery).checked).toBe(true);
+    expect(checkbox(t.sidebar.accessed.methods.canvasGetImageData).checked).toBe(true);
 
     await click(category);
     expect(category.checked).toBe(false);
-    expect(checkbox(batteryLevel).checked).toBe(false);
+    expect(checkbox(canvasToDataURL).checked).toBe(false);
   });
 
   it("wires disclosure, descriptions and labels for assistive technology", async () => {
     await render(<Harness api={createMemoryInspectorApi(readyState())} />);
-    const disclosure = button(t.sidebar.inspector.list.methodsOf(battery));
+    const disclosure = button(t.sidebar.inspector.list.methodsOf(canvasCategory));
     expect(disclosure.getAttribute("aria-expanded")).toBe("false");
     await click(disclosure);
     expect(disclosure.getAttribute("aria-expanded")).toBe("true");
     const group = document.getElementById(
       disclosure.getAttribute("aria-controls") ?? "",
     );
-    expect(
-      group?.querySelector('[data-inspector-method="battery.manager.level"]'),
-    ).not.toBe(null);
+    expect(group?.querySelector('[data-inspector-method="canvas.toDataURL"]')).not.toBe(
+      null,
+    );
 
     const summary = document.getElementById(
-      checkbox(battery).getAttribute("aria-describedby") ?? "",
+      checkbox(canvasCategory).getAttribute("aria-describedby") ?? "",
     );
     expect(summary?.textContent).toContain(
-      t.sidebar.inspector.list.selectedSummary(0, 5),
+      t.sidebar.inspector.list.selectedSummary(0, 3),
     );
 
     for (const input of document.querySelectorAll<HTMLInputElement>(
@@ -238,13 +236,13 @@ describe("X-Ray Inspector", () => {
     async (action, apply, outcome, pendingReload) => {
       const api = createMemoryInspectorApi(readyState());
       await render(<Harness api={api} />);
-      await selectBatteryLevel();
+      await selectToDataURL();
       await click(button(action));
 
       expect(lastCall(api)).toEqual({
         kind: "set",
         tabId: 1,
-        methodIds: ["battery.manager.level"],
+        methodIds: ["canvas.toDataURL"],
         mode: "first-call",
         apply,
       });
@@ -259,7 +257,7 @@ describe("X-Ray Inspector", () => {
   it("shows a single live action when the runtime applies traps live", async () => {
     const api = createMemoryInspectorApi(readyState({ appliesLive: true }));
     await render(<Harness api={api} />);
-    await selectBatteryLevel();
+    await selectToDataURL();
     expect(document.querySelectorAll("[data-inspector-apply]")).toHaveLength(1);
     expect(document.body.textContent).not.toContain(t.sidebar.inspector.reloadNote);
     await click(button(t.sidebar.inspector.actions.arm));
@@ -272,7 +270,7 @@ describe("X-Ray Inspector", () => {
   it("sends the every-call mode with the selection", async () => {
     const api = createMemoryInspectorApi(readyState());
     await render(<Harness api={api} />);
-    await selectBatteryLevel();
+    await selectToDataURL();
     await click(document.querySelector<HTMLElement>('[role="switch"]')!);
     expect(document.querySelector("[data-inspector-every-call-warning]")).not.toBe(
       null,
@@ -286,12 +284,12 @@ describe("X-Ray Inspector", () => {
     [t.sidebar.inspector.actions.disarmNextLoad, "next-load"],
   ] as const)("%s clears traps with apply=%s", async (action, apply) => {
     const api = createMemoryInspectorApi(
-      readyState({ armed: true, methodIds: ["battery.manager.level"] }),
+      readyState({ armed: true, methodIds: ["canvas.toDataURL"] }),
     );
     await render(<Harness api={api} />);
     expect(phase()).toBe("armed");
-    await click(button(t.sidebar.inspector.list.methodsOf(battery)));
-    expect(checkbox(batteryLevel).checked).toBe(true);
+    await click(button(t.sidebar.inspector.list.methodsOf(canvasCategory)));
+    expect(checkbox(canvasToDataURL).checked).toBe(true);
     await click(button(action));
     expect(lastCall(api)).toEqual({ kind: "clear", tabId: 1, apply });
     expect(phase()).toBe("idle");
@@ -299,15 +297,15 @@ describe("X-Ray Inspector", () => {
 
   it("flags a changed selection while armed and applies the new set", async () => {
     const api = createMemoryInspectorApi(
-      readyState({ armed: true, methodIds: ["battery.manager.level"] }),
+      readyState({ armed: true, methodIds: ["canvas.toDataURL"] }),
     );
     await render(<Harness api={api} />);
-    await click(checkbox(t.sidebar.accessed.categories.canvas));
+    await click(checkbox(t.sidebar.accessed.categories.webGL));
     expect(phase()).toBe("changed");
     await click(button(t.sidebar.inspector.actions.applyReload));
     expect(lastCall(api)).toMatchObject({
       kind: "set",
-      methodIds: ["canvas.toDataURL", "battery.manager.level"],
+      methodIds: ["canvas.toDataURL", "webGL.getParameter"],
       apply: "now",
     });
     expect(phase()).toBe("armed");
@@ -315,7 +313,7 @@ describe("X-Ray Inspector", () => {
 
   it("treats a mode change while armed as a change to apply", async () => {
     const api = createMemoryInspectorApi(
-      readyState({ armed: true, methodIds: ["battery.manager.level"] }),
+      readyState({ armed: true, methodIds: ["canvas.toDataURL"] }),
     );
     await render(<Harness api={api} />);
     await click(document.querySelector<HTMLElement>('[role="switch"]')!);
@@ -324,7 +322,7 @@ describe("X-Ray Inspector", () => {
     expect(lastCall(api)).toEqual({
       kind: "set",
       tabId: 1,
-      methodIds: ["battery.manager.level"],
+      methodIds: ["canvas.toDataURL"],
       mode: "every-call",
       apply: "next-load",
     });
@@ -332,12 +330,12 @@ describe("X-Ray Inspector", () => {
 
   it("treats emptying an armed selection as a disarm", async () => {
     const api = createMemoryInspectorApi(
-      readyState({ armed: true, methodIds: ["battery.manager.level"] }),
+      readyState({ armed: true, methodIds: ["canvas.toDataURL"] }),
     );
     await render(<Harness api={api} />);
     // Mixed → all → none.
-    await click(checkbox(battery));
-    await click(checkbox(battery));
+    await click(checkbox(canvasCategory));
+    await click(checkbox(canvasCategory));
     expect(phase()).toBe("changed");
     expect(
       document
@@ -348,14 +346,14 @@ describe("X-Ray Inspector", () => {
 
   it("keeps the user's edits when a refresh reports the armed state again", async () => {
     const api = createMemoryInspectorApi(
-      readyState({ armed: true, methodIds: ["battery.manager.level"] }),
+      readyState({ armed: true, methodIds: ["canvas.toDataURL"] }),
     );
     await render(<Harness api={api} refreshKey={0} />);
-    await click(checkbox(t.sidebar.accessed.categories.canvas));
+    await click(checkbox(t.sidebar.accessed.categories.webGL));
     await render(<Harness api={api} refreshKey={1} />);
     expect(api.calls.filter((call) => call.kind === "get")).toHaveLength(2);
     expect(phase()).toBe("changed");
-    expect(checkbox(t.sidebar.accessed.categories.canvas).checked).toBe(true);
+    expect(checkbox(t.sidebar.accessed.categories.webGL).checked).toBe(true);
   });
 
   it("does not let a slower, older load overwrite a command result", async () => {
@@ -368,7 +366,7 @@ describe("X-Ray Inspector", () => {
     };
     await render(<Harness api={api} refreshKey={0} />);
     await render(<Harness api={api} refreshKey={1} />);
-    await selectBatteryLevel();
+    await selectToDataURL();
     await click(button(t.sidebar.inspector.actions.armReload));
     expect(phase()).toBe("armed");
     await act(async () => {
@@ -386,7 +384,7 @@ describe("X-Ray Inspector", () => {
       set: () => Promise.reject(new InspectorMissingError()),
     };
     await render(<Harness api={api} />);
-    await selectBatteryLevel();
+    await selectToDataURL();
     await click(button(t.sidebar.inspector.actions.armReload));
     expect(panel()?.dataset.inspectorUnavailable).toBe("no-runtime");
   });
@@ -394,7 +392,7 @@ describe("X-Ray Inspector", () => {
   it("reports a failed apply and stays unarmed", async () => {
     const api = createMemoryInspectorApi(readyState(), { failWith: "Tab closed" });
     await render(<Harness api={api} />);
-    await selectBatteryLevel();
+    await selectToDataURL();
     await click(button(t.sidebar.inspector.actions.armReload));
     expect(document.querySelector('[role="alert"]')?.textContent).toBe(
       t.sidebar.inspector.actionError("Tab closed"),
@@ -405,9 +403,9 @@ describe("X-Ray Inspector", () => {
   it("starts a fresh draft when the active tab changes", async () => {
     const api = createMemoryInspectorApi(readyState());
     await render(<Harness api={api} tabId={1} />);
-    await selectBatteryLevel();
+    await selectToDataURL();
     await render(<Harness api={api} tabId={2} />);
-    expect(checkbox(battery).indeterminate).toBe(false);
+    expect(checkbox(canvasCategory).indeterminate).toBe(false);
     expect(api.calls.at(-1)).toEqual({ kind: "get", tabId: 2 });
   });
 
