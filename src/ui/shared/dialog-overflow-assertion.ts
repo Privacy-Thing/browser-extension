@@ -152,6 +152,53 @@ export const expectDialogFitsHeight = (dialog: HTMLElement) => {
   }
 };
 
+/**
+ * Asserts a dialog that fills a short X-Ray panel scrolls only its body: the dialog box
+ * itself gains no scroll range, so its header, close button and frame stay in view while
+ * the body scrolls to its end.
+ */
+export const expectBodyScrollsInPanel = (dialog: HTMLElement, body: HTMLElement) => {
+  expect(dialog).toHaveAttribute("data-layout", "fill");
+  const fixed = [
+    ["close button", dialog.querySelector<HTMLElement>(":scope > [data-dialog-close]")],
+    [
+      "dialog header",
+      dialog.querySelector<HTMLElement>(":scope > [data-dialog-header]"),
+    ],
+  ] as const;
+  for (const [width, height] of SHORT_SURFACES_PX) {
+    onSurface(dialog, width, height, () => {
+      const panel = `on a ${width}x${height} panel`;
+      expect(dialog.scrollHeight, `dialog scroll range ${panel}`).toBe(
+        dialog.clientHeight,
+      );
+      expect(body.scrollHeight, `body overflow ${panel}`).toBeGreaterThan(
+        body.clientHeight,
+      );
+      try {
+        body.scrollTop = body.scrollHeight;
+        expect(dialog.scrollTop, `dialog scroll offset ${panel}`).toBe(0);
+        const frame = dialog.getBoundingClientRect();
+        const content = body.getBoundingClientRect();
+        for (const [name, element] of fixed) {
+          expect(element, name).not.toBeNull();
+          const box = element!.getBoundingClientRect();
+          expect(box.top, `${name} top ${panel}`).toBeGreaterThanOrEqual(frame.top);
+          expect(box.bottom, `${name} above the body ${panel}`).toBeLessThanOrEqual(
+            content.top,
+          );
+        }
+        expect(
+          content.bottom,
+          `body end inside the frame ${panel}`,
+        ).toBeLessThanOrEqual(frame.bottom);
+      } finally {
+        body.scrollTop = 0;
+      }
+    });
+  }
+};
+
 /** The shared footer gap: Tailwind gap-2. */
 const FOOTER_GAP_PX = 8;
 

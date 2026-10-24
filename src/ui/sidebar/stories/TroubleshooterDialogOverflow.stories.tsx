@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { waitFor, within, expect } from "storybook/test";
+import { userEvent, waitFor, within, expect } from "storybook/test";
 
 import "@fortawesome/fontawesome-free/css/fontawesome.css";
 import "@fortawesome/fontawesome-free/css/solid.css";
@@ -18,11 +18,13 @@ import {
 } from "@/ui/components/ui/dialog";
 import { t } from "@/ui/i18n";
 import {
+  expectBodyScrollsInPanel,
   expectDialogCoversPanel,
   expectHeaderClearsClose,
   expectNoSideScroll,
   expectVisibleDialogFrame,
 } from "@/ui/shared/dialog-overflow-assertion";
+import { expectScrollHandle } from "@/ui/shared/scrollbar-assertion";
 import { WorkerTroubleshooterView } from "@/ui/shared/WorkerTroubleshooterView";
 
 const now = 1_800_000_000_000;
@@ -78,6 +80,40 @@ export const NoSideScroll: Story = {
     await waitFor(() => expect(dialog).toBeVisible());
     expectNoSideScroll(dialog);
   },
+};
+
+const expectDialogScrollHandle: Story["play"] = async ({ canvasElement }) => {
+  const document = canvasElement.ownerDocument;
+  const dialog = within(document.body).getByRole("dialog");
+  await waitFor(() => expect(dialog).toBeVisible());
+  // The dialog fills the panel and its body is the scroller, so the handle sits beside
+  // the body while the header and the close button stay in view.
+  const body = dialog.querySelector<HTMLElement>(":scope > .overflow-y-auto")!;
+  expectScrollHandle(body);
+  expectBodyScrollsInPanel(dialog, body);
+  // Pointing at the body brightens the handle without changing the content width.
+  const width = body.clientWidth;
+  await userEvent.hover(body);
+  await expect(body.clientWidth, "content width with the pointer over the body").toBe(
+    width,
+  );
+  // The open dialog locks the page scroll. The root gutter yields to the lock's body
+  // margin, so the scrim covers the whole window instead of stopping at the gutter.
+  await expect(document.body).toHaveAttribute("data-scroll-locked");
+  await expect(getComputedStyle(document.documentElement).scrollbarGutter).toBe("auto");
+  const scrim = document.querySelector(".gw-dialog-overlay")!.getBoundingClientRect();
+  await expect(scrim.width, "scrim width").toBe(document.defaultView!.innerWidth);
+};
+
+export const ScrollHandle: Story = {
+  tags: ["!dev", "!autodocs"],
+  play: expectDialogScrollHandle,
+};
+
+export const ScrollHandleDark: Story = {
+  tags: ["!dev", "!autodocs"],
+  globals: { theme: "dark" },
+  play: expectDialogScrollHandle,
 };
 
 const expectFrameFillingPanel: Story["play"] = async ({ canvasElement }) => {

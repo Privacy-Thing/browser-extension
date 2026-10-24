@@ -102,9 +102,13 @@
   --tone-neutral-text:    240 4% 40%;
   --tone-neutral-border:  240 6% 88%;
 
-  --scrollbar-track:      hsl(var(--muted) / 0.65);
-  --scrollbar-thumb:      hsl(var(--muted-foreground) / 0.55);
-  --scrollbar-thumb-hover:hsl(var(--muted-foreground) / 0.8);
+  /* A quiet accent handle in the reserved gutter (see "Scrollbars"): faint at rest,
+     clear while the scroll area is hovered, focused or dragged, full accent on the
+     handle. */
+  --scrollbar-track:      transparent;
+  --scrollbar-thumb-rest: hsl(var(--primary) / 0.3);
+  --scrollbar-thumb:      hsl(var(--primary) / 0.6);
+  --scrollbar-thumb-hover:hsl(var(--primary));
   --gw-form-field-surface: hsl(var(--background));
   --gw-form-field-hover-surface: hsl(var(--accent) / 0.04);
   --gw-form-panel-surface: hsl(var(--card));
@@ -179,9 +183,13 @@
   --tone-neutral-text:    240 4% 60%;
   --tone-neutral-border:  240 4% 20%;
 
-  --scrollbar-track:      hsl(var(--muted) / 0.72);
-  --scrollbar-thumb:      hsl(var(--muted-foreground) / 0.55);
-  --scrollbar-thumb-hover:hsl(var(--muted-foreground) / 0.8);
+  /* A quiet accent handle in the reserved gutter (see "Scrollbars"): faint at rest,
+     clear while the scroll area is hovered, focused or dragged, full accent on the
+     handle. */
+  --scrollbar-track:      transparent;
+  --scrollbar-thumb-rest: hsl(var(--primary) / 0.3);
+  --scrollbar-thumb:      hsl(var(--primary) / 0.6);
+  --scrollbar-thumb-hover:hsl(var(--primary));
   --gw-form-field-surface: hsl(var(--background));
   --gw-form-field-hover-surface: hsl(var(--accent) / 0.04);
   --gw-form-panel-surface: hsl(var(--card));
@@ -750,8 +758,11 @@
   --tone-neutral-text:    240 8% 20%;
   --tone-neutral-border:  240 10% 58%;
 
+  /* The accent leans 30% towards the foreground, so every accent preset keeps
+     at least 3:1 against the track. */
   --scrollbar-track:      hsl(var(--muted));
-  --scrollbar-thumb:      hsl(var(--muted-foreground));
+  --scrollbar-thumb-rest: color-mix(in srgb, hsl(var(--primary)) 70%, hsl(var(--foreground)));
+  --scrollbar-thumb:      var(--scrollbar-thumb-rest);
   --scrollbar-thumb-hover:hsl(var(--foreground));
   --gw-form-field-surface: hsl(var(--background));
   --gw-form-field-hover-surface: hsl(var(--accent) / 0.04);
@@ -805,8 +816,11 @@
   --tone-neutral-text:    240 10% 84%;
   --tone-neutral-border:  240 8% 44%;
 
+  /* The accent leans 30% towards the foreground, so every accent preset keeps
+     at least 3:1 against the track. */
   --scrollbar-track:      hsl(var(--muted));
-  --scrollbar-thumb:      hsl(var(--muted-foreground));
+  --scrollbar-thumb-rest: color-mix(in srgb, hsl(var(--primary)) 70%, hsl(var(--foreground)));
+  --scrollbar-thumb:      var(--scrollbar-thumb-rest);
   --scrollbar-thumb-hover:hsl(var(--foreground));
   --gw-form-field-surface: hsl(var(--background));
   --gw-form-field-hover-surface: hsl(var(--accent) / 0.04);
@@ -953,38 +967,87 @@
   background-color: hsl(var(--destructive) / 0.2) !important;
 }
 
-html {
-  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+/* ─── Scrollbars ───────────────────────────────────────────────────────────────
+
+  Scroll areas show a thin, rounded handle in the skin's accent colour (--primary) in
+  their reserved gutter, without arrows or a visible track. It is faint at rest and becomes clear while the scroll area is
+  hovered, holds focus or is pressed (which covers wheel, keyboard and touch scrolling
+  and dragging the handle). When the pointer enters the gutter beside it, and while it
+  is dragged, the pill widens from 4px to 8px: only the thumb's transparent border
+  shrinks, so the gutter and the content keep their size (scrollbar-contract.test.ts).
+  The handle is the native scrollbar, so dragging, clicking the gutter, wheel, touch,
+  keyboard and assistive technology keep working. High contrast keeps the handle at
+  full strength with a visible track.
+
+  Chromium draws the handle with ::-webkit-scrollbar. It ignores those pseudo-elements
+  on an element with scrollbar-width or scrollbar-color, and its standard thin
+  scrollbar has arrow buttons, so the standard properties are limited to engines
+  without ::-webkit-scrollbar (Firefox).
+
+  Scroll containers reserve the gutter so their content width does not change when
+  content starts or stops overflowing. :where() keeps the rule at zero specificity,
+  so a component that owns its gutter (the popup workspace) still decides. The popup
+  document has a fixed width and scrolls inside its workspace, so its root keeps the
+  default gutter.
+*/
+:root {
+  --gw-scrollbar-size: 10px;
 }
 
-* {
-  scrollbar-width: thin;
-  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+:where(html:not(.gw-popup-document)),
+:where(.overflow-auto, .overflow-y-auto, .overflow-scroll, .overflow-y-scroll) {
+  scrollbar-gutter: stable;
+}
+
+/* A modal dialog locks the page scroll and replaces the root scrollbar with an equal
+   body margin. The root gutter goes too, so the scrim and the dialog cover the whole
+   window instead of stopping short of the gutter, and the page behind stays put. */
+:where(html:has(> body[data-scroll-locked])) {
+  scrollbar-gutter: auto;
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb-rest) var(--scrollbar-track);
+  }
+
+  *:hover,
+  *:focus-within,
+  *:active {
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  }
 }
 
 *::-webkit-scrollbar {
-  width: 0.8rem;
-  height: 0.8rem;
+  width: var(--gw-scrollbar-size);
+  height: var(--gw-scrollbar-size);
 }
 
-*::-webkit-scrollbar-track {
+*::-webkit-scrollbar-track,
+*::-webkit-scrollbar-corner {
   background: var(--scrollbar-track);
-  border-radius: 999px;
 }
 
 *::-webkit-scrollbar-thumb {
-  background-color: var(--scrollbar-thumb);
-  border: 2px solid transparent;
+  min-width: 24px;
+  min-height: 24px;
+  border: 3px solid transparent;
   border-radius: 999px;
+  background-color: var(--scrollbar-thumb-rest);
   background-clip: padding-box;
 }
 
-*::-webkit-scrollbar-thumb:hover {
-  background-color: var(--scrollbar-thumb-hover);
+*:hover::-webkit-scrollbar-thumb,
+*:focus-within::-webkit-scrollbar-thumb,
+*:active::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb);
 }
 
-*::-webkit-scrollbar-corner {
-  background: transparent;
+*::-webkit-scrollbar-thumb:hover,
+*::-webkit-scrollbar-thumb:active {
+  border-width: 1px;
+  background-color: var(--scrollbar-thumb-hover);
 }
 
 /* ─── Proper noun highlight ──────────────────────────────────────────────────── */

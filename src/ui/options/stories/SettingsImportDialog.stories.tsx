@@ -11,6 +11,7 @@ import {
   expectNoSideScroll,
   expectVisibleDialogFrame,
 } from "@/ui/shared/dialog-overflow-assertion";
+import { expectScrollHandle } from "@/ui/shared/scrollbar-assertion";
 
 const preview: SettingsImportPreview = {
   token: "storybook-preview",
@@ -169,5 +170,13 @@ export const RegionalPreview: Story = {
     await expect(dialog.querySelector("[data-regional-preview]")).toBeVisible();
     await userEvent.click(dialog.querySelector("[data-regional-apply-timezone]")!);
     await expect(args.applyTimeZone).toHaveBeenCalledWith("paris", "Europe/Paris");
+  },
+};
+export const ScrollHandle: Story = {
+  tags: ["!dev", "!autodocs"],
+  play: async () => {
+    const dialog = within(document.body).getByRole("dialog");
+    await waitFor(() => expect(dialog).toBeVisible());
+    expectScrollHandle(dialog.querySelector<HTMLElement>(".overflow-y-auto")!);
   },
 };
