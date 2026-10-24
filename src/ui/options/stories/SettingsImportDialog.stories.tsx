@@ -3,7 +3,14 @@ import { expect, fn, userEvent, waitFor, within } from "storybook/test";
 
 import type { SettingsImportPreview } from "@/shared/settings-import";
 import { SettingsImportDialogView } from "@/ui/options/components/modals/SettingsImportDialog";
-import { expectNoSideScroll } from "@/ui/shared/dialog-overflow-assertion";
+import {
+  expectDialogFillsSurface,
+  expectDialogFitsHeight,
+  expectFooterGap,
+  expectHeaderClearsClose,
+  expectNoSideScroll,
+  expectVisibleDialogFrame,
+} from "@/ui/shared/dialog-overflow-assertion";
 
 const preview: SettingsImportPreview = {
   token: "storybook-preview",
@@ -75,6 +82,21 @@ export const NoSideScroll: Story = {
     const dialog = within(document.body).getByRole("dialog");
     await waitFor(() => expect(dialog).toBeVisible());
     expectNoSideScroll(dialog);
+  },
+};
+export const FrameAndViewportGap: Story = {
+  tags: ["!dev", "!autodocs"],
+  play: async () => {
+    const dialog = within(document.body).getByRole("dialog");
+    await waitFor(() => expect(dialog).toBeVisible());
+    expectVisibleDialogFrame(dialog);
+    expectDialogFillsSurface(dialog);
+    expectDialogFitsHeight(dialog);
+    expectHeaderClearsClose(dialog);
+    expectFooterGap(dialog.querySelector<HTMLElement>("[data-dialog-footer]")!);
+    // The retention notice sits outside the scrolling list, so its edge cannot cut it.
+    const retention = dialog.querySelector<HTMLElement>("[data-import-retention]")!;
+    await expect(retention.parentElement).toBe(dialog);
   },
 };
 export const UnresolvedConflict: Story = {

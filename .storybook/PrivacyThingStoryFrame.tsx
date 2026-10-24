@@ -2,6 +2,7 @@ import type { Decorator } from "@storybook/react";
 import type { ReactNode } from "react";
 
 import { cn } from "@/ui/components/lib/utils";
+import { DialogLayoutProvider } from "@/ui/components/ui/dialog";
 
 type StorySurface = "component" | "popup" | "sidebar" | "options" | "window";
 
@@ -30,9 +31,12 @@ export const withBrandStoryFrame: Decorator = (Story, context) => {
   const privacyThing = context.parameters.privacyThing as { surface?: StorySurface } | undefined;
   const surface = privacyThing?.surface ?? "component";
 
+  // Like the sidebar page, sidebar stories open dialogs that cover the whole surface.
   return (
-    <StoryFrame surface={surface}>
-      <Story />
-    </StoryFrame>
+    <DialogLayoutProvider layout={surface === "sidebar" ? "fill" : "centered"}>
+      <StoryFrame surface={surface}>
+        <Story />
+      </StoryFrame>
+    </DialogLayoutProvider>
   );
 };
