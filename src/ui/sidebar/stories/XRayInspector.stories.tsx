@@ -273,9 +273,8 @@ export const Armed: Story = {
   args: { preset: "armed" },
   play: async (context) => {
     const canvas = within(context.canvasElement);
-    await expect(inspectorToggle(canvas)).toHaveAttribute(
-      "data-inspector-armed",
-      "true",
+    await waitFor(() =>
+      expect(inspectorToggle(canvas)).toHaveAttribute("data-inspector-armed", "true"),
     );
     await openInspector(context);
     await expectPhase(context.canvasElement, "armed");

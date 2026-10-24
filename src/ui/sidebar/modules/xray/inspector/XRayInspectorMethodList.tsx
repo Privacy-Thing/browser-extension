@@ -261,6 +261,7 @@ export const XRayInspectorMethodList = ({
         <Button
           variant={usedOnly ? "secondary" : "outline"}
           size="sm"
+          className="h-9"
           aria-pressed={usedOnly}
           disabled={usedCount === 0 && !usedOnly}
           data-inspector-used-filter={usedOnly}
