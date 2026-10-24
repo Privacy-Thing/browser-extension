@@ -1,3 +1,9 @@
+import {
+  CMD_XRAY_GET_INSPECTOR_STATE,
+  CMD_XRAY_SET_INSPECTOR,
+  CMD_XRAY_CLEAR_INSPECTOR,
+} from "@privacy-brand/xray-protocol/inspector-commands";
+
 const EXTENSION_NAMESPACE = "pt";
 
 const createCommandType = <Name extends string>(name: Name) =>
@@ -79,6 +85,9 @@ export const EXTENSION_COMMAND_TYPES = {
   logEvent: CMD_LOG_EVENT,
   createLocationDraft: createCommandType("create-location-draft"),
   createDraftFromCandidate: createCommandType("create-location-draft-from-candidate"),
+  getXRayInspectorState: CMD_XRAY_GET_INSPECTOR_STATE,
+  setXRayInspector: CMD_XRAY_SET_INSPECTOR,
+  clearXRayInspector: CMD_XRAY_CLEAR_INSPECTOR,
   getXRayState: createCommandType("get-doctor-state"),
   surfaceUsage: CMD_SURFACE_USAGE,
   surfaceError: CMD_SURFACE_ERROR,
@@ -145,6 +154,7 @@ export const EXTENSION_STORAGE_KEYS = {
   trustedSites: createStorageKey("trustedSites"),
   workerTestSessions: createStorageKey("worker-test-sessions"),
   hostProtectionPauses: createStorageKey("host-protection-pauses"),
+  inspectorSessions: createSessionKey("inspector-sessions"),
   pausedDocuments: createSessionKey("paused-documents"),
   controlState: createStorageKey("control-state"),
   migrationNotice: createStorageKey("migrationNotice"),

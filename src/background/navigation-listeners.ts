@@ -1,3 +1,4 @@
+import { firefoxBrowserApi } from "@/background/firefox-browser-api";
 import { isHttpUrl, resolveTopFrameDecision } from "@/background/top-frame-snapshot";
 import { BUILD_BROWSER_TARGET } from "@/shared/build-flags";
 import type { HostProtectionPause } from "@/shared/host-protection-pause";
@@ -36,6 +37,7 @@ export type NavigationDeps = {
     hostname: string,
     cookieStoreId?: string,
     exactOrigin?: string,
+    options?: { tabId?: number },
   ) => Promise<RuntimeDecision>;
   invalidateTabSnapshots: (tabId: number) => void;
   readDecisionCache: (
@@ -206,6 +208,7 @@ const resolveNavDecision = async (
             topHost,
             activeTab?.cookieStoreId,
             topUrl,
+            { tabId: details.tabId },
           ),
         },
         activeTab?.cookieStoreId,
@@ -224,6 +227,7 @@ const resolveNavDecision = async (
     hostname,
     activeTab?.cookieStoreId,
     details.url,
+    { tabId: details.tabId },
   );
   return withCookieStore({ hostname, decision }, activeTab?.cookieStoreId);
 };
@@ -395,4 +399,19 @@ export const registerNavListeners = (deps: NavigationDeps): void => {
   registerFirefoxRequest(deps);
   registerBeforeNavigate(deps);
   registerCommitted(deps);
+};
+
+export const listenFxTopRequests: NavigationDeps["listenFirefoxRequest"] = (
+  listener,
+) => {
+  firefoxBrowserApi?.webRequest?.onBeforeRequest?.addListener(
+    listener,
+    {
+      // Firefox URL match patterns need explicit protocol coverage here.
+      // eslint-disable-next-line sonarjs/no-clear-text-protocols
+      urls: ["http://*/*", "https://*/*"],
+      types: ["main_frame"],
+    },
+    ["blocking"],
+  );
 };

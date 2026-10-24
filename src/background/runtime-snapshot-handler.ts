@@ -25,6 +25,8 @@ type SnapshotHandlerDeps = {
   resolveRuntimeDecision: (
     hostname: string,
     cookieStoreId?: string,
+    exactOrigin?: string,
+    options?: { tabId?: number },
   ) => Promise<ResolutionDecision>;
   readDecisionCache: (
     tabId: number,
@@ -113,7 +115,12 @@ export const createSnapshotHandler =
       frameId !== 0 ? await chrome.tabs.get(tabId).catch(() => undefined) : undefined;
     let topHostname = message.hostname;
     if (tab?.url && /^https?:/.test(tab.url)) topHostname = new URL(tab.url).hostname;
-    const decision = await deps.resolveRuntimeDecision(topHostname, cookieStoreId);
+    const decision = await deps.resolveRuntimeDecision(
+      topHostname,
+      cookieStoreId,
+      undefined,
+      { tabId },
+    );
     if (frameId !== 0)
       deps.updateSnapshotCache({
         tabId,
