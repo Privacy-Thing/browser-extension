@@ -18,19 +18,20 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ### Added
 
-- X-Ray Inspector can pause browser developer tools when a page script reads a spoofed
-  API you choose, on its first read or on every read. Turn on Inspector in Page activity,
-  pick categories or single methods with search and a "used on this page" filter, then
-  arm it. On the open page and its cross-origin frames, arming and disarming take effect
-  immediately without a reload. Script-opened windows, same-origin frames with their
-  own runtime and workers pick the change up on their next load, and X-Ray says so;
-  a page that cannot be updated live offers arming with a reload or on the next load.
-  X-Ray shows what is armed, flags unapplied selection changes, and explains when
-  Inspector is unavailable for a Trusted Site, paused protection or an unsupported
-  page. Methods that cannot be paused on, because the rule does not spoof them or the
-  browser has no hook for them, are shown but cannot be selected. A selection belongs
-  to one tab and its current domain. Firefox cannot pause on Date or Intl reads, and
-  shared workers never pause. Available in beta and development builds.
+- X-Ray Inspector can stop script execution when a page script reads a spoofed API
+  you choose, on its first read or on every read, while browser developer tools are
+  open for the tab. Turn on Inspector in Page activity, pick categories or single
+  methods with search and a "used on this page" filter, then arm it. On the open page
+  and its cross-origin frames, arming and disarming take effect immediately without a
+  reload. Script-opened windows, same-origin frames with their own runtime and workers
+  pick the change up on their next load, and X-Ray says so; a page that cannot be
+  updated live offers arming with a reload or on the next load. X-Ray shows what is
+  armed, flags unapplied selection changes, and explains when Inspector is unavailable
+  for a Trusted Site, paused protection or an unsupported page. Methods Inspector
+  cannot stop on, because the rule does not spoof them or the browser has no hook for
+  them, are shown but cannot be selected. A selection belongs to one tab and its
+  current domain. In Firefox, Inspector cannot stop on Date or Intl reads, and it never
+  stops shared workers. Available in beta and development builds.
 
 - The optional Control D integration is now included in production builds for Chromium
   and Firefox, with API access requested only when connecting.

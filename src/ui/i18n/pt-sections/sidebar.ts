@@ -261,9 +261,9 @@ export const sidebar = {
   inspector: {
     toggle: "Inspetor",
     toggleHint:
-      "Escolha as APIs falsificadas que pausam as ferramentas de desenvolvedor do navegador quando a página as usa",
+      "Escolha as APIs falsificadas que interrompem a execução de scripts quando a página as usa",
     intro:
-      "Escolha as APIs falsificadas que devem pausar as ferramentas de desenvolvedor do navegador quando um script da página as usar. Abra as ferramentas de desenvolvedor nesta aba antes.",
+      "Escolha as APIs falsificadas que devem interromper a execução de scripts quando um script da página as usar. Funciona enquanto as ferramentas de desenvolvedor do navegador estiverem abertas nesta aba.",
     loading: "Verificando o estado do Inspetor…",
     loadError: (message: string) =>
       `Não foi possível ler o estado do Inspetor: ${message}`,
@@ -278,11 +278,13 @@ export const sidebar = {
       ready: (count: number) =>
         `${count} ${count === 1 ? "método selecionado" : "métodos selecionados"}.`,
       changed: "Aplique para atualizar o que está ativo ou desfaça suas alterações.",
-      changedToEmpty: "Nada está selecionado. Desative para parar de pausar.",
+      changedToEmpty:
+        "Nada está selecionado. Desative para que os scripts não sejam mais interrompidos.",
       active: "Ativo nesta página.",
       appliedLive: "Ativo nesta página, sem recarregar.",
       pendingArm: "Será aplicado quando a página recarregar.",
-      pendingDisarm: "As pausas param quando a página recarregar.",
+      pendingDisarm:
+        "Os scripts deixam de ser interrompidos quando a página recarregar.",
       partialLive: "Ativo nesta página. Alguns quadros aplicam após recarregar.",
       partialDisarm: "Parado nesta página. Alguns quadros param após recarregar.",
     },
@@ -309,11 +311,12 @@ export const sidebar = {
       nextLoad: "Aplica-se no próximo carregamento da página.",
     },
     actionError: (message: string) => `Não foi possível aplicar: ${message}`,
-    everyCall: "Pausar em cada chamada",
-    firstCallHint: "Pausa uma vez por método a cada carregamento da página.",
+    everyCall: "Interromper em cada chamada",
+    firstCallHint: "Interrompe uma vez por método a cada carregamento da página.",
     everyCallWarning:
-      "APIs populares, como leituras de horário, podem pausar com muita frequência. Selecione apenas os métodos de que precisa.",
-    pauseNotice: "A pausa é real, então a página pode perceber o atraso.",
+      "APIs populares, como leituras de horário, podem interromper a página com muita frequência. Selecione apenas os métodos de que precisa.",
+    pauseNotice:
+      "Enquanto a execução está interrompida, a página fica congelada, mas o relógio continua correndo, então a página pode perceber o atraso.",
     firefoxNotice: `Nas ferramentas de desenvolvedor do Firefox, ative Configurações › Ignorar scripts de terceiros conhecidos para ocultar os quadros do ${BRAND_DISPLAY_NAME} na pilha de chamadas.`,
     coverage: {
       pending: (count: number, reasons: string) =>
@@ -337,7 +340,7 @@ export const sidebar = {
       noRuntime: `Não é possível alcançar o ambiente do ${BRAND_DISPLAY_NAME} nesta página. Recarregue a página e tente novamente.`,
     },
     list: {
-      label: "Métodos em que pausar",
+      label: "Métodos em que interromper",
       search: "Pesquisar métodos",
       usedOnly: "Usados nesta página",
       noMatches: "Nenhum método corresponde.",
@@ -349,7 +352,7 @@ export const sidebar = {
       used: (count: number) => (count === 1 ? "Usado uma vez" : `Usado ${count} vezes`),
       notTrappable: "Indisponível",
       notTrappableReason:
-        "O Inspetor não pode pausar neste método aqui: a regra deste domínio não o falsifica ou este navegador não permite interceptá-lo.",
+        "O Inspetor não pode interromper a execução neste método aqui: a regra deste domínio não o falsifica ou este navegador não permite interceptá-lo.",
     },
   },
 

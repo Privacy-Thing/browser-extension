@@ -265,9 +265,9 @@ export const sidebar = {
   inspector: {
     toggle: "Inspector",
     toggleHint:
-      "Elige las API falseadas que pausan las herramientas para desarrolladores del navegador cuando la página las usa",
+      "Elige las API falseadas que detienen la ejecución de scripts cuando la página las usa",
     intro:
-      "Elige las API falseadas que deben pausar las herramientas para desarrolladores del navegador cuando un script de la página las use. Abre antes las herramientas para desarrolladores en esta pestaña.",
+      "Elige las API falseadas que deben detener la ejecución de scripts cuando un script de la página las use. Funciona mientras las herramientas para desarrolladores del navegador están abiertas en esta pestaña.",
     loading: "Comprobando el estado del Inspector…",
     loadError: (message: string) =>
       `No se pudo leer el estado del Inspector: ${message}`,
@@ -282,11 +282,12 @@ export const sidebar = {
       ready: (count: number) =>
         `${count} ${count === 1 ? "método seleccionado" : "métodos seleccionados"}.`,
       changed: "Aplica para actualizar lo que está activo o revierte tus cambios.",
-      changedToEmpty: "No hay nada seleccionado. Desactiva para dejar de pausar.",
+      changedToEmpty:
+        "No hay nada seleccionado. Desactiva para que los scripts dejen de detenerse.",
       active: "Activo en esta página.",
       appliedLive: "Activo en esta página, sin recargar.",
       pendingArm: "Se aplicará cuando se recargue la página.",
-      pendingDisarm: "Las pausas terminan cuando se recargue la página.",
+      pendingDisarm: "Los scripts dejarán de detenerse cuando se recargue la página.",
       partialLive: "Activo en esta página. Algunos marcos lo aplican tras recargar.",
       partialDisarm:
         "Detenido en esta página. Algunos marcos se detienen tras recargar.",
@@ -314,11 +315,12 @@ export const sidebar = {
       nextLoad: "Se aplica en la próxima carga de la página.",
     },
     actionError: (message: string) => `No se pudo aplicar: ${message}`,
-    everyCall: "Pausar en cada llamada",
-    firstCallHint: "Pausa una vez por método en cada carga de la página.",
+    everyCall: "Detener en cada llamada",
+    firstCallHint: "Se detiene una vez por método en cada carga de la página.",
     everyCallWarning:
-      "Las API habituales, como las lecturas de la hora, pueden pausar muy a menudo. Selecciona solo los métodos que necesites.",
-    pauseNotice: "La pausa es real, así que la página puede notar el retraso.",
+      "Las API habituales, como las lecturas de la hora, pueden detener la página muy a menudo. Selecciona solo los métodos que necesites.",
+    pauseNotice:
+      "Mientras la ejecución está detenida, la página se queda congelada, pero el reloj sigue corriendo, así que la página puede notar el retraso.",
     firefoxNotice: `En las herramientas para desarrolladores de Firefox, activa Ajustes › Ignorar scripts de terceros conocidos para ocultar los marcos de ${BRAND_DISPLAY_NAME} en la pila de llamadas.`,
     coverage: {
       pending: (count: number, reasons: string) =>
@@ -342,7 +344,7 @@ export const sidebar = {
       noRuntime: `No se puede contactar con el entorno de ${BRAND_DISPLAY_NAME} en esta página. Recarga la página y vuelve a intentarlo.`,
     },
     list: {
-      label: "Métodos en los que pausar",
+      label: "Métodos en los que detenerse",
       search: "Buscar métodos",
       usedOnly: "Usados en esta página",
       noMatches: "Ningún método coincide.",
@@ -354,7 +356,7 @@ export const sidebar = {
       used: (count: number) => (count === 1 ? "Usado una vez" : `Usado ${count} veces`),
       notTrappable: "No disponible",
       notTrappableReason:
-        "El Inspector no puede pausar en este método aquí: la regla de este dominio no lo falsea o este navegador no permite interceptarlo.",
+        "El Inspector no puede detenerse en este método aquí: la regla de este dominio no lo falsea o este navegador no permite interceptarlo.",
     },
   },
 
