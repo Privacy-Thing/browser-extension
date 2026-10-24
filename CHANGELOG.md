@@ -81,8 +81,12 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 - Import can merge selected presets and rules with explicit ID/pattern conflict
   choices, remapped preset references, and manual Firefox container mapping.
   Import errors are shown as readable messages with a next step (for example, an
-  unsupported preset time zone), with technical details collapsed. Several time zone
-  corrections made at once in the preview are all kept.
+  unsupported preset time zone), with technical details collapsed. A file that uses
+  a reserved name such as `constructor` or `__proto__` as a preset ID, container ID
+  or key, or `__proto__` as a rule pattern, is rejected with an error naming it and
+  where it occurs. New presets never receive such an ID, and an existing preset with
+  one (for example, named “Constructor”) gets a new ID once, so exports stay importable.
+  Several time zone corrections made at once in the preview are all kept.
 
 - Added complete Spanish and Portuguese interface translations, selected
   automatically from the browser interface language with English as the fallback.
