@@ -59,5 +59,6 @@ export const CHROME_EARLY_MAX_BYTES = 12 * 1024 + 512;
 
 /**
  * Chromium main-world runtime, including the inlined worker source.
+ * Per-build identifiers vary the size of the same graph by about 200 B.
  */
-export const CHROME_RUNTIME_MAX_BYTES = 190 * 1024 + 512;
+export const CHROME_RUNTIME_MAX_BYTES = 191 * 1024;
