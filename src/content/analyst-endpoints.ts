@@ -18,7 +18,11 @@ import {
  * page script exists is hidden from other listeners. Commands are dispatched on
  * the endpoint element only; nothing is dispatched on `document` or `window`.
  */
-const HANDOFF_TYPES = [__PT_ANALYST_HANDOFF_EARLY__, __PT_ANALYST_HANDOFF_RUNTIME__];
+// A function, so builds without the channel keep none of these names.
+const handoffTypes = (): readonly string[] => [
+  __PT_ANALYST_HANDOFF_EARLY__,
+  __PT_ANALYST_HANDOFF_RUNTIME__,
+];
 const endpoints = new Map<string, Element>();
 const refused = new Set<string>();
 let acknowledgement = "";
@@ -34,7 +38,7 @@ const pageScriptsMayHaveRun = (): boolean => {
 };
 
 const closeRegistry = (): void => {
-  for (const type of HANDOFF_TYPES)
+  for (const type of handoffTypes())
     document.removeEventListener(type, acceptEndpoint, true);
 };
 
@@ -59,7 +63,7 @@ function acceptEndpoint(event: Event): void {
   node.addEventListener(__PT_ANALYST_ACK__, (ack) => {
     acknowledgement = String((ack as CustomEvent<unknown>).detail);
   });
-  if (endpoints.size === HANDOFF_TYPES.length) closeRegistry();
+  if (endpoints.size === handoffTypes().length) closeRegistry();
 }
 
 /** A same-origin ancestor can reach this document's window before its runtime. */
@@ -129,7 +133,7 @@ export const installAnalystEndpoints = (): void => {
   if (hasOpener()) blocked = "opened-window";
   else if (hasSameOriginAncestor()) blocked = "same-origin-frame";
   else {
-    for (const type of HANDOFF_TYPES)
+    for (const type of handoffTypes())
       document.addEventListener(type, acceptEndpoint, true);
     setTimeout(closeRegistry, 0);
   }
