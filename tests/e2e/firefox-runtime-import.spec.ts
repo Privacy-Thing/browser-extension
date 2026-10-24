@@ -394,26 +394,35 @@ test("Firefox keeps two time zone corrections made in the same tick", async ({
   }
 });
 
-test("Firefox import rejects an unsupported preset time zone with a readable error", async ({
+test("Firefox import offers a supported time zone for each rejected preset", async ({
   context,
   extensionOrigin,
   debuggerPort,
 }) => {
   const ui = await openFxOptionsProbe({ context, extensionOrigin, debuggerPort });
   const driver = createImportDriver(ui);
+  const preset = IMPORT_FIXTURE.locations[0]!;
+  const state = (id: string) =>
+    ui.evaluate<string | null>(
+      `document.querySelector('[data-import-time-zone-correction="${id}"]')?.getAttribute("data-import-time-zone-state") ?? null`,
+    );
+  const choose = async (id: string, timeZone: string) => {
+    await driver.click(`[data-import-time-zone-correction="${id}"] [role="combobox"]`);
+    const option = `[data-combobox-option-value="${timeZone}"]`;
+    await expect.poll(() => driver.isPresent(option)).toBe(true);
+    await driver.click(option);
+    await expect.poll(() => state(id)).toBe("chosen");
+  };
   try {
     await expect.poll(() => driver.isPresent('[data-tab="advanced"]')).toBe(true);
     await driver.click('[data-tab="advanced"]');
     await expect.poll(() => driver.isPresent("#import-settings-file")).toBe(true);
+    const before = await driver.exported();
     await driver.chooseFile({
       ...IMPORT_FIXTURE,
       locations: [
-        {
-          ...IMPORT_FIXTURE.locations[0]!,
-          id: "mars",
-          label: "Mars",
-          timeZone: "Mars/Olympus",
-        },
+        { ...preset, id: "mars", label: "Mars", timeZone: "Mars/Olympus" },
+        { ...preset, id: "venus", label: "Venus", timeZone: "Venus/Cloud" },
       ],
       rules: [],
     });
@@ -422,10 +431,36 @@ test("Firefox import rejects an unsupported preset time zone with a readable err
       await ui.evaluate<string[]>(
         `Array.from(document.querySelectorAll("[data-import-error-item]"), (item) => item.getAttribute("data-import-error-item"))`,
       ),
-    ).toEqual(["timeZone"]);
-    expect(await driver.isPresent('[data-import-error-hint="timeZone"]')).toBe(true);
+    ).toEqual(["timeZone", "timeZone"]);
+    expect(await driver.isPresent("[data-import-error-hint]")).toBe(false);
     expect(await driver.isPresent("[data-import-error-details]")).toBe(true);
+    expect([await state("mars"), await state("venus")]).toEqual(["missing", "missing"]);
     expect(await driver.isEnabled("#settings-import-confirm")).toBe(false);
+    await choose("mars", "Asia/Tokyo");
+    expect(await driver.isPresent("[data-import-error]")).toBe(true);
+    expect(await driver.isEnabled("#settings-import-confirm")).toBe(false);
+    await choose("venus", "Europe/Paris");
+    await expect.poll(() => driver.isPresent("[data-import-error]")).toBe(false);
+    await expect
+      .poll(() =>
+        driver.isPresent(
+          '[data-regional-profile="mars"] [data-regional-warning="timeZone"]',
+        ),
+      )
+      .toBe(true);
+    await expect.poll(() => driver.isEnabled("#settings-import-confirm")).toBe(true);
+    expect(await driver.exported()).toEqual(before);
+    await driver.click("#settings-import-confirm");
+    await expect.poll(() => driver.isPresent("#settings-import-dialog")).toBe(false);
+    expect(
+      (await driver.exported()).locations.map((location) => [
+        location.id,
+        location.timeZone,
+      ]),
+    ).toEqual([
+      ["mars", "Asia/Tokyo"],
+      ["venus", "Europe/Paris"],
+    ]);
   } finally {
     await ui.close();
   }
