@@ -130,6 +130,48 @@ describe("regional corrections in import", () => {
     expect(mutationCalls()).toHaveLength(0);
   });
 
+  it("keeps both zone corrections made in the same tick", async () => {
+    const profile = incoming.source.locations[0]!;
+    const source = {
+      ...incoming.source,
+      locations: ["a", "b", "c"].map((id) => ({
+        ...profile,
+        id,
+        timeZone: "Asia/Tokyo",
+      })),
+    };
+    await act(async () =>
+      current.handleImportSettings({
+        currentTarget: {
+          value: "file.json",
+          files: [{ text: async () => JSON.stringify(source) }],
+        },
+      } as unknown as ChangeEvent<HTMLInputElement>),
+    );
+    await act(async () => {
+      void current.updateImportTimeZone("a", "Europe/Paris");
+      void current.updateImportTimeZone("b", "Europe/Paris");
+    });
+    expect(
+      current.importPreview?.source.locations.map((item) => [item.id, item.timeZone]),
+    ).toEqual([
+      ["a", "Europe/Paris"],
+      ["b", "Europe/Paris"],
+      ["c", "Asia/Tokyo"],
+    ]);
+  });
+
+  it("keeps a zone correction when a selection change follows in the same tick", async () => {
+    await act(async () => {
+      void current.updateImportTimeZone("warsaw", "Europe/Warsaw");
+      void current.updateImportSelection({
+        ...incoming.selection,
+        locations: { warsaw: "skip" },
+      });
+    });
+    expect(current.importPreview?.source.locations[0]?.timeZone).toBe("Europe/Warsaw");
+  });
+
   it("keeps the original preview and reports a failed suggestion without applying configuration", async () => {
     messaging.mockRejectedValueOnce(new Error("Preview failed"));
     await act(async () => current.updateImportTimeZone("warsaw", "Europe/Warsaw"));
