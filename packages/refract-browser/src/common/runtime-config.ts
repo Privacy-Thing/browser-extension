@@ -438,8 +438,8 @@ const takeRuntimeWindowSeed = (targetWindow: {
 export const cleanupRuntimeWindowSeed = (
   targetWindow: { name?: string } = globalThis as typeof globalThis & { name?: string },
 ): SeedCleanupResult => {
-  // An explicit next-document activation must survive cleanup in the old document.
-  // The new document consumes it through the ordinary read path.
+  // A seed written right before a reload is meant for the next document and must
+  // survive cleanup in the old one. The new document consumes it as usual.
   if (parseRuntimeWindowSeed(targetWindow.name ?? "")?.nextLoad) return "absent";
   return takeRuntimeWindowSeed(targetWindow).status;
 };

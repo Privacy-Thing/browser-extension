@@ -20,11 +20,19 @@ const sender = {
   url: "chrome-extension://extension/src/ui/sidebar/index.html",
 };
 const reload = vi.fn(async () => undefined);
+type Navigation = { tabId: number; frameId: number; url: string };
+let navigationListeners: Record<string, ((details: Navigation) => void)[]>;
 let stored: Record<string, unknown>;
 beforeEach(() => {
   vi.resetModules();
   stored = {};
+  navigationListeners = {};
   reload.mockClear();
+  const navigationEvent = (name: string) => ({
+    addListener: (listener: (details: Navigation) => void) => {
+      (navigationListeners[name] ??= []).push(listener);
+    },
+  });
   vi.stubGlobal("chrome", {
     runtime: {
       id: "extension",
@@ -37,6 +45,15 @@ beforeEach(() => {
         cookieStoreId: "container-1",
       })),
       reload,
+      onRemoved: { addListener: vi.fn() },
+    },
+    webNavigation: {
+      onBeforeNavigate: navigationEvent("onBeforeNavigate"),
+      onCommitted: navigationEvent("onCommitted"),
+      getAllFrames: vi.fn(async () => [
+        { frameId: 0, url: "https://probe.example/path" },
+        { frameId: 7, url: "https://third-party.example/frame" },
+      ]),
     },
     storage: {
       local: { get: vi.fn(async () => ({})) },
@@ -48,6 +65,7 @@ beforeEach(() => {
       },
     },
     alarms: { clear: vi.fn(async () => true), create: vi.fn(async () => undefined) },
+    scripting: { executeScript: vi.fn(async () => []) },
   });
 });
 afterEach(() => vi.unstubAllGlobals());
@@ -117,6 +135,41 @@ describe("tab Inspector activation", () => {
     await restored.storeInspector(4, "probe.example", desired);
     await restored.removeInspector(4);
     expect(restored.readInspector(4, "probe.example")).toBeUndefined();
+  });
+  const register = async () => {
+    const { registerInspector } = await import("./inspector-controller");
+    const seededFrames: number[] = [];
+    const inspectorCommand = registerInspector({
+      resolveRuntimeDecision: vi.fn(async () => ({
+        snapshot,
+        trustedSiteMatched: false,
+      })),
+      invalidate: vi.fn(),
+      seedChromiumWindow: async (_tabId, frameId) => {
+        seededFrames.push(frameId);
+      },
+      injectFxWindowSeed: async ({ frameId }) => {
+        seededFrames.push(frameId);
+      },
+    });
+    const store = await import("./storage/inspector-sessions");
+    return { inspectorCommand, seededFrames, store };
+  };
+  it("writes nothing into open documents for the next load and seeds only the top document before a reload", async () => {
+    const { inspectorCommand, seededFrames } = await register();
+    const command = {
+      type: CMD_XRAY_SET_INSPECTOR,
+      tabId: 3,
+      methodIds: [...desired.methods],
+      mode: desired.mode,
+    };
+    await inspectorCommand({ ...command, apply: "next-load" }, sender);
+    expect(seededFrames).toEqual([]);
+    expect(chrome.scripting.executeScript).not.toHaveBeenCalled();
+    await inspectorCommand({ ...command, apply: "now" }, sender);
+    expect(seededFrames).toEqual([0]);
+    expect(chrome.scripting.executeScript).not.toHaveBeenCalled();
+    expect(reload).toHaveBeenCalledWith(3);
   });
   it("reports Trusted Sites unavailable and never adds traps", async () => {
     const h = await setup({ snapshot: null, trustedSiteMatched: true });

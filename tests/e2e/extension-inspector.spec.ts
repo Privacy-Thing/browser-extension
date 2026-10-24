@@ -170,12 +170,15 @@ test("Inspector pauses only selected reads in the real runtime and leaves the pl
     appliedVia: "next-load",
     state: { pendingReload: true },
   });
+  // The next load is resolved when it starts; the open document holds no seed.
+  expect(await page.evaluate(() => window.name)).toBe("");
   observed.pauses.length = 0;
   await run("battery");
   expect(observed.pauses).toHaveLength(0);
   await run("date");
   expect(observed.pauses).toHaveLength(1);
   await page.reload();
+  expect(await page.evaluate(() => window.name)).toBe("");
   observed.pauses.length = 0;
   await run("date");
   expect(observed.pauses).toHaveLength(0);

@@ -166,6 +166,18 @@ test("Firefox Inspector pauses at a selected native getter in the real MAIN runt
     await remote.client.request({ to: threadActor, type: "resume" });
     await value;
     await expect(page.locator("#result")).toHaveText("false");
+    expect(
+      (
+        await command(CMD_XRAY_SET_INSPECTOR, {
+          tabId,
+          methodIds: ["navigator.webdriver"],
+          mode: "first-call",
+          apply: "next-load",
+        })
+      ).appliedVia,
+    ).toBe("next-load");
+    // The next load is resolved when it starts; the open document holds no seed.
+    expect(await page.evaluate(() => window.name)).toBe("");
   } finally {
     remote.disconnect();
     await page.close();

@@ -1,4 +1,4 @@
-import { seedPauseFrames, type PauseSeedDeps } from "@/background/host-pause-seed";
+import type { PauseSeedDeps } from "@/background/host-pause-seed";
 import { createInspectorHandlers } from "@/background/inspector-commands";
 import type { ResolutionDecision } from "@/background/prepared-runtime-decisions";
 import { publishSidebarEvent } from "@/background/sidebar-event-hub";
@@ -8,7 +8,23 @@ import {
   removeInspector,
 } from "@/background/storage/inspector-sessions";
 import { fireAndForget } from "@/shared/async";
+import { BUILD_BROWSER_TARGET } from "@/shared/build-flags";
 import { EXTENSION_COMMAND_TYPES } from "@/shared/extension-contract";
+import type { EffectiveTabContext } from "@/shared/types";
+
+/** A reload replaces every child document, so only the top document is seeded. */
+const seedTopDocument = (
+  context: EffectiveTabContext,
+  decision: ResolutionDecision,
+  deps: PauseSeedDeps,
+): Promise<void> =>
+  BUILD_BROWSER_TARGET === "chromium"
+    ? deps.seedChromiumWindow(context.tabId, 0, decision)
+    : deps.injectFxWindowSeed({
+        tabId: context.tabId,
+        frameId: 0,
+        ...(context.cookieStoreId ? { cookieStoreId: context.cookieStoreId } : {}),
+      });
 
 export const registerInspector = (
   deps: PauseSeedDeps & {
@@ -21,7 +37,7 @@ export const registerInspector = (
 ) => {
   const handlers = createInspectorHandlers({
     resolveRuntimeDecision: deps.resolveRuntimeDecision,
-    prepare: (context, decision) => seedPauseFrames(context, decision, deps),
+    prepare: (context, decision) => seedTopDocument(context, decision, deps),
     invalidate: deps.invalidate,
     publish: (tabId) =>
       publishSidebarEvent({ type: "doctor-state-invalidated", tabId }),

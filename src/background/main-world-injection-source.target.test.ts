@@ -3,7 +3,10 @@ import { resolve } from "node:path";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { restoreFxHashUrl } from "@/background/main-world-injection";
+import {
+  restoreFxHashUrl,
+  seedWindowSnapshot,
+} from "@/background/main-world-injection";
 
 describe("MAIN-world injection source", () => {
   const source = readFileSync(
@@ -22,6 +25,43 @@ describe("MAIN-world injection source", () => {
 
   it("has no runtime imports", () => {
     expect(source).not.toMatch(/^import (?!type )/m);
+  });
+
+  it("replaces an older seed and keeps only the page-owned name from it", () => {
+    const prefix = "\u001f\u001e";
+    const decode = (name: string) =>
+      JSON.parse(
+        atob(name.slice(prefix.length).replace(/-/g, "+").replace(/_/g, "/")),
+      ) as Record<string, unknown>;
+    const older = { kind: "snapshot", previousName: "page", nextLoad: true };
+    vi.stubGlobal("name", `${prefix}${btoa(JSON.stringify(older))}`);
+    const snapshot = {
+      geo: { latitude: 0, longitude: 0, accuracy: 20, noiseRadius: 50 },
+      locale: {
+        language: "en",
+        languages: ["en"],
+        timeZone: "UTC",
+        acceptLanguage: "en",
+      },
+      date: { baseEpochMs: 0, offsetMs: 0, timeZone: "UTC" },
+      debugMode: false,
+      watchPositionDelay: [60, 500] as [number, number],
+    };
+    seedWindowSnapshot(snapshot, prefix);
+    expect(decode((globalThis as { name?: string }).name ?? "")).toEqual({
+      kind: "snapshot",
+      previousName: "page",
+      snapshot,
+    });
+    vi.stubGlobal("location", { hostname: "probe.example" });
+    seedWindowSnapshot(snapshot, prefix, false, { nextLoad: true });
+    expect(decode((globalThis as { name?: string }).name ?? "")).toEqual({
+      kind: "snapshot",
+      previousName: "page",
+      nextLoad: true,
+      sourceHostname: "probe.example",
+      snapshot,
+    });
   });
 
   it("restores the Firefox hash without module-scope closures", () => {

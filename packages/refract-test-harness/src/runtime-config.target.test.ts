@@ -65,7 +65,7 @@ afterEach(() => {
 
 describe("runtime-config", () => {
   it.each([true, false])(
-    "keeps an explicit next-load Inspector %s seed through old-document cleanup",
+    "keeps a seed reserved for the reloaded document through old-document cleanup (armed: %s)",
     (armed) => {
       const snapshot = {
         ...createSnapshot(),

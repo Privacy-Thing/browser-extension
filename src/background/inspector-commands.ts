@@ -99,11 +99,16 @@ export const createInspectorHandlers = (deps: InspectorDeps) => {
         throw new Error("A selected method is not spoofed in this document.");
       await storeInspector(tabId, current.context.hostname, desired);
       deps.invalidate(tabId);
-      const decision = withInspector(tabId, current.context.hostname, current.decision);
-      // Seed even for next-load: window.name survives the next unload, while the
-      // active runtime keeps its original activation until a new document loads.
-      await deps.prepare(current.context, decision);
+      // A next-load selection is resolved when the tab next navigates, so nothing
+      // is written into the current documents. A reload is seeded right before it
+      // starts, like a host pause.
       if (apply === "now") {
+        const decision = withInspector(
+          tabId,
+          current.context.hostname,
+          current.decision,
+        );
+        await deps.prepare(current.context, decision);
         const live = await supportedTab(tabId);
         if (live?.hostname !== current.context.hostname)
           throw new Error("The tab navigated while applying Inspector.");
