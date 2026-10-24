@@ -17,7 +17,12 @@ import {
   DialogTitle,
 } from "@/ui/components/ui/dialog";
 import { t } from "@/ui/i18n";
-import { expectNoSideScroll } from "@/ui/shared/dialog-overflow-assertion";
+import {
+  expectDialogCoversPanel,
+  expectHeaderClearsClose,
+  expectNoSideScroll,
+  expectVisibleDialogFrame,
+} from "@/ui/shared/dialog-overflow-assertion";
 import { WorkerTroubleshooterView } from "@/ui/shared/WorkerTroubleshooterView";
 
 const now = 1_800_000_000_000;
@@ -33,24 +38,27 @@ const data: WorkerTestState = {
   ],
 };
 
+// Mirrors WorkerTroubleshooter in the sidebar: the header stays, the body scrolls.
 const Harness = () => (
   <Dialog open>
     <DialogContent
-      className="max-h-[92vh] w-[calc(100%-1.5rem)] max-w-lg min-w-0 overflow-y-auto p-4"
+      className="max-h-[92vh] max-w-lg min-w-0 grid-rows-[auto_minmax(0,1fr)] p-4"
       data-worker-troubleshooter
     >
       <DialogCloseButton label={t.common.actions.close} />
-      <DialogHeader className="pr-7">
+      <DialogHeader>
         <DialogTitle>{t.sidebar.troubleshooter.title}</DialogTitle>
         <DialogDescription>{t.sidebar.troubleshooter.intro}</DialogDescription>
       </DialogHeader>
-      <WorkerTroubleshooterView
-        data={data}
-        xray={xray}
-        now={now}
-        pending={false}
-        onAction={() => undefined}
-      />
+      <div className="grid min-h-0 min-w-0 gap-4 overflow-y-auto">
+        <WorkerTroubleshooterView
+          data={data}
+          xray={xray}
+          now={now}
+          pending={false}
+          onAction={() => undefined}
+        />
+      </div>
     </DialogContent>
   </Dialog>
 );
@@ -70,4 +78,23 @@ export const NoSideScroll: Story = {
     await waitFor(() => expect(dialog).toBeVisible());
     expectNoSideScroll(dialog);
   },
+};
+
+const expectFrameFillingPanel: Story["play"] = async ({ canvasElement }) => {
+  const dialog = within(canvasElement.ownerDocument.body).getByRole("dialog");
+  await waitFor(() => expect(dialog).toBeVisible());
+  expectVisibleDialogFrame(dialog);
+  expectDialogCoversPanel(dialog);
+  expectHeaderClearsClose(dialog);
+};
+
+export const FrameFillsPanel: Story = {
+  tags: ["!dev", "!autodocs"],
+  play: expectFrameFillingPanel,
+};
+
+export const FrameFillsPanelDark: Story = {
+  tags: ["!dev", "!autodocs"],
+  globals: { theme: "dark" },
+  play: expectFrameFillingPanel,
 };
