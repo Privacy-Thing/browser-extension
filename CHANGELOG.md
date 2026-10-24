@@ -124,10 +124,12 @@ The format is based on Keep a Changelog and the project follows Semantic Version
   turned off for the extension.
 
 - Dialogs use a thinner animated accent frame instead of the thick accent-coloured
-  border and use nearly the full width of narrow windows such as the popup and the X-Ray
-  panel. Scrollbars follow neutral colours in every accent preset. The troubleshooter,
-  report and import dialogs no longer scroll sideways, and the frame stays in place
-  while a long dialog scrolls.
+  border. In the X-Ray panel they fill the whole panel; elsewhere they use nearly the
+  full width of narrow windows such as the popup. Long titles wrap beside the close
+  button instead of running under it, and stacked action buttons keep a gap. Scrollbars
+  follow neutral colours in every accent preset. The troubleshooter, report and import
+  dialogs no longer scroll sideways, the frame stays in place while a long dialog
+  scrolls, and the report keeps its actions in view on short panels.
 
 - Pickers no longer draw option rows outside their popup on short windows.
 

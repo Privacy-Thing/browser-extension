@@ -95,14 +95,14 @@ const ReportPreview = ({ session, error, update, cancel, download }: DialogProps
       : serializeDiagnosticText(report);
   return (
     <DialogContent
-      className="max-h-[92vh] max-w-2xl min-w-0 grid-rows-[auto_auto_auto_minmax(0,1fr)_auto] gap-3 p-4"
+      className="flex max-h-[92vh] max-w-2xl min-w-0 flex-col gap-3 overflow-y-auto p-4"
       data-diagnostic-report
       data-report-status={report.status}
       data-report-format={session.format}
       data-report-site={session.includeSite ? "included" : "excluded"}
     >
       <DialogCloseButton label={t.sidebar.report.cancel} />
-      <DialogHeader className="pr-8">
+      <DialogHeader>
         <DialogTitle>{t.sidebar.report.title}</DialogTitle>
         <DialogDescription>{t.sidebar.report.localOnly}</DialogDescription>
       </DialogHeader>
@@ -126,7 +126,9 @@ const ReportPreview = ({ session, error, update, cancel, download }: DialogProps
         aria-label={t.sidebar.report.preview}
         data-report-preview
         value={preview}
-        className="min-h-0 h-[40vh] w-full resize-none overflow-auto rounded-md border border-border bg-muted/30 p-3 font-mono text-[10px] leading-relaxed"
+        // The preview takes the space the window leaves and gives it back first, so the
+        // actions below it stay in view on short windows.
+        className="min-h-24 w-full flex-[1_1_40vh] resize-none overflow-auto rounded-md border border-border bg-muted/30 p-3 font-mono text-[10px] leading-relaxed"
       />
       <div className="flex flex-col gap-2">
         {error ? (

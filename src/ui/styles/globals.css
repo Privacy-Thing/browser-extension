@@ -244,6 +244,9 @@
      360 px popup, the X-Ray panel) need every pixel; the frame and the scrim strip
      beside it are enough to separate the dialog from the page behind it. */
   --gw-dialog-viewport-gap: 0.25rem;
+  /* Header space beside the close button: its 1rem inset and 2rem size, less the
+     smallest content padding (p-4), plus a 0.25rem gap. */
+  --gw-dialog-close-clearance: 2.25rem;
   --gw-dialog-open-duration: 250ms;
   --gw-dialog-close-duration: 250ms;
   --gw-dialog-open-scale-x: 0.975;
@@ -252,6 +255,22 @@
   --gw-dialog-close-scale-y: var(--gw-dialog-open-scale-y);
   transform-origin: center center;
   will-change: transform, opacity;
+}
+
+/*
+  The close button sits in the top-end corner outside the flow, so a header beside it
+  reserves that corner: long titles wrap instead of running under the button. Below
+  Tailwind's sm breakpoint DialogHeader centres its text, so it reserves the space on
+  both sides to stay centred.
+*/
+.gw-dialog-content:has(> [data-dialog-close]) > [data-dialog-header] {
+  padding-inline: var(--gw-dialog-close-clearance);
+}
+
+@media (min-width: 640px) {
+  .gw-dialog-content:has(> [data-dialog-close]) > [data-dialog-header] {
+    padding-inline-start: 0;
+  }
 }
 
 /* The animated frame is painted by the content element itself, so its animations

@@ -362,8 +362,11 @@ export const SettingsImportDialogView = (props: ImportDialogProps) => {
             </>
           ) : null}
           {error ? <ImportErrorAlert error={error} /> : null}
-          <p className="text-xs text-muted-foreground">{t.settingsImport.retention}</p>
         </div>
+        {/* Outside the scrolling list, so the notice is never cut off at its edge. */}
+        <p className="text-xs text-muted-foreground" data-import-retention>
+          {t.settingsImport.retention}
+        </p>
         <DialogFooter>
           <Button
             id="settings-import-cancel"

@@ -18,7 +18,8 @@ import {
 } from "@/ui/components/ui/dialog";
 import { t } from "@/ui/i18n";
 import {
-  expectDialogFillsSurface,
+  expectDialogCoversPanel,
+  expectHeaderClearsClose,
   expectNoSideScroll,
   expectVisibleDialogFrame,
 } from "@/ui/shared/dialog-overflow-assertion";
@@ -37,24 +38,27 @@ const data: WorkerTestState = {
   ],
 };
 
+// Mirrors WorkerTroubleshooter in the sidebar: the header stays, the body scrolls.
 const Harness = () => (
   <Dialog open>
     <DialogContent
-      className="max-h-[92vh] max-w-lg min-w-0 overflow-y-auto p-4"
+      className="max-h-[92vh] max-w-lg min-w-0 grid-rows-[auto_minmax(0,1fr)] p-4"
       data-worker-troubleshooter
     >
       <DialogCloseButton label={t.common.actions.close} />
-      <DialogHeader className="pr-7">
+      <DialogHeader>
         <DialogTitle>{t.sidebar.troubleshooter.title}</DialogTitle>
         <DialogDescription>{t.sidebar.troubleshooter.intro}</DialogDescription>
       </DialogHeader>
-      <WorkerTroubleshooterView
-        data={data}
-        xray={xray}
-        now={now}
-        pending={false}
-        onAction={() => undefined}
-      />
+      <div className="grid min-h-0 min-w-0 gap-4 overflow-y-auto">
+        <WorkerTroubleshooterView
+          data={data}
+          xray={xray}
+          now={now}
+          pending={false}
+          onAction={() => undefined}
+        />
+      </div>
     </DialogContent>
   </Dialog>
 );
@@ -76,20 +80,21 @@ export const NoSideScroll: Story = {
   },
 };
 
-const expectFrameAndSurfaceGap: Story["play"] = async ({ canvasElement }) => {
+const expectFrameFillingPanel: Story["play"] = async ({ canvasElement }) => {
   const dialog = within(canvasElement.ownerDocument.body).getByRole("dialog");
   await waitFor(() => expect(dialog).toBeVisible());
   expectVisibleDialogFrame(dialog);
-  expectDialogFillsSurface(dialog);
+  expectDialogCoversPanel(dialog);
+  expectHeaderClearsClose(dialog);
 };
 
-export const FrameAndViewportGap: Story = {
+export const FrameFillsPanel: Story = {
   tags: ["!dev", "!autodocs"],
-  play: expectFrameAndSurfaceGap,
+  play: expectFrameFillingPanel,
 };
 
-export const FrameAndViewportGapDark: Story = {
+export const FrameFillsPanelDark: Story = {
   tags: ["!dev", "!autodocs"],
   globals: { theme: "dark" },
-  play: expectFrameAndSurfaceGap,
+  play: expectFrameFillingPanel,
 };

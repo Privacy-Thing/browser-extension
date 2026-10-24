@@ -86,7 +86,7 @@ export const ConfirmDialog = () => {
             confirmDialogConfig?.description && "border-b border-border/80 pb-4",
           )}
         >
-          <DialogTitle className="pr-8">
+          <DialogTitle>
             <span id="confirm-dialog-title">
               {confirmDialogConfig?.title ?? "Confirm action"}
             </span>

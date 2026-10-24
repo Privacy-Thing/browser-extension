@@ -5,6 +5,8 @@ import type { SettingsImportPreview } from "@/shared/settings-import";
 import { SettingsImportDialogView } from "@/ui/options/components/modals/SettingsImportDialog";
 import {
   expectDialogFillsSurface,
+  expectFooterGap,
+  expectHeaderClearsClose,
   expectNoSideScroll,
   expectVisibleDialogFrame,
 } from "@/ui/shared/dialog-overflow-assertion";
@@ -88,6 +90,11 @@ export const FrameAndViewportGap: Story = {
     await waitFor(() => expect(dialog).toBeVisible());
     expectVisibleDialogFrame(dialog);
     expectDialogFillsSurface(dialog);
+    expectHeaderClearsClose(dialog);
+    expectFooterGap(dialog.querySelector<HTMLElement>("[data-dialog-footer]")!);
+    // The retention notice sits outside the scrolling list, so its edge cannot cut it.
+    const retention = dialog.querySelector<HTMLElement>("[data-import-retention]")!;
+    await expect(retention.parentElement).toBe(dialog);
   },
 };
 export const UnresolvedConflict: Story = {

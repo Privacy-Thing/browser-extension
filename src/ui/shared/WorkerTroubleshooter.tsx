@@ -1,3 +1,4 @@
+import { cn } from "@/ui/components/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -5,6 +6,7 @@ import {
   DialogTitle,
   DialogDescription,
   DialogCloseButton,
+  useDialogLayout,
 } from "@/ui/components/ui/dialog";
 import { t } from "@/ui/i18n";
 import { useWorkerTroubleshooter } from "@/ui/shared/useWorkerTroubleshooter";
@@ -22,6 +24,7 @@ export const WorkerTroubleshooter = ({
 }) => {
   const { target, data, xray, pending, error, now, open, action, close, setError } =
     useWorkerTroubleshooter(tabId);
+  const fill = useDialogLayout() === "fill";
   const show = async () => {
     if (!launchInWindow) return open();
     try {
@@ -68,30 +71,36 @@ export const WorkerTroubleshooter = ({
         }}
       >
         <DialogContent
-          className="max-h-[92vh] max-w-lg min-w-0 overflow-y-auto p-4"
+          className={cn(
+            "max-h-[92vh] max-w-lg min-w-0 p-4",
+            fill ? "grid-rows-[auto_minmax(0,1fr)]" : "overflow-y-auto",
+          )}
           data-worker-troubleshooter
         >
           <DialogCloseButton label={t.common.actions.close} />
-          <DialogHeader className="pr-7">
+          <DialogHeader>
             <DialogTitle>{t.sidebar.troubleshooter.title}</DialogTitle>
             <DialogDescription>{t.sidebar.troubleshooter.intro}</DialogDescription>
           </DialogHeader>
-          {error ? (
-            <p role="alert" className="text-xs text-destructive">
-              {error}
-            </p>
-          ) : null}
-          {data ? (
-            <WorkerTroubleshooterView
-              data={data}
-              xray={xray}
-              pending={pending !== null}
-              onAction={(value) => void action(value)}
-              now={now}
-            />
-          ) : (
-            <p role="status">{t.sidebar.loading}</p>
-          )}
+          {/* A dialog that fills the panel keeps its header in view and scrolls the body. */}
+          <div className={cn("grid min-w-0 gap-4", fill && "min-h-0 overflow-y-auto")}>
+            {error ? (
+              <p role="alert" className="text-xs text-destructive">
+                {error}
+              </p>
+            ) : null}
+            {data ? (
+              <WorkerTroubleshooterView
+                data={data}
+                xray={xray}
+                pending={pending !== null}
+                onAction={(value) => void action(value)}
+                now={now}
+              />
+            ) : (
+              <p role="status">{t.sidebar.loading}</p>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </>
