@@ -41,4 +41,10 @@ export const settingsImport = {
   skipAll: "Skip all",
   technicalDetails: "Technical details",
   timeZoneHint: "Edit the file to use a supported time zone, then import it again.",
+  timeZoneTitle: "Choose supported time zones",
+  timeZoneHelp:
+    "This browser does not support the time zone of the presets below. Choose a time zone for each one. The import is checked again once every preset has one.",
+  timeZoneRejected: (timeZone: string) =>
+    `Unsupported time zone in the file: ${timeZone}`,
+  timeZoneChoose: "Choose a time zone",
 } as const;

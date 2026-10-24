@@ -17,15 +17,9 @@ import { NumberInput } from "@/ui/components/ui/number-input";
 import { TagsInput } from "@/ui/components/ui/tags-input";
 import { t } from "@/ui/i18n";
 import { RegionalProfileReview } from "@/ui/options/components/modals/RegionalProfileReview";
+import { TimeZoneCombobox } from "@/ui/options/components/TimeZoneCombobox";
 import { commonLocales } from "@/ui/options/locales";
 import { toFiniteNumber } from "@/ui/options/utils";
-
-const timezoneOptions = [
-  ...new Set(["UTC", ...Intl.supportedValuesOf("timeZone")]),
-].map((tz) => ({
-  value: tz,
-  label: tz.replace(/_/g, " "),
-}));
 
 type LocationFieldsDraft = {
   label: string;
@@ -275,18 +269,12 @@ const TimeZoneField = <TDraft extends LocationFieldsDraft>({
 }: LocationFieldsProps<TDraft>) => (
   <div>
     <FieldLabel id="location-timezone-label">{t.common.fields.timeZone}</FieldLabel>
-    <Combobox
-      options={
-        timezoneOptions.some((option) => option.value === draft.timeZone)
-          ? timezoneOptions
-          : [{ value: draft.timeZone, label: draft.timeZone }, ...timezoneOptions]
-      }
+    <TimeZoneCombobox
       value={draft.timeZone}
       aria-labelledby="location-timezone-label"
-      onValueChange={(value) => {
-        if (value) onDraftChange((current) => ({ ...current, timeZone: value }));
-      }}
-      searchPlaceholder={t.common.fields.timeZone}
+      onValueChange={(timeZone) =>
+        onDraftChange((current) => ({ ...current, timeZone }))
+      }
       disabled={disabled}
     />
   </div>

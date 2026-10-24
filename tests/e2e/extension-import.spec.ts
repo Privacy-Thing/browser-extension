@@ -204,7 +204,7 @@ test("two regional corrections in one tick are both kept", async ({
   ).toBeVisible();
 });
 
-test("import rejects an unsupported preset time zone with a readable error", async ({
+test("import offers a supported time zone for each rejected preset and previews the corrected file", async ({
   context,
   extensionId,
 }) => {
@@ -213,28 +213,67 @@ test("import rejects an unsupported preset time zone with a readable error", asy
   await saveSimpleSettings(page, { onboardingCompleted: true });
   await page.reload();
   await openSettingsTab(page, "advanced");
+  const before = await exportSettings<ExportedSettings>(page);
+  const preset = IMPORT_FIXTURE.locations[0]!;
   await chooseImportFile(page, {
     ...IMPORT_FIXTURE,
     locations: [
-      {
-        ...IMPORT_FIXTURE.locations[0]!,
-        id: "mars",
-        label: "Mars",
-        timeZone: "Mars/Olympus",
-      },
+      { ...preset, id: "mars", label: "Mars", timeZone: "Mars/Olympus" },
+      { ...preset, id: "venus", label: "Venus", timeZone: "Venus/Cloud" },
     ],
     rules: [],
   });
   const error = page.locator("[data-import-error]");
   await expect(error).toBeVisible();
+  await expect(error).toHaveAttribute("role", "alert");
   const item = error.locator("[data-import-error-item]");
-  await expect(item).toHaveCount(1);
-  await expect(item).toHaveAttribute("data-import-error-item", "timeZone");
-  await expect(item).toContainText("Mars/Olympus");
-  await expect(item).not.toContainText('"code"');
-  await expect(error.locator('[data-import-error-hint="timeZone"]')).toBeVisible();
+  await expect(item).toHaveCount(2);
+  await expect(item.first()).toHaveAttribute("data-import-error-item", "timeZone");
+  await expect(item.first()).toContainText("Mars/Olympus");
+  await expect(item.first()).not.toContainText('"code"');
+  await expect(error.locator("[data-import-error-hint]")).toHaveCount(0);
   await expect(error.locator("[data-import-error-details] pre")).toBeHidden();
+  const mars = page.locator('[data-import-time-zone-correction="mars"]');
+  const venus = page.locator('[data-import-time-zone-correction="venus"]');
+  await expect(mars).toHaveAttribute("data-import-rejected-time-zone", "Mars/Olympus");
+  await expect(venus).toHaveAttribute("data-import-time-zone-state", "missing");
   await expect(page.locator("#settings-import-confirm")).toBeDisabled();
+  const choose = async (row: typeof mars, timeZone: string) => {
+    await row.getByRole("combobox").click();
+    await page.locator(`[data-combobox-option-value="${timeZone}"]`).click();
+  };
+  await choose(mars, "Asia/Tokyo");
+  await expect(mars).toHaveAttribute("data-import-time-zone-state", "chosen");
+  await expect(error).toBeVisible();
+  await expect(page.locator("#settings-import-confirm")).toBeDisabled();
+  await choose(venus, "Europe/Paris");
+  await expect(error).toHaveCount(0);
+  await expect(
+    page.locator('[data-regional-profile="mars"] [data-regional-warning="timeZone"]'),
+  ).toBeVisible();
+  await expect(
+    page.locator('[data-regional-profile="venus"] [data-regional-warning]'),
+  ).toHaveCount(0);
+  await expect(page.locator("#settings-import-confirm")).toBeEnabled();
+  await choose(mars, "Europe/Paris");
+  await expect(
+    page.locator('[data-regional-profile="mars"] [data-regional-warning="timeZone"]'),
+  ).toHaveCount(0);
+  await expect(page.locator("#settings-import-confirm")).toBeEnabled();
+  expect((await exportSettings<ExportedSettings>(page)).locations).toEqual(
+    before.locations,
+  );
+  await page.locator("#settings-import-confirm").click();
+  await expect(page.locator("#settings-import-dialog")).toHaveCount(0);
+  expect(
+    (await exportSettings<ExportedSettings>(page)).locations.map((location) => [
+      location.id,
+      location.timeZone,
+    ]),
+  ).toEqual([
+    ["mars", "Europe/Paris"],
+    ["venus", "Europe/Paris"],
+  ]);
 });
 
 test("regional import flags coordinates outside land instead of suggesting an Etc zone", async ({
