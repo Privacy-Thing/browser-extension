@@ -62,7 +62,8 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 - Regional preset editing, generation, and import now show advisory coordinate/time-zone
   checks and previews of browser languages, Accept-Language, and seasonal date/number
   formatting. Applying a suggestion changes only the time zone; intentional differences
-  can still be saved or imported.
+  can still be saved or imported. Coordinates outside land show a coordinates warning
+  instead of a fixed-offset `Etc/GMT` zone suggestion.
 - Pause spoofing for an exact top-document host for 10 minutes or until browser
   exit. Matching tabs and their supported frames/workers share the exception;
   permanent configuration and global WebRTC policy remain unchanged. Deadline

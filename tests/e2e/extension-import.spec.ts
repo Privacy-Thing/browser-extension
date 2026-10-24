@@ -161,3 +161,31 @@ test("import rejects an unsupported preset time zone with a readable error", asy
   await expect(error.locator("[data-import-error-details] pre")).toBeHidden();
   await expect(page.locator("#settings-import-confirm")).toBeDisabled();
 });
+
+test("regional import flags coordinates outside land instead of suggesting an Etc zone", async ({
+  context,
+  extensionId,
+}) => {
+  const page = await context.newPage();
+  await page.goto(`chrome-extension://${extensionId}/src/ui/options/index.html`);
+  await saveSimpleSettings(page, { onboardingCompleted: true });
+  await page.reload();
+  await openSettingsTab(page, "advanced");
+  const at = (latitude: number, longitude: number, timeZone: string) => ({
+    ...REGIONAL_IMPORT_FIXTURE,
+    locations: [
+      { ...REGIONAL_IMPORT_FIXTURE.locations[0]!, latitude, longitude, timeZone },
+    ],
+  });
+  for (const [latitude, longitude, timeZone] of [
+    [0, 48.8566, "UTC"],
+    [30, -40, "Europe/Warsaw"],
+  ] as const) {
+    await chooseImportFile(page, at(latitude, longitude, timeZone));
+    await expect(page.locator('[data-regional-warning="coordinates"]')).toBeVisible();
+    await expect(page.locator('[data-regional-warning="timeZone"]')).toHaveCount(0);
+    await expect(page.locator("[data-regional-apply-timezone]")).toHaveCount(0);
+    await expect(page.locator("#settings-import-confirm")).toBeEnabled();
+    await page.locator("#settings-import-cancel").click();
+  }
+});
