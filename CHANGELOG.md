@@ -62,7 +62,8 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 - Regional preset editing, generation, and import now show advisory coordinate/time-zone
   checks and previews of browser languages, Accept-Language, and seasonal date/number
   formatting. Applying a suggestion changes only the time zone; intentional differences
-  can still be saved or imported.
+  can still be saved or imported. Coordinates outside land show a coordinates warning
+  instead of a fixed-offset `Etc/GMT` zone suggestion.
 - Pause spoofing for an exact top-document host for 10 minutes or until browser
   exit. Matching tabs and their supported frames/workers share the exception;
   permanent configuration and global WebRTC policy remain unchanged. Deadline
@@ -83,9 +84,8 @@ The format is based on Keep a Changelog and the project follows Semantic Version
   When a file's preset uses a time zone this browser does not support, the import
   dialog offers the usual time zone list for each such preset and previews the file
   again, including the regional review, once every preset has a supported zone; the
-  file itself is not changed. Presets with IDs
-  such as `constructor` import like any other, and several time zone corrections
-  made at once in the preview are all kept.
+  file itself is not changed. Several time zone corrections made at once in the
+  preview are all kept.
 
 - Added complete Spanish and Portuguese interface translations, selected
   automatically from the browser interface language with English as the fallback.

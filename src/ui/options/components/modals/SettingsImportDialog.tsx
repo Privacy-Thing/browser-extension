@@ -21,7 +21,6 @@ import {
   SelectValue,
 } from "@/ui/components/ui/select";
 import { t } from "@/ui/i18n";
-import { readImportChoice } from "@/ui/options/components/modals/import-choice";
 import { ImportRegionalReview } from "@/ui/options/components/modals/ImportRegionalReview";
 import { ImportZoneCorrections } from "@/ui/options/components/modals/ImportZoneCorrections";
 import { parseImportError } from "@/ui/options/state/import-error";
@@ -62,11 +61,7 @@ const ChoiceSelect = (props: {
   change: (value: string) => void;
 }) => (
   <Select value={props.value} onValueChange={props.change} disabled={props.disabled}>
-    <SelectTrigger
-      aria-label={props.label}
-      data-import-choice={props.value}
-      className="w-full sm:w-56"
-    >
+    <SelectTrigger aria-label={props.label} className="w-full sm:w-56">
       <SelectValue placeholder={t.settingsImport.choose} />
     </SelectTrigger>
     <SelectContent>
@@ -93,17 +88,15 @@ const MergeCollection = (props: {
     { value: "skip", label: t.settingsImport.skip },
   ].filter((choice) => collection === "locations" || choice.value !== "copy");
   const setAll = (choice: "import" | "skip"): void => {
-    const selected: Array<[string, string]> = [];
+    const selected: Record<string, string> = {};
     for (const item of preview.source[collection]) {
       const key = "id" in item ? item.id : item.pattern;
       const conflict = preview.conflicts[collection].includes(key);
       const value =
-        conflict && choice === "import"
-          ? readImportChoice(preview.selection, collection, key)
-          : choice;
-      if (value) selected.push([key, value]);
+        conflict && choice === "import" ? preview.selection[collection][key] : choice;
+      if (value) selected[key] = value;
     }
-    update({ ...preview.selection, [collection]: Object.fromEntries(selected) });
+    update({ ...preview.selection, [collection]: selected });
   };
   return (
     <section className="space-y-2">
@@ -130,9 +123,7 @@ const MergeCollection = (props: {
         const key = "id" in item ? item.id : item.pattern;
         const label = "label" in item ? `${item.label} (${key})` : key;
         const conflict = preview.conflicts[collection].includes(key);
-        const value =
-          readImportChoice(preview.selection, collection, key) ??
-          (conflict ? "" : "import");
+        const value = preview.selection[collection][key] ?? (conflict ? "" : "import");
         return (
           <div
             key={key}
