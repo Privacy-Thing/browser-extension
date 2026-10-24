@@ -109,3 +109,33 @@ export const ScrollHandleDark: Story = {
   ...ScrollHandle,
   globals: { theme: "dark" },
 };
+
+/**
+ * Pointing at the gutter beside the handle, and dragging it, widen the pill inside the
+ * fixed gutter. The content box keeps its width: compare it at rest, with the pointer
+ * in the gutter, and scrolled. The headless runner does not paint scrollbars, so the
+ * widening itself is checked in headed captures and by the CSS contract test.
+ */
+export const HandleWidensNoReflow: Story = {
+  tags: ["!dev", "!autodocs"],
+  play: async ({ canvasElement }) => {
+    const root = canvasElement.ownerDocument.documentElement;
+    const content = canvasElement.ownerDocument.body;
+    const measure = () => [root.clientWidth, content.getBoundingClientRect().width];
+    const rest = measure();
+    if (import.meta.env.MODE === "test") {
+      const { userEvent } = await import("vitest/browser");
+      // The gutter sits just past the body's end edge; force skips the hit-target check.
+      await userEvent.hover(content, {
+        position: { x: content.getBoundingClientRect().width + 5, y: 40 },
+        force: true,
+      });
+      await expect(measure(), "content box with the pointer in the gutter").toEqual(
+        rest,
+      );
+    }
+    root.scrollTop = 200;
+    await expect(measure(), "content box while scrolled").toEqual(rest);
+    root.scrollTop = 0;
+  },
+};

@@ -899,9 +899,12 @@
   Scroll areas show a thin, rounded handle in their reserved gutter, without arrows or
   a visible track. It is faint at rest and becomes clear while the scroll area is
   hovered, holds focus or is pressed (which covers wheel, keyboard and touch scrolling
-  and dragging the handle). The handle is the native scrollbar, so dragging, clicking
-  the gutter, wheel, touch, keyboard and assistive technology keep working. High
-  contrast keeps the handle at full strength with a visible track.
+  and dragging the handle). When the pointer enters the gutter beside it, and while it
+  is dragged, the pill widens from 4px to 8px: only the thumb's transparent border
+  shrinks, so the gutter and the content keep their size (scrollbar-contract.test.ts).
+  The handle is the native scrollbar, so dragging, clicking the gutter, wheel, touch,
+  keyboard and assistive technology keep working. High contrast keeps the handle at
+  full strength with a visible track.
 
   Chromium draws the handle with ::-webkit-scrollbar. It ignores those pseudo-elements
   on an element with scrollbar-width or scrollbar-color, and its standard thin
@@ -970,7 +973,7 @@
 
 *::-webkit-scrollbar-thumb:hover,
 *::-webkit-scrollbar-thumb:active {
-  border-width: 2px;
+  border-width: 1px;
   background-color: var(--scrollbar-thumb-hover);
 }
 
