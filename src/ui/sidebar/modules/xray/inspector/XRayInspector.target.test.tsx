@@ -275,13 +275,15 @@ describe("X-Ray Inspector", () => {
     expect(document.body.textContent).toContain(t.sidebar.inspector.workerNotice);
     await selectToDataURL();
     await click(button(t.sidebar.inspector.actions.arm));
-    const coverage = t.sidebar.inspector.coverage;
     const pending = document.querySelector<HTMLElement>(
       "[data-inspector-coverage-pending]",
     );
     expect(pending?.dataset.inspectorCoveragePending).toBe("1");
     expect(pending?.textContent).toBe(
-      coverage.pending(1, coverage.reasons.sameOriginFrame),
+      t.sidebar.inspector.coverage.pending(
+        1,
+        t.sidebar.inspector.coverage.reasons.sameOriginFrame,
+      ),
     );
     expect(document.body.textContent).toContain(t.sidebar.inspector.hint.partialLive);
     await click(button(t.sidebar.inspector.actions.reloadNow));

@@ -286,11 +286,10 @@ export const LiveFramesNextLoad: Story = {
       canvas.getByRole("button", { name: t.sidebar.inspector.actions.arm }),
     );
     await expectPhase(context.canvasElement, "armed");
-    const coverage = t.sidebar.inspector.coverage;
     await expect(canvas.getByRole("status")).toHaveTextContent(
-      coverage.pending(
+      t.sidebar.inspector.coverage.pending(
         2,
-        `${coverage.reasons.lateRuntime}, ${coverage.reasons.sameOriginFrame}`,
+        `${t.sidebar.inspector.coverage.reasons.lateRuntime}, ${t.sidebar.inspector.coverage.reasons.sameOriginFrame}`,
       ),
     );
     await expect(
