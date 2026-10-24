@@ -260,9 +260,9 @@ export const sidebar = {
   inspector: {
     toggle: "Inspector",
     toggleHint:
-      "Choose spoofed APIs that pause browser developer tools when the page uses them",
+      "Choose spoofed APIs that stop script execution when the page uses them",
     intro:
-      "Pick the spoofed APIs that should pause browser developer tools when a page script uses them. Open developer tools for this tab first.",
+      "Pick the spoofed APIs that should stop script execution when a page script uses them. Works while browser developer tools are open for this tab.",
     loading: "Checking Inspector state…",
     loadError: (message: string) => `Couldn't read the Inspector state: ${message}`,
     status: {
@@ -276,11 +276,11 @@ export const sidebar = {
       ready: (count: number) =>
         `${count} ${count === 1 ? "method" : "methods"} selected.`,
       changed: "Apply to update what is armed, or revert your changes.",
-      changedToEmpty: "Nothing is selected. Disarm to stop pausing.",
+      changedToEmpty: "Nothing is selected. Disarm so scripts no longer stop.",
       active: "Active on this page.",
       appliedLive: "Active on this page — no reload needed.",
       pendingArm: "Will apply after the page reloads.",
-      pendingDisarm: "Pausing stops after the page reloads.",
+      pendingDisarm: "Scripts no longer stop after the page reloads.",
     },
     reloadNote: "Reloading loses unsaved changes on the page.",
     actions: {
@@ -305,11 +305,12 @@ export const sidebar = {
       nextLoad: "Applies on the next page load.",
     },
     actionError: (message: string) => `Couldn't apply: ${message}`,
-    everyCall: "Pause on every call",
-    firstCallHint: "Pauses once per method per page load.",
+    everyCall: "Stop on every call",
+    firstCallHint: "Stops once per method per page load.",
     everyCallWarning:
-      "Popular APIs such as time reads can pause very often. Select only the methods you need.",
-    pauseNotice: "A pause is real, so the page can notice the delay.",
+      "Popular APIs such as time reads can stop the page very often. Select only the methods you need.",
+    pauseNotice:
+      "While execution is stopped, the page is frozen but the clock keeps running, so the page can notice the delay.",
     firefoxNotice: `In Firefox's developer tools, turn on Settings › Ignore Known Third-party Scripts to hide ${BRAND_DISPLAY_NAME} frames from the call stack.`,
     unavailable: {
       title: "Inspector isn't available here",
@@ -321,7 +322,7 @@ export const sidebar = {
       noRuntime: `The ${BRAND_DISPLAY_NAME} runtime isn't reachable on this page. Reload the page and try again.`,
     },
     list: {
-      label: "Methods to pause on",
+      label: "Methods to stop on",
       search: "Search methods",
       usedOnly: "Used on this page",
       noMatches: "No methods match.",
@@ -333,7 +334,7 @@ export const sidebar = {
       used: (count: number) => (count === 1 ? "Used once" : `Used ${count} times`),
       notTrappable: "Not available",
       notTrappableReason:
-        "Inspector can't pause on this method here: the rule for this Domain doesn't spoof it, or this browser has no hook for it.",
+        "Inspector can't stop on this method here: the rule for this Domain doesn't spoof it, or this browser has no hook for it.",
     },
   },
 
