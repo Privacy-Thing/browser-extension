@@ -124,10 +124,11 @@ The format is based on Keep a Changelog and the project follows Semantic Version
   turned off for the extension.
 
 - Dialogs use a thin neutral frame with a subtle accent line instead of a thick
-  accent-coloured border, and scrollbars are no longer drawn except in high contrast.
-  Scroll areas keep their scrollbar space, so content no longer shifts sideways when it
-  starts or stops scrolling. The troubleshooter, report and import dialogs no longer
-  scroll sideways.
+  accent-coloured border. Scrollbars are a thin, rounded, draggable handle without
+  arrows that stays faint until you point at or focus the scroll area; high contrast
+  keeps it fully visible. Scroll areas keep their scrollbar space, so content no longer
+  shifts sideways when it starts or stops scrolling. The troubleshooter, report and
+  import dialogs no longer scroll sideways.
 
 - Pickers no longer draw option rows outside their popup on short windows.
 

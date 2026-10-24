@@ -15,17 +15,6 @@
   --gw-popup-warning-accent: #c98318;
   --gw-popup-warning-accent-foreground: #1d1d23;
   --gw-popup-disabled-accent: #878a95;
-  --gw-popup-main-scrollbar-width: none;
-  --gw-popup-main-scrollbar-gutter: auto;
-  --gw-popup-main-scrollbar-allowance: 0px;
-}
-
-/* High contrast keeps a visible scrollbar in the popup main section. The allowance
-   matches the thin classic scrollbar in Chromium; Firefox draws a slightly narrower one. */
-.high-contrast {
-  --gw-popup-main-scrollbar-width: thin;
-  --gw-popup-main-scrollbar-gutter: stable;
-  --gw-popup-main-scrollbar-allowance: 10px;
 }
 
 [data-theme="light"] {

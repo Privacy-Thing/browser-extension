@@ -4,7 +4,7 @@ import { useState } from "react";
 import { expect, fn, userEvent, within } from "storybook/test";
 
 import type { WorkerTestState, WorkerTestSession } from "@/shared/worker-test";
-import { expectHiddenScrollbar } from "@/ui/shared/scrollbar-assertion";
+import { expectScrollHandle } from "@/ui/shared/scrollbar-assertion";
 import type { WorkerTestAction } from "@/ui/shared/WorkerTroubleshooterView";
 import { createXRayStoryState } from "@/ui/sidebar/stories/xray-story-fixtures";
 import { WorkerTestWindowView } from "@/ui/troubleshooter/WorkerTestWindow";
@@ -100,12 +100,12 @@ export const SaveFinishesTheWindow: Story = {
   },
 };
 // The window scrolls its document once the content outgrows the screen height.
-export const ScrollbarGutter: Story = {
+export const ScrollHandle: Story = {
   tags: ["!dev", "!autodocs"],
   play: ({ canvasElement }) =>
-    expectHiddenScrollbar(canvasElement.ownerDocument.documentElement),
+    expectScrollHandle(canvasElement.ownerDocument.documentElement),
 };
-export const ScrollbarGutterDark: Story = {
-  ...ScrollbarGutter,
+export const ScrollHandleDark: Story = {
+  ...ScrollHandle,
   globals: { theme: "dark" },
 };

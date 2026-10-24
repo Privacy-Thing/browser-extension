@@ -430,7 +430,7 @@ describe("Options deeplink auto-open", () => {
     expect(dialog?.style.getPropertyValue("--ring")).toBe(
       CONTAINER_COLOR_TOKENS.orange,
     );
-    // Scrollbars stay hidden in every dialog; the container accent does not tint them.
+    // The scroll handle keeps neutral tokens in every dialog; the accent does not tint it.
     expect(dialog?.style.getPropertyValue("--scrollbar-thumb")).toBe("");
     expect(document.activeElement?.id).toBe("container-editor-name");
   });

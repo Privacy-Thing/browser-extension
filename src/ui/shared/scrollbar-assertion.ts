@@ -1,7 +1,5 @@
 import { expect } from "storybook/test";
 
-const HIDDEN = "rgba(0, 0, 0, 0) rgba(0, 0, 0, 0)";
-
 /** Content width of a scroll container; the document root measures its body. */
 const contentWidth = (element: HTMLElement) =>
   element === element.ownerDocument.documentElement
@@ -12,7 +10,7 @@ const contentWidth = (element: HTMLElement) =>
  * Measures how much the content width changes when the container starts to overflow.
  * It catches a missing gutter wherever scrollbars take space (interactive Storybook on
  * Windows or Linux). The headless test runner hides scrollbars while still reserving a
- * stable gutter, so there the computed gutter and colour assertions below carry the check.
+ * stable gutter, so there the computed gutter and token assertions below carry the check.
  */
 const overflowWidthShift = (element: HTMLElement) => {
   const root = element === element.ownerDocument.documentElement;
@@ -31,6 +29,24 @@ const overflowWidthShift = (element: HTMLElement) => {
   }
 };
 
+/** Alpha of a colour token as the element resolves it (0 transparent, 1 opaque). */
+const tokenAlpha = (element: HTMLElement, token: string) => {
+  const root = element === element.ownerDocument.documentElement;
+  const probe = element.ownerDocument.createElement("span");
+  probe.style.color = `var(${token})`;
+  (root ? element.ownerDocument.body : element).append(probe);
+  try {
+    const channels =
+      getComputedStyle(probe)
+        .color.match(/[\d.]+/g)
+        ?.map(Number) ?? [];
+    expect(channels.length, `${token} resolves to a colour`).toBeGreaterThanOrEqual(3);
+    return channels[3] ?? 1;
+  } finally {
+    probe.remove();
+  }
+};
+
 /** Runs a measurement with the high-contrast skin applied to the document root. */
 export const withHighContrast = <T>(element: Element, measure: () => T): T => {
   const root = element.ownerDocument.documentElement;
@@ -44,24 +60,39 @@ export const withHighContrast = <T>(element: Element, measure: () => T): T => {
 };
 
 /**
- * Asserts a scroll container draws no scrollbar and keeps its content width when
- * content starts or stops overflowing. Containers with a gutter reserve it; a
- * container with `scrollbar-width: none` has no scrollbar width to shift by. High
- * contrast is chosen for maximum visibility, so every container shows its scrollbar
- * there.
+ * Asserts a scroll container shows the quiet scroll handle in a reserved gutter: the
+ * content width does not change when content starts or stops overflowing, the
+ * scrollbar is not removed, and the handle is drawn faint at rest, stronger while the
+ * area is in use and strongest on the handle, without a visible track. High contrast
+ * draws the handle at full strength.
  */
-export const expectHiddenScrollbar = (element: HTMLElement) => {
+export const expectScrollHandle = (element: HTMLElement) => {
   const style = getComputedStyle(element);
   expect(overflowWidthShift(element), "content width change on overflow").toBe(0);
-  if (style.scrollbarWidth !== "none") {
-    expect(style.scrollbarColor, "scrollbar colours").toBe(HIDDEN);
-    expect(style.scrollbarGutter, "scrollbar gutter").toBe("stable");
+  expect(style.scrollbarGutter, "scrollbar gutter").toBe("stable");
+  if (CSS.supports("selector(::-webkit-scrollbar)")) {
+    // Chromium drops the ::-webkit-scrollbar handle for its arrowed standard scrollbar
+    // (or none) as soon as an element sets scrollbar-width or scrollbar-color.
+    expect(style.scrollbarWidth, "standard scrollbar width in Chromium").toBe("auto");
+    expect(style.scrollbarColor, "standard scrollbar colours in Chromium").toBe("auto");
+  } else {
+    expect(style.scrollbarWidth, "scrollbar width").toBe("thin");
   }
 
+  const rest = tokenAlpha(element, "--scrollbar-thumb-rest");
+  const inUse = tokenAlpha(element, "--scrollbar-thumb");
+  const onHandle = tokenAlpha(element, "--scrollbar-thumb-hover");
+  expect(rest, "handle at rest is drawn").toBeGreaterThan(0);
+  expect(rest, "handle at rest is fainter than in use").toBeLessThan(inUse);
+  expect(inUse, "handle in use is fainter than on hover or drag").toBeLessThan(
+    onHandle,
+  );
+  expect(tokenAlpha(element, "--scrollbar-track"), "track").toBe(0);
+
   withHighContrast(element, () => {
-    const contrast = getComputedStyle(element);
-    expect(contrast.scrollbarWidth, "high contrast scrollbar width").not.toBe("none");
-    expect(contrast.scrollbarColor, "high contrast scrollbar colours").not.toBe(HIDDEN);
+    expect(tokenAlpha(element, "--scrollbar-thumb-rest"), "high contrast handle").toBe(
+      1,
+    );
     expect(overflowWidthShift(element), "high contrast width change").toBe(0);
   });
 };

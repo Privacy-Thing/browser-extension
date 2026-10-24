@@ -4,7 +4,7 @@ import { expect, fn, userEvent, waitFor, within } from "storybook/test";
 import type { SettingsImportPreview } from "@/shared/settings-import";
 import { SettingsImportDialogView } from "@/ui/options/components/modals/SettingsImportDialog";
 import { expectNoSideScroll } from "@/ui/shared/dialog-overflow-assertion";
-import { expectHiddenScrollbar } from "@/ui/shared/scrollbar-assertion";
+import { expectScrollHandle } from "@/ui/shared/scrollbar-assertion";
 
 const preview: SettingsImportPreview = {
   token: "storybook-preview",
@@ -150,11 +150,11 @@ export const RegionalPreview: Story = {
     await expect(args.applyTimeZone).toHaveBeenCalledWith("paris", "Europe/Paris");
   },
 };
-export const ScrollbarGutter: Story = {
+export const ScrollHandle: Story = {
   tags: ["!dev", "!autodocs"],
   play: async () => {
     const dialog = within(document.body).getByRole("dialog");
     await waitFor(() => expect(dialog).toBeVisible());
-    expectHiddenScrollbar(dialog.querySelector<HTMLElement>(".overflow-y-auto")!);
+    expectScrollHandle(dialog.querySelector<HTMLElement>(".overflow-y-auto")!);
   },
 };
