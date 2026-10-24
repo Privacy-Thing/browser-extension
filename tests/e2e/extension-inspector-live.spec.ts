@@ -250,15 +250,22 @@ test("a page observing its own realm sees no trace of live arming or disarming",
   const seenArm = (await page.evaluate(
     "window.inspectorObserver.seen.splice(0)",
   )) as string[];
-  observed.pauses.length = 0;
-  await run("battery");
-  expect(observed.pauses).toHaveLength(1);
+  // No page read sits between the windows, so each holds only its own step.
   expect(
     await watch(() => command(CMD_XRAY_CLEAR_INSPECTOR, { tabId, apply: "now" })),
   ).toMatchObject({ appliedVia: "live" });
   const seenDisarm = (await page.evaluate(
     "window.inspectorObserver.seen.splice(0)",
   )) as string[];
+  observed.pauses.length = 0;
+  await run("battery");
+  expect(observed.pauses).toHaveLength(0);
+  await command(CMD_XRAY_SET_INSPECTOR, {
+    tabId,
+    methodIds: ["battery.manager.level"],
+    mode: "every-call",
+    apply: "now",
+  });
   await run("battery");
   expect(observed.pauses).toHaveLength(1);
 
