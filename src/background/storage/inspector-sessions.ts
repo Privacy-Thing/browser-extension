@@ -69,6 +69,15 @@ export const navigateInspector = (tabId: number, hostname: string): Promise<void
     if (session && session.hostname !== hostname) delete sessions[String(tabId)];
   });
 
+/** A complete live update gives the current documents the desired selection. */
+export const recordLiveInspector = (tabId: number, hostname: string): Promise<void> =>
+  mutate(() => {
+    const session = readInspector(tabId, hostname);
+    if (!session) return;
+    session.document = session.desired;
+    if (!session.desired) delete sessions[String(tabId)];
+  });
+
 export const recordInspectorDocument = (
   tabId: number,
   hostname: string,

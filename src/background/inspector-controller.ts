@@ -1,5 +1,10 @@
 import { seedPauseFrames, type PauseSeedDeps } from "@/background/host-pause-seed";
 import { createInspectorHandlers } from "@/background/inspector-commands";
+import {
+  applyInspectorLive,
+  probeInspectorLive,
+  trackOpenedTabs,
+} from "@/background/inspector-live";
 import type { ResolutionDecision } from "@/background/prepared-runtime-decisions";
 import { publishSidebarEvent } from "@/background/sidebar-event-hub";
 import {
@@ -25,7 +30,10 @@ export const registerInspector = (
     invalidate: deps.invalidate,
     publish: (tabId) =>
       publishSidebarEvent({ type: "doctor-state-invalidated", tabId }),
+    applyLive: applyInspectorLive,
+    probeLive: probeInspectorLive,
   });
+  trackOpenedTabs();
   chrome.tabs.onRemoved.addListener((tabId) => fireAndForget(removeInspector(tabId)));
   chrome.webNavigation.onBeforeNavigate.addListener((details) => {
     if (details.frameId !== 0) return;
