@@ -615,10 +615,8 @@ describe("reserved names in an import file", () => {
   );
 
   it("rejects own __proto__ keys that JSON.parse keeps anywhere in the file", async () => {
-    const preset = JSON.stringify(location("imported")).replace(
-      "{",
-      '{"__proto__":{"id":"polluted"},',
-    );
+    // Prepend an own "__proto__" key to the preset object's JSON text.
+    const preset = `{"__proto__":{"id":"polluted"},${JSON.stringify(location("imported")).slice(1)}`;
     const file: unknown = JSON.parse(`{
       "version": 3,
       "exportedAt": "2026-10-02T09:00:00Z",
