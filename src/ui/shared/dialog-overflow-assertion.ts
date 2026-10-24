@@ -11,13 +11,19 @@ const DIALOG_VIEWPORT_GAP_PX = 4;
  * Geometry belongs in Storybook, not E2E: the check reads the real layout engine.
  */
 export const expectNoSideScroll = (dialog: HTMLElement) => {
-  for (const width of DIALOG_WIDTHS_PX) {
-    dialog.style.width = `${width}px`;
-    dialog.style.minWidth = `${width}px`;
-    dialog.style.maxWidth = `${width}px`;
-    expect(dialog.scrollWidth, `scrollWidth at ${width}px`).toBeLessThanOrEqual(
-      dialog.clientWidth,
-    );
+  const { width, minWidth, maxWidth } = dialog.style;
+  try {
+    for (const pinned of DIALOG_WIDTHS_PX) {
+      dialog.style.width = `${pinned}px`;
+      dialog.style.minWidth = `${pinned}px`;
+      dialog.style.maxWidth = `${pinned}px`;
+      expect(dialog.scrollWidth, `scrollWidth at ${pinned}px`).toBeLessThanOrEqual(
+        dialog.clientWidth,
+      );
+    }
+  } finally {
+    // The story keeps rendering afterwards, so it goes back to its real size.
+    Object.assign(dialog.style, { width, minWidth, maxWidth });
   }
 };
 
