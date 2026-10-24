@@ -6,6 +6,7 @@ import {
   type SurfaceErrorCommand,
 } from "@privacy-brand/xray-protocol";
 
+import { isInspectorCommand } from "@/background/inspector-controller";
 import { logExtensionEvent, waitForExtensionLogQueue } from "@/background/logger";
 import {
   getUpdateRuleInput,
@@ -597,6 +598,11 @@ const routeMessage = (
   const command = message as ExtensionCommand | undefined;
   if (!command?.type) {
     return false;
+  }
+
+  if (isInspectorCommand(command.type)) {
+    fireAndRespond(sendResponse, deps.inspectorCommand(message, sender));
+    return true;
   }
 
   if (handleCoreCommand(command, deps, sender, sendResponse)) {

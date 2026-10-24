@@ -37,6 +37,10 @@ const nativeReflectOwnKeys = Reflect.ownKeys;
 const nativeSetAdd = Set.prototype.add;
 const nativeSetForEach = Set.prototype.forEach;
 const nativeSetHas = Set.prototype.has;
+const nativeSetDelete = Set.prototype.delete;
+const nativeSetClear = Set.prototype.clear;
+const nativeQueueMicrotask = globalThis.queueMicrotask;
+const nativeSetTimeout = globalThis.setTimeout;
 const nativeStringIncludes = String.prototype.includes;
 const nativeSymbolFor = Symbol.for;
 const nativeWeakMapGet = WeakMap.prototype.get;
@@ -267,4 +271,19 @@ export const privateCryptoRandomUnit = (): number => {
   const values = new NativeUint32Array(1);
   nativeReflectApply(nativeGetRandomValues, nativeCrypto, [values]);
   return (values[0] ?? 0) / 0x1_0000_0000;
+};
+
+export const privateSetDelete = <T>(target: Set<T>, value: T): boolean =>
+  nativeReflectApply(nativeSetDelete, target, [value]) as boolean;
+
+export const privateSetClear = <T>(target: Set<T>): void => {
+  nativeReflectApply(nativeSetClear, target, []);
+};
+
+export const privateQueueMicrotask = (callback: () => void): void => {
+  nativeReflectApply(nativeQueueMicrotask, globalThis, [callback]);
+};
+
+export const privateSetTimeout = (callback: () => void, delay: number): void => {
+  nativeReflectApply(nativeSetTimeout, globalThis, [callback, delay]);
 };

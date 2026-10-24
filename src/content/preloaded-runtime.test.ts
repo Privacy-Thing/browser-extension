@@ -5,6 +5,7 @@ import {
   readPreloadedState,
   resolvePreloadedSnapshot,
 } from "@/content/preloaded-runtime";
+import { EXTENSION_STORAGE_KEYS } from "@/shared/extension-contract";
 import type { RuntimeSnapshot } from "@/shared/types";
 
 afterEach(() => {
@@ -89,6 +90,46 @@ describe("readPreloadedState", () => {
       entries: [{ pattern: "example.com" }],
     });
     expect(resolvePreloadedSnapshot("example.com", state)?.geo.latitude).toBe(1);
+  });
+
+  it("leaves the preload to documents outside an Inspector selection", async () => {
+    const preload = {
+      entries: [
+        {
+          pattern: "*",
+          blockServiceWorkerRegistration: false,
+          snapshot: createSnapshot(),
+        },
+      ],
+    };
+    const read = async (
+      sessions: Record<string, unknown>,
+      hostname: string,
+      subframe = false,
+    ) => {
+      vi.stubGlobal("chrome", {
+        storage: {
+          session: {
+            get: vi.fn().mockResolvedValue({
+              [PRELOAD_STATE_KEY]: preload,
+              [EXTENSION_STORAGE_KEYS.inspectorSessions]: sessions,
+            }),
+          },
+        },
+      });
+      const frame: { top?: unknown; location: { hostname: string } } = {
+        location: { hostname },
+      };
+      frame.top = subframe ? {} : frame;
+      vi.stubGlobal("window", frame);
+      return readPreloadedState();
+    };
+    const inspected = { "3": { hostname: "inspected.example" } };
+
+    await expect(read(inspected, "inspected.example")).resolves.toBeNull();
+    await expect(read(inspected, "other.example")).resolves.toMatchObject(preload);
+    await expect(read(inspected, "other.example", true)).resolves.toBeNull();
+    await expect(read({}, "inspected.example", true)).resolves.toMatchObject(preload);
   });
 });
 

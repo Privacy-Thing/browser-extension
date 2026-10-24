@@ -34,7 +34,9 @@ it("restores a cold subframe decision from the tab's top host and retains pause 
       4,
     ),
   ).toEqual({ ok: true, snapshot: null });
-  expect(resolve).toHaveBeenCalledWith("h.example", "firefox-container-1");
+  expect(resolve).toHaveBeenCalledWith("h.example", "firefox-container-1", undefined, {
+    tabId: 12,
+  });
   expect(write.mock.calls.map(([input]) => input)).toEqual([
     {
       tabId: 12,
