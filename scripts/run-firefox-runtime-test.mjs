@@ -32,6 +32,7 @@ const result = spawnSync(
     "tests/e2e/firefox-runtime-bootstrap-followup.spec.ts",
     "tests/e2e/firefox-runtime-transport.spec.ts",
     "tests/e2e/firefox-runtime-core.spec.ts",
+    "tests/e2e/firefox-runtime-inspector.spec.ts",
     "tests/e2e/firefox-runtime-host-pause.spec.ts",
     "tests/e2e/firefox-runtime-control-d.spec.ts",
     "tests/e2e/firefox-runtime-worker-test.spec.ts",

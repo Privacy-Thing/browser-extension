@@ -5,7 +5,6 @@ import {
 
 import { isAnalystTraps } from "./analyst-traps";
 
-
 import { isSharedWorkerMode } from "@/shared/fingerprint-types";
 import type { RuntimeSnapshot } from "@/shared/types";
 

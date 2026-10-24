@@ -1,4 +1,3 @@
-
 import { privateDateNow } from "@privacy-brand/refract-core/runtime/primordials";
 import { getTimeZoneOffsetMinutes } from "@privacy-brand/refract-core/time/timezone-offset";
 

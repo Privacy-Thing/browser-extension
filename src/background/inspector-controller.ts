@@ -1,4 +1,3 @@
-
 import { seedPauseFrames, type PauseSeedDeps } from "@/background/host-pause-seed";
 import { createInspectorHandlers } from "@/background/inspector-commands";
 import type { ResolutionDecision } from "@/background/prepared-runtime-decisions";
