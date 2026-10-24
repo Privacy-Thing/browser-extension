@@ -18,10 +18,11 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ### Added
 
-- X-Ray Inspector can pause DevTools when a page reads a chosen spoofed API,
-  once per method or on every call. Selections apply to one tab and domain after
-  reload or its next load. Only APIs with method hooks are selectable; Firefox's
-  early Date/Intl adapters and shared worker execution are not supported yet.
+- X-Ray Inspector can pause DevTools when a page script reads a spoofed API you
+  choose, on its first read or on every read. A selection applies to one tab and its
+  current domain after a reload or on the tab's next load, including its frames and
+  dedicated workers. Firefox cannot pause on Date or Intl reads, and shared workers
+  never pause.
 
 - The optional Control D integration is now included in production builds for Chromium
   and Firefox, with API access requested only when connecting.
