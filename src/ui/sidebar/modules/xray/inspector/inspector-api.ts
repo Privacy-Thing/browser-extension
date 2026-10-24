@@ -109,7 +109,8 @@ const parseCommandResult = (value: unknown): XRayInspectorCommandResult | null =
 };
 
 // Chromium rejects with these messages when no listener answers a command;
-// Firefox resolves `undefined` instead. Both mean the command is unknown.
+// Firefox resolves `undefined`, which fails shape parsing below. Both mean the
+// background does not know the command.
 const MISSING_RECEIVER_PATTERN =
   /message port closed|receiving end does not exist|could not establish connection/i;
 
@@ -122,9 +123,6 @@ const send = async (command: XRayInspectorCommand): Promise<unknown> => {
       throw new InspectorMissingError();
     }
     throw error;
-  }
-  if (response === undefined || response === null) {
-    throw new InspectorMissingError();
   }
   if (isRecord(response) && response.ok === false) {
     throw new Error(

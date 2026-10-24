@@ -10,7 +10,7 @@ import "../sidebar.css";
 import { createMemoryInspectorApi } from "../modules/xray/inspector/memory-inspector-api";
 
 import {
-  createInspectorStoryState,
+  createInspectorPreset,
   createInspectorXRayState,
   INSPECTOR_STORY_PRESETS,
   type InspectorStoryPreset,
@@ -29,7 +29,7 @@ type HarnessProps = {
 const InspectorHarness = ({ preset, width, browserTarget }: HarnessProps) => {
   const api = useMemo(
     () =>
-      createMemoryInspectorApi(createInspectorStoryState(preset), {
+      createMemoryInspectorApi(createInspectorPreset(preset), {
         ...(preset === "error" ? { failWith: "The tab was closed." } : {}),
         ...(preset === "slow" ? { holdCommands: true } : {}),
       }),
@@ -362,22 +362,22 @@ const unavailableStory = (
   },
 });
 
-export const UnavailableUnsupportedUrl = unavailableStory(
+export const UnsupportedUrl = unavailableStory(
   "unsupported-url",
   "unsupported-url",
   t.sidebar.inspector.unavailable.unsupportedUrl,
 );
-export const UnavailableTrustedSite = unavailableStory(
+export const TrustedSite = unavailableStory(
   "trusted-site",
   "trusted-site",
   t.sidebar.inspector.unavailable.trustedSite,
 );
-export const UnavailableProtectionPaused = unavailableStory(
+export const ProtectionPaused = unavailableStory(
   "protection-paused",
   "protection-paused",
   t.sidebar.inspector.unavailable.protectionPaused,
 );
-export const UnavailableNoRuntime = unavailableStory(
+export const NoRuntime = unavailableStory(
   "no-runtime",
   "no-runtime",
   t.sidebar.inspector.unavailable.noRuntime,

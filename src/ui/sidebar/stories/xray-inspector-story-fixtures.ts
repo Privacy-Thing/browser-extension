@@ -1,10 +1,10 @@
 import type { GetXRayStateResponse } from "@privacy-brand/xray-protocol";
 
+import { unavailableInspector } from "../modules/xray/inspector/inspector-api";
 import type {
   XRayInspectorState,
   XRayInspectorUnavailableReason,
 } from "../modules/xray/inspector/inspector-contract";
-import { unavailableInspector } from "../modules/xray/inspector/inspector-api";
 
 import { createXRayStoryState } from "./xray-story-fixtures";
 
@@ -41,7 +41,7 @@ const PAGE_METHOD_COUNTS: SurfaceMethodQueryCounts = {
 };
 
 /** The rule in these stories leaves Screen and Temporal native, so those rows stay disabled. */
-export const STORY_TRAPPABLE_METHOD_IDS = SPOOFING_SURFACE_METHODS.filter(
+export const STORY_TRAPPABLE_IDS = SPOOFING_SURFACE_METHODS.filter(
   (method) => method.surfaceKey !== "screen" && !method.id.startsWith("temporal."),
 ).map((method) => method.id);
 
@@ -85,7 +85,7 @@ const readyState = (
   mode: "first-call",
   pendingReload: false,
   appliesLive: false,
-  trappableMethodIds: STORY_TRAPPABLE_METHOD_IDS,
+  trappableMethodIds: STORY_TRAPPABLE_IDS,
   ...overrides,
 });
 
@@ -96,7 +96,7 @@ const UNAVAILABLE_PRESETS: readonly InspectorStoryPreset[] = [
   "no-runtime",
 ];
 
-export const createInspectorStoryState = (
+export const createInspectorPreset = (
   preset: InspectorStoryPreset,
 ): XRayInspectorState => {
   if (UNAVAILABLE_PRESETS.includes(preset)) {

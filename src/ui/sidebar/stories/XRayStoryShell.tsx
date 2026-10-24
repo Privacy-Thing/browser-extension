@@ -9,6 +9,12 @@ import { Button } from "@/ui/components/ui/button";
 import { t } from "@/ui/i18n";
 import { MadeWithLoveBadge } from "@/ui/shared/MadeWithLoveBadge";
 
+const SHELL_WIDTHS = {
+  360: "w-[360px]",
+  400: "w-[400px]",
+  720: "w-[720px]",
+} as const;
+
 export const XRayStoryShell = ({
   state,
   loading = false,
@@ -21,7 +27,7 @@ export const XRayStoryShell = ({
   loading?: boolean;
   surfaceSyncPending?: boolean;
   /** Popup (360), sidebar (400) or sidecar (720) width in pixels. */
-  width?: number;
+  width?: keyof typeof SHELL_WIDTHS;
   inspectorApi?: InspectorApi;
   browserTarget?: SpoofingBrowserTarget;
 }) => {
@@ -33,8 +39,7 @@ export const XRayStoryShell = ({
 
   return (
     <div
-      style={{ width }}
-      className="relative flex min-h-[720px] flex-col overflow-hidden rounded-[calc(var(--radius)+8px)] border border-border/70 bg-background text-foreground shadow-2xl shadow-foreground/10"
+      className={`relative flex min-h-[720px] ${SHELL_WIDTHS[width]} flex-col overflow-hidden rounded-[calc(var(--radius)+8px)] border border-border/70 bg-background text-foreground shadow-2xl shadow-foreground/10`}
     >
       <header className="flex items-center justify-between gap-2 border-b border-border/60 px-3 py-2.5">
         <div className="flex min-w-0 items-center gap-2 overflow-hidden">
