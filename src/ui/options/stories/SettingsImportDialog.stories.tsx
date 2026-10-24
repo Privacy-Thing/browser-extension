@@ -3,7 +3,15 @@ import { expect, fn, userEvent, waitFor, within } from "storybook/test";
 
 import type { SettingsImportPreview } from "@/shared/settings-import";
 import { SettingsImportDialogView } from "@/ui/options/components/modals/SettingsImportDialog";
-import { expectNoSideScroll } from "@/ui/shared/dialog-overflow-assertion";
+import {
+  expectDialogFillsSurface,
+  expectDialogFitsHeight,
+  expectFooterGap,
+  expectHeaderClearsClose,
+  expectNoSideScroll,
+  expectVisibleDialogFrame,
+} from "@/ui/shared/dialog-overflow-assertion";
+import { expectScrollHandle } from "@/ui/shared/scrollbar-assertion";
 
 const preview: SettingsImportPreview = {
   token: "storybook-preview",
@@ -77,6 +85,21 @@ export const NoSideScroll: Story = {
     expectNoSideScroll(dialog);
   },
 };
+export const FrameAndViewportGap: Story = {
+  tags: ["!dev", "!autodocs"],
+  play: async () => {
+    const dialog = within(document.body).getByRole("dialog");
+    await waitFor(() => expect(dialog).toBeVisible());
+    expectVisibleDialogFrame(dialog);
+    expectDialogFillsSurface(dialog);
+    expectDialogFitsHeight(dialog);
+    expectHeaderClearsClose(dialog);
+    expectFooterGap(dialog.querySelector<HTMLElement>("[data-dialog-footer]")!);
+    // The retention notice sits outside the scrolling list, so its edge cannot cut it.
+    const retention = dialog.querySelector<HTMLElement>("[data-import-retention]")!;
+    await expect(retention.parentElement).toBe(dialog);
+  },
+};
 export const UnresolvedConflict: Story = {
   args: {
     preview: { ...preview, problems: ["Choose how to resolve preset ID: paris"] },
@@ -147,6 +170,14 @@ export const RegionalPreview: Story = {
     await expect(dialog.querySelector("[data-regional-preview]")).toBeVisible();
     await userEvent.click(dialog.querySelector("[data-regional-apply-timezone]")!);
     await expect(args.applyTimeZone).toHaveBeenCalledWith("paris", "Europe/Paris");
+  },
+};
+export const ScrollHandle: Story = {
+  tags: ["!dev", "!autodocs"],
+  play: async () => {
+    const dialog = within(document.body).getByRole("dialog");
+    await waitFor(() => expect(dialog).toBeVisible());
+    expectScrollHandle(dialog.querySelector<HTMLElement>(".overflow-y-auto")!);
   },
 };
 

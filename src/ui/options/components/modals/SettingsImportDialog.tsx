@@ -337,7 +337,9 @@ export const SettingsImportDialogView = (props: ImportDialogProps) => {
     >
       <DialogContent
         id="settings-import-dialog"
-        className="max-w-3xl"
+        // The change list shrinks first, so the header, the notice and the actions stay
+        // inside short windows.
+        className="max-h-[calc(100%-var(--gw-dialog-viewport-gap)*2)] max-w-3xl grid-rows-[auto_minmax(0,1fr)_auto_auto]"
         animationTiming="urgent"
       >
         <DialogCloseButton label={t.common.actions.close} disabled={busy} />
@@ -398,8 +400,11 @@ export const SettingsImportDialogView = (props: ImportDialogProps) => {
             </>
           ) : null}
           {preview ? errorAlert : null}
-          <p className="text-xs text-muted-foreground">{t.settingsImport.retention}</p>
         </div>
+        {/* Outside the scrolling list, so the notice is never cut off at its edge. */}
+        <p className="text-xs text-muted-foreground" data-import-retention>
+          {t.settingsImport.retention}
+        </p>
         <DialogFooter>
           <Button
             id="settings-import-cancel"

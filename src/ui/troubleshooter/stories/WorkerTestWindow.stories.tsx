@@ -4,6 +4,7 @@ import { useState } from "react";
 import { expect, fn, userEvent, within } from "storybook/test";
 
 import type { WorkerTestState, WorkerTestSession } from "@/shared/worker-test";
+import { expectScrollHandle } from "@/ui/shared/scrollbar-assertion";
 import type { WorkerTestAction } from "@/ui/shared/WorkerTroubleshooterView";
 import { createXRayStoryState } from "@/ui/sidebar/stories/xray-story-fixtures";
 import { WorkerTestWindowView } from "@/ui/troubleshooter/WorkerTestWindow";
@@ -96,5 +97,45 @@ export const SaveFinishesTheWindow: Story = {
     await expect(view.querySelector("[data-worker-test-result]")).not.toBeNull();
     await userEvent.click(view.querySelector("[data-worker-test-close]")!);
     await expect(args.onClose).toHaveBeenCalledTimes(1);
+  },
+};
+// The window scrolls its document once the content outgrows the screen height.
+export const ScrollHandle: Story = {
+  tags: ["!dev", "!autodocs"],
+  play: ({ canvasElement }) =>
+    expectScrollHandle(canvasElement.ownerDocument.documentElement),
+};
+export const ScrollHandleDark: Story = {
+  ...ScrollHandle,
+  globals: { theme: "dark" },
+};
+
+/**
+ * Pointing at the gutter beside the handle, and dragging it, widen the pill inside the
+ * fixed gutter. The content box keeps its width: compare it at rest, with the pointer
+ * in the gutter, and scrolled. The headless runner does not paint scrollbars, so the
+ * widening itself is checked in headed captures and by the CSS contract test.
+ */
+export const HandleWidensNoReflow: Story = {
+  tags: ["!dev", "!autodocs"],
+  play: async ({ canvasElement }) => {
+    const root = canvasElement.ownerDocument.documentElement;
+    const content = canvasElement.ownerDocument.body;
+    const measure = () => [root.clientWidth, content.getBoundingClientRect().width];
+    const rest = measure();
+    if (import.meta.env.MODE === "test") {
+      const { userEvent } = await import("vitest/browser");
+      // The gutter sits just past the body's end edge; force skips the hit-target check.
+      await userEvent.hover(content, {
+        position: { x: content.getBoundingClientRect().width + 5, y: 40 },
+        force: true,
+      });
+      await expect(measure(), "content box with the pointer in the gutter").toEqual(
+        rest,
+      );
+    }
+    root.scrollTop = 200;
+    await expect(measure(), "content box while scrolled").toEqual(rest);
+    root.scrollTop = 0;
   },
 };

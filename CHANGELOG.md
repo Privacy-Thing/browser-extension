@@ -132,9 +132,17 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 - Connecting Control D in Firefox no longer fails after access to all websites was
   turned off for the extension.
 
-- Dialogs use a thin neutral frame with a subtle accent line instead of a thick
-  accent-coloured border, and scrollbars follow neutral colours in every accent preset.
-  The troubleshooter, report and import dialogs no longer scroll sideways.
+- Dialogs use a thinner animated accent frame instead of the thick accent-coloured
+  border. In the X-Ray panel they fill the whole panel; elsewhere they use nearly the
+  full width of narrow windows such as the popup. Long titles wrap beside the close
+  button instead of running under it, and stacked action buttons keep a gap. The
+  troubleshooter, report and import dialogs no longer scroll sideways, the frame stays
+  in place while a long dialog scrolls, and the report keeps its actions in view on
+  short panels. Scrollbars are a thin, rounded, draggable handle in the accent colour,
+  without arrows, that stays faint until you point at or focus the scroll area; in
+  Chrome it also widens when the pointer reaches it, without moving the content. High
+  contrast keeps it fully visible. Scroll areas keep their scrollbar space, so content
+  no longer shifts sideways when it starts or stops scrolling.
 
 - Pickers no longer draw option rows outside their popup on short windows.
 
