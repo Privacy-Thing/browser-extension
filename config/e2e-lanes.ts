@@ -3,6 +3,7 @@ export const E2E_OWNERSHIP_LANES = {
     "extension-fingerprint.spec.ts",
     "extension-runtime.spec.ts",
     "extension-inspector.spec.ts",
+    "extension-inspector-live.spec.ts",
     "extension-host-pause.spec.ts",
     "extension-worker-test.spec.ts",
   ],
