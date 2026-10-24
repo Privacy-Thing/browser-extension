@@ -35,6 +35,8 @@ export const settingsImport = {
   containerAssignments: "Назначения контейнеров",
   conflict: "Конфликт",
   resolve: "Разрешите указанные конфликты перед подтверждением.",
+  reservedName: (name: string, scope: string) =>
+    `«${name}» в разделе «${scope}» — зарезервированное имя, его нельзя импортировать. Переименуйте его в файле и импортируйте файл снова.`,
   selectAll: "Выбрать все",
   skipAll: "Пропустить все",
   technicalDetails: "Технические подробности",

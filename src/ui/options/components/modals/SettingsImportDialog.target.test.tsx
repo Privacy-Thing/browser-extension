@@ -5,6 +5,8 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { SettingsImportPreview } from "@/shared/settings-import";
+import { RESERVED_IMPORT_NAME } from "@/shared/settings-import";
+import { t } from "@/ui/i18n";
 import {
   SettingsImportDialogView,
   type ImportDialogProps,
@@ -68,6 +70,44 @@ describe("import error alert", () => {
     await render(JSON.stringify(issues));
     expect(items()).toEqual(issues.map((entry) => entry.message));
     expect(document.querySelectorAll("[data-import-error] li")).toHaveLength(2);
+  });
+
+  it("names a reserved ID and where it occurs, once per message", async () => {
+    const issue = (path: Array<string | number>, name: string, scope: string) => ({
+      code: RESERVED_IMPORT_NAME,
+      path,
+      name,
+      scope,
+      message: `Reserved name "${name}" cannot be imported.`,
+    });
+    await render(
+      JSON.stringify([
+        issue(["locations", 0, "id"], "constructor", "locations"),
+        issue(["locations", 2, "id"], "constructor", "locations"),
+        issue(
+          ["workerPolicyExceptions", "__proto__"],
+          "__proto__",
+          "workerPolicyExceptions",
+        ),
+      ]),
+    );
+    const listed = [...document.querySelectorAll("[data-import-error-item]")];
+    expect(
+      listed.map((item) => [
+        item.getAttribute("data-import-error-item"),
+        item.getAttribute("data-import-error-name"),
+        item.getAttribute("data-import-error-scope"),
+      ]),
+    ).toEqual([
+      ["reservedName", "constructor", "locations"],
+      ["reservedName", "__proto__", "workerPolicyExceptions"],
+    ]);
+    expect(items()).toEqual([
+      t.settingsImport.reservedName("constructor", t.settingsImport.locations),
+      t.settingsImport.reservedName("__proto__", "workerPolicyExceptions"),
+    ]);
+    expect(document.querySelector("[data-import-error-hint]")).toBeNull();
+    expect(document.querySelector("[data-import-error-details]")).not.toBeNull();
   });
 
   it.each([

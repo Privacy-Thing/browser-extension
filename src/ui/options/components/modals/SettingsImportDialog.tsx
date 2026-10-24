@@ -284,11 +284,22 @@ const ImportErrorAlert = ({
   return (
     <div role="alert" data-import-error className="space-y-2 text-sm text-destructive">
       {items.length === 1 ? (
-        <p data-import-error-item={items[0]?.field ?? ""}>{items[0]?.message}</p>
+        <p
+          data-import-error-item={items[0]?.field ?? ""}
+          data-import-error-name={items[0]?.reserved?.name}
+          data-import-error-scope={items[0]?.reserved?.scope}
+        >
+          {items[0]?.message}
+        </p>
       ) : (
         <ul className="list-disc space-y-1 pl-5">
           {items.map((item) => (
-            <li key={item.message} data-import-error-item={item.field ?? ""}>
+            <li
+              key={item.message}
+              data-import-error-item={item.field ?? ""}
+              data-import-error-name={item.reserved?.name}
+              data-import-error-scope={item.reserved?.scope}
+            >
               {item.message}
             </li>
           ))}

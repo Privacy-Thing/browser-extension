@@ -49,6 +49,47 @@ test("selected merge resolves ID/pattern conflicts and remaps dependent rules", 
   );
 });
 
+test("import rejects reserved preset IDs and keys before any preview", async ({
+  context,
+  extensionId,
+}) => {
+  const page = await context.newPage();
+  await page.goto(`chrome-extension://${extensionId}/src/ui/options/index.html`);
+  await saveSimpleSettings(page, { onboardingCompleted: true });
+  await page.reload();
+  await openSettingsTab(page, "advanced");
+  const before = await exportSettings<ExportedSettings>(page);
+  const item = page.locator("[data-import-error] [data-import-error-item]");
+  await chooseImportFile(page, {
+    ...IMPORT_FIXTURE,
+    locations: [{ ...IMPORT_FIXTURE.locations[0]!, id: "constructor" }],
+    rules: [{ pattern: "127.0.0.1", locationId: "constructor", enabled: true }],
+  });
+  await expect(item).toHaveCount(1);
+  await expect(item).toHaveAttribute("data-import-error-item", "reservedName");
+  await expect(item).toHaveAttribute("data-import-error-name", "constructor");
+  await expect(item).toHaveAttribute("data-import-error-scope", "locations");
+  await expect(page.locator("[data-import-changes]")).toHaveCount(0);
+  await expect(page.locator("#settings-import-confirm")).toBeDisabled();
+  await page.locator("#settings-import-cancel").click();
+  // JSON.parse keeps "__proto__" as an own key, so the file carries it as data.
+  await chooseImportFile(page, {
+    ...IMPORT_FIXTURE,
+    workerPolicyExceptions: JSON.parse('{"__proto__":{"serviceWorker":false}}'),
+  });
+  await expect(item).toHaveAttribute("data-import-error-name", "__proto__");
+  await expect(item).toHaveAttribute(
+    "data-import-error-scope",
+    "workerPolicyExceptions",
+  );
+  await expect(page.locator("#settings-import-confirm")).toBeDisabled();
+  await page.locator("#settings-import-cancel").click();
+  const after = await exportSettings<ExportedSettings>(page);
+  expect(after.locations).toEqual(before.locations);
+  expect(after.rules).toEqual(before.rules);
+  expect(after.workerPolicyExceptions).toEqual(before.workerPolicyExceptions);
+});
+
 test("onboarding import uses the same preview and preserves undo without an extra save", async ({
   context,
   extensionId,
