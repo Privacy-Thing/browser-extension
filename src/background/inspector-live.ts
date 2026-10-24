@@ -40,7 +40,7 @@ const sendToFrame = async (
 
 /** about:blank and javascript: realms belong to their parent runtime. */
 const hasOwnRuntime = (url: string): boolean =>
-  /^https?:/.test(url) || url === "about:srcdoc";
+  !/^about:blank(?:[?#]|$)/.test(url) && !/^javascript:/i.test(url);
 
 export type InspectorLiveResult = {
   top: boolean;

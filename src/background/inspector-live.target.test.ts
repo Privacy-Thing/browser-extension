@@ -11,6 +11,9 @@ const frames = [
   { frameId: 1, documentId: "blank", url: "about:blank" },
   { frameId: 2, documentId: "cross", url: "https://ads.example/frame" },
   { frameId: 3, documentId: "srcdoc", url: "about:srcdoc" },
+  { frameId: 4, documentId: "data", url: "data:text/html,<p>frame</p>" },
+  { frameId: 5, documentId: "blob", url: "blob:https://probe.example/frame" },
+  { frameId: 6, documentId: "script", url: "javascript:void 0" },
 ];
 const key = (target: Record<string, unknown>) =>
   BUILD_BROWSER_TARGET === "chromium" ? target.documentId : target.frameId;
@@ -51,13 +54,14 @@ it("addresses every runtime document of the tab and aggregates its coverage", as
   });
   expect(result).toEqual({
     top: true,
-    coverage: { live: 1, notLive: 2, reasons: ["no-channel", "same-origin-frame"] },
+    coverage: { live: 3, notLive: 2, reasons: ["no-channel", "same-origin-frame"] },
   });
-  // about:blank realms follow their parent runtime and are not addressed.
+  // about:blank and javascript: realms follow their parent runtime; data: and
+  // blob: documents run their own bundles and are counted.
   expect(sent.map(({ target }) => target)).toEqual(
     BUILD_BROWSER_TARGET === "chromium"
-      ? [{ documentId: "top" }, { documentId: "cross" }, { documentId: "srcdoc" }]
-      : [{ frameId: 0 }, { frameId: 2 }, { frameId: 3 }],
+      ? ["top", "cross", "srcdoc", "data", "blob"].map((documentId) => ({ documentId }))
+      : [0, 2, 3, 4, 5].map((frameId) => ({ frameId })),
   );
   expect(sent[0]!.message).toEqual({
     type: EXTENSION_COMMAND_TYPES.applyXRayInspectorLive,
