@@ -587,9 +587,10 @@ describe("installEarlyRuntime", () => {
 
       const { installEarlyRuntime } = await import("@/injection/main/early-runtime");
       // Import the fresh mock instance created for this module reload cycle.
-      const workerBootstrap = vi.mocked(
-        await import("@privacy-brand/refract-browser/common/worker-bootstrap"),
-      );
+      const workerBootstrap =
+        (await import("@privacy-brand/refract-browser/common/worker-bootstrap")) as {
+          createWorkerSource: ReturnType<typeof vi.fn>;
+        };
       installEarlyRuntime();
       // The mock persists across tests; count only this test's invocation.
       workerBootstrap.createWorkerSource.mockClear();
@@ -671,9 +672,10 @@ describe("installEarlyRuntime", () => {
       vi.stubGlobal("Worker", MockWorker);
 
       const { installEarlyRuntime } = await import("@/injection/main/early-runtime");
-      const workerBootstrap = vi.mocked(
-        await import("@privacy-brand/refract-browser/common/worker-bootstrap"),
-      );
+      const workerBootstrap =
+        (await import("@privacy-brand/refract-browser/common/worker-bootstrap")) as {
+          createWorkerSource: ReturnType<typeof vi.fn>;
+        };
       installEarlyRuntime();
       workerBootstrap.createWorkerSource.mockClear();
 
@@ -744,9 +746,10 @@ describe("installEarlyRuntime", () => {
       vi.stubGlobal("Worker", MockWorker);
 
       const { installEarlyRuntime } = await import("@/injection/main/early-runtime");
-      const workerBootstrap = vi.mocked(
-        await import("@privacy-brand/refract-browser/common/worker-bootstrap"),
-      );
+      const workerBootstrap =
+        (await import("@privacy-brand/refract-browser/common/worker-bootstrap")) as {
+          createWorkerSource: ReturnType<typeof vi.fn>;
+        };
       installEarlyRuntime();
       // The mock persists across tests; count only this test's invocation.
       workerBootstrap.createWorkerSource.mockClear();

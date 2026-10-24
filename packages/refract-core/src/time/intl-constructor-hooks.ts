@@ -64,7 +64,7 @@ export const createIntlHooks = <TOptions, TInstance>(
       const helperDecisionResult = toIntlHookDecision(details);
       if (options.debugMode && options.consoleOutput !== false && !preparationLogged) {
         preparationLogged = true;
-        const headline = `[runtime] Intl.${String(key)} constructor intercepted`;
+        const headline = `[Refract] Intl.${String(key)} constructor intercepted`;
         const diagnostic = createConsoleDiagError(headline, {
           headline,
           component: "Intl",

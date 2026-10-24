@@ -133,6 +133,22 @@ export const resolveDocumentPreload = (
     : resolvePreloadedSnapshot(hostname, state);
 
 /**
+ * Inspector selections belong to one tab, which only the background resolver
+ * knows. Top documents of an inspected domain and, while any selection exists,
+ * subframes (whose top domain is unknown here) use that resolver instead.
+ */
+const needsTabResolver = (sessions: unknown): boolean => {
+  if (!isRecord(sessions) || typeof window === "undefined") return false;
+  const hostnames = Object.values(sessions).map((session) =>
+    isRecord(session) ? session.hostname : undefined,
+  );
+  return (
+    hostnames.length > 0 &&
+    (window !== window.top || hostnames.includes(window.location.hostname))
+  );
+};
+
+/**
  * Reads and validates the session-backed preload cache prepared by the
  * background worker.
  */
@@ -146,8 +162,7 @@ export const readPreloadedState = async (): Promise<PreloadedRuntimeState | null
       PRELOAD_STATE_KEY,
       EXTENSION_STORAGE_KEYS.inspectorSessions,
     ]);
-    if (Object.keys(result[EXTENSION_STORAGE_KEYS.inspectorSessions] ?? {}).length)
-      return null;
+    if (needsTabResolver(result[EXTENSION_STORAGE_KEYS.inspectorSessions])) return null;
     const state = result[PRELOAD_STATE_KEY];
     return isPreloadedRuntimeState(state) ? state : null;
   } catch {

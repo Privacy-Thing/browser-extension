@@ -56,7 +56,7 @@ describe("intl-constructor-hooks", () => {
     ] = debug.mock.calls[0] ?? [];
     // A single level-aware call with newline separators keeps DevTools filters working.
     expect(format).toBe("%s\n%s %o\n%s %o\n%s %o");
-    expect(headline).toBe("[runtime] Intl.DateTimeFormat constructor intercepted");
+    expect(headline).toBe("[Refract] Intl.DateTimeFormat constructor intercepted");
     expect(argsLabel).toBe("Arguments:");
     expect(argsValue).toEqual({
       locales: undefined,
@@ -87,7 +87,7 @@ describe("intl-constructor-hooks", () => {
     const traceFrames = (traceValue as { frames: string[] }).frames;
     expect(Array.isArray(traceFrames)).toBe(true);
     expect(traceFrames.join("\n")).not.toContain(
-      "[runtime] Intl.DateTimeFormat constructor intercepted",
+      "[Refract] Intl.DateTimeFormat constructor intercepted",
     );
   });
 

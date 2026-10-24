@@ -37,7 +37,7 @@ export const createConsoleDiagError = <TMetadata extends Record<string, unknown>
   metadata: TMetadata,
 ): Error & TMetadata => {
   const diagnostic = new Error(headline) as Error & TMetadata;
-  diagnostic.name = "Error";
+  diagnostic.name = "Refract";
 
   for (const [key, value] of Object.entries(metadata)) {
     Object.defineProperty(diagnostic, key, {
@@ -91,8 +91,8 @@ const getConsoleHeadline = (
   kind: NonNullable<RuntimeDebugLogOptions["kind"]>,
 ): string =>
   kind === "install"
-    ? `[runtime] ${component} patch installed`
-    : `[runtime] ${component}.${method} intercepted`;
+    ? `[Refract] ${component} patch installed`
+    : `[Refract] ${component}.${method} intercepted`;
 
 type RuntimeDiagInput = {
   component: string;

@@ -91,7 +91,7 @@ export const installModuleOnce = (
     return true;
   } catch (error) {
     if (state.snapshot?.debugMode) {
-      console.error(`[runtime] Failed to install module: ${name}`, error);
+      console.error(`[Refract] Failed to install module: ${name}`, error);
     }
     return false;
   }
