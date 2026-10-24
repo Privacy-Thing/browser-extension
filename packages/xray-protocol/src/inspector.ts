@@ -57,7 +57,27 @@ export const XRayInspectorCommandSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal(CMD_XRAY_CLEAR_INSPECTOR), tabId, apply }).strict(),
 ]);
 export type XRayInspectorCommand = z.infer<typeof XRayInspectorCommandSchema>;
+
+/** Why a document of the tab receives the selection on its next load instead. */
+export const XRayLiveReasonSchema = z.enum([
+  "opened-window",
+  "same-origin-frame",
+  "no-channel",
+  "late-runtime",
+]);
+export type XRayLiveReason = z.infer<typeof XRayLiveReasonSchema>;
+export const XRayLiveCoverageSchema = z
+  .object({
+    live: z.number().int().nonnegative(),
+    notLive: z.number().int().nonnegative(),
+    reasons: z.array(XRayLiveReasonSchema).readonly(),
+  })
+  .strict();
+export type XRayLiveCoverage = z.infer<typeof XRayLiveCoverageSchema>;
+
 export type XRayInspectorApplyResult = {
   state: XRayInspectorState;
   appliedVia: XRayInspectorAppliedVia;
+  /** Present when a live update was attempted; counts documents of the tab. */
+  liveCoverage?: XRayLiveCoverage;
 };
