@@ -5,7 +5,7 @@ spoofing. Optimize for spoofing correctness, invisibility to page scripts,
 cross-browser behavior and low overhead. `CLAUDE.md` links to this file.
 
 ## Progress tracking
-- Linear, `PT` prefix
+- Linear (main), `PT` prefix
 - GitHub Issues 
 
 ## Stack and boundaries
