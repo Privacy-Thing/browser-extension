@@ -55,8 +55,11 @@ test("Firefox Inspector pauses at a selected native getter in the real MAIN runt
       );
     } else {
       response.writeHead(200, { "content-type": "text/html" });
+      const loadRead = request.url?.includes("read-on-load")
+        ? "<script>window.loadRead = navigator.webdriver;</script>"
+        : "";
       response.end(
-        '<!doctype html><button id="read">Read</button><output id="result"></output><script src="/distinctive-firefox-spy.js"></script>',
+        `<!doctype html>${loadRead}<button id="read">Read</button><output id="result"></output><script src="/distinctive-firefox-spy.js"></script>`,
       );
     }
   });
@@ -78,6 +81,7 @@ test("Firefox Inspector pauses at a selected native getter in the real MAIN runt
   // Observe real pause packets without feeding them into its request queue.
   const handleMessage = remote.client._handleMessage.bind(remote.client);
   let onPause = (_packet: Packet): void => undefined;
+  let pausedTabId: number | undefined;
   remote.client._handleMessage = (packet) => {
     if (packet.type === "paused") onPause(packet);
     else if (
@@ -123,15 +127,19 @@ test("Firefox Inspector pauses at a selected native getter in the real MAIN runt
       ).appliedVia,
     ).toBe("next-load");
     await page.reload();
-    const listed = await remote.client.request("listTabs");
-    const tab = listed.tabs!.find((row) => row.url.startsWith(probeUrl))!;
-    const target = await remote.client.request({ to: tab.actor, type: "getTarget" });
-    const threadActor = target.frame!.threadActor!;
-    await remote.client.request({
-      to: threadActor,
-      type: "attach",
-      options: { useSourceMaps: true },
-    });
+    const attachThread = async () => {
+      const listed = await remote.client.request("listTabs");
+      const tab = listed.tabs!.find((row) => row.url.startsWith(probeUrl))!;
+      const target = await remote.client.request({ to: tab.actor, type: "getTarget" });
+      const thread = target.frame!.threadActor!;
+      await remote.client.request({
+        to: thread,
+        type: "attach",
+        options: { useSourceMaps: true },
+      });
+      return thread;
+    };
+    const threadActor = await attachThread();
     const paused = new Promise<Packet>((resolve) => {
       onPause = (packet) => {
         if (packet.why?.type === "debuggerStatement") resolve(packet);
@@ -167,7 +175,80 @@ test("Firefox Inspector pauses at a selected native getter in the real MAIN runt
     await remote.client.request({ to: threadActor, type: "resume" });
     await value;
     await expect(page.locator("#result")).toHaveText("false");
+    expect(
+      (
+        await command(CMD_XRAY_SET_INSPECTOR, {
+          tabId,
+          methodIds: ["navigator.webdriver"],
+          mode: "first-call",
+          apply: "next-load",
+        })
+      ).appliedVia,
+    ).toBe("next-load");
+    // The next load is resolved when it starts; the open document holds no seed.
+    expect(await page.evaluate(() => window.name)).toBe("");
+    const pauses: Packet[] = [];
+    onPause = (packet) => {
+      if (packet.why?.type !== "debuggerStatement") return;
+      pauses.push(packet);
+      void remote.client.request({ to: packet.from!, type: "resume" });
+    };
+    const read = async () => {
+      await page.evaluate(() => {
+        document.getElementById("result")!.textContent = "";
+      });
+      await page.locator("#read").click();
+      await expect(page.locator("#result")).not.toHaveText("");
+    };
+    // Same-origin navigations keep the window.name seed instead of a hash hop.
+    await options.evaluate(
+      `(globalThis.ptCommits = [], browser.webNavigation.onCommitted.addListener((details) => { if (details.tabId === ${tabId} && details.frameId === 0) globalThis.ptCommits.push(details.url); }), true)`,
+    );
+    const commits = () => options.evaluate<string[]>("globalThis.ptCommits");
+    await page.goto(`${probeUrl}?same-origin`);
+    await expect
+      .poll(commits)
+      .toContainEqual(expect.stringContaining(`${probeUrl}?same-origin`));
+    expect((await commits()).filter((url) => url.includes("#"))).toEqual([]);
+    // The earlier thread actor can survive a same-process navigation and report
+    // the same stop again; count the stops of the new document's thread.
+    const sameOriginThread = await attachThread();
+    await read();
+    expect(pauses.filter((packet) => packet.from === sameOriginThread)).toHaveLength(1);
+    // Protection paused wins over the tab's selection, from the first page script on.
+    await page.goto(`${probeUrl}?read-on-load`);
+    await attachThread();
+    pauses.length = 0;
+    pausedTabId = tabId;
+    const pausedLoad = page.waitForEvent("domcontentloaded");
+    expect(
+      (
+        await command(EXTENSION_COMMAND_TYPES.setHostProtectionPause, {
+          tabId,
+          duration: "ten-minutes",
+        })
+      ).ok,
+    ).toBe(true);
+    await pausedLoad;
+    await expect
+      .poll(
+        async () =>
+          (await command(CMD_XRAY_GET_INSPECTOR_STATE, { tabId })).unavailableReason,
+      )
+      .toBe("protection-paused");
+    expect(
+      await page.evaluate(() => typeof (window as { loadRead?: unknown }).loadRead),
+    ).toBe("boolean");
+    await attachThread();
+    await read();
+    expect(pauses).toHaveLength(0);
   } finally {
+    // Host pauses live in session storage, which the per-test reset keeps.
+    if (pausedTabId !== undefined)
+      await command(EXTENSION_COMMAND_TYPES.setHostProtectionPause, {
+        tabId: pausedTabId,
+        duration: "resume",
+      });
     remote.disconnect();
     await page.close();
     await options.close();

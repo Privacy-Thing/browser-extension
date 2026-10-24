@@ -35,6 +35,7 @@ import type { PopupNotification, SharedWorkerHandlingMode } from "@/shared/types
 import { BrandHorizontalLogo } from "@/ui/branding/BrandHorizontalLogo";
 import { t } from "@/ui/i18n";
 import { icon } from "@/ui/options/utils";
+import { expectScrollHandle } from "@/ui/shared/scrollbar-assertion";
 
 type PopupStoryWorkspace =
   | "closed"
@@ -908,7 +909,9 @@ export const WorkspaceGeometryTest: Story = {
     const closeLabelBounds = find(
       ".gw-popup-workspace-back-label",
     ).getBoundingClientRect();
-    await expect(getComputedStyle(scrollport).scrollbarWidth).toBe("none");
+    // The scroll handle's gutter comes out of the end padding, so the groups still
+    // line up with the close label.
+    await expect(getComputedStyle(scrollport).scrollbarGutter).toBe("stable");
     await expect(groupBounds.right).toBeCloseTo(closeLabelBounds.right, 4);
 
     const state = getComputedStyle(find(".gw-popup-protection-state"));
@@ -1109,4 +1112,28 @@ export const AllBaseVariants: Story = {
       ))}
     </div>
   ),
+};
+
+export const ScrollHandle: Story = {
+  args: {
+    variant: "rule-active",
+    context: "baseline",
+    workspace: "closed",
+    viewport: "compact",
+    showWorkbench: false,
+  },
+  tags: ["!dev", "!autodocs"],
+  play: ({ canvasElement }) => {
+    const section = canvasElement.querySelector<HTMLElement>(".gw-popup-main-section")!;
+    expectScrollHandle(section);
+    // The rule card is laid out for the full popup width: the handle's gutter comes out
+    // of the end padding, so the card keeps the 1.5rem inset on both sides (a narrower
+    // card pushes the pause control out).
+    const bounds = section.getBoundingClientRect();
+    const card = canvasElement
+      .querySelector(".gw-popup-rule-card")!
+      .getBoundingClientRect();
+    expect(card.left - bounds.left, "rule card start inset").toBe(24);
+    expect(bounds.right - card.right, "rule card end inset").toBe(24);
+  },
 };

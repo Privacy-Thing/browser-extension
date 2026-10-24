@@ -10,6 +10,7 @@ import {
   syncContextHeaderRule,
 } from "@/background/dnr";
 import { buildRequestHeaders } from "@/background/dnr-request-headers";
+import { toTabRuleId } from "@/background/dnr-rule-constants";
 import {
   clearSurfaceEvidence,
   getRealmEvidence,
@@ -216,6 +217,41 @@ describe("buildHeaderRules", () => {
     expect(result[0]?.condition.requestDomains).toBeUndefined();
     expect(result[0]?.action.requestHeaders).toEqual(expectedLocaleHeaders("pl"));
   });
+
+  it.each([Number.NaN, 1.5, -1, Number.POSITIVE_INFINITY, undefined as never])(
+    "skips a tab context whose tab id %s cannot form an integer rule id",
+    (badTabId) => {
+      const profiles: Location[] = [
+        {
+          id: "warsaw",
+          label: "Warsaw",
+          latitude: 52.2297,
+          longitude: 21.0122,
+          accuracy: 25,
+          noiseRadius: 50,
+          language: "pl",
+          languages: ["pl"],
+          timeZone: "Europe/Warsaw",
+        },
+      ];
+      const rules: DomainRule[] = [
+        { pattern: "*", locationId: "warsaw", enabled: true },
+      ];
+
+      const result = buildHeaderRules(
+        [
+          { tabId: badTabId, hostname: "example.com" },
+          { tabId: 7, hostname: "example.com" },
+        ],
+        profiles,
+        rules,
+        false,
+      );
+
+      expect(result.map((rule) => rule.id)).toEqual([toTabRuleId(7)]);
+      expect(result.every((rule) => Number.isInteger(rule.id))).toBe(true);
+    },
+  );
 
   it("builds a per-tab rule directly from a prepared snapshot", () => {
     const result = buildSnapshotHeaderRule(
@@ -780,6 +816,16 @@ describe("syncContextHeaderRule", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     clearSurfaceEvidence(context.tabId);
+  });
+
+  it("does not touch session rules for a tab id that cannot form a rule id", async () => {
+    await syncContextHeaderRule(
+      { tabId: Number.NaN, hostname: "example.test" },
+      snapshot,
+    );
+    await syncContextHeaderRule({ tabId: 1.5, hostname: "example.test" }, snapshot);
+
+    expect(updateSessionRules).not.toHaveBeenCalled();
   });
 
   it("records the DNR realm as intact when the browser confirms the expected header rule", async () => {

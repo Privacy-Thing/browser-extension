@@ -4,7 +4,9 @@ body {
   min-height: 100vh;
   margin: 0;
   padding: 0;
-  background: var(--background);
+  /* The tokens are HSL channels. The root background also paints the reserved
+     scrollbar gutter, which otherwise showed the browser's default canvas colour. */
+  background: hsl(var(--background));
   color: var(--foreground);
 }
 

@@ -1,5 +1,6 @@
 import { useCallback, useState, type RefObject } from "react";
 
+import { createUniqueLocationId } from "@/shared/location-id";
 import { DEFAULT_PREFERENCES } from "@/shared/settings-defaults";
 import type {
   ContainerAssignment,
@@ -16,7 +17,6 @@ import { getLocationAnchor } from "@/ui/options/navigation";
 import { useLatestRef } from "@/ui/options/state/use-latest-ref";
 import type { ConfirmDialogConfig } from "@/ui/options/state/use-settings-confirm-dialog";
 import type { PersistSettingsOptions } from "@/ui/options/state/use-settings-persistence-runtime";
-import { createUniqueLocationId } from "@/ui/options/utils";
 
 export const useLocationState = () => {
   const [profiles, setProfiles] = useState<Location[]>([]);
@@ -203,6 +203,7 @@ const handlePersistProfile = async (
             id: createUniqueLocationId(
               profile.label,
               profilesRef.current.map((current) => current.id),
+              "profile",
             ),
           },
         ]
@@ -226,6 +227,7 @@ const commitGeneratedLocation = async (
   const id = createUniqueLocationId(
     draft.label,
     state.profiles.map((profile) => profile.id),
+    "profile",
   );
   const nextProfiles = [
     ...state.profiles,

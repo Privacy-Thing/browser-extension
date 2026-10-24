@@ -90,21 +90,23 @@ const Harness = ({ scenario }: { scenario: Scenario }) => {
   return (
     <Dialog open>
       <DialogContent
-        className="max-h-[92vh] w-[calc(100%-1.5rem)] max-w-lg min-w-0 overflow-y-auto p-4"
+        className="max-h-[92vh] max-w-lg min-w-0 grid-rows-[auto_minmax(0,1fr)] p-4"
         data-worker-troubleshooter
       >
         <DialogCloseButton label={t.common.actions.close} />
-        <DialogHeader className="pr-7">
+        <DialogHeader>
           <DialogTitle>{t.sidebar.troubleshooter.title}</DialogTitle>
           <DialogDescription>{t.sidebar.troubleshooter.intro}</DialogDescription>
         </DialogHeader>
-        <WorkerTroubleshooterView
-          data={data}
-          xray={xray}
-          now={now}
-          pending={false}
-          onAction={action}
-        />
+        <div className="grid min-h-0 min-w-0 gap-4 overflow-y-auto">
+          <WorkerTroubleshooterView
+            data={data}
+            xray={xray}
+            now={now}
+            pending={false}
+            onAction={action}
+          />
+        </div>
       </DialogContent>
     </Dialog>
   );

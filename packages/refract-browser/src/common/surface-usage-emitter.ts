@@ -202,6 +202,10 @@ export const recordSurfaceUse = (
 
 export let markSurfaceUsed = recordSurfaceUse;
 let trapRevision = -1;
+let activeTraps: RuntimeSnapshot["analystTraps"] | null = null;
+/** The selection this realm applies now; dedicated workers start from it. */
+export const getAnalystTraps = (): RuntimeSnapshot["analystTraps"] | null =>
+  activeTraps;
 /**
  * Single seam for snapshot activation and live Inspector commands. Older or
  * duplicate revisions cannot reset first-call; returns whether it applied.
@@ -212,6 +216,7 @@ export const setAnalystTraps = (
 ): boolean => {
   if (revision <= trapRevision) return false;
   trapRevision = revision;
+  activeTraps = config ?? null;
   if (!config) {
     markSurfaceUsed = recordSurfaceUse;
     return true;

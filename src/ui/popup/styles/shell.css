@@ -133,7 +133,11 @@
   min-height: 0;
   flex: 1 1 auto;
   overflow-y: auto;
-  padding: var(--gw-popup-section-pt) 1.5rem var(--gw-popup-section-pb);
+  /* The rule card is laid out for the full popup width. The scroll handle's gutter is
+     taken from the end padding, so the card keeps its width and stays centred. */
+  scrollbar-gutter: stable;
+  padding: var(--gw-popup-section-pt) calc(1.5rem - var(--gw-scrollbar-size))
+    var(--gw-popup-section-pb) 1.5rem;
 }
 
 .gw-popup-content-stack {

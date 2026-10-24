@@ -1,3 +1,4 @@
+import { getAnalystTraps } from "@privacy-brand/refract-browser/common/surface-usage-emitter";
 import { createWorkerSource } from "@privacy-brand/refract-browser/common/worker-bootstrap";
 import { requireNewTarget } from "@privacy-brand/refract-core/native/constructor-wiring";
 import {
@@ -60,7 +61,7 @@ export class WorkerBlobStore {
       if (inlineSource !== undefined) {
         return this.#buildBootstrapUrl(
           createWorkerSource({
-            snapshot: this.#snapshot,
+            snapshot: this.#workerSnapshot(),
             workerUrl: originalUrl,
             workerType,
             inlineSource,
@@ -78,11 +79,20 @@ export class WorkerBlobStore {
     }
     return this.#buildBootstrapUrl(
       createWorkerSource({
-        snapshot: this.#snapshot,
+        snapshot: this.#workerSnapshot(),
         workerUrl,
         workerType,
       }),
     );
+  }
+
+  /** A new worker follows the document's current Inspector selection. */
+  #workerSnapshot(): RuntimeSnapshot {
+    const snapshot = { ...this.#snapshot };
+    const traps = getAnalystTraps();
+    if (traps) snapshot.analystTraps = traps;
+    else delete snapshot.analystTraps;
+    return snapshot;
   }
 
   revokeBootstrapUrl(url: string): void {

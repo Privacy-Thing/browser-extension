@@ -1,5 +1,6 @@
 import { validateImportedSettings } from "@/background/settings";
 import type { SettingsCommandDeps } from "@/background/settings-command-types";
+import { assertAllowedImportNames } from "@/background/settings-import-names";
 import {
   diffImportedSettings,
   planSettingsImport,
@@ -102,6 +103,7 @@ const previewSettingsImport = async (
   try {
     // Validate before touching even migration state; normalizing mints missing
     // nonces once and the retained candidate is exactly what confirmation writes.
+    assertAllowedImportNames(command.settings);
     validateImportedSettings(command.settings);
     await deps.ensureStorageMigration();
     const before = await readConfiguration();

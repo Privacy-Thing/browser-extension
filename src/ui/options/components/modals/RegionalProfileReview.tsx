@@ -5,6 +5,7 @@ import type { BrowserFingerprintSource } from "@/shared/browser-fingerprint";
 import {
   buildRegionalPreview,
   getSuggestedTimeZone,
+  pointsOutsideLand,
   type RegionalProfile,
 } from "@/shared/regional-profile";
 import { Button } from "@/ui/components/ui/button";
@@ -63,6 +64,10 @@ export const RegionalProfileReview = ({
     () => getSuggestedTimeZone({ latitude, longitude, timeZone }),
     [latitude, longitude, timeZone],
   );
+  const outsideLand = useMemo(
+    () => pointsOutsideLand({ latitude, longitude }),
+    [latitude, longitude],
+  );
   const preview = useMemo(
     () =>
       buildRegionalPreview(
@@ -78,6 +83,15 @@ export const RegionalProfileReview = ({
   );
   return (
     <section className="space-y-3" data-regional-review>
+      {outsideLand ? (
+        <div
+          role="status"
+          data-regional-warning="coordinates"
+          className="rounded-md border border-tone-warning-border bg-tone-warning-bg p-3 text-sm text-tone-warning-text"
+        >
+          <p>{t.locations.regionalReview.outsideLand}</p>
+        </div>
+      ) : null}
       {suggestedTimeZone ? (
         <div
           role="status"

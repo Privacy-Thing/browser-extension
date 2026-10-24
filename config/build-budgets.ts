@@ -60,6 +60,8 @@ export const FX_MAIN_WORLD_MAX_BYTES = 169 * 1024;
 export const CHROME_EARLY_MAX_BYTES = 13.75 * 1024;
 
 /**
- * Chromium main-world runtime, including the inlined worker source.
+ * Chromium main-world runtime, including the inlined worker source and the
+ * Inspector selection taken from the commit-time delivery. Per-build identifiers
+ * vary the size of the same graph by about 200 B.
  */
 export const CHROME_RUNTIME_MAX_BYTES = 192 * 1024;
