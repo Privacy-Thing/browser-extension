@@ -62,13 +62,28 @@ const Harness = ({ layout }: { layout?: DialogLayout }) => (
 const meta = {
   title: "Sidebar/Dialog layout",
   component: Harness,
+  // Header alignment and footer direction follow the window's sm breakpoint, so the
+  // test window takes each story's width instead of only a narrower containing block.
+  beforeEach: async ({ parameters }) => {
+    if (import.meta.env.MODE !== "test") return;
+    const { page } = await import("vitest/browser");
+    const width = (parameters.dialogWindowWidth as number | undefined) ?? 1200;
+    const previous = [window.innerWidth, window.innerHeight] as const;
+    await page.viewport(width, 640);
+    await expect(window.innerWidth).toBe(width);
+    return async () => {
+      await page.viewport(...previous);
+    };
+  },
   parameters: { privacyThing: { surface: "sidebar" } },
 } satisfies Meta<typeof Harness>;
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+const body = (canvasElement: HTMLElement) => within(canvasElement.ownerDocument.body);
+
 const expectLongTitlesClear: Story["play"] = async ({ canvasElement }) => {
-  const dialog = within(canvasElement.ownerDocument.body).getByRole("dialog");
+  const dialog = body(canvasElement).getByRole("dialog");
   await waitFor(() => expect(dialog).toBeVisible());
   const title = within(dialog).getByRole("heading");
   for (const text of TITLES) {
@@ -78,30 +93,50 @@ const expectLongTitlesClear: Story["play"] = async ({ canvasElement }) => {
   expectFooterGap(dialog.querySelector<HTMLElement>("[data-dialog-footer]")!);
 };
 
-/** Sidebar dialogs fill the panel; long and translated titles wrap beside the close button. */
-export const LongTitlesInSidebar: Story = {
-  tags: ["!dev", "!autodocs"],
-  play: async (context) => {
-    await expectLongTitlesClear(context);
-    expectDialogCoversPanel(
-      within(context.canvasElement.ownerDocument.body).getByRole("dialog"),
-    );
-  },
+const expectFillingPanel: Story["play"] = async (context) => {
+  await expectLongTitlesClear(context);
+  expectDialogCoversPanel(body(context.canvasElement).getByRole("dialog"));
 };
 
-/** Popup and options dialogs stay centred with the same header and footer rules. */
-export const LongTitlesCentered: Story = {
+const expectCentered: Story["play"] = async (context) => {
+  await expectLongTitlesClear(context);
+  await expect(body(context.canvasElement).getByRole("dialog")).toHaveAttribute(
+    "data-layout",
+    "centered",
+  );
+};
+
+/**
+ * Sidebar dialogs fill the panel. Long and translated titles wrap beside the close
+ * button, centred on a narrow window, and stacked actions keep the shared gap.
+ */
+export const LongTitlesSidebar360: Story = {
+  tags: ["!dev", "!autodocs"],
+  parameters: { dialogWindowWidth: 360 },
+  play: expectFillingPanel,
+};
+
+export const LongTitlesSidebar360Dark: Story = {
+  ...LongTitlesSidebar360,
+  globals: { theme: "dark" },
+};
+
+/** Wide panels left-align the header and put the actions side by side. */
+export const LongTitlesSidebar720: Story = {
+  tags: ["!dev", "!autodocs"],
+  parameters: { dialogWindowWidth: 720 },
+  play: expectFillingPanel,
+};
+
+/** Popup and options dialogs stay centred and follow the same header and footer rules. */
+export const LongTitlesCentered360: Story = {
   args: { layout: "centered" },
   tags: ["!dev", "!autodocs"],
-  play: async (context) => {
-    await expectLongTitlesClear(context);
-    await expect(
-      within(context.canvasElement.ownerDocument.body).getByRole("dialog"),
-    ).toHaveAttribute("data-layout", "centered");
-  },
+  parameters: { dialogWindowWidth: 360 },
+  play: expectCentered,
 };
 
-export const LongTitlesInSidebarDark: Story = {
-  ...LongTitlesInSidebar,
-  globals: { theme: "dark" },
+export const LongTitlesCentered720: Story = {
+  ...LongTitlesCentered360,
+  parameters: { dialogWindowWidth: 720 },
 };

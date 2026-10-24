@@ -122,6 +122,28 @@ export const expectHeaderClearsClose = (dialog: HTMLElement) => {
   }
 };
 
+/** Short windows a centred dialog must fit, with the shared gap above and below. */
+const SHORT_SURFACES_PX = [
+  [360, 420],
+  [720, 360],
+] as const;
+
+/** Asserts a centred dialog stays inside short windows without its content spilling out. */
+export const expectDialogFitsHeight = (dialog: HTMLElement) => {
+  for (const [width, height] of SHORT_SURFACES_PX) {
+    onSurface(dialog, width, height, () => {
+      expect(
+        dialog.offsetHeight,
+        `dialog height in a ${width}x${height} window`,
+      ).toBeLessThanOrEqual(height - DIALOG_VIEWPORT_GAP_PX * 2);
+      expect(
+        dialog.scrollHeight,
+        `dialog overflow in a ${width}x${height} window`,
+      ).toBe(dialog.clientHeight);
+    });
+  }
+};
+
 /** The shared footer gap: Tailwind gap-2. */
 const FOOTER_GAP_PX = 8;
 

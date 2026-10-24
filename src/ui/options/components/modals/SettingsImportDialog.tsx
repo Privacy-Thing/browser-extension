@@ -309,7 +309,9 @@ export const SettingsImportDialogView = (props: ImportDialogProps) => {
     >
       <DialogContent
         id="settings-import-dialog"
-        className="max-w-3xl"
+        // The change list shrinks first, so the header, the notice and the actions stay
+        // inside short windows.
+        className="max-h-[calc(100%-var(--gw-dialog-viewport-gap)*2)] max-w-3xl grid-rows-[auto_minmax(0,1fr)_auto_auto]"
         animationTiming="urgent"
       >
         <DialogCloseButton label={t.common.actions.close} disabled={busy} />
