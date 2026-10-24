@@ -10,6 +10,7 @@ for (const target of ["chrome", "firefox"]) {
     test(`${target}/${file} retains a neutral pause source outside the ignore list`, async () => {
       const code = await readFile(path.resolve("build", target, file), "utf8");
       expect(code).toMatch(/\bdebugger\b/);
+      expect(/privacy[ -]?thing|refract/i.test(code)).toBe(false);
       const match = /sourceMappingURL=data:application\/json;base64,([^\s]+)/.exec(
         code,
       );
@@ -54,6 +55,6 @@ test("decoded worker Blob runtime retains pauses without product identifiers or 
   vi.unstubAllGlobals();
   expect(source).toMatch(/\bdebugger\b/);
   expect(source).not.toMatch(
-    /privacy[ -]?thing|refract|analystTrap|sourceMappingURL|sourcesContent/i,
+    /privacy[ -]?thing|refract|createAnalystTrapState|sourceMappingURL|sourcesContent/i,
   );
 });

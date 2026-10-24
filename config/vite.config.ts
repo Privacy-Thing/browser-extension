@@ -23,7 +23,7 @@ import {
   repositoryRootDirectory,
   uiAliasEntries,
 } from "./path-aliases.ts";
-import { runtimeDebugMapPlugin } from "./runtime-debug-map";
+import { runtimeDebugMapPlugin } from "./runtime-debug-map.ts";
 
 type BuildTarget = "chromium" | "firefox";
 
