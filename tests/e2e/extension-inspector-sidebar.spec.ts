@@ -55,6 +55,10 @@ const armFromSidebar = async (sidebar: Page, category: string, methodId: string)
   );
   await expect(panel).toHaveAttribute("data-inspector-phase", "armed");
   await expect(panel).toHaveAttribute("data-inspector-pending-reload", "false");
+  await expect(sidebar.locator("[data-inspector-status]")).toHaveAttribute(
+    "data-inspector-status",
+    "armed",
+  );
 };
 
 const disarmFromSidebar = async (sidebar: Page) => {
@@ -63,6 +67,10 @@ const disarmFromSidebar = async (sidebar: Page) => {
     .click();
   await expect(sidebar.locator("[data-xray-inspector-panel]")).toHaveAttribute(
     "data-inspector-phase",
+    "idle",
+  );
+  await expect(sidebar.locator("[data-inspector-status]")).toHaveAttribute(
+    "data-inspector-status",
     "idle",
   );
   await expect(sidebar.locator("[data-inspector-applied-via]")).toHaveAttribute(
