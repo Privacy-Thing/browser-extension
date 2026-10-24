@@ -2,10 +2,19 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ANALYST_CMD, ANALYST_HANDOFF_RUNTIME } from "@/shared/build-id-test-values";
+import {
+  ANALYST_CMD,
+  ANALYST_HANDOFF_EARLY,
+  ANALYST_HANDOFF_RUNTIME,
+} from "@/shared/build-id-test-values";
 import { EXTENSION_COMMAND_TYPES } from "@/shared/extension-contract";
 
 const pauses = vi.hoisted(() => ({ count: 0 }));
+const realm = vi.hoisted(() => ({ parentOwned: false }));
+vi.mock("@/injection/main/iframe-realm-ownership", async (original) => ({
+  ...(await original<Record<string, unknown>>()),
+  isParentOwnedRealm: () => realm.parentOwned,
+}));
 vi.mock("@privacy-brand/refract-core/runtime/analyst-trap", () => ({
   pause: () => {
     pauses.count += 1;
@@ -30,32 +39,50 @@ const loadDocument = () => {
   });
 };
 
-const message = (command: unknown, opened = false) => ({
+const message = (command: unknown) => ({
   type: EXTENSION_COMMAND_TYPES.applyXRayInspectorLive,
-  opened,
   command,
 });
 
 const loadEndpoints = async () => {
   const endpoints = await import("@/content/analyst-endpoints");
+  endpoints.installAnalystEndpoints();
   return (value: unknown, sender: chrome.runtime.MessageSender = background) =>
     endpoints.applyLiveMessage(value, sender);
 };
 
 // Each MAIN bundle carries its own emitter copy, so each gets its own module graph.
-const loadBundles = async () => {
-  await import("@/injection/main/analyst-channel-early");
+const openBundle = async (type: string) => {
   vi.resetModules();
-  await import("@/injection/main/analyst-channel-runtime");
+  (await import("@/injection/main/analyst-channel")).openAnalystChannel(type);
   return import("@privacy-brand/refract-browser/common/surface-usage-emitter");
 };
+const loadBundles = async () => {
+  await openBundle(ANALYST_HANDOFF_EARLY);
+  return openBundle(ANALYST_HANDOFF_RUNTIME);
+};
+
+/** What a page can learn by dispatching a fixed handshake name itself. */
+const pageProbe = (target: EventTarget = document) =>
+  [ANALYST_HANDOFF_EARLY, ANALYST_HANDOFF_RUNTIME].map((type) => {
+    const listener = vi.fn();
+    target.addEventListener(type, listener);
+    target.dispatchEvent(
+      new MouseEvent(type, { relatedTarget: document.createElement("div") }),
+    );
+    target.removeEventListener(type, listener);
+    return listener.mock.calls.length;
+  });
 
 beforeEach(() => {
   vi.resetModules();
+  // The registry also closes when the document_start task ends.
+  vi.useFakeTimers({ toFake: ["setTimeout"] });
   pauses.count = 0;
   loadDocument();
 });
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
@@ -156,11 +183,10 @@ describe("Inspector live channel", () => {
     const json = document.createElement("script");
     json.type = "application/json";
     document.head.append(json);
-    await import("@/injection/main/analyst-channel-early");
+    await openBundle(ANALYST_HANDOFF_EARLY);
     const script = document.createElement("script");
     document.head.append(script);
-    vi.resetModules();
-    await import("@/injection/main/analyst-channel-runtime");
+    await openBundle(ANALYST_HANDOFF_RUNTIME);
     expect(apply(message(null))).toEqual({
       appliedVia: "not-live",
       reason: "late-runtime",
@@ -168,7 +194,7 @@ describe("Inspector live channel", () => {
     });
   });
 
-  it("keeps the first endpoint per bundle and hides every handshake", async () => {
+  it("keeps the first endpoint per bundle and stops listening once both handed over", async () => {
     const apply = await loadEndpoints();
     const usage = await loadBundles();
     const later = vi.fn();
@@ -179,7 +205,9 @@ describe("Inspector live channel", () => {
     document.dispatchEvent(
       new MouseEvent(ANALYST_HANDOFF_RUNTIME, { relatedTarget: forged }),
     );
-    expect(later).not.toHaveBeenCalled();
+    // A later dispatch reaches every listener; nothing was there to stop it.
+    expect(later).toHaveBeenCalledOnce();
+    expect(pageProbe()).toEqual([1, 1]);
     expect(apply(message({ r: 30, m: ["date.now"], e: false }))).toEqual({
       appliedVia: "live",
       endpoints: 2,
@@ -189,7 +217,7 @@ describe("Inspector live channel", () => {
     expect(pauses.count).toBe(1);
   });
 
-  it("accepts only shaped background messages and blocks reachable documents", async () => {
+  it("accepts only shaped background messages", async () => {
     const apply = await loadEndpoints();
     await loadBundles();
     const command = { r: 40, m: ["date.now"], e: false };
@@ -198,9 +226,12 @@ describe("Inspector live channel", () => {
     ).toBeNull();
     expect(apply(message(command), { id: "other" })).toBeNull();
     expect(apply({ ...message(command), extra: true })).toBeNull();
+    expect(apply({ ...message(command), opened: false })).toBeNull();
     expect(apply(message({ ...command, m: ["date.now", 1] }))).toBeNull();
-    expect(apply(message(command, true))).toMatchObject({ reason: "opened-window" });
+    expect(apply(message(command))).toMatchObject({ appliedVia: "live" });
+  });
 
+  it("gives documents another page can reach first no listener and no live updates", async () => {
     const crossOriginWindow = (parent?: object): Record<string, unknown> => {
       const frame: Record<string, unknown> = {
         get location(): never {
@@ -212,17 +243,96 @@ describe("Inspector live channel", () => {
     };
     const top = crossOriginWindow();
     top.top = top;
-    const sameOrigin = { top, parent: { top, location: { origin: "https://a.test" } } };
-    vi.stubGlobal("window", sameOrigin);
-    expect(apply(message(command))).toMatchObject({ reason: "same-origin-frame" });
+    top.opener = null;
+    const check = async (current: object, reason: string | null) => {
+      vi.resetModules();
+      loadDocument();
+      vi.stubGlobal("window", current);
+      const apply = await loadEndpoints();
+      if (reason) {
+        // No listener exists, so even a probe before any page script is untouched.
+        expect(pageProbe()).toEqual([1, 1]);
+        expect(apply(message(null))).toMatchObject({ appliedVia: "not-live", reason });
+      } else {
+        await loadBundles();
+        expect(apply(message(null))).toEqual({ appliedVia: "live", endpoints: 2 });
+      }
+    };
+    await check(
+      { top, parent: { top, location: { origin: "https://a.test" } } },
+      "same-origin-frame",
+    );
     // A same-origin grandparent reaches this document through the window tree too.
     const middle = crossOriginWindow({ top, location: { origin: "https://a.test" } });
     middle.top = top;
-    vi.stubGlobal("window", { top, parent: middle });
-    expect(apply(message(command))).toMatchObject({ reason: "same-origin-frame" });
+    await check({ top, parent: middle }, "same-origin-frame");
+    const openedTop = crossOriginWindow();
+    openedTop.top = openedTop;
+    openedTop.opener = {};
+    await check(openedTop, "opened-window");
     const crossParent = crossOriginWindow(top);
     crossParent.top = top;
-    vi.stubGlobal("window", { top, parent: crossParent });
-    expect(apply(message(null))).toEqual({ appliedVia: "live", endpoints: 2 });
+    await check({ top, parent: crossParent }, null);
+  });
+
+  it("never hides a handshake from page listeners once page code may exist", async () => {
+    const apply = await loadEndpoints();
+    // Before any bundle hands over, a page script dispatches the fixed names.
+    document.head.append(document.createElement("script"));
+    expect(pageProbe()).toEqual([1, 1]);
+    expect(pageProbe(window)).toEqual([1, 1]);
+    await loadBundles();
+    expect(apply(message(null))).toMatchObject({ reason: "late-runtime" });
+  });
+
+  it("closes the registry when the document_start task ends", async () => {
+    const apply = await loadEndpoints();
+    await openBundle(ANALYST_HANDOFF_RUNTIME);
+    vi.runAllTimers();
+    // Still loading and scriptless, yet nothing listens any more.
+    expect(pageProbe()).toEqual([1, 1]);
+    expect(apply(message(null))).toEqual({ appliedVia: "live", endpoints: 1 });
+  });
+
+  it("refuses live updates only when the bootstrap injects a missing early bundle", async () => {
+    const endpoints = await import("@/content/analyst-endpoints");
+    endpoints.installAnalystEndpoints();
+    await loadBundles();
+    // The registered early bundle already handed over; the injected copy is redundant.
+    endpoints.markLateEarlyBundle();
+    expect(endpoints.applyLiveMessage(message(null), background)).toMatchObject({
+      appliedVia: "live",
+    });
+    vi.resetModules();
+    loadDocument();
+    const late = await import("@/content/analyst-endpoints");
+    late.installAnalystEndpoints();
+    await openBundle(ANALYST_HANDOFF_RUNTIME);
+    late.markLateEarlyBundle();
+    expect(late.applyLiveMessage(message(null), background)).toMatchObject({
+      reason: "late-runtime",
+    });
+  });
+
+  it("opens no endpoint in a realm its parent's runtime owns", async () => {
+    const apply = await loadEndpoints();
+    realm.parentOwned = true;
+    await loadBundles();
+    realm.parentOwned = false;
+    expect(apply(message(null))).toMatchObject({ reason: "no-channel", endpoints: 0 });
+  });
+
+  it("leaves release builds without a listener, a handshake or a message handler", async () => {
+    // Unit tests compile with the release channel, like the store packages.
+    expect(__PT_BUILD_CHANNEL__).toBe("release");
+    const handshakes = vi.fn();
+    for (const type of [ANALYST_HANDOFF_EARLY, ANALYST_HANDOFF_RUNTIME])
+      document.addEventListener(type, handshakes, true);
+    await import("@/content/analyst-endpoints-install");
+    await import("@/injection/main/analyst-channel-early");
+    await import("@/injection/main/analyst-channel-runtime");
+    expect(handshakes).not.toHaveBeenCalled();
+    expect(chrome.runtime.onMessage.addListener).not.toHaveBeenCalled();
+    expect(pageProbe()).toEqual([1, 1]);
   });
 });

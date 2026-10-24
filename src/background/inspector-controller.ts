@@ -1,10 +1,6 @@
 import type { PauseSeedDeps } from "@/background/host-pause-seed";
 import { createInspectorHandlers } from "@/background/inspector-commands";
-import {
-  applyInspectorLive,
-  probeInspectorLive,
-  trackOpenedTabs,
-} from "@/background/inspector-live";
+import { applyInspectorLive, probeInspectorLive } from "@/background/inspector-live";
 import type { ResolutionDecision } from "@/background/prepared-runtime-decisions";
 import { publishSidebarEvent } from "@/background/sidebar-event-hub";
 import {
@@ -49,7 +45,6 @@ export const registerInspector = (
     applyLive: applyInspectorLive,
     probeLive: probeInspectorLive,
   });
-  trackOpenedTabs();
   chrome.tabs.onRemoved.addListener((tabId) => fireAndForget(removeInspector(tabId)));
   // Downloads and 204 responses never commit; the armed document stays in place.
   chrome.webNavigation.onCommitted.addListener((details) => {

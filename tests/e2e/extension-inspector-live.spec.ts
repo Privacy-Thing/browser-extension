@@ -1,3 +1,5 @@
+import path from "node:path";
+
 import type { BrowserContext, CDPSession, Page } from "@playwright/test";
 
 import {
@@ -8,6 +10,7 @@ import {
 import { EXTENSION_COMMAND_TYPES } from "../../src/shared/extension-contract";
 
 import { expect, test } from "./fixtures";
+import { probeHiddenEvents, readPackagedNames } from "./packaged-names";
 
 // Playwright's trace recorder calls Date.now in the page on navigation.
 test.use({ trace: "off" });
@@ -262,6 +265,53 @@ test("a page observing its own realm sees no trace of live arming or disarming",
   expect(seenArm).toEqual(seenBaseline);
   expect(seenDisarm).toEqual(seenBaseline);
   expect(await page.evaluate("window.inspectorObserver.name()")).toBe(nameBefore);
+  await probe.cdp.detach();
+});
+
+test("a page that knows every packaged name cannot find the live channel", async ({
+  context,
+  extensionId,
+  serverUrl,
+  secondaryServerUrl,
+}) => {
+  const names = readPackagedNames(
+    path.resolve(process.env.PT_E2E_EXTENSION_PATH?.trim() || "build/chrome"),
+  );
+  // The first page script of every document probes, and again after load.
+  const earlyProbe = `<script>window.earlyHidden = (${probeHiddenEvents.toString()})(${JSON.stringify(names)});</script>`;
+  for (const origin of [serverUrl, secondaryServerUrl])
+    await context.route(`${origin}/inspector-probe-frame`, (route) =>
+      route.fulfill({ contentType: "text/html", body: `<!doctype html>${earlyProbe}` }),
+    );
+  const probe = await openProbe(
+    context,
+    extensionId,
+    serverUrl,
+    earlyProbe,
+    `<iframe src="/inspector-probe-frame"></iframe><iframe src="${secondaryServerUrl}/inspector-probe-frame"></iframe>`,
+  );
+  const { command, observed, page, tabId, run } = probe;
+  await expect.poll(() => page.frames().length).toBe(3);
+  for (const frame of page.frames()) {
+    await frame.waitForFunction("Array.isArray(window.earlyHidden)");
+    expect(await frame.evaluate("window.earlyHidden")).toEqual([]);
+    expect(await frame.evaluate(probeHiddenEvents, names)).toEqual([]);
+  }
+  // The channel still works for the documents that own one.
+  expect(
+    await command(CMD_XRAY_SET_INSPECTOR, {
+      tabId,
+      methodIds: ["battery.manager.level"],
+      mode: "every-call",
+      apply: "now",
+    }),
+  ).toMatchObject({
+    appliedVia: "live",
+    liveCoverage: { live: 2, notLive: 1, reasons: ["same-origin-frame"] },
+  });
+  observed.pauses.length = 0;
+  await run("battery");
+  expect(observed.pauses).toHaveLength(1);
   await probe.cdp.detach();
 });
 

@@ -1,5 +1,5 @@
 // Must stay first: MAIN bundles hand over their Inspector endpoints at document_start.
-import "@/content/analyst-endpoints";
+import "@/content/analyst-endpoints-install";
 import {
   registerLogListener,
   registerErrorRelay,

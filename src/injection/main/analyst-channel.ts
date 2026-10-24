@@ -6,6 +6,7 @@ import {
   privateReflectApply,
 } from "@privacy-brand/refract-core/runtime/primordials";
 
+import { isParentOwnedRealm } from "@/injection/main/iframe-realm-ownership";
 import type { SpoofingSurfaceMethodId } from "@/shared/types";
 
 /**
@@ -65,6 +66,8 @@ const acknowledge = (node: Element, revision: number): void => {
 /** Opens this bundle's endpoint. Call once, before the bundle installs anything. */
 export const openAnalystChannel = (handoffType: string): void => {
   if (!nativeCreateElement || !NativeMouseEvent || !nativeDetail) return;
+  // The parent's runtime owns this realm; its documents never take live updates.
+  if (isParentOwnedRealm(globalThis)) return;
   try {
     const node = privateReflectApply(nativeCreateElement, document, ["div"]) as Element;
     privateReflectApply(nativeAddListener!, node, [

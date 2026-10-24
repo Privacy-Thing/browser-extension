@@ -158,7 +158,6 @@ export const EXTENSION_STORAGE_KEYS = {
   workerTestSessions: createStorageKey("worker-test-sessions"),
   hostProtectionPauses: createStorageKey("host-protection-pauses"),
   inspectorSessions: createSessionKey("inspector-sessions"),
-  inspectorOpenedTabs: createSessionKey("inspector-opened-tabs"),
   pausedDocuments: createSessionKey("paused-documents"),
   controlState: createStorageKey("control-state"),
   migrationNotice: createStorageKey("migrationNotice"),

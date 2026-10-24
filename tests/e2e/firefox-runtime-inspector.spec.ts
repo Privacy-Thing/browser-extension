@@ -12,6 +12,7 @@ import {
 import { EXTENSION_COMMAND_TYPES } from "../../src/shared/extension-contract";
 
 import { openFxOptionsProbe, test } from "./firefox-runtime.shared";
+import { probeHiddenEvents, readPackagedNames } from "./packaged-names";
 
 type Packet = {
   from?: string;
@@ -269,6 +270,9 @@ test("Firefox Inspector arms and clears a loaded document live", async ({
       `chrome.runtime.sendMessage(${JSON.stringify({ type, ...fields })})`,
     );
   const page = await context.newPage();
+  // A page that knows every packaged name probes from its first script on.
+  const names = readPackagedNames(path.resolve("build/firefox"));
+  const earlyProbe = `<script>window.earlyHidden = (${probeHiddenEvents.toString()})(${JSON.stringify(names)});</script>`;
   const server = createServer((request, response) => {
     if (request.url === "/distinctive-firefox-live-spy.js") {
       response.writeHead(200, { "content-type": "application/javascript" });
@@ -284,7 +288,7 @@ test("Firefox Inspector arms and clears a loaded document live", async ({
     } else {
       response.writeHead(200, { "content-type": "text/html" });
       response.end(
-        '<!doctype html><button id="read">Read</button><output id="result"></output><script src="/distinctive-firefox-live-spy.js"></script>',
+        `<!doctype html>${earlyProbe}<button id="read">Read</button><output id="result"></output><script src="/distinctive-firefox-live-spy.js"></script>`,
       );
     }
   });
@@ -345,6 +349,8 @@ test("Firefox Inspector arms and clears a loaded document live", async ({
     const threadActor = target.frame!.threadActor!;
     await remote.client.request({ to: threadActor, type: "attach", options: {} });
 
+    expect(await page.evaluate("window.earlyHidden")).toEqual([]);
+    expect(await page.evaluate(probeHiddenEvents, names)).toEqual([]);
     expect(
       await command(CMD_XRAY_SET_INSPECTOR, {
         tabId,
