@@ -18,10 +18,10 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ### Added
 
-- X-Ray Inspector can pause DevTools when a page script reads a spoofed API you
-  choose, on its first read or on every read. Turn on Inspector in Page activity, pick
-  categories or single methods with search and a "used on this page" filter, then arm
-  it. On the open page and its cross-origin frames, arming and disarming take effect
+- X-Ray Inspector can pause browser developer tools when a page script reads a spoofed
+  API you choose, on its first read or on every read. Turn on Inspector in Page activity,
+  pick categories or single methods with search and a "used on this page" filter, then
+  arm it. On the open page and its cross-origin frames, arming and disarming take effect
   immediately without a reload. Script-opened windows, same-origin frames with their
   own runtime and workers pick the change up on their next load, and X-Ray says so;
   a page that cannot be updated live offers arming with a reload or on the next load.

@@ -259,17 +259,17 @@ export const sidebar = {
 
   inspector: {
     toggle: "Inspector",
-    toggleHint: "Choose spoofed APIs that pause DevTools when the page uses them",
-    armedIndicator: "Inspector armed",
+    toggleHint:
+      "Choose spoofed APIs that pause browser developer tools when the page uses them",
     intro:
-      "Pick the spoofed APIs that should pause DevTools when a page script uses them. Open DevTools for this tab first.",
+      "Pick the spoofed APIs that should pause browser developer tools when a page script uses them. Open developer tools for this tab first.",
     loading: "Checking Inspector state…",
     loadError: (message: string) => `Couldn't read the Inspector state: ${message}`,
     status: {
       idle: "Not armed",
       armed: (count: number) =>
         `Armed — ${count} ${count === 1 ? "method" : "methods"}`,
-      changed: "Selection changed",
+      changed: "Armed — selection changed",
     },
     hint: {
       empty: "Select at least one method below.",
@@ -312,7 +312,7 @@ export const sidebar = {
     everyCallWarning:
       "Popular APIs such as time reads can pause very often. Select only the methods you need.",
     pauseNotice: "A pause is real, so the page can notice the delay.",
-    firefoxNotice: `In Firefox DevTools, turn on Settings › Ignore Known Third-party Scripts to hide ${BRAND_DISPLAY_NAME} frames from the call stack.`,
+    firefoxNotice: `In Firefox's developer tools, turn on Settings › Ignore Known Third-party Scripts to hide ${BRAND_DISPLAY_NAME} frames from the call stack.`,
     coverage: {
       pending: (count: number, reasons: string) =>
         `${count} ${count === 1 ? "frame applies" : "frames apply"} it on the next load: ${reasons}.`,

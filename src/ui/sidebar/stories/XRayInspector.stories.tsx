@@ -79,6 +79,15 @@ const inspectorToggle = (canvas: ReturnType<typeof within>) =>
 const panel = (canvasElement: HTMLElement) =>
   canvasElement.querySelector<HTMLElement>("[data-xray-inspector-panel]");
 
+const expectStatus = async (canvasElement: HTMLElement, status: string | null) =>
+  waitFor(() =>
+    expect(
+      canvasElement
+        .querySelector<HTMLElement>("[data-inspector-status]")
+        ?.getAttribute("data-inspector-status") ?? null,
+    ).toBe(status),
+  );
+
 const expectPhase = async (canvasElement: HTMLElement, phase: string) =>
   waitFor(() =>
     expect(panel(canvasElement)).toHaveAttribute("data-inspector-phase", phase),
@@ -119,6 +128,7 @@ export const InspectorOff: Story = {
     await expect(inspectorToggle(canvas)).toHaveAttribute("aria-pressed", "false");
     await expect(panel(canvasElement)).toBeNull();
     await expect(canvas.queryAllByRole("checkbox")).toHaveLength(0);
+    await expectStatus(canvasElement, null);
   },
 };
 
@@ -127,6 +137,7 @@ export const NothingSelected: Story = {
     const canvas = await openInspector(context);
     await expect(inspectorToggle(canvas)).toHaveAttribute("aria-pressed", "true");
     await expectPhase(context.canvasElement, "idle");
+    await expectStatus(context.canvasElement, "idle");
     await expect(
       context.canvasElement.querySelector("[data-inspector-actions]"),
     ).toBeNull();
@@ -306,6 +317,7 @@ export const Armed: Story = {
     await waitFor(() =>
       expect(inspectorToggle(canvas)).toHaveAttribute("data-inspector-armed", "true"),
     );
+    await expectStatus(context.canvasElement, "armed");
     await openInspector(context);
     await expectPhase(context.canvasElement, "armed");
     await expect(
@@ -325,6 +337,7 @@ export const SelectionChanged: Story = {
       canvas.getByRole("checkbox", { name: t.sidebar.accessed.categories.canvas }),
     );
     await expectPhase(context.canvasElement, "changed");
+    await expectStatus(context.canvasElement, "changed");
     await expect(
       canvas.getByRole("button", { name: t.sidebar.inspector.actions.applyReload }),
     ).toBeEnabled();
@@ -332,6 +345,20 @@ export const SelectionChanged: Story = {
       canvas.getByRole("button", { name: t.sidebar.inspector.actions.revert }),
     );
     await expectPhase(context.canvasElement, "armed");
+  },
+};
+
+export const StatusTooltip: Story = {
+  args: { preset: "armed" },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expectStatus(canvasElement, "armed");
+    await userEvent.hover(inspectorToggle(canvas));
+    const tooltip = await within(canvasElement.ownerDocument.body).findByRole(
+      "tooltip",
+    );
+    await expect(tooltip).toHaveTextContent(t.sidebar.inspector.status.armed(2));
+    await expect(tooltip).toHaveTextContent(t.sidebar.inspector.toggleHint);
   },
 };
 

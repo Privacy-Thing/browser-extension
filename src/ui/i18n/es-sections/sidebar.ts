@@ -264,10 +264,10 @@ export const sidebar = {
 
   inspector: {
     toggle: "Inspector",
-    toggleHint: "Elige las API falseadas que pausan DevTools cuando la página las usa",
-    armedIndicator: "activo",
+    toggleHint:
+      "Elige las API falseadas que pausan las herramientas para desarrolladores del navegador cuando la página las usa",
     intro:
-      "Elige las API falseadas que deben pausar DevTools cuando un script de la página las use. Abre antes DevTools en esta pestaña.",
+      "Elige las API falseadas que deben pausar las herramientas para desarrolladores del navegador cuando un script de la página las use. Abre antes las herramientas para desarrolladores en esta pestaña.",
     loading: "Comprobando el estado del Inspector…",
     loadError: (message: string) =>
       `No se pudo leer el estado del Inspector: ${message}`,
@@ -275,7 +275,7 @@ export const sidebar = {
       idle: "Sin activar",
       armed: (count: number) =>
         `Activo — ${count} ${count === 1 ? "método" : "métodos"}`,
-      changed: "Selección modificada",
+      changed: "Activo — selección modificada",
     },
     hint: {
       empty: "Selecciona al menos un método abajo.",
@@ -319,7 +319,7 @@ export const sidebar = {
     everyCallWarning:
       "Las API habituales, como las lecturas de la hora, pueden pausar muy a menudo. Selecciona solo los métodos que necesites.",
     pauseNotice: "La pausa es real, así que la página puede notar el retraso.",
-    firefoxNotice: `En DevTools de Firefox, activa Ajustes › Ignorar scripts de terceros conocidos para ocultar los marcos de ${BRAND_DISPLAY_NAME} en la pila de llamadas.`,
+    firefoxNotice: `En las herramientas para desarrolladores de Firefox, activa Ajustes › Ignorar scripts de terceros conocidos para ocultar los marcos de ${BRAND_DISPLAY_NAME} en la pila de llamadas.`,
     coverage: {
       pending: (count: number, reasons: string) =>
         `${count} ${count === 1 ? "marco lo aplica" : "marcos lo aplican"} en la próxima carga: ${reasons}.`,
