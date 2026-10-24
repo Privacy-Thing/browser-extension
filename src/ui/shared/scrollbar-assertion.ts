@@ -29,22 +29,27 @@ const overflowWidthShift = (element: HTMLElement) => {
   }
 };
 
-/** Alpha of a colour token as the element resolves it (0 transparent, 1 opaque). */
-const tokenAlpha = (element: HTMLElement, token: string) => {
+/** A CSS colour as the element resolves it, as computed `color` text. */
+const resolvedColor = (element: HTMLElement, color: string) => {
   const root = element === element.ownerDocument.documentElement;
   const probe = element.ownerDocument.createElement("span");
-  probe.style.color = `var(${token})`;
+  probe.style.color = color;
   (root ? element.ownerDocument.body : element).append(probe);
   try {
-    const channels =
-      getComputedStyle(probe)
-        .color.match(/[\d.]+/g)
-        ?.map(Number) ?? [];
-    expect(channels.length, `${token} resolves to a colour`).toBeGreaterThanOrEqual(3);
-    return channels[3] ?? 1;
+    return getComputedStyle(probe).color;
   } finally {
     probe.remove();
   }
+};
+
+/** Alpha of a colour token as the element resolves it (0 transparent, 1 opaque). */
+const tokenAlpha = (element: HTMLElement, token: string) => {
+  const channels =
+    resolvedColor(element, `var(${token})`)
+      .match(/[\d.]+/g)
+      ?.map(Number) ?? [];
+  expect(channels.length, `${token} resolves to a colour`).toBeGreaterThanOrEqual(3);
+  return channels[3] ?? 1;
 };
 
 /** Runs a measurement with the high-contrast skin applied to the document root. */
@@ -62,9 +67,9 @@ export const withHighContrast = <T>(element: Element, measure: () => T): T => {
 /**
  * Asserts a scroll container shows the quiet scroll handle in a reserved gutter: the
  * content width does not change when content starts or stops overflowing, the
- * scrollbar is not removed, and the handle is drawn faint at rest, stronger while the
- * area is in use and strongest on the handle, without a visible track. High contrast
- * draws the handle at full strength.
+ * scrollbar is not removed, and the handle is drawn in the accent colour, faint at
+ * rest, stronger while the area is in use and full on the handle, without a visible
+ * track. High contrast draws the handle at full strength.
  */
 export const expectScrollHandle = (element: HTMLElement) => {
   const style = getComputedStyle(element);
@@ -88,6 +93,10 @@ export const expectScrollHandle = (element: HTMLElement) => {
     onHandle,
   );
   expect(tokenAlpha(element, "--scrollbar-track"), "track").toBe(0);
+  expect(
+    resolvedColor(element, "var(--scrollbar-thumb-hover)"),
+    "handle on hover or drag is the accent colour",
+  ).toBe(resolvedColor(element.ownerDocument.documentElement, "hsl(var(--primary))"));
 
   withHighContrast(element, () => {
     expect(tokenAlpha(element, "--scrollbar-thumb-rest"), "high contrast handle").toBe(

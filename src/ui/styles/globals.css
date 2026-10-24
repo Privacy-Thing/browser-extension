@@ -102,12 +102,13 @@
   --tone-neutral-text:    240 4% 40%;
   --tone-neutral-border:  240 6% 88%;
 
-  /* A quiet handle in the reserved gutter (see "Scrollbars"): faint at rest, clear
-     while the scroll area is hovered, focused or dragged, strongest on the handle. */
+  /* A quiet accent handle in the reserved gutter (see "Scrollbars"): faint at rest,
+     clear while the scroll area is hovered, focused or dragged, full accent on the
+     handle. */
   --scrollbar-track:      transparent;
-  --scrollbar-thumb-rest: hsl(var(--muted-foreground) / 0.22);
-  --scrollbar-thumb:      hsl(var(--muted-foreground) / 0.5);
-  --scrollbar-thumb-hover:hsl(var(--muted-foreground) / 0.75);
+  --scrollbar-thumb-rest: hsl(var(--primary) / 0.3);
+  --scrollbar-thumb:      hsl(var(--primary) / 0.6);
+  --scrollbar-thumb-hover:hsl(var(--primary));
   --gw-form-field-surface: hsl(var(--background));
   --gw-form-field-hover-surface: hsl(var(--accent) / 0.04);
   --gw-form-panel-surface: hsl(var(--card));
@@ -182,12 +183,13 @@
   --tone-neutral-text:    240 4% 60%;
   --tone-neutral-border:  240 4% 20%;
 
-  /* A quiet handle in the reserved gutter (see "Scrollbars"): faint at rest, clear
-     while the scroll area is hovered, focused or dragged, strongest on the handle. */
+  /* A quiet accent handle in the reserved gutter (see "Scrollbars"): faint at rest,
+     clear while the scroll area is hovered, focused or dragged, full accent on the
+     handle. */
   --scrollbar-track:      transparent;
-  --scrollbar-thumb-rest: hsl(var(--muted-foreground) / 0.22);
-  --scrollbar-thumb:      hsl(var(--muted-foreground) / 0.5);
-  --scrollbar-thumb-hover:hsl(var(--muted-foreground) / 0.75);
+  --scrollbar-thumb-rest: hsl(var(--primary) / 0.3);
+  --scrollbar-thumb:      hsl(var(--primary) / 0.6);
+  --scrollbar-thumb-hover:hsl(var(--primary));
   --gw-form-field-surface: hsl(var(--background));
   --gw-form-field-hover-surface: hsl(var(--accent) / 0.04);
   --gw-form-panel-surface: hsl(var(--card));
@@ -689,9 +691,11 @@
   --tone-neutral-text:    240 8% 20%;
   --tone-neutral-border:  240 10% 58%;
 
+  /* The accent leans 30% towards the foreground, so every accent preset keeps
+     at least 3:1 against the track. */
   --scrollbar-track:      hsl(var(--muted));
-  --scrollbar-thumb-rest: hsl(var(--muted-foreground));
-  --scrollbar-thumb:      hsl(var(--muted-foreground));
+  --scrollbar-thumb-rest: color-mix(in srgb, hsl(var(--primary)) 70%, hsl(var(--foreground)));
+  --scrollbar-thumb:      var(--scrollbar-thumb-rest);
   --scrollbar-thumb-hover:hsl(var(--foreground));
   --gw-form-field-surface: hsl(var(--background));
   --gw-form-field-hover-surface: hsl(var(--accent) / 0.04);
@@ -745,9 +749,11 @@
   --tone-neutral-text:    240 10% 84%;
   --tone-neutral-border:  240 8% 44%;
 
+  /* The accent leans 30% towards the foreground, so every accent preset keeps
+     at least 3:1 against the track. */
   --scrollbar-track:      hsl(var(--muted));
-  --scrollbar-thumb-rest: hsl(var(--muted-foreground));
-  --scrollbar-thumb:      hsl(var(--muted-foreground));
+  --scrollbar-thumb-rest: color-mix(in srgb, hsl(var(--primary)) 70%, hsl(var(--foreground)));
+  --scrollbar-thumb:      var(--scrollbar-thumb-rest);
   --scrollbar-thumb-hover:hsl(var(--foreground));
   --gw-form-field-surface: hsl(var(--background));
   --gw-form-field-hover-surface: hsl(var(--accent) / 0.04);
@@ -896,8 +902,8 @@
 
 /* ─── Scrollbars ───────────────────────────────────────────────────────────────
 
-  Scroll areas show a thin, rounded handle in their reserved gutter, without arrows or
-  a visible track. It is faint at rest and becomes clear while the scroll area is
+  Scroll areas show a thin, rounded handle in the skin's accent colour (--primary) in
+  their reserved gutter, without arrows or a visible track. It is faint at rest and becomes clear while the scroll area is
   hovered, holds focus or is pressed (which covers wheel, keyboard and touch scrolling
   and dragging the handle). When the pointer enters the gutter beside it, and while it
   is dragged, the pill widens from 4px to 8px: only the thumb's transparent border
