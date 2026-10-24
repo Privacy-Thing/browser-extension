@@ -101,13 +101,15 @@ export const inspectorState = (
   else if (!decision.snapshot) unavailableReason = "no-runtime";
   const session = readInspector(tabId, hostname);
   const desired = session?.desired ?? null;
+  // Compare with what the next load receives: rules can make a method untrappable.
+  const nextLoad = withInspector(tabId, hostname, decision).snapshot?.analystTraps;
   return {
     available: unavailableReason === undefined,
     ...(unavailableReason ? { unavailableReason } : {}),
     armed: unavailableReason === undefined && desired !== null,
     methodIds: desired?.methods ?? [],
     mode: desired?.mode ?? "first-call",
-    pendingReload: !sameTraps(desired, session?.document ?? null),
+    pendingReload: !sameTraps(nextLoad ?? null, session?.document ?? null),
     appliesLive: false,
     trappableMethodIds: unavailableReason ? [] : getTrappableMethods(decision.snapshot),
   };

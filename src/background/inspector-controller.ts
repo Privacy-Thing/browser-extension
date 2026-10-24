@@ -43,7 +43,8 @@ export const registerInspector = (
       publishSidebarEvent({ type: "doctor-state-invalidated", tabId }),
   });
   chrome.tabs.onRemoved.addListener((tabId) => fireAndForget(removeInspector(tabId)));
-  chrome.webNavigation.onBeforeNavigate.addListener((details) => {
+  // Downloads and 204 responses never commit; the armed document stays in place.
+  chrome.webNavigation.onCommitted.addListener((details) => {
     if (details.frameId !== 0) return;
     const hostname = /^https?:/.test(details.url) ? new URL(details.url).hostname : "";
     fireAndForget(navigateInspector(details.tabId, hostname));

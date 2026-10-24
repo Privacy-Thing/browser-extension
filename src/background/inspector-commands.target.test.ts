@@ -136,6 +136,22 @@ describe("tab Inspector activation", () => {
     await restored.removeInspector(4);
     expect(restored.readInspector(4, "probe.example")).toBeUndefined();
   });
+  it("settles a pending reload once rules leave no selected method spoofed", async () => {
+    const h = await setup();
+    await h.applyInspectorState(3, desired, "next-load");
+    const armed = h.withInspector(3, "probe.example", h.decision);
+    await h.recordInspectorDocument(3, "probe.example", armed.snapshot);
+    expect((await h.getInspectorState(3)).pendingReload).toBe(false);
+    h.decision.snapshot = { ...snapshot, geolocationEnabled: false };
+    expect(await h.getInspectorState(3)).toMatchObject({
+      armed: true,
+      pendingReload: true,
+    });
+    const reloaded = h.withInspector(3, "probe.example", h.decision);
+    expect(reloaded.snapshot).not.toHaveProperty("analystTraps");
+    await h.recordInspectorDocument(3, "probe.example", reloaded.snapshot);
+    expect((await h.getInspectorState(3)).pendingReload).toBe(false);
+  });
   const register = async () => {
     const { registerInspector } = await import("./inspector-controller");
     const seededFrames: number[] = [];
@@ -170,6 +186,30 @@ describe("tab Inspector activation", () => {
     expect(seededFrames).toEqual([0]);
     expect(chrome.scripting.executeScript).not.toHaveBeenCalled();
     expect(reload).toHaveBeenCalledWith(3);
+  });
+  it("keeps the selection until the tab commits a document of another domain", async () => {
+    const { store } = await register();
+    await store.storeInspector(3, "probe.example", desired);
+    const fire = async (event: string, details: Navigation) => {
+      for (const listener of navigationListeners[event] ?? []) listener(details);
+      // Session updates are serialized; a later update settles after the listener's.
+      await store.removeInspector(99);
+    };
+    // A download or a 204 response starts a navigation that never commits.
+    await fire("onBeforeNavigate", {
+      tabId: 3,
+      frameId: 0,
+      url: "https://downloads.example/file.zip",
+    });
+    expect(store.readInspector(3, "probe.example")?.desired).toEqual(desired);
+    await fire("onCommitted", {
+      tabId: 3,
+      frameId: 7,
+      url: "https://third-party.example/frame",
+    });
+    expect(store.readInspector(3, "probe.example")?.desired).toEqual(desired);
+    await fire("onCommitted", { tabId: 3, frameId: 0, url: "https://other.example/" });
+    expect(store.readInspector(3, "probe.example")).toBeUndefined();
   });
   it("reports Trusted Sites unavailable and never adds traps", async () => {
     const h = await setup({ snapshot: null, trustedSiteMatched: true });
