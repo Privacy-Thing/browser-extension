@@ -1,5 +1,6 @@
 import type { CDPSession } from "@playwright/test";
 
+import { ignoredPositions } from "../../config/runtime-debug-map";
 import {
   CMD_XRAY_CLEAR_INSPECTOR,
   CMD_XRAY_GET_INSPECTOR_STATE,
@@ -24,10 +25,36 @@ const probeScript = `window.inspectorProbe = async function chosenRead(method) {
   return Date.now();
 };`;
 
+type Position = { lineNumber: number; columnNumber: number };
+const before = (a: Position, b: Position) =>
+  a.lineNumber < b.lineNumber ||
+  (a.lineNumber === b.lineNumber && a.columnNumber < b.columnNumber);
+
+// Applies the ignore list the way DevTools does: V8 must still pause, and only
+// the stop frame may sit above the calling page frame.
 const observePauses = async (cdp: CDPSession) => {
   const scripts = new Map<string, string>();
+  const ranges = new Map<string, Position[]>();
+  const contents = new Map<string, string[]>();
+  const pending = new Set<Promise<unknown>>();
   const pauses: Pause[] = [];
-  cdp.on("Debugger.scriptParsed", (event) => scripts.set(event.scriptId, event.url));
+  cdp.on("Debugger.scriptParsed", (event) => {
+    scripts.set(event.scriptId, event.url);
+    const encoded = /^data:application\/json;base64,(.+)$/.exec(
+      event.sourceMapURL ?? "",
+    );
+    if (!event.url.startsWith("chrome-extension://") || !encoded) return;
+    const map = JSON.parse(Buffer.from(encoded[1]!, "base64").toString());
+    const positions = ignoredPositions(map);
+    ranges.set(event.scriptId, positions);
+    contents.set(event.scriptId, map.sourcesContent);
+    const applied = cdp.send("Debugger.setBlackboxedRanges", {
+      scriptId: event.scriptId,
+      positions,
+    });
+    pending.add(applied);
+    void applied.finally(() => pending.delete(applied));
+  });
   cdp.on("Debugger.paused", (event) => {
     pauses.push(event);
     void cdp.send("Debugger.resume");
@@ -36,6 +63,16 @@ const observePauses = async (cdp: CDPSession) => {
   return {
     pauses,
     url: (frame: PauseFrame) => frame.url || scripts.get(frame.location.scriptId) || "",
+    settled: async () => {
+      while (pending.size) await Promise.all(pending);
+    },
+    ignored: (frame: PauseFrame) =>
+      (ranges.get(frame.location.scriptId) ?? []).filter(
+        (position) => !before(frame.location, position),
+      ).length %
+        2 ===
+      1,
+    stopText: (frame: PauseFrame) => contents.get(frame.location.scriptId)?.[1],
   };
 };
 
@@ -82,8 +119,10 @@ test("Inspector pauses only selected reads in the real runtime and leaves the pl
     async (url) => (await chrome.tabs.query({})).find((tab) => tab.url === url)!.id!,
     probeUrl,
   );
-  const run = (method: string) =>
-    page.evaluate(`window.inspectorProbe(${JSON.stringify(method)})`);
+  const run = async (method: string) => {
+    await observed.settled();
+    return page.evaluate(`window.inspectorProbe(${JSON.stringify(method)})`);
+  };
   await run("battery");
   await run("date");
   expect(observed.pauses).toHaveLength(0);
@@ -121,6 +160,12 @@ test("Inspector pauses only selected reads in the real runtime and leaves the pl
     );
     expect(caller).toBeDefined();
     expect(observed.url(caller!)).toBe(spyUrl);
+    const callerIndex = pause.callFrames.indexOf(caller!);
+    expect(observed.ignored(top)).toBe(false);
+    expect(observed.stopText(top)).toMatch(/^debugger;/);
+    expect(
+      pause.callFrames.slice(1, callerIndex).map((frame) => observed.ignored(frame)),
+    ).toEqual(Array(callerIndex - 1).fill(true));
     expect(caller!.location.lineNumber).toBe(
       methodId === "battery.manager.level" ? 1 : 2,
     );

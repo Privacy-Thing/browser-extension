@@ -37,7 +37,7 @@ export const CHROME_BOOT_GZIP_BYTES = Math.round(6.3 * 1024);
  * Includes the selective Inspector binding, its private live endpoint, retained
  * pause, and neutral debug map.
  */
-export const FX_GEO_SHIM_MAX_BYTES = 134 * 1024 + 512;
+export const FX_GEO_SHIM_MAX_BYTES = 135 * 1024;
 
 /**
  * Firefox main-world runtime (`main-world-runtime.js`), including the
@@ -46,10 +46,11 @@ export const FX_GEO_SHIM_MAX_BYTES = 134 * 1024 + 512;
  * per-build obfuscated identifier variance via
  * {@link BUNDLE_SIZE_TOLERANCE}.
  */
-export const FX_MAIN_WORLD_MAX_BYTES = 169 * 1024;
+export const FX_MAIN_WORLD_MAX_BYTES = 169 * 1024 + 512;
 
 /**
- * Inspector bundles retain debugger statements and neutral inline ignore maps.
+ * Inspector bundles retain debugger statements and neutral inline ignore maps
+ * with fixed DevTools text for the stop frame (about 320 B per bundle).
  * Their ceilings include that bounded diagnostic payload; the disabled emitter
  * still executes the original function without a trap check.
  *
@@ -57,11 +58,11 @@ export const FX_MAIN_WORLD_MAX_BYTES = 169 * 1024;
  * it to config handoff, the Temporal early installer and its Inspector
  * endpoint with the parent-owned realm check — not the full fingerprint runtime.
  */
-export const CHROME_EARLY_MAX_BYTES = 14 * 1024 + 256;
+export const CHROME_EARLY_MAX_BYTES = 14 * 1024 + 768;
 
 /**
  * Chromium main-world runtime, including the inlined worker source and the
  * Inspector selection taken from the commit-time delivery. Per-build identifiers
  * vary the size of the same graph by about 200 B.
  */
-export const CHROME_RUNTIME_MAX_BYTES = 192 * 1024 + 256;
+export const CHROME_RUNTIME_MAX_BYTES = 192 * 1024 + 768;
