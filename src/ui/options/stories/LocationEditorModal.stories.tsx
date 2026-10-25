@@ -104,7 +104,7 @@ const editorDialog = () =>
 const deleteButton = async () =>
   within(await editorDialog()).getByRole("button", { name: t.common.actions.delete });
 
-const checkDeleteBlocked: Story["play"] = async () => {
+const checkDeleteBlocked = async (): Promise<void> => {
   const dialog = await editorDialog();
   await expect(dialog.querySelector("[data-preset-usage]")).toBeNull();
   const remove = await deleteButton();
@@ -129,7 +129,7 @@ const checkDeleteBlocked: Story["play"] = async () => {
   );
 };
 
-const closeDeleteBlocked: Story["play"] = async () => {
+const closeDeleteBlocked = async (): Promise<void> => {
   const dialog = await editorDialog();
   await userEvent.click(
     within(dialog).getAllByRole("button", { name: t.common.actions.close }).at(-1)!,
@@ -151,9 +151,9 @@ export const DeleteBlocked: Story = {
 
 export const DeleteBlockedClosesTest: Story = {
   tags: ["!dev", "!autodocs"],
-  play: async (context) => {
-    await checkDeleteBlocked(context);
-    await closeDeleteBlocked(context);
+  play: async () => {
+    await checkDeleteBlocked();
+    await closeDeleteBlocked();
   },
 };
 
