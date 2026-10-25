@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 import { getProfileTimeZoneError } from "@/shared/time-zone-validation";
 import type { Location } from "@/shared/types";
@@ -35,6 +35,75 @@ type EditorViewProps = EditorSessionProps & {
   updateDraft: (mutate: (current: Location) => Location) => void;
 };
 
+const DeleteBlockedNotice = ({
+  id,
+  onClose,
+  usage,
+}: {
+  id: string;
+  onClose: () => void;
+  usage: PresetUsage;
+}) => {
+  const noticeRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    noticeRef.current?.focus();
+  }, []);
+  return (
+    <div
+      ref={noticeRef}
+      id={id}
+      tabIndex={-1}
+      role="group"
+      aria-labelledby={`${id}-message`}
+      data-preset-usage=""
+      data-preset-usage-count={usage.sources.length}
+      className="flex flex-col gap-2 rounded-md border border-tone-warning-border bg-tone-warning-bg p-3 text-sm text-tone-warning-text outline-none"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <p id={`${id}-message`} className="min-w-0 pt-1">
+          {t.locations.editor.deleteBlocked(usage.sources.length)}
+        </p>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="shrink-0 text-tone-warning-text hover:bg-tone-warning-border hover:text-tone-warning-text"
+          data-preset-usage-close=""
+          onClick={onClose}
+        >
+          {t.common.actions.close}
+        </Button>
+      </div>
+      <ul
+        aria-label={t.locations.editor.deleteBlockedListLabel}
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- the bounded list scrolls, so keyboard users must reach it
+        tabIndex={0}
+        data-preset-usage-list=""
+        className="max-h-28 space-y-0.5 overflow-y-auto overscroll-contain outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        {usage.sources.map((source) => (
+          <li
+            key={`${source.kind}:${source.key}`}
+            data-preset-usage-source={source.kind}
+            className="flex min-w-0 gap-1"
+          >
+            <span className="truncate" title={source.label}>
+              {source.label}
+            </span>
+            {!source.enabled ? (
+              <>
+                {" "}
+                <span className="shrink-0">
+                  {t.locations.editor.disabledDependencySuffix}
+                </span>
+              </>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+};
+
 const EditorFooter = ({
   draft,
   editingProfileIndex,
@@ -45,77 +114,86 @@ const EditorFooter = ({
   regionalPresetUsage,
   saveInFlight,
   setProfileDialogOpened,
-}: EditorViewProps) => (
-  <>
-    <div className="flex items-center gap-2">
-      <Button
-        variant="ghost"
-        disabled={saveInFlight}
-        onClick={() => setProfileDialogOpened(false)}
-      >
-        {t.common.actions.cancel}
-      </Button>
-      {editingProfileIndex !== null ? (
-        <>
+}: EditorViewProps) => {
+  const noticeId = useId();
+  const deleteButtonRef = useRef<HTMLButtonElement>(null);
+  const [deleteBlockedOpen, setDeleteBlockedOpen] = useState(false);
+  const deleteBlockedMessage = regionalPresetUsage
+    ? t.locations.editor.deleteBlocked(regionalPresetUsage.sources.length)
+    : undefined;
+  return (
+    <div className="flex w-full flex-col gap-3">
+      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
+        <div className="flex items-center gap-2">
           <Button
             variant="ghost"
-            disabled={saveInFlight || getProfileTimeZoneError(draft) !== null}
-            onClick={async () => {
-              if (await handleDuplicateProfile(draft)) setProfileDialogOpened(false);
-            }}
+            disabled={saveInFlight}
+            onClick={() => setProfileDialogOpened(false)}
           >
-            {t.common.actions.duplicate}
+            {t.common.actions.cancel}
           </Button>
-          <Button
-            variant="ghost"
-            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-            disabled={saveInFlight || Boolean(regionalPresetUsage)}
-            title={
-              regionalPresetUsage
-                ? t.locations.editor.deleteBlockedButtonTitle
-                : undefined
+          {editingProfileIndex !== null ? (
+            <>
+              <Button
+                variant="ghost"
+                disabled={saveInFlight || getProfileTimeZoneError(draft) !== null}
+                onClick={async () => {
+                  if (await handleDuplicateProfile(draft))
+                    setProfileDialogOpened(false);
+                }}
+              >
+                {t.common.actions.duplicate}
+              </Button>
+              {/* A used preset keeps Delete focusable so activating it can explain why. */}
+              <Button
+                ref={deleteButtonRef}
+                variant="ghost"
+                className="text-destructive hover:bg-destructive/10 hover:text-destructive aria-disabled:opacity-40"
+                disabled={saveInFlight}
+                aria-disabled={regionalPresetUsage ? true : undefined}
+                aria-controls={regionalPresetUsage ? noticeId : undefined}
+                aria-expanded={regionalPresetUsage ? deleteBlockedOpen : undefined}
+                title={deleteBlockedMessage}
+                data-preset-delete=""
+                onClick={async () => {
+                  if (regionalPresetUsage) {
+                    setDeleteBlockedOpen(true);
+                    return;
+                  }
+                  if (await handleRemoveProfile(profile, editingProfileIndex)) {
+                    setProfileDialogOpened(false);
+                  }
+                }}
+              >
+                {t.common.actions.delete}
+              </Button>
+            </>
+          ) : null}
+        </div>
+        <Button
+          disabled={saveInFlight || getProfileTimeZoneError(draft) !== null}
+          onClick={async () => {
+            if (await handlePersistProfile(editingProfileIndex, draft)) {
+              setProfileDialogOpened(false);
             }
-            onClick={async () => {
-              if (await handleRemoveProfile(profile, editingProfileIndex)) {
-                setProfileDialogOpened(false);
-              }
-            }}
-          >
-            {t.common.actions.delete}
-          </Button>
-        </>
+          }}
+        >
+          {t.common.actions.save}
+        </Button>
+      </div>
+      {deleteBlockedOpen && regionalPresetUsage ? (
+        <DeleteBlockedNotice
+          id={noticeId}
+          usage={regionalPresetUsage}
+          onClose={() => {
+            setDeleteBlockedOpen(false);
+            deleteButtonRef.current?.focus();
+          }}
+        />
       ) : null}
     </div>
-    <Button
-      disabled={saveInFlight || getProfileTimeZoneError(draft) !== null}
-      onClick={async () => {
-        if (await handlePersistProfile(editingProfileIndex, draft)) {
-          setProfileDialogOpened(false);
-        }
-      }}
-    >
-      {t.common.actions.save}
-    </Button>
-  </>
-);
-
-const PresetUsageNotice = ({ usage }: { usage: PresetUsage }) => (
-  <div
-    className="mb-4 rounded-md border border-tone-warning-border bg-tone-warning-bg p-3 text-sm text-tone-warning-text"
-    role="status"
-  >
-    <h4 className="font-semibold">{t.locations.editor.deleteBlockedTitle}</h4>
-    <p className="mt-1">{t.locations.editor.deleteBlockedDescription}</p>
-    <ul className="mt-2 list-disc space-y-1 pl-5">
-      {usage.sources.map((source) => (
-        <li key={`${source.kind}:${source.key}`}>
-          {source.label}
-          {!source.enabled ? ` ${t.locations.editor.disabledDependencySuffix}` : null}
-        </li>
-      ))}
-    </ul>
-  </div>
-);
+  );
+};
 
 const EditorBody = ({
   draft,
@@ -124,7 +202,6 @@ const EditorBody = ({
   osmConsent,
   profile,
   profileDialogOpened,
-  regionalPresetUsage,
   saveInFlight,
   updateDraft,
 }: EditorViewProps) => {
@@ -148,7 +225,6 @@ const EditorBody = ({
           {getProfileTimeZoneError(draft)}
         </p>
       ) : null}
-      {regionalPresetUsage ? <PresetUsageNotice usage={regionalPresetUsage} /> : null}
       <div className="gw-generator-layout">
         <LazyProfileDraftMap
           draft={draft}
@@ -224,7 +300,6 @@ const LocationEditorSession = (props: EditorSessionProps) => {
       preventCloseWhenBusy
       contentClassName="sm:max-w-4xl"
       scrollableBody
-      footerClassName="sm:justify-between"
       footer={<EditorFooter {...viewProps} />}
     >
       <EditorBody {...viewProps} />

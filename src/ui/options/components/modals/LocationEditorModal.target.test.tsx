@@ -121,6 +121,14 @@ const createSettingsValue = ({
   openOsmDialog: vi.fn(),
 });
 
+const findButton = (label: string): HTMLButtonElement => {
+  const button = Array.from(document.querySelectorAll("button")).find(
+    (candidate) => candidate.textContent === label,
+  );
+  if (!button) throw new Error(`Missing ${label} button.`);
+  return button;
+};
+
 const renderWithRoot = async (): Promise<Root> => {
   document.body.innerHTML = '<div id="root"></div>';
   const container = document.getElementById("root");
@@ -169,9 +177,7 @@ describe("LocationEditorModal", () => {
     const error = document.querySelector('[data-field-error="timeZone"]');
     expect(error?.textContent).toMatch(/Warsaw.*warsaw.*timeZone.*Mars\/Olympus/);
     expect(locationFieldsMock.mock.lastCall?.[0].activeSection).toBe("locale");
-    const save = document.querySelector(
-      '[data-testid="form-dialog-footer"] > button',
-    ) as HTMLButtonElement;
+    const save = findButton("Save");
     expect(save.disabled).toBe(true);
     expect(settings.handlePersistProfile).not.toHaveBeenCalled();
     expect(settings.setProfileDialogOpened).not.toHaveBeenCalled();
@@ -304,8 +310,8 @@ describe("LocationEditorModal", () => {
     expect(lastCall?.accuracyRadius).toBe(30);
   });
 
-  it("lists dependencies and disables deletion while the preset is assigned", async () => {
-    useSettingsMock.mockReturnValue({
+  it("explains a blocked delete only after Delete is activated", async () => {
+    const settings = {
       ...createSettingsValue(),
       regionalPresetUsage: new Map([
         [
@@ -323,15 +329,52 @@ describe("LocationEditorModal", () => {
           },
         ],
       ]),
-    } as never);
+    };
+    useSettingsMock.mockReturnValue(settings as never);
 
     root = await renderWithRoot();
 
-    expect(document.body.textContent).toContain("This preset is still assigned");
-    expect(document.body.textContent).toContain("Domain Rule: example.com (off)");
-    const deleteButton = Array.from(document.querySelectorAll("button")).find(
-      (button) => button.textContent === "Delete",
+    expect(document.querySelector("[data-preset-usage]")).toBeNull();
+    const deleteButton = findButton("Delete");
+    expect(deleteButton.disabled).toBe(false);
+    expect(deleteButton.getAttribute("aria-disabled")).toBe("true");
+    expect(deleteButton.getAttribute("aria-expanded")).toBe("false");
+
+    await act(async () => deleteButton.click());
+    await flushReactEffects();
+
+    const notice = document.querySelector<HTMLElement>("[data-preset-usage]");
+    expect(settings.handleRemoveProfile).not.toHaveBeenCalled();
+    expect(deleteButton.getAttribute("aria-expanded")).toBe("true");
+    expect(deleteButton.getAttribute("aria-controls")).toBe(notice?.id);
+    expect(notice?.getAttribute("data-preset-usage-count")).toBe("1");
+    expect(document.activeElement).toBe(notice);
+    expect(notice?.textContent).toContain(
+      "Can't delete: used by 1 rule. Reassign or remove it first.",
     );
-    expect(deleteButton?.disabled).toBe(true);
+    expect(
+      notice?.querySelector('[data-preset-usage-source="domain-rule"]')?.textContent,
+    ).toBe("Domain Rule: example.com (off)");
+
+    await act(async () =>
+      notice?.querySelector<HTMLButtonElement>("[data-preset-usage-close]")?.click(),
+    );
+    expect(document.querySelector("[data-preset-usage]")).toBeNull();
+    expect(document.activeElement).toBe(deleteButton);
+  });
+
+  it("deletes an unused preset without a usage notice", async () => {
+    const settings = createSettingsValue();
+    settings.handleRemoveProfile.mockResolvedValue(true);
+    useSettingsMock.mockReturnValue(settings as never);
+
+    root = await renderWithRoot();
+
+    const deleteButton = findButton("Delete");
+    expect(deleteButton.hasAttribute("aria-disabled")).toBe(false);
+    await act(async () => deleteButton.click());
+    expect(settings.handleRemoveProfile).toHaveBeenCalledWith(baseProfile, 0);
+    expect(settings.setProfileDialogOpened).toHaveBeenCalledWith(false);
+    expect(document.querySelector("[data-preset-usage]")).toBeNull();
   });
 });

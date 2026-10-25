@@ -55,6 +55,54 @@ describe("localized dynamic copy", () => {
   });
 
   it.each([
+    [
+      1,
+      "1 правиле. Сначала переназначьте или удалите его.",
+      "1 правилі. Спочатку перепризначте або видаліть його.",
+    ],
+    [
+      2,
+      "2 правилах. Сначала переназначьте или удалите их.",
+      "2 правилах. Спочатку перепризначте або видаліть їх.",
+    ],
+    [
+      5,
+      "5 правилах. Сначала переназначьте или удалите их.",
+      "5 правилах. Спочатку перепризначте або видаліть їх.",
+    ],
+    [
+      21,
+      "21 правиле. Сначала переназначьте или удалите его.",
+      "21 правилі. Спочатку перепризначте або видаліть його.",
+    ],
+  ])(
+    "agrees the blocked preset delete copy with %i rules",
+    (count, russian, ukrainian) => {
+      expect(ru.locations.editor.deleteBlocked(count)).toBe(
+        `Нельзя удалить: используется в ${russian}`,
+      );
+      expect(uk.locations.editor.deleteBlocked(count)).toBe(
+        `Не можна видалити: використовується в ${ukrainian}`,
+      );
+    },
+  );
+
+  it("agrees the blocked preset delete copy in English, Spanish and Portuguese", () => {
+    expect(en.locations.editor.deleteBlocked(1)).toBe(
+      "Can't delete: used by 1 rule. Reassign or remove it first.",
+    );
+    expect(en.locations.editor.deleteBlocked(3)).toBe(
+      "Can't delete: used by 3 rules. Reassign or remove them first.",
+    );
+    expect(es.locations.editor.deleteBlocked(3)).toBe(
+      "No se puede eliminar: lo usan 3 reglas. Reasígnalas o elimínalas primero.",
+    );
+    expect(pt.locations.editor.deleteBlocked(1)).toBe(
+      "Não é possível excluir: usado por 1 regra. Reatribua-a ou remova-a primeiro.",
+    );
+  });
+
+  it.each([
     [1, "1 непрочитанное уведомление", "1 непрочитане сповіщення"],
     [2, "2 непрочитанных уведомления", "2 непрочитані сповіщення"],
     [5, "5 непрочитанных уведомлений", "5 непрочитаних сповіщень"],

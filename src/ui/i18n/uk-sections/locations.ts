@@ -1,5 +1,5 @@
 import { BRAND_DISPLAY_NAME } from "@/shared/brand";
-import { slavicCount } from "@/ui/shared/slavic-plural";
+import { slavicCount, slavicPluralForm } from "@/ui/shared/slavic-plural";
 
 const PRODUCT_NOT_LOWER = `чим не є ${BRAND_DISPLAY_NAME}`;
 
@@ -71,10 +71,9 @@ export const locations = {
     title: "Редагувати профіль",
     description:
       "Оновіть збережений регіональний профіль, включаючи координати, регіональні формати та поведінку звітів про місцезнаходження.",
-    deleteBlockedTitle: "Цей профіль ще призначено",
-    deleteBlockedDescription:
-      "Змініть або видаліть усі призначення нижче, перш ніж видаляти профіль.",
-    deleteBlockedButtonTitle: "Спочатку видаліть усі призначення цього профілю.",
+    deleteBlocked: (count: number) =>
+      `Не можна видалити: використовується в ${slavicCount(count, ["правилі", "правилах", "правилах"])}. Спочатку перепризначте або видаліть ${slavicPluralForm(count) === "one" ? "його" : "їх"}.`,
+    deleteBlockedListLabel: "Правила, що використовують цей профіль",
     disabledDependencySuffix: "(вимкнено)",
     mapDisabledTitle: "Карту вимкнено",
     mapDisabledBody:

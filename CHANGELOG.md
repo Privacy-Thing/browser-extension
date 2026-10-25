@@ -147,6 +147,11 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ### Fixed
 
+- Editing a regional preset that rules use no longer shows a large "still assigned"
+  warning above the map and fields. Delete stays reachable by mouse, keyboard and
+  touch; activating it for a used preset shows below the actions how many rules
+  use the preset, with a short scrollable list, instead of deleting it.
+
 - Connecting Control D in Firefox no longer fails after access to all websites was
   turned off for the extension.
 

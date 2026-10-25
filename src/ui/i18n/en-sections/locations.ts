@@ -69,10 +69,9 @@ export const locations = {
     title: "Edit preset",
     description:
       "Update the saved regional preset, including coordinates, regional formats, and location reporting behavior.",
-    deleteBlockedTitle: "This preset is still assigned",
-    deleteBlockedDescription:
-      "Change or remove every assignment below before deleting the preset.",
-    deleteBlockedButtonTitle: "Remove every assignment before deleting this preset.",
+    deleteBlocked: (count: number) =>
+      `Can't delete: used by ${count} ${count === 1 ? "rule" : "rules"}. Reassign or remove ${count === 1 ? "it" : "them"} first.`,
+    deleteBlockedListLabel: "Rules using this preset",
     disabledDependencySuffix: "(off)",
     mapDisabledTitle: "Map disabled",
     mapDisabledBody:
