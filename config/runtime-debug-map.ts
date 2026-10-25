@@ -12,6 +12,22 @@ const vlq = (value: number): string => {
   } while (number > 0);
   return result;
 };
+const unvlq = (segment: string): number[] => {
+  const values: number[] = [];
+  let value = 0;
+  let shift = 0;
+  for (const char of segment) {
+    const digit = digits.indexOf(char);
+    value += (digit & 31) * 2 ** shift;
+    if (digit & 32) shift += 5;
+    else {
+      values.push(value % 2 ? -(value - 1) / 2 : value / 2);
+      value = 0;
+      shift = 0;
+    }
+  }
+  return values;
+};
 
 const pauseRanges = (code: string): { start: number; end: number }[] => {
   const file = ts.createSourceFile(
@@ -35,9 +51,22 @@ const pauseRanges = (code: string): { start: number; end: number }[] => {
 };
 
 /**
+ * Chromium skips a debugger statement whose whole function is ignore-listed, and
+ * DevTools always opens the top paused frame. The pause function therefore stays
+ * visible as a named source whose inline content points to the calling frame;
+ * without content DevTools fetches the URL and reports ERR_BLOCKED_BY_CLIENT.
+ */
+export const RUNTIME_DEBUG_SOURCES = ["runtime.js", "script-stop.js"];
+export const RUNTIME_DEBUG_CONTENT = [
+  "// Ignore-listed extension code.\n",
+  "debugger; // Stopped before a page script read a selected value. Select the next Call Stack frame to see the calling line.\n",
+];
+
+/**
  * Minimal positional map: runtime ranges are ignored, debugger statements are
- * not. No source text, module paths, symbols, or product identifiers are shipped.
- * Full development maps would expose implementation names in page-owned Blobs.
+ * not. No module paths, symbols, or product identifiers are shipped; the only
+ * content is the fixed text above. Full development maps would expose
+ * implementation names in page-owned Blobs.
  */
 export const runtimeDebugMap = (code: string) => {
   const ranges = pauseRanges(code);
@@ -71,11 +100,35 @@ export const runtimeDebugMap = (code: string) => {
     .join(";");
   return {
     version: 3,
-    sources: ["0", "1"],
+    sources: RUNTIME_DEBUG_SOURCES,
+    sourcesContent: RUNTIME_DEBUG_CONTENT,
     names: [],
     mappings,
     ignoreList: [0],
   };
+};
+
+/**
+ * Generated positions where the ignore-list state flips, as DevTools sends them
+ * to `Debugger.setBlackboxedRanges`: `[start, end)` pairs, the last one open.
+ */
+export const ignoredPositions = (map: { mappings: string; ignoreList: number[] }) => {
+  const positions: { lineNumber: number; columnNumber: number }[] = [];
+  let source = 0;
+  let ignored = false;
+  for (const [lineNumber, line] of map.mappings.split(";").entries()) {
+    let columnNumber = 0;
+    for (const segment of line.split(",")) {
+      if (!segment) continue;
+      const [column = 0, sourceDelta = 0] = unvlq(segment);
+      columnNumber += column;
+      source += sourceDelta;
+      if (map.ignoreList.includes(source) === ignored) continue;
+      ignored = !ignored;
+      positions.push({ lineNumber, columnNumber });
+    }
+  }
+  return positions;
 };
 
 export const inlineRuntimeMap = (code: string): string => {
