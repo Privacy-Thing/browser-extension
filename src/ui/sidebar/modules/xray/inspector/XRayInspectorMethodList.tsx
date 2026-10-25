@@ -245,9 +245,9 @@ export const XRayInspectorMethodList = ({
 
   return (
     <div className="flex flex-col gap-2" data-xray-inspector-list>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex items-center gap-2">
         <TableSearchInput
-          className="min-w-[10rem] flex-1"
+          className="min-w-0 flex-1 [&_input]:h-8 [&_input]:text-xs"
           type="search"
           value={query}
           placeholder={t.sidebar.inspector.list.search}
@@ -261,15 +261,18 @@ export const XRayInspectorMethodList = ({
         <Button
           variant={usedOnly ? "secondary" : "outline"}
           size="sm"
-          className="h-9"
+          className="shrink-0 px-2.5"
+          title={t.sidebar.inspector.list.usedOnly}
           aria-pressed={usedOnly}
           disabled={usedCount === 0 && !usedOnly}
           data-inspector-used-filter={usedOnly}
           onClick={() => setUsedOnly((current) => !current)}
         >
-          <i className="fa-solid fa-filter mr-1.5 text-[10px]" aria-hidden="true" />
-          {t.sidebar.inspector.list.usedOnly}
-          <span className="ml-1.5 tabular-nums text-muted-foreground">{usedCount}</span>
+          <i className="fa-solid fa-filter text-[10px]" aria-hidden="true" />
+          {/* The short label keeps the search field wide at popup width. */}
+          <span aria-hidden="true">{t.sidebar.inspector.list.usedOnlyShort}</span>
+          <span className="sr-only">{t.sidebar.inspector.list.usedOnly}</span>
+          <span className="tabular-nums text-muted-foreground">{usedCount}</span>
         </Button>
       </div>
 

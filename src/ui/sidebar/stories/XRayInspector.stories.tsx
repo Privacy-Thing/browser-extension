@@ -448,14 +448,38 @@ export const KeyboardOperation: Story = {
   },
 };
 
+const expectSameRow = async (first: Element | null, second: Element | null) => {
+  if (!first || !second) throw new Error("Missing layout element.");
+  const middle = (element: Element) => {
+    const box = element.getBoundingClientRect();
+    return box.top + box.height / 2;
+  };
+  await expect(Math.abs(middle(first) - middle(second))).toBeLessThanOrEqual(1);
+};
+
 const layoutPlay = async (context: PlayContext) => {
-  await selectBatteryLevel(context);
+  const canvas = await selectBatteryLevel(context);
   const shell = context.canvasElement.querySelector<HTMLElement>("main");
   if (!shell) throw new Error("Missing story shell.");
   await expect(shell.scrollWidth).toBeLessThanOrEqual(shell.clientWidth);
+  await expectSameRow(
+    canvas.getByRole("searchbox"),
+    context.canvasElement.querySelector("[data-inspector-used-filter]"),
+  );
 };
 
 export const Popup360: Story = { args: { width: 360 }, play: layoutPlay };
+export const Popup360Live: Story = {
+  args: { width: 360, preset: "live" },
+  play: async (context) => {
+    await layoutPlay(context);
+    const canvas = within(context.canvasElement);
+    await expectSameRow(
+      canvas.getByRole("switch", { name: t.sidebar.inspector.everyCall }),
+      canvas.getByRole("button", { name: t.sidebar.inspector.actions.arm }),
+    );
+  },
+};
 export const Sidebar400: Story = { args: { width: 400 }, play: layoutPlay };
 export const Sidecar720: Story = { args: { width: 720 }, play: layoutPlay };
 export const Popup360Dark: Story = {
