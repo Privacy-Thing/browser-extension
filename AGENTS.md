@@ -169,12 +169,18 @@ An explicit “not applicable” is valid; silently checking only one path is no
 - Show only the changed states plus the before/after of each affected state, one image
   per state. Use the dark theme; add light only when colors or tokens changed. Attach no
   screenshots when the change is not visible. Capture each surface at its own width:
-  - **Popup:** the designed 360 px width at the height its content produces. Browsers
-    size action popups to their content within 800 × 600 px (Chromium minimum 25 × 25),
-    so the popup never grows past 600 px; when content can exceed that, also capture
-    the tallest state showing how it scrolls.
-  - **Sidebar** (Chrome side panel, Firefox sidebar): 360 px, the design target. Do not
-    attach wide-sidebar (720 px) screenshots.
+  - **Popup:** two designed widths. Compact (360 px) is the main view. Expanded
+    (720 px, `--gw-popup-expanded-width`) opens when a workspace sheet opens beside it:
+    the rule form, protection details, notifications, cleanup and their confirmations.
+    If the browser grants less width, the sheet falls back to a 360 px drill-in.
+    Capture every width the change can appear in: 720 px for a change inside an
+    expanded flow, 360 px for a compact-only view. Browsers size action popups to their
+    content within 800 × 600 px (Chromium minimum 25 × 25), so 720 px fits and the
+    popup never grows past 600 px; when content can exceed that, also capture the
+    tallest state showing how it scrolls.
+  - **Sidebar** (Chrome side panel, Firefox sidebar): 360 px only, the design target.
+    The 720 px width belongs to the popup's expanded mode; do not attach 720 px
+    sidebar screenshots.
   - **Options page:** a desktop width; state it (for example 1280 px). Capture dialogs as
     their actual frame at that width. Do not attach 360 px Options screenshots.
   - **UI injected into pages:** a typical page width, the narrowest realistic viewport,
