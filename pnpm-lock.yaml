@@ -418,11 +418,7 @@ importers:
 
   packages/refract-browser: {}
 
-  packages/refract-core:
-    dependencies:
-      zod:
-        specifier: ^4.6.6
-        version: 4.6.7
+  packages/refract-core: {}
 
   packages/refract-test-harness:
     dependencies:

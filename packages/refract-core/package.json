@@ -12,8 +12,5 @@
     "./runtime/*": "./src/runtime/*.ts",
     "./time/*": "./src/time/*.ts",
     "./types/*": "./src/types/*.ts"
-  },
-  "dependencies": {
-    "zod": "^4.6.6"
   }
 }

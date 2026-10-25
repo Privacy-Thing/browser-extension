@@ -11,6 +11,9 @@ import { getProfileTimeZoneError } from "@/shared/time-zone-validation";
 
 const workerModeSchema = z.enum(SHARED_WORKER_MODES);
 
+// zod 3 accepted +Infinity here and Firefox storage keeps it; zod 4 numbers are finite.
+const storedUnbounded = (schema: z.ZodNumber) => schema.or(z.literal(Infinity));
+
 export const surfaceOverridesSchema = z
   .object({
     canvas: z.boolean().optional(),
@@ -97,8 +100,8 @@ export const locationProfileSchema = z
     label: z.string().min(1),
     latitude: z.number().min(-90).max(90),
     longitude: z.number().min(-180).max(180),
-    accuracy: z.number().positive(),
-    noiseRadius: z.number().nonnegative().optional().default(50),
+    accuracy: storedUnbounded(z.number().positive()),
+    noiseRadius: storedUnbounded(z.number().nonnegative()).optional().default(50),
     language: z.string().min(2),
     languages: z.array(z.string().min(2)).min(1),
     preferEnglishContent: z.boolean().optional().default(false),

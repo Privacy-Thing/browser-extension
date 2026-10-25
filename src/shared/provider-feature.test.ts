@@ -17,7 +17,13 @@ describe("provider feature timestamps", () => {
     expect(featureMatchSchema.parse(match(checkedAt)).checkedAt).toBe(checkedAt);
   });
 
-  it.each(["2026-10-25T10:00Z", "2026-10-25T10:00:00+02:00", "2026-10-25T10:00:00"])(
+  it("keeps minute-precision timestamps that zod 3 accepted", () => {
+    expect(featureMatchSchema.parse(match("2026-10-25T10:00Z")).checkedAt).toBe(
+      "2026-10-25T10:00Z",
+    );
+  });
+
+  it.each(["2026-10-25T10:00:00+02:00", "2026-10-25T10:00:00", "2026-02-30T10:00:00Z"])(
     "rejects %s",
     (checkedAt) => {
       expect(featureMatchSchema.safeParse(match(checkedAt)).success).toBe(false);
