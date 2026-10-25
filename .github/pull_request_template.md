@@ -11,6 +11,12 @@
 - [ ] Worker bundle regenerated if `packages/refract-core` changed
       (`pnpm task generate:worker-source`)
 
+## Screenshots
+
+<!-- Visible UI changes only; otherwise write "Not applicable". Follow the screenshot
+rules in AGENTS.md: popup and sidebar at 360 px, Options at a stated desktop width,
+changed states only, dark theme, test data only, images attached to this description. -->
+
 ## Changelog
 
 - [ ] I updated `CHANGELOG.md` in `## [Unreleased]` for user-facing changes.

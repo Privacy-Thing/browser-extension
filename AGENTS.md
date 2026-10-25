@@ -5,8 +5,9 @@ spoofing. Optimize for spoofing correctness, invisibility to page scripts,
 cross-browser behavior and low overhead. `CLAUDE.md` links to this file.
 
 ## Progress tracking
+
 - Linear (main), `PT` prefix
-- GitHub Issues 
+- GitHub Issues
 
 ## Stack and boundaries
 
@@ -161,10 +162,23 @@ An explicit “not applicable” is valid; silently checking only one path is no
 - A pull request that changes user-visible UI (popup, options, sidebar or UI injected
   into pages) includes before/after screenshots under a `Screenshots` heading in its
   description, attached to the description itself (GitHub uploads images pasted or
-  dropped into the editor). Capture them from Storybook or the built extension. Cover
-  every changed state and, when layout is affected, the narrow popup width (360 px) and
-  the sidecar width (720 px). The repository is public: use test data only, with no real
-  hostnames, accounts, API keys or personal data.
+  dropped into the editor). Capture them from Storybook or the built extension; use the
+  real built extension when layout depends on browser chrome, such as popup or sidebar
+  sizing. The repository is public: use test data only, with no real hostnames,
+  accounts, API keys or personal data.
+- Show only the changed states plus the before/after of each affected state, one image
+  per state. Use the dark theme; add light only when colors or tokens changed. Attach no
+  screenshots when the change is not visible. Capture each surface at its own width:
+  - **Popup:** the designed 360 px width at the height its content produces. Browsers
+    size action popups to their content within 800 × 600 px (Chromium minimum 25 × 25),
+    so the popup never grows past 600 px; when content can exceed that, also capture
+    the tallest state showing how it scrolls.
+  - **Sidebar** (Chrome side panel, Firefox sidebar): 360 px, the design target. Do not
+    attach wide-sidebar (720 px) screenshots.
+  - **Options page:** a desktop width; state it (for example 1280 px). Capture dialogs as
+    their actual frame at that width. Do not attach 360 px Options screenshots.
+  - **UI injected into pages:** a typical page width, the narrowest realistic viewport,
+    or both, depending on which the change affects.
 - Never point a PR description at a file on your own machine or at an external host.
   Attach images with `gh pr create|edit|comment --attach '<file>#<alt text>'` (gh 2.102
   or newer), or paste them into the GitHub web editor, then use the asset links GitHub
