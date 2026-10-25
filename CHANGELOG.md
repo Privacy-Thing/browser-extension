@@ -27,7 +27,9 @@ The format is based on Keep a Changelog and the project follows Semantic Version
   are shown but cannot be selected. A status dot on the Inspector toggle shows
   whether a selection is armed, not armed or changed since it was armed, and X-Ray
   explains when Inspector is unavailable for a Trusted Site, paused protection or an
-  unsupported page. Arming and disarming take effect immediately on the open page and
+  unsupported page. In Chrome DevTools a stop opens a one-line script-stop note, the
+  next call stack frame is the calling page code, and the extension's own frames are
+  ignore-listed. Arming and disarming take effect immediately on the open page and
   its cross-origin frames, without a reload, or can wait for the next load.
   Script-opened windows and same-origin frames with their own runtime pick the change
   up on their next load, dedicated workers started afterwards use it while running

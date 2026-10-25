@@ -154,6 +154,29 @@ describe("UsageCommandSchema", () => {
     const result = UsageCommandSchema.safeParse(cmd);
     expect(result.success).toBe(false);
   });
+
+  it("rejects non-finite counts", () => {
+    for (const count of [Infinity, -Infinity, NaN]) {
+      const result = UsageCommandSchema.safeParse({
+        type: "pt:surface-usage",
+        categories: ["canvas"],
+        counts: { canvas: count },
+      });
+      expect(result.success).toBe(false);
+    }
+  });
+
+  it("drops an own __proto__ counter key without changing the prototype", () => {
+    const result = UsageCommandSchema.parse(
+      JSON.parse(
+        '{"type":"pt:surface-usage","categories":["canvas"],"counts":{"__proto__":{"canvas":1}},"methodCounts":{"__proto__":{"canvas.toDataURL":1}}}',
+      ),
+    );
+    for (const counts of [result.counts, result.methodCounts]) {
+      expect(Object.keys(counts ?? {})).toEqual([]);
+      expect(Object.getPrototypeOf(counts)).toBe(Object.prototype);
+    }
+  });
 });
 
 describe("SurfaceErrorSchema", () => {

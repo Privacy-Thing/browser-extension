@@ -197,10 +197,14 @@ export type ControlDResponse<T = undefined> =
   | ({ ok: true; state: ControlDPublicState } & (T extends undefined ? object : T))
   | { ok: false; error: string; state?: ControlDPublicState };
 
+// zod 3 `.int()` allowed any integer; stored configs must keep parsing, since a
+// failed parse resets the plugin configuration.
+const storedInteger = z.number().nonnegative().refine(Number.isInteger);
+
 const mappingSchema = z.object({
   locationId: z.string().min(1),
   locationLabel: z.string().min(1).optional(),
-  ruleCount: z.number().int().nonnegative().optional(),
+  ruleCount: storedInteger.optional(),
   proxyPk: z.string().min(1).nullable(),
   status: z.enum(["exact", "approximate", "skipped"]),
   confirmed: z.boolean(),
@@ -209,7 +213,7 @@ const mappingSchema = z.object({
 
 const managedFolderSchema = z.object({
   proxyPk: z.string().min(1),
-  folderId: z.number().int().nonnegative(),
+  folderId: storedInteger,
   remoteHash: z.string(),
 });
 

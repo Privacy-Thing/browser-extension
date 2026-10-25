@@ -1,0 +1,491 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`stored data from zod 3 releases > keeps plugin, session and edge values that zod 3 accepted 1`] = `
+{
+  "containers": [],
+  "controlD": {
+    "autoSyncEnabled": false,
+    "connected": true,
+    "dnsVerification": null,
+    "enabled": true,
+    "endpointId": null,
+    "lastAttemptAt": null,
+    "lastError": null,
+    "lastSuccessAt": null,
+    "lastSyncedHash": null,
+    "locationMappings": {
+      "far": {
+        "confirmed": false,
+        "locationId": "far",
+        "proxyPk": null,
+        "ruleCount": 9007199254740994,
+        "status": "skipped",
+      },
+    },
+    "managedFolders": {
+      "far": {
+        "folderId": 9007199254740994,
+        "proxyPk": "pk",
+        "remoteHash": "h",
+      },
+    },
+    "profileId": "profile",
+    "resolverDoh": null,
+    "resourceIdentity": {
+      "code": "abc",
+    },
+    "status": "ready",
+    "version": 2,
+  },
+  "fallback": null,
+  "features": {
+    "dismissedMatches": [],
+    "featureBindings": [
+      {
+        "confirmedAt": "2026-10-25T10:00Z",
+        "featureId": "minute",
+        "featureName": "minute",
+        "featureType": "service",
+        "matchCheckedAt": "2026-10-25T10:00Z",
+        "matchSource": "manual",
+        "providerId": "provider",
+        "rulePattern": "a.example.com",
+      },
+      {
+        "confirmedAt": "2026-10-25T10:00:00.000Z",
+        "featureId": "second",
+        "featureName": "second",
+        "featureType": "service",
+        "matchCheckedAt": "2026-10-25T10:00:00.000Z",
+        "matchSource": "manual",
+        "providerId": "provider",
+        "rulePattern": "b.example.com",
+      },
+    ],
+    "featureMatches": [
+      {
+        "checkedAt": "2026-10-25T10:00Z",
+        "featureId": null,
+        "hostname": "a.example.com",
+        "matchSource": "domain-test",
+        "providerId": "provider",
+        "status": "unresolved",
+      },
+    ],
+  },
+  "inspector": {
+    "desired": {
+      "methods": [
+        "canvas.toDataURL",
+      ],
+      "mode": "first-call",
+    },
+    "document": null,
+    "hostname": "shop.example.com",
+  },
+  "locations": [
+    {
+      "accuracy": "Infinity",
+      "id": "far",
+      "label": "far",
+      "language": "pl",
+      "languages": [
+        "pl",
+      ],
+      "latitude": 52.2297,
+      "longitude": 21.0122,
+      "noiseRadius": "Infinity",
+      "preferEnglishContent": false,
+      "timeZone": "Europe/Warsaw",
+    },
+  ],
+  "reimported": {
+    "rejected": [
+      [
+        0,
+        "accuracy",
+      ],
+      [
+        0,
+        "noiseRadius",
+      ],
+    ],
+  },
+  "rules": [
+    {
+      "authKey": "auth0003",
+      "enabled": true,
+      "locationId": "far",
+      "pattern": "a.example.com",
+      "relaxCspForWorkers": false,
+      "ruleSeedKey": "seed03",
+    },
+    {
+      "authKey": "auth0004",
+      "enabled": true,
+      "pattern": "b.example.com",
+      "relaxCspForWorkers": false,
+      "ruleSeedKey": "seed04",
+    },
+  ],
+  "saved": {
+    "ok": {
+      "containerAssignments": [],
+      "locations": [
+        {
+          "accuracy": "Infinity",
+          "id": "far",
+          "label": "far",
+          "language": "pl",
+          "languages": [
+            "pl",
+          ],
+          "latitude": 52.2297,
+          "longitude": 21.0122,
+          "noiseRadius": "Infinity",
+          "preferEnglishContent": false,
+          "timeZone": "Europe/Warsaw",
+        },
+      ],
+      "rules": [
+        {
+          "authKey": "auth0003",
+          "enabled": true,
+          "locationId": "far",
+          "pattern": "a.example.com",
+          "relaxCspForWorkers": false,
+          "ruleSeedKey": "seed03",
+        },
+        {
+          "authKey": "auth0004",
+          "enabled": true,
+          "pattern": "b.example.com",
+          "relaxCspForWorkers": false,
+          "ruleSeedKey": "seed04",
+        },
+      ],
+    },
+  },
+  "sharedSpoofing": null,
+  "trustedSites": [],
+  "workerTests": {},
+}
+`;
+
+exports[`stored data from zod 3 releases > migrates and loads retired-namespace data with legacy fields unchanged 1`] = `
+{
+  "containers": [
+    {
+      "authKey": "<minted>",
+      "cookieStoreId": "firefox-container-1",
+      "fingerprintSurfaceOverrides": {
+        "geolocation": false,
+      },
+      "ruleSeedKey": "<minted>",
+    },
+    {
+      "authKey": "<minted>",
+      "cookieStoreId": "firefox-container-2",
+      "enabled": false,
+      "locationId": "home",
+      "ruleSeedKey": "<minted>",
+    },
+  ],
+  "controlD": {
+    "autoSyncEnabled": false,
+    "connected": false,
+    "dnsVerification": null,
+    "enabled": false,
+    "endpointId": null,
+    "lastAttemptAt": null,
+    "lastError": null,
+    "lastSuccessAt": null,
+    "lastSyncedHash": null,
+    "locationMappings": {},
+    "managedFolders": {},
+    "profileId": null,
+    "resolverDoh": null,
+    "resourceIdentity": null,
+    "status": "disconnected",
+    "version": 2,
+  },
+  "fallback": {
+    "authKey": "<minted>",
+    "enabled": false,
+    "fingerprintSurfaceOverrides": {
+      "geolocation": false,
+    },
+    "ruleSeedKey": "seed02",
+  },
+  "features": {
+    "dismissedMatches": [],
+    "featureBindings": [],
+    "featureMatches": [],
+  },
+  "inspector": null,
+  "locations": [
+    {
+      "accuracy": 25,
+      "countryCode": "pl",
+      "id": "home",
+      "label": "home",
+      "language": "pl",
+      "languages": [
+        "pl",
+      ],
+      "latitude": 52.2297,
+      "longitude": 21.0122,
+      "noiseRadius": 50,
+      "preferEnglishContent": false,
+      "timeZone": "Europe/Warsaw",
+    },
+    {
+      "accuracy": 25,
+      "id": "bare",
+      "label": "bare",
+      "language": "pl",
+      "languages": [
+        "pl",
+      ],
+      "latitude": 52.2297,
+      "longitude": 21.0122,
+      "preferEnglishContent": false,
+      "timeZone": "Europe/Warsaw",
+    },
+  ],
+  "reimported": {
+    "ok": {
+      "attentionMotionEnabled": false,
+      "browserFingerprintSpoofingEnabled": true,
+      "containerAssignments": [
+        {
+          "authKey": "<minted>",
+          "cookieStoreId": "firefox-container-1",
+          "fingerprintSurfaceOverrides": {
+            "geolocation": false,
+          },
+          "ruleSeedKey": "<minted>",
+        },
+        {
+          "authKey": "<minted>",
+          "cookieStoreId": "firefox-container-2",
+          "enabled": false,
+          "locationId": "home",
+          "ruleSeedKey": "<minted>",
+        },
+      ],
+      "debugMode": false,
+      "defaultNoiseRadius": 50,
+      "featureBindings": [],
+      "featureFlags": {
+        "domainFencing": false,
+        "temporalApi": false,
+      },
+      "generatedLocationRandomizationRadiusKm": 10,
+      "globalFallbackRule": {
+        "authKey": "<minted>",
+        "enabled": false,
+        "fingerprintSurfaceOverrides": {
+          "geolocation": false,
+        },
+        "ruleSeedKey": "seed02",
+      },
+      "highContrastExplicit": false,
+      "highContrastMode": false,
+      "includeDateCallsInBadgeCount": false,
+      "legacyBehavior": {},
+      "locations": [
+        {
+          "accuracy": 25,
+          "countryCode": "PL",
+          "id": "home",
+          "label": "home",
+          "language": "pl",
+          "languages": [
+            "pl",
+          ],
+          "latitude": 52.2297,
+          "longitude": 21.0122,
+          "noiseRadius": 50,
+          "preferEnglishContent": false,
+          "timeZone": "Europe/Warsaw",
+        },
+        {
+          "accuracy": 25,
+          "id": "bare",
+          "label": "bare",
+          "language": "pl",
+          "languages": [
+            "pl",
+          ],
+          "latitude": 52.2297,
+          "longitude": 21.0122,
+          "noiseRadius": 50,
+          "preferEnglishContent": false,
+          "timeZone": "Europe/Warsaw",
+        },
+      ],
+      "onboardingCompleted": false,
+      "osmConsent": "unknown",
+      "randomizeGeneratedLocationByDefault": true,
+      "reduceMotion": false,
+      "rules": [
+        {
+          "authKey": "<minted>",
+          "enabled": true,
+          "fingerprintSurfaceOverrides": {
+            "geolocation": false,
+          },
+          "locationId": "home",
+          "pattern": "legacy.example.com",
+          "relaxCspForWorkers": false,
+          "ruleSeedKey": "<minted>",
+        },
+        {
+          "authKey": "auth0001",
+          "enabled": false,
+          "fingerprintSurfaceOverrides": {
+            "serviceWorker": true,
+          },
+          "locationId": "bare",
+          "pattern": "shop.example.com",
+          "relaxCspForWorkers": false,
+          "ruleSeedKey": "seed01",
+        },
+      ],
+      "sharedSpoofing": {
+        "canvas": false,
+        "sharedWorker": "spoof",
+      },
+      "sharedWorkerCompatibilityMode": false,
+      "sharedWorkerHandlingMode": "strict",
+      "showBadgeQueryCount": true,
+      "themeAccentPreset": "teal",
+      "themeMode": "system",
+      "trustedSites": [
+        {
+          "enabled": true,
+          "pattern": "bank.example.com",
+        },
+      ],
+      "uiLocale": "auto",
+      "watchPositionDelay": [
+        60,
+        500,
+      ],
+      "workerPolicyExceptions": {},
+    },
+  },
+  "rules": [
+    {
+      "authKey": "<minted>",
+      "enabled": true,
+      "fingerprintSurfaceOverrides": {
+        "geolocation": false,
+      },
+      "locationId": "home",
+      "pattern": "legacy.example.com",
+      "relaxCspForWorkers": false,
+      "ruleSeedKey": "<minted>",
+    },
+    {
+      "authKey": "auth0001",
+      "enabled": false,
+      "fingerprintSurfaceOverrides": {
+        "serviceWorker": true,
+      },
+      "locationId": "bare",
+      "pattern": "shop.example.com",
+      "relaxCspForWorkers": false,
+      "ruleSeedKey": "seed01",
+    },
+  ],
+  "saved": {
+    "ok": {
+      "containerAssignments": [
+        {
+          "authKey": "<minted>",
+          "cookieStoreId": "firefox-container-1",
+          "fingerprintSurfaceOverrides": {
+            "geolocation": false,
+          },
+          "ruleSeedKey": "<minted>",
+        },
+        {
+          "authKey": "<minted>",
+          "cookieStoreId": "firefox-container-2",
+          "enabled": false,
+          "locationId": "home",
+          "ruleSeedKey": "<minted>",
+        },
+      ],
+      "locations": [
+        {
+          "accuracy": 25,
+          "countryCode": "PL",
+          "id": "home",
+          "label": "home",
+          "language": "pl",
+          "languages": [
+            "pl",
+          ],
+          "latitude": 52.2297,
+          "longitude": 21.0122,
+          "noiseRadius": 50,
+          "preferEnglishContent": false,
+          "timeZone": "Europe/Warsaw",
+        },
+        {
+          "accuracy": 25,
+          "id": "bare",
+          "label": "bare",
+          "language": "pl",
+          "languages": [
+            "pl",
+          ],
+          "latitude": 52.2297,
+          "longitude": 21.0122,
+          "noiseRadius": 50,
+          "preferEnglishContent": false,
+          "timeZone": "Europe/Warsaw",
+        },
+      ],
+      "rules": [
+        {
+          "authKey": "<minted>",
+          "enabled": true,
+          "fingerprintSurfaceOverrides": {
+            "geolocation": false,
+          },
+          "locationId": "home",
+          "pattern": "legacy.example.com",
+          "relaxCspForWorkers": false,
+          "ruleSeedKey": "<minted>",
+        },
+        {
+          "authKey": "auth0001",
+          "enabled": false,
+          "fingerprintSurfaceOverrides": {
+            "serviceWorker": true,
+          },
+          "locationId": "bare",
+          "pattern": "shop.example.com",
+          "relaxCspForWorkers": false,
+          "ruleSeedKey": "seed01",
+        },
+      ],
+    },
+  },
+  "sharedSpoofing": {
+    "canvas": false,
+    "sharedWorker": "spoof",
+  },
+  "trustedSites": [
+    {
+      "enabled": true,
+      "pattern": "bank.example.com",
+    },
+  ],
+  "workerTests": {},
+}
+`;

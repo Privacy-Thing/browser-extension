@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { runtimeDebugMap, runtimeDebugMapPlugin } from "../config/runtime-debug-map";
+import {
+  ignoredPositions,
+  RUNTIME_DEBUG_CONTENT,
+  runtimeDebugMap,
+  runtimeDebugMapPlugin,
+} from "../config/runtime-debug-map";
 
 const decode = (segment: string): number[] => {
   const digits = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -47,7 +52,16 @@ describe("runtime debug map", () => {
     expect(sourceAt(map.mappings, 2, 13)).toBe(1);
     expect(sourceAt(map.mappings, 2, 20)).toBe(1);
     expect(sourceAt(map.mappings, 2, 35)).toBe(0);
-    expect(JSON.stringify(map)).not.toContain("debugger");
+    expect(map.sourcesContent).toEqual(RUNTIME_DEBUG_CONTENT);
+    expect(JSON.stringify(map)).not.toMatch(/label|ignored =|trap/);
+  });
+  it("reports the ignored ranges DevTools derives from the map", () => {
+    const code = "const a = 1;\nconst trap = () => { debugger; }; trap();";
+    expect(ignoredPositions(runtimeDebugMap(code))).toEqual([
+      { lineNumber: 0, columnNumber: 0 },
+      { lineNumber: 1, columnNumber: 13 },
+      { lineNumber: 1, columnNumber: 32 },
+    ]);
   });
   it("rejects a minified runtime with only a debugger string and no pause statement", () => {
     const plugin = runtimeDebugMapPlugin();

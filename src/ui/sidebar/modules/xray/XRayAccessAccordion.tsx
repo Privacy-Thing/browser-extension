@@ -146,9 +146,11 @@ export const XRayAccessAccordion = ({
           />
         ) : null}
       </div>
-      <p className="text-xs text-muted-foreground mb-2">
-        {t.sidebar.accessed.description}
-      </p>
+      {inspector?.active ? null : (
+        <p className="text-xs text-muted-foreground mb-2">
+          {t.sidebar.accessed.description}
+        </p>
+      )}
       {inspector?.active ? (
         <div className="mb-3">
           <XRayInspectorPanel

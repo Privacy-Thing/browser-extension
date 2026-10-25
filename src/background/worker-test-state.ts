@@ -46,7 +46,7 @@ export const commandSchema = z.discriminatedUnion("type", [
 export const key = EXTENSION_STORAGE_KEYS.workerTestSessions;
 export const readSessions = async (): Promise<Record<string, WorkerTestSession>> => {
   const stored = await chrome.storage.session.get(key);
-  return z.record(sessionSchema).safeParse(stored[key]).data ?? {};
+  return z.record(z.string(), sessionSchema).safeParse(stored[key]).data ?? {};
 };
 export const report = (state: GetXRayStateResponse | null) =>
   buildDiagnosticReport({

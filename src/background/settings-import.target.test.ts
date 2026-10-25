@@ -379,6 +379,18 @@ describe("selected import conflicts and dependencies", () => {
       selection: choices,
       localContainerIds: new Set(["firefox-container-1"]),
     });
+  it("ignores own __proto__ keys in the selection", () => {
+    const choices = { shared: "keep", skipped: "skip" } as const;
+    const withProto: SettingsImportSelection = JSON.parse(
+      `{"mode":"merge","locations":{"__proto__":"copy","shared":"keep","skipped":"skip"},"rules":{"__proto__":"skip","example.com":"keep"},"containers":{"__proto__":null}}`,
+    );
+    const result = plan(withProto);
+    expect(result.problems).toEqual([]);
+    expect(result.settings.locations).toEqual(
+      plan(selection({ locations: choices, rules: { "example.com": "keep" } })).settings
+        .locations,
+    );
+  });
   it("requires explicit conflict choices and blocks references to skipped presets", () => {
     expect(plan(selection()).problems).toEqual(
       expect.arrayContaining([
