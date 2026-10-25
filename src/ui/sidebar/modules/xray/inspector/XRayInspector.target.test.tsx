@@ -264,6 +264,10 @@ describe("X-Ray Inspector", () => {
       const api = createMemoryInspectorApi(readyState());
       await render(<Harness api={api} />);
       await selectToDataURL();
+      expect(
+        document.getElementById(button(action).getAttribute("aria-describedby") ?? "")
+          ?.textContent,
+      ).toBe(t.sidebar.inspector.hint.ready(1));
       await click(button(action));
 
       expect(lastCall(api)).toEqual({

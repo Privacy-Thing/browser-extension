@@ -148,6 +148,7 @@ const ActionButtons = ({
           variant={actionSet === "disarm" ? "ghost" : "outline"}
           disabled={busy}
           aria-busy={isRunning("next-load") || undefined}
+          aria-describedby={describesSelection ? countId : undefined}
           data-inspector-apply="next-load"
           onClick={() => run("next-load")}
         >
