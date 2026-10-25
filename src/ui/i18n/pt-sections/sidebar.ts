@@ -280,8 +280,6 @@ export const sidebar = {
       changed: "Aplique para atualizar o que está ativo ou desfaça suas alterações.",
       changedToEmpty:
         "Nada está selecionado. Desative para que os scripts não sejam mais interrompidos.",
-      active: "Ativo nesta página.",
-      appliedLive: "Ativo nesta página, sem recarregar.",
       pendingArm: "Será aplicado quando a página recarregar.",
       pendingDisarm:
         "Os scripts deixam de ser interrompidos quando a página recarregar.",
@@ -329,6 +327,7 @@ export const sidebar = {
       label: "Métodos em que interromper",
       search: "Pesquisar métodos",
       usedOnly: "Usados nesta página",
+      usedOnlyShort: "Usados",
       noMatches: "Nenhum método corresponde.",
       clearFilters: "Limpar filtros",
       selectedOfTotal: (selected: number, total: number) => `${selected}/${total}`,

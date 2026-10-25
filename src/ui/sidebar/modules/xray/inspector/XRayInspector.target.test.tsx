@@ -294,6 +294,33 @@ describe("X-Ray Inspector", () => {
     );
   });
 
+  it("leaves the selected count and apply result to assistive technology", async () => {
+    const api = createMemoryInspectorApi(readyState({ appliesLive: true }));
+    await render(<Harness api={api} active={false} />);
+    expect(document.body.textContent).toContain(t.sidebar.accessed.description);
+    await render(<Harness api={api} />);
+    expect(document.body.textContent).not.toContain(t.sidebar.accessed.description);
+
+    await selectToDataURL();
+    expect(document.querySelector("[data-inspector-hint]")).toBe(null);
+    const arm = button(t.sidebar.inspector.actions.arm);
+    expect(
+      document.getElementById(arm.getAttribute("aria-describedby") ?? "")?.textContent,
+    ).toBe(t.sidebar.inspector.hint.ready(1));
+
+    await click(arm);
+    expect(phase()).toBe("armed");
+    expect(document.querySelector("[data-inspector-hint]")).toBe(null);
+    expect(document.querySelector('[role="status"]')?.textContent).toBe(
+      `${t.sidebar.inspector.result.armed(1)} ${t.sidebar.inspector.result.live}`,
+    );
+
+    await click(button(t.sidebar.inspector.actions.disarm));
+    expect(document.querySelector('[role="status"]')?.textContent).toBe(
+      `${t.sidebar.inspector.result.disarmed} ${t.sidebar.inspector.result.live}`,
+    );
+  });
+
   it("sends the every-call mode with the selection", async () => {
     const api = createMemoryInspectorApi(readyState());
     await render(<Harness api={api} />);

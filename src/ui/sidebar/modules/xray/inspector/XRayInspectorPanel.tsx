@@ -7,6 +7,7 @@ import type {
 } from "./inspector-contract";
 import type { InspectorResult, XRayInspectorController } from "./useXRayInspector";
 
+import { cn } from "@/ui/components/lib/utils";
 import { Button } from "@/ui/components/ui/button";
 import { Label } from "@/ui/components/ui/label";
 import { Switch } from "@/ui/components/ui/switch";
@@ -70,40 +71,42 @@ const resultMessage = (result: InspectorResult): string => {
   return `${outcome} ${APPLIED_VIA_LABELS[result.appliedVia]}`;
 };
 
+/** Guidance the panel shows only when the user has something to do or wait for. */
 const statusHint = (
   phase: InspectorPhase,
   controller: XRayInspectorController,
   state: XRayInspectorState,
-): string => {
+): string | null => {
   if (phase === "changed") {
     return controller.armableMethodIds.length > 0
       ? t.sidebar.inspector.hint.changed
       : t.sidebar.inspector.hint.changedToEmpty;
   }
-  if (phase === "armed") {
-    if (state.pendingReload) return t.sidebar.inspector.hint.pendingArm;
-    return state.appliesLive
-      ? t.sidebar.inspector.hint.appliedLive
-      : t.sidebar.inspector.hint.active;
+  if (state.pendingReload) {
+    return phase === "armed"
+      ? t.sidebar.inspector.hint.pendingArm
+      : t.sidebar.inspector.hint.pendingDisarm;
   }
-  if (state.pendingReload) return t.sidebar.inspector.hint.pendingDisarm;
-  const count = controller.armableMethodIds.length;
-  return count > 0
-    ? t.sidebar.inspector.hint.ready(count)
-    : t.sidebar.inspector.hint.empty;
+  return phase === "idle" && controller.armableMethodIds.length === 0
+    ? t.sidebar.inspector.hint.empty
+    : null;
 };
 
 const ActionButtons = ({
   actionSet,
   controller,
   state,
+  className,
 }: {
   actionSet: ActionSet;
   controller: XRayInspectorController;
   state: XRayInspectorState;
+  className?: string;
 }) => {
+  const countId = useId();
   const labels = ACTION_LABELS[actionSet];
   const busy = controller.pending !== null;
+  const describesSelection = actionSet !== "disarm";
   const run = (apply: XRayInspectorApply) => {
     if (actionSet === "disarm") controller.disarm(apply);
     else controller.apply(apply);
@@ -119,14 +122,20 @@ const ActionButtons = ({
 
   return (
     <div
-      className="flex flex-wrap items-center gap-2"
+      className={cn("flex flex-wrap gap-2", className)}
       data-inspector-actions={actionSet}
     >
+      {describesSelection ? (
+        <span id={countId} className="sr-only">
+          {t.sidebar.inspector.hint.ready(controller.armableMethodIds.length)}
+        </span>
+      ) : null}
       <Button
         size="sm"
         variant={primaryVariant}
         disabled={busy}
         aria-busy={isRunning("now") || undefined}
+        aria-describedby={describesSelection ? countId : undefined}
         data-inspector-apply="now"
         onClick={() => run("now")}
       >
@@ -229,36 +238,32 @@ const StatusBlock = ({
   controller: XRayInspectorController;
   state: XRayInspectorState;
 }) => {
+  const hint = statusHint(phase, controller, state);
   const canReloadNow =
     state.pendingReload && !controller.dirty && controller.pending === null;
+  if (!hint && !controller.actionError) return null;
   return (
-    <div className="flex flex-col items-start">
-      <p className="text-xs text-foreground/80">
-        {statusHint(phase, controller, state)}
-        {canReloadNow ? (
-          <Button
-            variant="link"
-            size="sm"
-            className="ml-1 h-auto p-0 text-xs"
-            data-inspector-reload-now
-            onClick={() =>
-              state.armed ? controller.apply("now") : controller.disarm("now")
-            }
-          >
-            {t.sidebar.inspector.actions.reloadNow}
-          </Button>
-        ) : null}
-      </p>
-      {/* Always mounted so screen readers announce the apply result. */}
-      <div role="status" data-inspector-result={controller.result?.kind}>
-        {controller.result ? (
-          <p className="mt-1.5 text-xs font-medium">
-            {resultMessage(controller.result)}
-          </p>
-        ) : null}
-      </div>
+    <div className="flex flex-col items-start gap-1.5">
+      {hint ? (
+        <p className="text-xs text-foreground/80" data-inspector-hint>
+          {hint}
+          {canReloadNow ? (
+            <Button
+              variant="link"
+              size="sm"
+              className="ml-1 h-auto p-0 text-xs"
+              data-inspector-reload-now
+              onClick={() =>
+                state.armed ? controller.apply("now") : controller.disarm("now")
+              }
+            >
+              {t.sidebar.inspector.actions.reloadNow}
+            </Button>
+          ) : null}
+        </p>
+      ) : null}
       {controller.actionError ? (
-        <p role="alert" className="mt-1.5 text-xs text-tone-error-text">
+        <p role="alert" className="text-xs text-tone-error-text">
           {t.sidebar.inspector.actionError(controller.actionError)}
         </p>
       ) : null}
@@ -266,26 +271,50 @@ const StatusBlock = ({
   );
 };
 
-const ModeSwitch = ({ controller }: { controller: XRayInspectorController }) => {
+/**
+ * The mode switch and the actions. A single action shares the switch row; several
+ * actions get their own row so nothing wraps mid-group at popup width.
+ */
+const Controls = ({
+  actionSet,
+  controller,
+  state,
+}: {
+  actionSet: ActionSet | null;
+  controller: XRayInspectorController;
+  state: XRayInspectorState;
+}) => {
   const switchId = useId();
   const hintId = useId();
   const everyCall = controller.mode === "every-call";
+  const singleAction = state.appliesLive && !controller.dirty;
+  const actions = actionSet ? (
+    <ActionButtons
+      actionSet={actionSet}
+      controller={controller}
+      state={state}
+      className={singleAction ? "shrink-0" : "mt-0.5"}
+    />
+  ) : null;
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center justify-between gap-3">
-        <Label htmlFor={switchId} className="text-xs">
-          {t.sidebar.inspector.everyCall}
-        </Label>
-        <Switch
-          id={switchId}
-          checked={everyCall}
-          disabled={controller.pending !== null}
-          aria-describedby={hintId}
-          data-inspector-mode={controller.mode}
-          onCheckedChange={(checked) =>
-            controller.setMode(checked ? "every-call" : "first-call")
-          }
-        />
+        <div className="flex min-h-8 min-w-0 items-center gap-2">
+          <Switch
+            id={switchId}
+            checked={everyCall}
+            disabled={controller.pending !== null}
+            aria-describedby={hintId}
+            data-inspector-mode={controller.mode}
+            onCheckedChange={(checked) =>
+              controller.setMode(checked ? "every-call" : "first-call")
+            }
+          />
+          <Label htmlFor={switchId} className="text-xs">
+            {t.sidebar.inspector.everyCall}
+          </Label>
+        </div>
+        {singleAction ? actions : null}
       </div>
       {everyCall ? (
         <p
@@ -300,10 +329,16 @@ const ModeSwitch = ({ controller }: { controller: XRayInspectorController }) => 
           <span>{t.sidebar.inspector.everyCallWarning}</span>
         </p>
       ) : (
-        <p id={hintId} className="text-[11px] text-muted-foreground">
+        <p id={hintId} className="text-[11px] leading-snug text-muted-foreground">
           {t.sidebar.inspector.firstCallHint}
         </p>
       )}
+      {singleAction ? null : actions}
+      {actionSet && !state.appliesLive ? (
+        <p className="text-[11px] leading-snug text-muted-foreground">
+          {t.sidebar.inspector.reloadNote}
+        </p>
+      ) : null}
     </div>
   );
 };
@@ -332,17 +367,7 @@ export const XRayInspectorPanel = ({
     >
       <p className="text-xs text-muted-foreground">{t.sidebar.inspector.intro}</p>
       <StatusBlock phase={phase} controller={controller} state={state} />
-      <ModeSwitch controller={controller} />
-      {actionSet ? (
-        <div className="flex flex-col gap-1.5">
-          <ActionButtons actionSet={actionSet} controller={controller} state={state} />
-          {state.appliesLive ? null : (
-            <p className="text-[11px] text-muted-foreground">
-              {t.sidebar.inspector.reloadNote}
-            </p>
-          )}
-        </div>
-      ) : null}
+      <Controls actionSet={actionSet} controller={controller} state={state} />
       <div className="flex flex-col gap-1 border-t border-border/50 pt-2">
         <Notice icon="fa-solid fa-stopwatch">{t.sidebar.inspector.pauseNotice}</Notice>
         {showFirefoxHint ? (
@@ -350,6 +375,15 @@ export const XRayInspectorPanel = ({
             {t.sidebar.inspector.firefoxNotice}
           </Notice>
         ) : null}
+      </div>
+      {/* Always mounted so screen readers announce the apply result; the status
+          dot and the panel already show it visually. */}
+      <div
+        role="status"
+        className="sr-only"
+        data-inspector-result={controller.result?.kind}
+      >
+        {controller.result ? resultMessage(controller.result) : null}
       </div>
     </div>
   );
