@@ -79,26 +79,26 @@ describe("localized dynamic copy", () => {
     "agrees the blocked preset delete copy with %i rules",
     (count, russian, ukrainian) => {
       expect(ru.locations.editor.deleteBlocked(count)).toBe(
-        `Нельзя удалить: используется в ${russian}`,
+        `Используется в ${russian}`,
       );
       expect(uk.locations.editor.deleteBlocked(count)).toBe(
-        `Не можна видалити: використовується в ${ukrainian}`,
+        `Використовується в ${ukrainian}`,
       );
     },
   );
 
   it("agrees the blocked preset delete copy in English, Spanish and Portuguese", () => {
     expect(en.locations.editor.deleteBlocked(1)).toBe(
-      "Can't delete: used by 1 rule. Reassign or remove it first.",
+      "Used by 1 rule. Reassign or remove it first.",
     );
     expect(en.locations.editor.deleteBlocked(3)).toBe(
-      "Can't delete: used by 3 rules. Reassign or remove them first.",
+      "Used by 3 rules. Reassign or remove them first.",
     );
     expect(es.locations.editor.deleteBlocked(3)).toBe(
-      "No se puede eliminar: lo usan 3 reglas. Reasígnalas o elimínalas primero.",
+      "Lo usan 3 reglas. Reasígnalas o elimínalas primero.",
     );
     expect(pt.locations.editor.deleteBlocked(1)).toBe(
-      "Não é possível excluir: usado por 1 regra. Reatribua-a ou remova-a primeiro.",
+      "Usado por 1 regra. Reatribua-a ou remova-a primeiro.",
     );
   });
 

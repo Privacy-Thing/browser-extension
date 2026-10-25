@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useState } from "react";
 
 import { getProfileTimeZoneError } from "@/shared/time-zone-validation";
 import type { Location } from "@/shared/types";
@@ -13,6 +13,7 @@ import {
 import type { PresetUsage } from "@/ui/options/location-usage";
 import { getLocationModalAnchor } from "@/ui/options/navigation";
 import { useSettings } from "@/ui/options/state/SettingsContext";
+import type { ConfirmDialogConfig } from "@/ui/options/state/use-settings-confirm-dialog";
 
 type LocationEditorSectionId = LocationDetailsSectionId;
 
@@ -28,6 +29,7 @@ type EditorSessionProps = {
   osmConsent: "unknown" | "granted" | "denied";
   openOsmDialog: (action: { type: "editor"; profileIndex: number }) => void;
   regionalPresetUsage?: PresetUsage | undefined;
+  requestConfirmation: (config: ConfirmDialogConfig) => Promise<boolean>;
 };
 
 type EditorViewProps = EditorSessionProps & {
@@ -35,74 +37,48 @@ type EditorViewProps = EditorSessionProps & {
   updateDraft: (mutate: (current: Location) => Location) => void;
 };
 
-const DeleteBlockedNotice = ({
-  id,
-  onClose,
-  usage,
-}: {
-  id: string;
-  onClose: () => void;
-  usage: PresetUsage;
-}) => {
-  const noticeRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    noticeRef.current?.focus();
-  }, []);
-  return (
-    <div
-      ref={noticeRef}
-      id={id}
-      tabIndex={-1}
-      role="group"
-      aria-labelledby={`${id}-message`}
-      data-preset-usage=""
-      data-preset-usage-count={usage.sources.length}
-      className="flex flex-col gap-2 rounded-md border border-tone-warning-border bg-tone-warning-bg p-3 text-sm text-tone-warning-text outline-none"
-    >
-      <div className="flex items-start justify-between gap-3">
-        <p id={`${id}-message`} className="min-w-0 pt-1">
-          {t.locations.editor.deleteBlocked(usage.sources.length)}
-        </p>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="shrink-0 text-tone-warning-text hover:bg-tone-warning-border hover:text-tone-warning-text"
-          data-preset-usage-close=""
-          onClick={onClose}
-        >
-          {t.common.actions.close}
-        </Button>
-      </div>
-      <ul
-        aria-label={t.locations.editor.deleteBlockedListLabel}
-        // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- the bounded list scrolls, so keyboard users must reach it
-        tabIndex={0}
-        data-preset-usage-list=""
-        className="max-h-28 space-y-0.5 overflow-y-auto overscroll-contain outline-none focus-visible:ring-2 focus-visible:ring-ring"
+const PresetUsageList = ({ usage }: { usage: PresetUsage }) => (
+  <ul
+    aria-label={t.locations.editor.deleteBlockedListLabel}
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- the bounded list scrolls, so keyboard users must reach it
+    tabIndex={0}
+    data-preset-usage=""
+    data-preset-usage-count={usage.sources.length}
+    className="max-h-40 space-y-1 overflow-y-auto overscroll-contain rounded-md border border-border p-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+  >
+    {usage.sources.map((source) => (
+      <li
+        key={`${source.kind}:${source.key}`}
+        data-preset-usage-source={source.kind}
+        className="flex min-w-0 gap-1"
       >
-        {usage.sources.map((source) => (
-          <li
-            key={`${source.kind}:${source.key}`}
-            data-preset-usage-source={source.kind}
-            className="flex min-w-0 gap-1"
-          >
-            <span className="truncate" title={source.label}>
-              {source.label}
+        <span className="truncate" title={source.label}>
+          {source.label}
+        </span>
+        {!source.enabled ? (
+          <>
+            {" "}
+            <span className="shrink-0 text-muted-foreground">
+              {t.locations.editor.disabledDependencySuffix}
             </span>
-            {!source.enabled ? (
-              <>
-                {" "}
-                <span className="shrink-0">
-                  {t.locations.editor.disabledDependencySuffix}
-                </span>
-              </>
-            ) : null}
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-};
+          </>
+        ) : null}
+      </li>
+    ))}
+  </ul>
+);
+
+const showDeleteBlocked = (
+  usage: PresetUsage,
+  requestConfirmation: EditorSessionProps["requestConfirmation"],
+) =>
+  requestConfirmation({
+    kind: "alert",
+    title: t.locations.editor.deleteBlockedTitle,
+    description: t.locations.editor.deleteBlocked(usage.sources.length),
+    details: <PresetUsageList usage={usage} />,
+    confirmLabel: t.common.actions.close,
+  });
 
 const EditorFooter = ({
   draft,
@@ -112,88 +88,70 @@ const EditorFooter = ({
   handleRemoveProfile,
   profile,
   regionalPresetUsage,
+  requestConfirmation,
   saveInFlight,
   setProfileDialogOpened,
-}: EditorViewProps) => {
-  const noticeId = useId();
-  const deleteButtonRef = useRef<HTMLButtonElement>(null);
-  const [deleteBlockedOpen, setDeleteBlockedOpen] = useState(false);
-  const deleteBlockedMessage = regionalPresetUsage
-    ? t.locations.editor.deleteBlocked(regionalPresetUsage.sources.length)
-    : undefined;
-  return (
-    <div className="flex w-full flex-col gap-3">
-      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
-        <div className="flex items-center gap-2">
+}: EditorViewProps) => (
+  <>
+    <div className="flex items-center gap-2">
+      <Button
+        variant="ghost"
+        disabled={saveInFlight}
+        onClick={() => setProfileDialogOpened(false)}
+      >
+        {t.common.actions.cancel}
+      </Button>
+      {editingProfileIndex !== null ? (
+        <>
           <Button
             variant="ghost"
-            disabled={saveInFlight}
-            onClick={() => setProfileDialogOpened(false)}
+            disabled={saveInFlight || getProfileTimeZoneError(draft) !== null}
+            onClick={async () => {
+              if (await handleDuplicateProfile(draft)) setProfileDialogOpened(false);
+            }}
           >
-            {t.common.actions.cancel}
+            {t.common.actions.duplicate}
           </Button>
-          {editingProfileIndex !== null ? (
-            <>
-              <Button
-                variant="ghost"
-                disabled={saveInFlight || getProfileTimeZoneError(draft) !== null}
-                onClick={async () => {
-                  if (await handleDuplicateProfile(draft))
-                    setProfileDialogOpened(false);
-                }}
-              >
-                {t.common.actions.duplicate}
-              </Button>
-              {/* A used preset keeps Delete focusable so activating it can explain why. */}
-              <Button
-                ref={deleteButtonRef}
-                variant="ghost"
-                className="text-destructive hover:bg-destructive/10 hover:text-destructive aria-disabled:opacity-40"
-                disabled={saveInFlight}
-                aria-disabled={regionalPresetUsage ? true : undefined}
-                aria-controls={regionalPresetUsage ? noticeId : undefined}
-                aria-expanded={regionalPresetUsage ? deleteBlockedOpen : undefined}
-                title={deleteBlockedMessage}
-                data-preset-delete=""
-                onClick={async () => {
-                  if (regionalPresetUsage) {
-                    setDeleteBlockedOpen(true);
-                    return;
-                  }
-                  if (await handleRemoveProfile(profile, editingProfileIndex)) {
-                    setProfileDialogOpened(false);
-                  }
-                }}
-              >
-                {t.common.actions.delete}
-              </Button>
-            </>
-          ) : null}
-        </div>
-        <Button
-          disabled={saveInFlight || getProfileTimeZoneError(draft) !== null}
-          onClick={async () => {
-            if (await handlePersistProfile(editingProfileIndex, draft)) {
-              setProfileDialogOpened(false);
+          {/* A used preset keeps Delete focusable so activating it can explain why. */}
+          <Button
+            variant="ghost"
+            className="text-destructive hover:bg-destructive/10 hover:text-destructive aria-disabled:opacity-40"
+            disabled={saveInFlight}
+            aria-disabled={regionalPresetUsage ? true : undefined}
+            aria-haspopup={regionalPresetUsage ? "dialog" : undefined}
+            title={
+              regionalPresetUsage
+                ? t.locations.editor.deleteBlocked(regionalPresetUsage.sources.length)
+                : undefined
             }
-          }}
-        >
-          {t.common.actions.save}
-        </Button>
-      </div>
-      {deleteBlockedOpen && regionalPresetUsage ? (
-        <DeleteBlockedNotice
-          id={noticeId}
-          usage={regionalPresetUsage}
-          onClose={() => {
-            setDeleteBlockedOpen(false);
-            deleteButtonRef.current?.focus();
-          }}
-        />
+            data-preset-delete=""
+            onClick={async () => {
+              if (regionalPresetUsage) {
+                await showDeleteBlocked(regionalPresetUsage, requestConfirmation);
+                return;
+              }
+              if (await handleRemoveProfile(profile, editingProfileIndex)) {
+                setProfileDialogOpened(false);
+              }
+            }}
+          >
+            {t.common.actions.delete}
+          </Button>
+        </>
       ) : null}
     </div>
-  );
-};
+    <Button
+      disabled={saveInFlight || getProfileTimeZoneError(draft) !== null}
+      onClick={async () => {
+        if (await handlePersistProfile(editingProfileIndex, draft)) {
+          setProfileDialogOpened(false);
+        }
+      }}
+    >
+      {t.common.actions.save}
+    </Button>
+  </>
+);
 
 const EditorBody = ({
   draft,
@@ -300,6 +258,7 @@ const LocationEditorSession = (props: EditorSessionProps) => {
       preventCloseWhenBusy
       contentClassName="sm:max-w-4xl"
       scrollableBody
+      footerClassName="sm:justify-between"
       footer={<EditorFooter {...viewProps} />}
     >
       <EditorBody {...viewProps} />
@@ -322,6 +281,7 @@ export const LocationEditorModal = () => {
     osmConsent,
     openOsmDialog,
     regionalPresetUsage,
+    requestConfirmation,
   } = useSettings();
 
   const profile =
@@ -341,6 +301,7 @@ export const LocationEditorModal = () => {
       handlePersistProfile={handlePersistProfile}
       osmConsent={osmConsent}
       openOsmDialog={openOsmDialog}
+      requestConfirmation={requestConfirmation}
       regionalPresetUsage={
         editingProfileIndex !== null ? regionalPresetUsage?.get(profile.id) : undefined
       }

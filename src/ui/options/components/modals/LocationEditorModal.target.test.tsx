@@ -9,6 +9,7 @@ import { LocationEditorModal } from "./LocationEditorModal";
 import { flushReactEffects } from "@/test-utils/react";
 import type { LazyProfileDraftMapProps } from "@/ui/options/components/map/LazyProfileDraftMap";
 import { useSettings } from "@/ui/options/state/SettingsContext";
+import type { ConfirmDialogConfig } from "@/ui/options/state/use-settings-confirm-dialog";
 
 vi.mock("@/ui/components/ui/form-dialog-shell", () => ({
   FormDialogShell: ({
@@ -119,6 +120,7 @@ const createSettingsValue = ({
   handlePersistProfile: vi.fn(),
   osmConsent: "denied",
   openOsmDialog: vi.fn(),
+  requestConfirmation: vi.fn(async (_config: ConfirmDialogConfig) => true),
 });
 
 const findButton = (label: string): HTMLButtonElement => {
@@ -310,7 +312,7 @@ describe("LocationEditorModal", () => {
     expect(lastCall?.accuracyRadius).toBe(30);
   });
 
-  it("explains a blocked delete only after Delete is activated", async () => {
+  it("explains a blocked delete in an alert only after Delete is activated", async () => {
     const settings = {
       ...createSettingsValue(),
       regionalPresetUsage: new Map([
@@ -338,29 +340,32 @@ describe("LocationEditorModal", () => {
     const deleteButton = findButton("Delete");
     expect(deleteButton.disabled).toBe(false);
     expect(deleteButton.getAttribute("aria-disabled")).toBe("true");
-    expect(deleteButton.getAttribute("aria-expanded")).toBe("false");
+    expect(deleteButton.getAttribute("aria-haspopup")).toBe("dialog");
 
     await act(async () => deleteButton.click());
-    await flushReactEffects();
 
-    const notice = document.querySelector<HTMLElement>("[data-preset-usage]");
     expect(settings.handleRemoveProfile).not.toHaveBeenCalled();
-    expect(deleteButton.getAttribute("aria-expanded")).toBe("true");
-    expect(deleteButton.getAttribute("aria-controls")).toBe(notice?.id);
-    expect(notice?.getAttribute("data-preset-usage-count")).toBe("1");
-    expect(document.activeElement).toBe(notice);
-    expect(notice?.textContent).toContain(
-      "Can't delete: used by 1 rule. Reassign or remove it first.",
-    );
-    expect(
-      notice?.querySelector('[data-preset-usage-source="domain-rule"]')?.textContent,
-    ).toBe("Domain Rule: example.com (off)");
-
-    await act(async () =>
-      notice?.querySelector<HTMLButtonElement>("[data-preset-usage-close]")?.click(),
-    );
+    expect(settings.requestConfirmation).toHaveBeenCalledOnce();
+    const alert = settings.requestConfirmation.mock.lastCall?.[0];
+    expect(alert).toMatchObject({
+      kind: "alert",
+      title: "Can't delete this preset",
+      description: "Used by 1 rule. Reassign or remove it first.",
+      confirmLabel: "Close",
+    });
+    // The editor itself never grows a usage block; the list lives in the alert.
     expect(document.querySelector("[data-preset-usage]")).toBeNull();
-    expect(document.activeElement).toBe(deleteButton);
+
+    const details = document.createElement("div");
+    document.body.append(details);
+    const detailsRoot = createRoot(details);
+    await act(async () => detailsRoot.render(alert?.details));
+    const list = details.querySelector("[data-preset-usage]");
+    expect(list?.getAttribute("data-preset-usage-count")).toBe("1");
+    expect(
+      list?.querySelector('[data-preset-usage-source="domain-rule"]')?.textContent,
+    ).toBe("Domain Rule: example.com (off)");
+    await act(async () => detailsRoot.unmount());
   });
 
   it("deletes an unused preset without a usage notice", async () => {
@@ -373,6 +378,7 @@ describe("LocationEditorModal", () => {
     const deleteButton = findButton("Delete");
     expect(deleteButton.hasAttribute("aria-disabled")).toBe(false);
     await act(async () => deleteButton.click());
+    expect(settings.requestConfirmation).not.toHaveBeenCalled();
     expect(settings.handleRemoveProfile).toHaveBeenCalledWith(baseProfile, 0);
     expect(settings.setProfileDialogOpened).toHaveBeenCalledWith(false);
     expect(document.querySelector("[data-preset-usage]")).toBeNull();

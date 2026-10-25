@@ -4,8 +4,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { ButtonProps } from "@/ui/components/ui/button";
 
 export type ConfirmDialogConfig = {
+  /** "alert" shows one dismiss action (the confirm button) and no cancel. */
+  kind?: "confirm" | "alert";
   title: string;
   description?: ReactNode;
+  /** Content below the header, such as a list the description refers to. */
+  details?: ReactNode;
   confirmLabel?: string;
   cancelLabel?: string;
   confirmTone?: "default" | "destructive";

@@ -70,10 +70,11 @@ export const locations = {
     title: "Editar perfil",
     description:
       "Actualiza el perfil regional guardado, incluidas sus coordenadas, formatos regionales y forma de informar de la ubicación.",
+    deleteBlockedTitle: "No se puede eliminar este perfil",
     deleteBlocked: (count: number) =>
       count === 1
-        ? "No se puede eliminar: lo usa 1 regla. Reasígnala o elimínala primero."
-        : `No se puede eliminar: lo usan ${count} reglas. Reasígnalas o elimínalas primero.`,
+        ? "Lo usa 1 regla. Reasígnala o elimínala primero."
+        : `Lo usan ${count} reglas. Reasígnalas o elimínalas primero.`,
     deleteBlockedListLabel: "Reglas que usan este perfil",
     disabledDependencySuffix: "(desactivado)",
     mapDisabledTitle: "Mapa desactivado",

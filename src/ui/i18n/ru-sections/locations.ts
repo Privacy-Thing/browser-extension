@@ -71,8 +71,9 @@ export const locations = {
     title: "Редактировать профиль",
     description:
       "Измените координаты, региональные форматы и поведение геолокации в сохранённом профиле.",
+    deleteBlockedTitle: "Нельзя удалить этот профиль",
     deleteBlocked: (count: number) =>
-      `Нельзя удалить: используется в ${slavicCount(count, ["правиле", "правилах", "правилах"])}. Сначала переназначьте или удалите ${slavicPluralForm(count) === "one" ? "его" : "их"}.`,
+      `Используется в ${slavicCount(count, ["правиле", "правилах", "правилах"])}. Сначала переназначьте или удалите ${slavicPluralForm(count) === "one" ? "его" : "их"}.`,
     deleteBlockedListLabel: "Правила, использующие этот профиль",
     disabledDependencySuffix: "(отключено)",
     mapDisabledTitle: "Карта отключена",

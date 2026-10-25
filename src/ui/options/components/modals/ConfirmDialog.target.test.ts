@@ -144,4 +144,40 @@ describe("ConfirmDialog", () => {
       "Privacy Thing will clear browser data for these domains: example.com, cdn.example.com",
     );
   });
+  it("shows an alert with one dismiss action and its details", async () => {
+    const resolveConfirmDialog = vi.fn();
+    useSettingsMock.mockReturnValue({
+      confirmDialogOpen: true,
+      confirmDialogConfig: {
+        kind: "alert",
+        title: "Can't delete this preset",
+        description: "Used by 2 rules. Reassign or remove them first.",
+        details: createElement("ul", { "data-alert-details": "" }, "example.com"),
+        confirmLabel: "Close",
+      },
+      resolveConfirmDialog,
+    });
+
+    const container = document.getElementById("root");
+    if (!container) {
+      throw new Error("Missing test root.");
+    }
+
+    root = createRoot(container);
+    await act(async () => {
+      root?.render(createElement(ConfirmDialog));
+    });
+
+    const dialog = document.getElementById("confirm-dialog");
+    expect(dialog?.getAttribute("role")).toBe("alertdialog");
+    expect(dialog?.getAttribute("data-confirm-kind")).toBe("alert");
+    expect(document.getElementById("confirm-dialog-cancel")).toBeNull();
+    expect(dialog?.querySelector("[data-alert-details]")?.textContent).toBe(
+      "example.com",
+    );
+    const dismiss = document.getElementById("confirm-dialog-confirm");
+    expect(dismiss?.textContent).toBe("Close");
+    await act(async () => dismiss?.click());
+    expect(resolveConfirmDialog).toHaveBeenCalledWith(true);
+  });
 });
