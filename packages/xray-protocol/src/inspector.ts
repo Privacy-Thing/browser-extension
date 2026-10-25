@@ -31,7 +31,7 @@ export {
   CMD_XRAY_CLEAR_INSPECTOR,
 } from "./inspector-commands";
 
-const tabId = z.number().int().nonnegative().safe();
+const tabId = z.number().int().nonnegative();
 const apply = z.enum(["now", "next-load"]);
 export const XRayInspectorModeSchema = z.enum(["first-call", "every-call"]);
 export const AnalystTrapsSchema = z

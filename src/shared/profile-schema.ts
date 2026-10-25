@@ -106,8 +106,7 @@ export const locationProfileSchema = z
   })
   .superRefine((profile, context) => {
     const message = getProfileTimeZoneError(profile);
-    if (message)
-      context.addIssue({ code: z.ZodIssueCode.custom, path: ["timeZone"], message });
+    if (message) context.addIssue({ code: "custom", path: ["timeZone"], message });
   });
 
 /**

@@ -272,9 +272,9 @@ export const planSettingsImport = (input: {
   const selection = z
     .object({
       mode: z.enum(["replace", "merge"]),
-      locations: z.record(z.enum(["import", "keep", "copy", "skip"])),
-      rules: z.record(z.enum(["import", "keep", "skip"])),
-      containers: z.record(z.string().nullable()),
+      locations: z.record(z.string(), z.enum(["import", "keep", "copy", "skip"])),
+      rules: z.record(z.string(), z.enum(["import", "keep", "skip"])),
+      containers: z.record(z.string(), z.string().nullable()),
     })
     .parse(input.selection);
   const merge = selection.mode === "merge";
