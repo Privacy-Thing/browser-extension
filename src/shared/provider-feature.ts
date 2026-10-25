@@ -1,5 +1,8 @@
 import { z } from "zod";
 
+// Stored bindings keep the timestamps zod 3 accepted, which included minute precision.
+const timestamp = z.union([z.iso.datetime(), z.iso.datetime({ precision: -1 })]);
+
 export const providerFeatureSchema = z.object({
   providerId: z.string().min(1),
   featureId: z.string().min(1),
@@ -18,8 +21,8 @@ export const featureBindingSchema = z.object({
   featureType: z.literal("service"),
   matchSource: z.enum(["domain-test", "manual"]).optional(),
   matchedHostname: z.string().min(1).optional(),
-  matchCheckedAt: z.string().datetime().optional(),
-  confirmedAt: z.string().datetime().optional(),
+  matchCheckedAt: timestamp.optional(),
+  confirmedAt: timestamp.optional(),
 });
 
 export type RuleFeatureBinding = z.infer<typeof featureBindingSchema>;
@@ -94,7 +97,7 @@ export const featureMatchSchema = z.object({
   featureId: z.string().min(1).nullable(),
   matchSource: z.enum(["domain-test", "manual"]),
   status: z.enum(["matched", "unresolved", "overridden", "error"]),
-  checkedAt: z.string().datetime(),
+  checkedAt: timestamp,
 });
 
 export type ProviderFeatureMatch = z.infer<typeof featureMatchSchema>;

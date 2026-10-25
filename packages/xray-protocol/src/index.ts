@@ -33,7 +33,7 @@ export { SurfaceMethodIdSchema } from "./surface-methods";
 export type { SpoofingSurfaceMethodId } from "./surface-methods";
 export * from "./inspector";
 
-export const XRayAccessSchema = z.record(XRayCategorySchema, z.literal(true));
+export const XRayAccessSchema = z.partialRecord(XRayCategorySchema, z.literal(true));
 
 export type XRayAccessedCategories = z.infer<typeof XRayAccessSchema>;
 
@@ -203,7 +203,7 @@ export const SurfaceActivitySchema = z.object({
   accessed: z.boolean(),
   failed: z.boolean(),
   queryCount: z.number().nonnegative(),
-  methodCounts: z.record(SurfaceMethodIdSchema, z.number().nonnegative()),
+  methodCounts: z.partialRecord(SurfaceMethodIdSchema, z.number().nonnegative()),
 });
 export type SurfaceActivity = z.infer<typeof SurfaceActivitySchema>;
 
@@ -238,7 +238,7 @@ export const SurfaceAssessmentSchema = z
         : assessment.evidence.policy !== "not-applicable";
     if (!policyMatches) {
       context.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         path: ["evidence", "policy"],
         message:
           "evidence.policy must be not-applicable exactly when applicability is not-applicable.",
@@ -251,7 +251,7 @@ export const SurfaceAssessmentSchema = z
         : assessment.presentation !== "not-applicable";
     if (!presentationMatches) {
       context.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         path: ["presentation"],
         message:
           "presentation must be not-applicable exactly when applicability is not-applicable.",
@@ -269,7 +269,7 @@ export const SurfaceAssessmentSchema = z
         integrity !== "intact"
       ) {
         context.addIssue({
-          code: z.ZodIssueCode.custom,
+          code: "custom",
           path: ["presentation"],
           message:
             "protected requires policy protect/block, installation installed, integrity intact.",
@@ -444,8 +444,8 @@ export const XRayStateResponseSchema = z.union([
     accessedCategories: XRayAccessSchema,
     failedCategories: XRayAccessSchema,
     sharedWorkerStatus: SharedWorkerStatusSchema.optional(),
-    queryCounts: z.record(XRayCategorySchema, z.number()).optional(),
-    methodCounts: z.record(SurfaceMethodIdSchema, z.number()).optional(),
+    queryCounts: z.partialRecord(XRayCategorySchema, z.number()).optional(),
+    methodCounts: z.partialRecord(SurfaceMethodIdSchema, z.number()).optional(),
     explanation: ResolutionExplainSchema.nullable(),
   }),
   z.object({
@@ -489,8 +489,8 @@ export const UsageCommandSchema = z.object({
   type: z.literal("pt:surface-usage"),
   categories: z.array(XRayCategorySchema),
   sourceId: z.string().min(1).max(128).optional(),
-  counts: z.record(XRayCategorySchema, z.number()).optional(),
-  methodCounts: z.record(SurfaceMethodIdSchema, z.number()).optional(),
+  counts: z.partialRecord(XRayCategorySchema, z.number()).optional(),
+  methodCounts: z.partialRecord(SurfaceMethodIdSchema, z.number()).optional(),
 });
 
 export type SurfaceUsageCommand = z.infer<typeof UsageCommandSchema>;

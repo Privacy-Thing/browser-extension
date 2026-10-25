@@ -19,7 +19,7 @@ export const initializeInspectors = (): Promise<void> => {
   initialization ??= chrome.storage.session
     .get(KEY)
     .then((stored) => {
-      const parsed = z.record(SessionSchema).safeParse(stored[KEY]);
+      const parsed = z.record(z.string(), SessionSchema).safeParse(stored[KEY]);
       sessions = parsed.success ? parsed.data : {};
     })
     .catch((error: unknown) => {
