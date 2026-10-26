@@ -116,6 +116,11 @@ Preserve `.github/pull_request_template.md` and complete its sections truthfully
 - In `Validation`, check only commands that actually passed and add any relevant focused
   checks not present in the template.
 - In `Changelog`, select exactly one true option.
+- In `Screenshots`, follow the `AGENTS.md` UI conventions: attach images with
+  `gh --attach`, only changed states, each surface at its own width (popup at 360 px
+  compact and/or 720 px expanded, whichever the change appears in; sidebar 360 px only;
+  Options at a stated desktop width). Write that it is not applicable when the change is
+  not visible.
 - State known pre-existing or unrelated validation failures when they affect the
   evidence, without presenting them as fixed.
 
