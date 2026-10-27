@@ -194,7 +194,7 @@ export const sidebar = {
       dateGetTimezoneOffset: "Date.getTimezoneOffset",
       dateToString: "Date.toString",
       dateToLocaleString: "Date.toLocaleString",
-      intlConstructor: "Intl constructor",
+      intlConstructor: "Construtor de Intl",
       intlResolvedOptions: "Intl.resolvedOptions",
       intlDateTimeFormatFormat: "DateTimeFormat.format",
       intlDateTimeFormatFormatToParts: "DateTimeFormat.formatToParts",

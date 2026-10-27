@@ -44,7 +44,7 @@ export const common = {
   },
 
   coordinateRandomization: {
-    labelBefore: "座標隨機偏移範圍",
+    labelBefore: "座標隨機偏移半徑",
     labelAfter: "公里。",
     radiusInputLabel: "座標隨機偏移半徑（公里）",
     readWhy: "了解原因。",

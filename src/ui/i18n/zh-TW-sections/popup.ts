@@ -22,7 +22,7 @@ export const popup = {
   pauseUntilSessionEnd: "此瀏覽器工作階段",
   pauseResumeReload: "恢復並重新載入",
   pauseScope: (hostname: string) =>
-    `頂層文件完全符合 ${hostname} 的所有分頁，包括其中受支援的框架和 Worker。規則和受信任的網站維持不變。`,
+    `頂層文件完全符合 ${hostname} 的所有分頁，包括其中受支援的框架和 Worker。規則和「受信任的網站」維持不變。`,
   pauseLimits:
     "全域 WebRTC IP 處理政策仍會生效。沒有分頁情境的請求不在標頭暫停的保證範圍內。",
   pauseReloadHint:
@@ -141,7 +141,7 @@ export const popup = {
   dismissLabel: "關閉",
   mutationFailed: `${BRAND_DISPLAY_NAME} 無法完成該操作。請再試一次。`,
   enableExtensionFailed: `無法開啟 ${BRAND_DISPLAY_NAME}。`,
-  trustSiteFailed: "無法將此網站加入受信任的網站。",
+  trustSiteFailed: "無法將此網站加入「受信任的網站」。",
   firefoxPermissionFailed: "無法授予 Firefox 的 userScripts 權限。",
   powerControlExtension: BRAND_DISPLAY_NAME,
   powerControlGlobalProtections: "全域保護",

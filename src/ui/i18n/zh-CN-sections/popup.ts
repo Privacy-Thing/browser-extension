@@ -22,7 +22,7 @@ export const popup = {
   pauseUntilSessionEnd: "本次浏览器会话",
   pauseResumeReload: "恢复并重新加载",
   pauseScope: (hostname: string) =>
-    `顶层文档恰好为 ${hostname} 的所有标签页，包括其中受支持的框架和 Worker。规则和受信任的网站保持不变。`,
+    `顶层文档恰好为 ${hostname} 的所有标签页，包括其中受支持的框架和 Worker。规则和“受信任的网站”保持不变。`,
   pauseLimits:
     "全局 WebRTC IP 处理策略仍然有效。没有标签页上下文的请求不在请求头暂停的保证范围内。",
   pauseReloadHint:
@@ -140,7 +140,7 @@ export const popup = {
   dismissLabel: "关闭",
   mutationFailed: `${BRAND_DISPLAY_NAME} 无法完成该操作。请重试。`,
   enableExtensionFailed: `无法开启 ${BRAND_DISPLAY_NAME}。`,
-  trustSiteFailed: "无法将此网站添加到受信任的网站。",
+  trustSiteFailed: "无法将此网站添加到“受信任的网站”。",
   firefoxPermissionFailed: "无法授予 Firefox 的 userScripts 权限。",
   powerControlExtension: BRAND_DISPLAY_NAME,
   powerControlGlobalProtections: "全局保护",
@@ -154,7 +154,7 @@ export const popup = {
   powerTargetContainer: "开启或关闭此 Firefox 容器分配。",
   powerTargetContainerSetup: `为此 Firefox 容器设置 ${BRAND_DISPLAY_NAME}。`,
   powerTargetContainerDefaultRule: "此 Firefox 容器使用默认规则。",
-  powerTargetDefaultRule: "适用于没有域名规则、也不属于受信任的网站的网站。",
+  powerTargetDefaultRule: "适用于没有域名规则、且未列入“受信任的网站”的网站。",
   powerAriaLoading: "正在检查此网站的设置",
   powerAriaGlobalOff: `${BRAND_DISPLAY_NAME} 已在所有网站上关闭`,
   powerAriaGlobalProtectionsDisabled: "全局保护已停用。请在设置中启用。",

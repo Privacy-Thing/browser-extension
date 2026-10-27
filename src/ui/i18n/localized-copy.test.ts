@@ -21,8 +21,17 @@ const pluralProtectionCounts: Record<SurfacePresentationState, number> = {
 
 describe("localized dynamic copy", () => {
   it("keeps diagnostic JavaScript method names unchanged", () => {
-    expect(ru.sidebar.accessed.methods).toEqual(en.sidebar.accessed.methods);
-    expect(uk.sidebar.accessed.methods).toEqual(en.sidebar.accessed.methods);
+    // intlConstructor and webGLGetExtension are descriptions, translated in every locale.
+    const methodNames = ({
+      intlConstructor: _intl,
+      webGLGetExtension: _webgl,
+      ...names
+    }: Readonly<Record<string, string>>) => names;
+    for (const catalog of [es, pt, ru, uk]) {
+      expect(methodNames(catalog.sidebar.accessed.methods)).toEqual(
+        methodNames(en.sidebar.accessed.methods),
+      );
+    }
   });
 
   it("joins Russian and Ukrainian interface fragments into complete sentences", () => {

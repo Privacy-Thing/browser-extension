@@ -2,6 +2,7 @@ import type { SurfacePresentationState } from "@privacy-brand/xray-protocol";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { en } from "./en";
+import { QUOTED_FEATURE_NAMES } from "./glossary/zh-conventions";
 import {
   ZH_GLOSSARY,
   ZH_REGIONAL_FORBIDDEN,
@@ -62,7 +63,7 @@ type Entry = {
 
 // ─── Sample arguments ──────────────────────────────────────────────────────────
 
-type ArgumentKind = "number" | "string" | "strings" | "boolean" | "counts";
+type ArgumentKind = "number" | "string" | "latin" | "strings" | "boolean" | "counts";
 
 /** Message parameters by name; an unknown name fails the shape test. */
 const PARAMETER_KINDS: Readonly<Record<string, ArgumentKind>> = {
@@ -84,17 +85,17 @@ const PARAMETER_KINDS: Readonly<Record<string, ArgumentKind>> = {
   enabled: "boolean",
   available: "string",
   category: "string",
-  code: "string",
+  code: "latin",
   first: "string",
-  hostname: "string",
+  hostname: "latin",
   label: "string",
-  locale: "string",
+  locale: "latin",
   location: "string",
   locationLabel: "string",
-  message: "string",
+  message: "latin",
   name: "string",
   provider: "string",
-  pattern: "string",
+  pattern: "latin",
   saved: "string",
   scope: "string",
   second: "string",
@@ -103,12 +104,12 @@ const PARAMETER_KINDS: Readonly<Record<string, ArgumentKind>> = {
   suggested: "string",
   surface: "string",
   _surface: "string",
-  time: "string",
-  timeZone: "string",
+  time: "latin",
+  timeZone: "latin",
   unavailable: "string",
   value: "string",
-  versionToken: "string",
-  zone: "string",
+  versionToken: "latin",
+  zone: "latin",
 };
 
 const SURFACE_STATES: readonly SurfacePresentationState[] = [
@@ -123,10 +124,17 @@ const SURFACE_STATES: readonly SurfacePresentationState[] = [
   "unknown",
 ];
 
-/** Interpolated text is marked so spacing checks can skip its boundaries. */
-const sampleText = (index: number, item = 0) =>
-  `⟦${String.fromCharCode(97 + index)}${item || ""}⟧`;
-const SAMPLE_TEXT_PATTERN = /⟦[a-z]\d*⟧/g;
+/**
+ * Interpolated text is marked so spacing checks can see its boundaries. ⟦a⟧ may be a
+ * Chinese label, so no space is required next to it; ⟪a⟫ stands for a value that is
+ * always Latin (hostname, pattern, time, locale code), so the house style requires a
+ * space between it and Chinese text.
+ */
+const sampleText = (index: number, item = 0, latin = false) => {
+  const mark = `${String.fromCharCode(97 + index)}${item || ""}`;
+  return latin ? `⟪${mark}⟫` : `⟦${mark}⟧`;
+};
+const SAMPLE_TEXT_PATTERN = /[⟦⟪][a-z]\d*[⟧⟫]/g;
 
 type RenderVariant = { id: string; numbers: (index: number) => number; items: number };
 
@@ -157,9 +165,11 @@ const sampleArgument = (
       return variant.numbers(index);
     case "string":
       return sampleText(index);
+    case "latin":
+      return sampleText(index, 0, true);
     case "strings":
       return Array.from({ length: variant.items }, (_, item) =>
-        sampleText(index, item + 1),
+        sampleText(index, item + 1, true),
       );
     case "boolean":
       return variant.id !== "zero";
@@ -311,7 +321,7 @@ const chineseEntries = (variant: ZhVariant) => [
 
 /** Paths whose value is a proper name and must equal English. */
 const IDENTICAL_PATHS: readonly RegExp[] = [
-  /^sidebar\.accessed\.methods\./,
+  /^sidebar\.accessed\.methods\.(?!intlConstructor$|webGLGetExtension$)/,
   /^about\.(?:assets|localData)\..*\.label$/,
   /^about\.assets\.localData\.[a-zA-Z]+\.label$/,
   /^about\.assets\.localeCatalog\.(?:mozilla|chromium)\.label$/,
@@ -492,7 +502,7 @@ const isFragmentPath = (path: string) =>
 
 const punctuationProblems = (text: string, path: string): string[] => {
   const problems: string[] = [];
-  const masked = text.replace(SAMPLE_TEXT_PATTERN, "⟦⟧");
+  const masked = text.replace(/⟪[a-z]\d*⟫/g, "Q").replace(SAMPLE_TEXT_PATTERN, "⟦⟧");
   const check = (pattern: RegExp, message: string) => {
     const match = pattern.exec(masked);
     if (match)
@@ -527,6 +537,12 @@ const punctuationProblems = (text: string, path: string): string[] => {
 };
 
 // ─── Tests ─────────────────────────────────────────────────────────────────────
+
+/** Strings allowed to exceed the width budget, with the reason. */
+const WIDTH_EXEMPT: Readonly<Record<string, string>> = {
+  "demo.comparison.notAvailable":
+    "English is the three-letter “N/A”; the Chinese needs four characters to say that the value could not be read.",
+};
 
 describe.each(VARIANTS)("%s catalog", (variant) => {
   const entries = entriesByVariant[variant];
@@ -630,11 +646,19 @@ describe.each(VARIANTS)("%s catalog", (variant) => {
       .filter((entry) => entry.chinese !== entry.english)
       .map((entry) => `${entry.path}: ${entry.chinese}`);
     expect(identical).toEqual([]);
+    // intlConstructor and webGLGetExtension are descriptions, not method names.
+    const methodNames = ({
+      intlConstructor: _intl,
+      webGLGetExtension: _webgl,
+      ...names
+    }: Readonly<Record<string, string>>) => names;
     expect(
-      variant === "zh-CN"
-        ? zhCN.sidebar.accessed.methods
-        : zhTW.sidebar.accessed.methods,
-    ).toEqual(en.sidebar.accessed.methods);
+      methodNames(
+        variant === "zh-CN"
+          ? zhCN.sidebar.accessed.methods
+          : zhTW.sidebar.accessed.methods,
+      ),
+    ).toEqual(methodNames(en.sidebar.accessed.methods));
 
     const untranslated = entries
       .filter((entry) => !isIdentical(entry) && !LEFTOVER_EXEMPT[entry.path])
@@ -652,6 +676,18 @@ describe.each(VARIANTS)("%s catalog", (variant) => {
         return [];
       });
     expect(untranslated).toEqual([]);
+  });
+
+  it("quotes the Trusted Sites feature name inside sentences", () => {
+    const { term, open, close } = QUOTED_FEATURE_NAMES[variant];
+    const problems = chinese
+      .filter((entry) => /[，。；、：]/.test(entry.chinese))
+      .filter((entry) => {
+        const unquoted = new RegExp(`(?<!${open})${term}(?!${close})`);
+        return unquoted.test(entry.chinese);
+      })
+      .map((entry) => `${entry.path}: ${entry.chinese}`);
+    expect(problems).toEqual([]);
   });
 
   it("follows the Chinese punctuation and spacing conventions", () => {
@@ -703,7 +739,7 @@ describe.each(VARIANTS)("%s catalog", (variant) => {
     const RATIO = 1.25;
     const SLACK = 4;
     const tooWide = chinese
-      .filter((entry) => entry.english !== "")
+      .filter((entry) => entry.english !== "" && !WIDTH_EXEMPT[entry.path])
       .filter(
         (entry) =>
           displayWidth(entry.chinese) >

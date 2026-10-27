@@ -61,7 +61,7 @@ export const optionsPage = {
       },
       screen: {
         label: "屏幕",
-        description: `屏幕尺寸、像素比和色深有助于将你缩小到一小部分设备。开启后，${BRAND_DISPLAY_NAME} 会掩盖这些确切的显示细节。关闭后，网站将获得你真实的屏幕属性。`,
+        description: `屏幕尺寸、像素比和色深可帮助网站将你的设备归入一个较小的设备群体。开启后，${BRAND_DISPLAY_NAME} 会掩盖这些确切的显示细节。关闭后，网站将获得你真实的屏幕属性。`,
       },
       clientHints: {
         label: "客户端提示",
