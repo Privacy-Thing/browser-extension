@@ -73,18 +73,18 @@ export const rules = {
 
   inspector: {
     title: "主機名稱檢查工具",
-    hint: `在儲存變更前，檢查 ${BRAND_DISPLAY_NAME} 如何處理某個主機名稱。它會顯示該主機名稱是否符合網域規則或受信任的網站，以及會套用哪個地區預設集。`,
+    hint: `在儲存變更前，檢查 ${BRAND_DISPLAY_NAME} 如何處理某個主機名稱。它會顯示該主機名稱是否符合網域規則或「受信任的網站」，以及會套用哪個地區預設集。`,
     hostnameLabel: "主機名稱",
     hostnameHint: "輸入要檢查的確切主機，例如 shop.example.com。",
     hostnamePlaceholder: "例如 shop.example.com",
     noMatchTitle: "沒有已儲存的網域規則或受信任的網站符合此主機名稱",
     noMatchDescription: "沒有適用的已儲存規則，且預設規則已關閉或未設定。",
-    trustedSiteWinsTitle: "此主機名稱已由受信任的網站停用",
+    trustedSiteWinsTitle: "此主機名稱已加入「受信任的網站」，保護已關閉",
     trustedSiteWinsDescription: `它符合你的「受信任的網站」清單，因此在你移除或停用該項目前，${BRAND_DISPLAY_NAME} 會在此保持關閉。`,
     trustedSiteOverridesRuleTitle: "受信任的網站正在覆寫相符的網域規則",
-    trustedSiteOverridesRuleDescription: `此主機名稱同時符合受信任的網站和網域規則。受信任的網站優先，因此 ${BRAND_DISPLAY_NAME} 會保持關閉，並忽略下方的網域規則。`,
+    trustedSiteOverridesRuleDescription: `此主機名稱同時符合「受信任的網站」和網域規則。「受信任的網站」優先，因此 ${BRAND_DISPLAY_NAME} 會保持關閉，並忽略下方的網域規則。`,
     fallbackWinsTitle: "此處套用預設規則",
-    fallbackWinsDescription: `沒有網域規則或受信任的網站符合此主機名稱，因此 ${BRAND_DISPLAY_NAME} 會在此改用預設規則。`,
+    fallbackWinsDescription: `沒有網域規則或「受信任的網站」符合此主機名稱，因此 ${BRAND_DISPLAY_NAME} 會在此改用預設規則。`,
     ruleMatchTitle: (locationLabel: string) => `${locationLabel} 是此處使用的預設集`,
     ruleMatchDescription: `此主機名稱符合下方的網域規則，因此 ${BRAND_DISPLAY_NAME} 會在此網站上使用這個預設集。`,
     hostnameDetailLabel: "主機名稱",
@@ -212,6 +212,6 @@ export const rules = {
     duplicateAlertConfirm: "覆寫",
     duplicateAlertClose: "否",
     trustedSiteOverrideWarning: (pattern: string) =>
-      `此網域符合受信任的網站項目「${pattern}」。無論這些設定為何，${BRAND_DISPLAY_NAME} 在此都會保持關閉。`,
+      `此網域符合「受信任的網站」項目「${pattern}」。無論這些設定為何，${BRAND_DISPLAY_NAME} 在此都會保持關閉。`,
   },
 } as const;

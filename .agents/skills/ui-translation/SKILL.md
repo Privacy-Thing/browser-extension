@@ -53,7 +53,8 @@ Where copy lives:
 2. Translate from English, not from another translation. Check the locale glossary and
    the neighbouring strings for the terms already in use.
 3. A new message parameter name must be added to `PARAMETER_KINDS` in
-   `catalog-checks.ts`.
+   `catalog-checks.ts`; use `latin` for values that are always Latin (hostnames,
+   patterns, times, locale codes) so CJK locales are checked for the space next to them.
 4. Run:
 
    ```sh

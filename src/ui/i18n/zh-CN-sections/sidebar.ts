@@ -56,7 +56,7 @@ export const sidebar = {
     },
     blocked: {
       unsupported: "需要受支持的网站和后台状态。",
-      trusted: "受信任的网站例外会停用保护。请先在设置中明确更改它，然后再进行测试。",
+      trusted: "“受信任的网站”例外会停用保护。请先在设置中明确更改它，然后再进行测试。",
       inactive: "没有可供测试的有效伪装配置。",
       pause: "此主机已处于暂停状态。请先恢复，然后再开始 Worker 测试。",
       reload: "此文档仍需重新加载才能应用当前决定。在导航完成之前，无法作答。",
@@ -85,7 +85,7 @@ export const sidebar = {
       "配置和 X-Ray 评估与观察结果分开。缺失或过时的证据以及未完成的收集都不能确认保护有效。",
     includeSite: "包含网站数据",
     siteHint:
-      "仅添加主机名以及匹配的规则或受信任的网站匹配模式。预设名称、URL、日志和机密信息仍会被排除。",
+      "仅添加主机名以及匹配的规则或“受信任的网站”匹配模式。预设名称、URL、日志和机密信息仍会被排除。",
     preview: "报告预览",
     text: "文本",
     cancel: "取消",
@@ -179,7 +179,7 @@ export const sidebar = {
       dateGetTimezoneOffset: "Date.getTimezoneOffset",
       dateToString: "Date.toString",
       dateToLocaleString: "Date.toLocaleString",
-      intlConstructor: "Intl constructor",
+      intlConstructor: "Intl 构造函数",
       intlResolvedOptions: "Intl.resolvedOptions",
       intlDateTimeFormatFormat: "DateTimeFormat.format",
       intlDateTimeFormatFormatToParts: "DateTimeFormat.formatToParts",
@@ -295,7 +295,7 @@ export const sidebar = {
     unavailable: {
       title: "此处无法使用检查器",
       unsupportedUrl: `${BRAND_DISPLAY_NAME} 无法在此页面上运行，因此没有可检查的内容。`,
-      trustedSite: "此域名是受信任的网站。保护已完全关闭，因此不会伪装任何内容。",
+      trustedSite: "此域名是“受信任的网站”。保护已完全关闭，因此不会伪装任何内容。",
       protectionPaused: "此域名的保护已暂停。恢复后才能检查已伪装的 API。",
       noRuntime: `无法连接此页面上的 ${BRAND_DISPLAY_NAME} 运行时。请重新加载页面后重试。`,
     },

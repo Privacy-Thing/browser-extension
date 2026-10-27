@@ -119,6 +119,6 @@ export const optionsPage = {
   help: {
     title: "選項",
     body1: `瀏覽器保護可讓你選擇 ${BRAND_DISPLAY_NAME} 預設要偽裝哪些值。除非網域規則或 Firefox 容器另有設定，這些設定會影響所有網站。`,
-    body2: `隱私控制項涵蓋 ${BRAND_DISPLAY_NAME} 在你設定位置時唯一會發出的選用網路要求。保持關閉時 ${BRAND_DISPLAY_NAME} 仍可正常運作——你只需要手動新增位置，而不使用搜尋或地圖預覽。`,
+    body2: `關閉後，不會發出位置搜尋或地圖預覽要求，${BRAND_DISPLAY_NAME} 仍可正常運作——你只需要手動新增位置。Control D 的網路要求由其整合設定控制。`,
   },
 } as const;

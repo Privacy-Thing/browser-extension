@@ -55,7 +55,7 @@ export const welcome = {
     scope: {
       title: "選擇保護的起始範圍",
       description:
-        "沒有其他更具體的設定優先時，會套用預設規則。保持關閉可以低調地開始，或啟用它來保護沒有相符規則的網站。",
+        "沒有其他更具體的設定優先時，會套用預設規則。可以先保持關閉，減少初次使用時的變動；或啟用它，保護沒有相符規則的網站。",
       defaultRuleDescription:
         "如果你將地區預設集指派給預設規則，請保持該預設集為選取狀態，讓初始設定在儲存前將它匯入。",
       enableEverywhereTitle: `在所有網站上使用 ${BRAND_DISPLAY_NAME}`,

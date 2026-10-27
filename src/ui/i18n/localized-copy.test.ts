@@ -22,11 +22,12 @@ const pluralProtectionCounts: Record<SurfacePresentationState, number> = {
 
 describe("localized dynamic copy", () => {
   it("keeps diagnostic JavaScript method names unchanged", () => {
-    // webGLGetExtension is a description ("GPU renderer info"), not a method name.
+    // intlConstructor and webGLGetExtension are descriptions, translated in every locale.
     const methodNames = ({
-      webGLGetExtension: _,
+      intlConstructor: _intl,
+      webGLGetExtension: _webgl,
       ...names
-    }: LocaleCatalog["sidebar"]["accessed"]["methods"]) => names;
+    }: Readonly<Record<string, string>>) => names;
     for (const catalog of [es, pt, ru, uk]) {
       expect(methodNames(catalog.sidebar.accessed.methods)).toEqual(
         methodNames(en.sidebar.accessed.methods),

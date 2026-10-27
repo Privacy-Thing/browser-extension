@@ -1,7 +1,7 @@
 import { BRAND_DISPLAY_NAME } from "@/shared/brand";
 
 export const common = {
-  copyLinkTo: (section: string) => `复制指向${section}的链接`,
+  copyLinkTo: (section: string) => `复制指向“${section}”的链接`,
 
   /** Joins sentence fragments around inline links and emphasis. */
   typography: {

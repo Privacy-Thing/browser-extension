@@ -35,6 +35,24 @@ separately); zh-TW import retention text implied that only edits after seven day
 undo. No privacy, VPN/proxy/DNS, consent or data-disclosure string was
 stronger than the English. The full findings tables are in the pull request description.
 
+## Second review (independent, different model family)
+
+Reviewed head 6a1b3f3. No critical findings; two major findings and a set of minor ones.
+
+| Finding                                                                                                                                                                                                                                                                                           | Result                                                                                                                                                                                                    |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Major, both scripts: Privacy and Options copy called map search and previews “the only optional network requests” and said the product “stays offline”. Control D ships in every build channel (off by default; `tests/build-contracts/*-build.test.ts`) and makes its own requests once enabled. | Accurate. The English sentences were scoped to map access in all seven locales (commit `fix(i18n): scope the offline claim to map access`, an English copy change for the maintainer to confirm).         |
+| Major, zh-CN: `settingsImport.retention` “之后” was ambiguous.                                                                                                                                                                                                                                    | Fixed. zh-TW already said 匯入後… and is unchanged.                                                                                                                                                       |
+| Trusted Sites read as “a trusted website” in prose.                                                                                                                                                                                                                                               | The name is now quoted (“…” zh-CN, 「…」 zh-TW) in every string with sentence punctuation; headings, labels and button text stay bare. A test enforces it (`QUOTED_FEATURE_NAMES`).                       |
+| zh-TW scope description (低調), radius label, `notAvailable`; zh-CN screen description, `copyLinkTo`, default-rule line, `trustedSiteWinsTitle`.                                                                                                                                                  | Adopted. `notAvailable` is only ever used for a missing value, so 無法取得 needs no second string; it exceeds the width budget by design (documented exemption for “N/A”).                                |
+| `intlConstructor` and `webGLGetExtension` stayed English.                                                                                                                                                                                                                                         | Translated in every locale (they describe a call, they are not method names); the identity checks exclude exactly these two keys.                                                                         |
+| Glossary overstated its evidence.                                                                                                                                                                                                                                                                 | Reworded: Inspector, Preset, Playground and the Control D “setup” are reasoned product choices with partial precedent, and the Spoofing note no longer says the alternatives imply illegality.            |
+| Spacing was not checked next to interpolated values.                                                                                                                                                                                                                                              | The test now renders always-Latin arguments (hostnames, patterns, times, locale codes) as Latin and requires the usual space next to Chinese text. Arguments that may be Chinese labels remain unchecked. |
+
+Not changed on purpose: the 你/您 choice. The sources disagree (Chromium zh-TW 你; Chromium and
+Mozilla support zh-CN 您; MozTW prefers 您). `ZH_REGISTER` in the glossary is the single
+setting; moving zh-CN to 您 is one replacement of about 146 occurrences.
+
 ## What a native reviewer should check first
 
 1. Safety-critical copy listed in the pull request: limitations (`about.limitations`,
@@ -44,7 +62,7 @@ stronger than the English. The full findings tables are in the pull request desc
 2. Coined or contested terms: 匹配模式 / 比對模式 (Pattern), 预设 / 預設集 (Preset),
    伪装 / 偽裝 (spoofing), 检查器 / 檢查器 (Inspector), 演练场 / 演練場 (Playground),
    Control D “setup” (配置 / 設定組合).
-3. Register: both catalogs use 你; Chrome and Firefox zh-CN use 您.
+3. Register: both catalogs use 你; Chrome and Firefox zh-CN use 您 (see the glossary's `ZH_REGISTER`).
 4. Whether “受信任的网站 / 受信任的網站” needs quotes when it names the feature.
 5. Strings shortened to meet the width budget, for example `common.coordinateRandomization`
    and `locations.editor.disabledDependencySuffix`.

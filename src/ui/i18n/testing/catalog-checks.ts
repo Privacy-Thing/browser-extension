@@ -65,7 +65,7 @@ export type Entry = {
 
 // ─── Sample arguments ──────────────────────────────────────────────────────────
 
-type ArgumentKind = "number" | "string" | "strings" | "boolean" | "counts";
+type ArgumentKind = "number" | "string" | "latin" | "strings" | "boolean" | "counts";
 
 /** Message parameters by name; an unknown name fails the shape test. */
 const PARAMETER_KINDS: Readonly<Record<string, ArgumentKind>> = {
@@ -87,17 +87,17 @@ const PARAMETER_KINDS: Readonly<Record<string, ArgumentKind>> = {
   enabled: "boolean",
   available: "string",
   category: "string",
-  code: "string",
+  code: "latin",
   first: "string",
-  hostname: "string",
+  hostname: "latin",
   label: "string",
-  locale: "string",
+  locale: "latin",
   location: "string",
   locationLabel: "string",
-  message: "string",
+  message: "latin",
   name: "string",
   provider: "string",
-  pattern: "string",
+  pattern: "latin",
   saved: "string",
   scope: "string",
   second: "string",
@@ -106,12 +106,12 @@ const PARAMETER_KINDS: Readonly<Record<string, ArgumentKind>> = {
   suggested: "string",
   surface: "string",
   _surface: "string",
-  time: "string",
-  timeZone: "string",
+  time: "latin",
+  timeZone: "latin",
   unavailable: "string",
   value: "string",
-  versionToken: "string",
-  zone: "string",
+  versionToken: "latin",
+  zone: "latin",
 };
 
 const SURFACE_STATES: readonly SurfacePresentationState[] = [
@@ -126,10 +126,17 @@ const SURFACE_STATES: readonly SurfacePresentationState[] = [
   "unknown",
 ];
 
-/** Interpolated text is marked so spacing checks can skip its boundaries. */
-const sampleText = (index: number, item = 0) =>
-  `⟦${String.fromCharCode(97 + index)}${item || ""}⟧`;
-export const SAMPLE_TEXT_PATTERN = /⟦[a-z]\d*⟧/g;
+/**
+ * Interpolated text is marked so spacing checks can see its boundaries. ⟦a⟧ may be a
+ * label in the locale's own script, so no space is required next to it; ⟪a⟫ stands for a
+ * value that is always Latin (hostname, pattern, time, locale code), so a CJK locale
+ * needs a space between it and its own text.
+ */
+const sampleText = (index: number, item = 0, latin = false) => {
+  const mark = `${String.fromCharCode(97 + index)}${item || ""}`;
+  return latin ? `⟪${mark}⟫` : `⟦${mark}⟧`;
+};
+export const SAMPLE_TEXT_PATTERN = /[⟦⟪][a-z]\d*[⟧⟫]/g;
 
 type RenderVariant = { id: string; numbers: (index: number) => number; items: number };
 
@@ -163,9 +170,11 @@ const sampleArgument = (
       return variant.numbers(index);
     case "string":
       return sampleText(index);
+    case "latin":
+      return sampleText(index, 0, true);
     case "strings":
       return Array.from({ length: variant.items }, (_, item) =>
-        sampleText(index, item + 1),
+        sampleText(index, item + 1, true),
       );
     case "boolean":
       return variant.id !== "zero";
@@ -376,8 +385,8 @@ export const interpolationProblems = (entries: readonly Entry[]) =>
 
 /** Paths whose value is code or a brand name and must equal English. */
 const IDENTICAL_PATHS: readonly RegExp[] = [
-  // Method names; webGLGetExtension is a description ("GPU renderer info") and is translated.
-  /^sidebar\.accessed\.methods\.(?!webGLGetExtension$)/,
+  // Method names; intlConstructor and webGLGetExtension are descriptions and are translated.
+  /^sidebar\.accessed\.methods\.(?!intlConstructor$|webGLGetExtension$)/,
   /^about\.assets\.(?:fontAwesome|mapLibre|openFreeMap|openStreetMap)\.label$/,
   /^about\.assets\.localData\.chromiumDash\.label$/,
   /^about\.assets\.localData\.localeCatalog\.(?:mozilla|chromium)\.label$/,
@@ -539,12 +548,23 @@ export const isFragmentPath = (path: string) =>
   /(?:prefix|suffix|middle|body|before|after|lead)\w*(?:\(\w+\))?$/i.test(path) ||
   /typography\./.test(path);
 
+/** Strings allowed to exceed the width budget, with the reason. */
+export const WIDTH_EXEMPT: Readonly<Record<string, string>> = {
+  "demo.comparison.notAvailable":
+    "English is the three-letter “N/A”; Chinese needs four characters to say that the value could not be read.",
+};
+
 export type WidthBudget = { ratio: number; slack: number };
 
 /** Translations wider than `ratio` × English, or English + `slack` for short strings. */
 export const widthProblems = (entries: readonly Entry[], budget: WidthBudget) =>
   entries
-    .filter((entry) => entry.english !== "" && !isFragmentPath(entry.path))
+    .filter(
+      (entry) =>
+        entry.english !== "" &&
+        !isFragmentPath(entry.path) &&
+        !WIDTH_EXEMPT[entry.path],
+    )
     .filter((entry) => {
       const english = displayWidth(entry.english);
       return (

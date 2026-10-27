@@ -120,6 +120,6 @@ export const optionsPage = {
   help: {
     title: "Options",
     body1: `Browser protections let you choose which values ${BRAND_DISPLAY_NAME} spoofs by default. These settings affect every site unless a Domain Rule or Firefox Container says otherwise.`,
-    body2: `Privacy controls cover the only optional network requests ${BRAND_DISPLAY_NAME} makes while you set up locations. Leave them off and ${BRAND_DISPLAY_NAME} still works — you will just add locations manually instead of using search or map previews.`,
+    body2: `Privacy controls cover location search and map previews while you set up locations. Leave them off and ${BRAND_DISPLAY_NAME} still works — you will just add locations manually instead of using search or map previews. Integrations such as Control D have their own settings.`,
   },
 } as const;

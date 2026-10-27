@@ -2,25 +2,29 @@
  * Chinese terminology glossary for the Simplified (`zh-CN`, mainland vocabulary) and
  * Traditional (`zh-TW`, Taiwan vocabulary) interface languages.
  *
- * No native speaker has reviewed these catalogs yet. This file fixes the translation of
- * every core product term so both catalogs stay consistent, and
- * `src/ui/i18n/chinese-copy.test.ts` enforces it:
+ * No native speaker has reviewed these catalogs yet. This file fixes every core product
+ * term so both catalogs stay consistent; `chinese-copy.test.ts` enforces it:
  *
  * - `required`: when the English message matches `en`, the Chinese message must contain
  *   `term` (or one of `alternatives`), unless its catalog path is listed in `exempt`.
  * - `forbidden`: these strings must not appear anywhere in that catalog.
  *
- * Choices follow the browsers users already read every day. Evidence (checked
- * 2026-10-27) comes from the files listed in `ZH_GLOSSARY_SOURCES`; the `evidence`
- * field of each entry names the files that use the chosen term. The two scripts are
+ * Choices follow the browsers users already read every day where they have an
+ * established term. Evidence (checked 2026-10-27) comes from the files listed in
+ * `ZH_GLOSSARY_SOURCES`; the `evidence` field of each entry names the files that use
+ * the chosen term. An entry with no evidence, or whose rationale says so, is a reasoned
+ * choice of this product (for example Inspector, Preset, Playground and the Control D
+ * “setup”), made because no browser term fits, and is the first thing a native
+ * reviewer should confirm or replace. The two scripts are
  * translated separately: Taiwan vocabulary differs from a character conversion of the
- * mainland text (设置 → 設定, 默认 → 預設, 软件 → 軟體, 服务器 → 伺服器).
+ * mainland text (设置 → 設定, 默认 → 預設, 软件 → 軟體).
  *
- * To correct a term, change it here first, run the Chinese copy tests and update every
- * message they report. See CONTRIBUTING.md, "Translations".
+ * To correct a term, change it here, run the Chinese copy tests and fix what they report.
  */
 
-export type ZhVariant = "zh-CN" | "zh-TW";
+import { registerChoice, type ZhVariant } from "./zh-conventions";
+
+export type { ZhVariant };
 
 export type ZhTermChoice = {
   /** The translation to use. */
@@ -73,10 +77,10 @@ export const ZH_GLOSSARY: readonly ZhGlossaryEntry[] = [
   {
     id: "register",
     english: "you (form of address)",
-    "zh-CN": { term: "你", forbidden: ["您"] },
-    "zh-TW": { term: "你", forbidden: ["您"] },
+    "zh-CN": registerChoice("zh-CN"),
+    "zh-TW": registerChoice("zh-TW"),
     rationale:
-      "One register across the interface: the plain 你 that Google uses in zh-TW and that short UI copy reads naturally with. Firefox and Chrome zh-CN use the polite 您; switching means changing every message, not mixing.",
+      "One form of address per catalog, set by ZH_REGISTER. Both are currently the plain 你. Sources disagree: Chromium zh-TW uses 你 and Chromium and Mozilla support zh-CN use the polite 您, while the MozTW style guide prefers 您. A maintainer decision; the second-person pronoun test follows ZH_REGISTER.",
     evidence: ["chrome"],
   },
   {
@@ -96,7 +100,7 @@ export const ZH_GLOSSARY: readonly ZhGlossaryEntry[] = [
     "zh-CN": { term: "匹配模式", forbidden: ["网址格式", "通配模式"] },
     "zh-TW": { term: "比對模式", forbidden: ["匹配模式", "網址格式"] },
     rationale:
-      "A rule's matching expression, including wildcards. MDN zh-CN translates WebExtensions match patterns as 匹配模式. Taiwan uses 比對 for matching; Chrome zh-TW uses 網址模式 for URL patterns, but a Pattern here is not always a full URL. Never shorten it to 模式 alone, which means mode.",
+      "A rule's matching expression, including wildcards. MDN zh-CN translates WebExtensions match patterns as 匹配模式. Taiwan uses 比對 for matching; Chrome zh-TW uses 網址模式 for URL patterns, and Chrome zh-CN 网址格式, but a Pattern here is not always a full URL, so the MDN term is used. A reasoned choice with partial precedent. Do not shorten it to 模式 alone, which means mode.",
     evidence: ["mdn", "chrome"],
   },
   {
@@ -167,7 +171,7 @@ export const ZH_GLOSSARY: readonly ZhGlossaryEntry[] = [
     "zh-CN": { term: "预设", forbidden: ["预设集", "模板"] },
     "zh-TW": { term: "預設集", forbidden: ["範本"] },
     rationale:
-      "A saved location with matching language and time zone. 预设 is the mainland word (Chrome zh-CN “预设窗口大小”). In Taiwan 預設 alone means default, so zh-TW uses 預設集 as Adobe Lightroom Taiwan does. Regional preset: 区域预设 / 地區預設集.",
+      "A saved location with matching language and time zone. 预设 is the mainland word (Chrome zh-CN “预设窗口大小”). In Taiwan 預設 alone means default, so zh-TW uses 預設集, the term Adobe Lightroom Taiwan uses for presets; browsers have no established term, so this is a reasoned choice with partial precedent. Regional preset: 区域预设 / 地區預設集.",
     evidence: ["chrome", "adobe"],
   },
   {
@@ -203,7 +207,7 @@ export const ZH_GLOSSARY: readonly ZhGlossaryEntry[] = [
       forbidden: ["欺騙", "偽造", "仿冒", "竄改", "冒充"],
     },
     rationale:
-      "Replacing values a site can read. 伪装 (disguise) is the usual word for user-agent and location spoofing. Chrome uses 欺骗, 仿冒 and 伪造 for phishing, forgery and attacks, which would describe the product as deceptive or illegal.",
+      "Replacing values a site can read. 伪装 (disguise) is the usual word for user-agent and location spoofing. Chrome uses 欺骗, 仿冒 and 伪造 mainly for phishing, forgery and attacks, so those words would frame the product as aimed at deceiving people rather than at controlling what a site can read.",
     evidence: ["chrome"],
   },
   {
@@ -223,7 +227,7 @@ export const ZH_GLOSSARY: readonly ZhGlossaryEntry[] = [
     "zh-CN": { term: "检查器", forbidden: ["查看器", "审查器", "审查元素"] },
     "zh-TW": { term: "檢查器", forbidden: ["檢測器", "審查器"] },
     rationale:
-      "X-Ray's mode that stops script execution. It must not reuse the names of browser DevTools panels (Firefox: 查看器 / 檢測器) because the feature works alongside those tools.",
+      "X-Ray's mode that stops script execution. 检查器 / 檢查器 is this product's own term, deliberately different from the Firefox DevTools panel names (查看器 / 檢測器) because the feature works alongside those tools. No browser localization names this feature.",
     evidence: ["firefox"],
   },
   {
@@ -358,7 +362,7 @@ export const ZH_GLOSSARY: readonly ZhGlossaryEntry[] = [
     "zh-CN": { term: "Control D" },
     "zh-TW": { term: "Control D" },
     rationale:
-      "Brand, never translated. Its terms: service 服务 / 服務, API key API 密钥 / API 金鑰, endpoint 端点 / 端點, exit 出口, sync 同步, profile 配置文件 / 設定檔, Service Rules 服务规则 / 服務規則, Custom Rules 自定义规则 / 自訂規則, DNS unchanged.",
+      "Brand, never translated. Its terms below are reasoned choices, not quotes from Control D (no Chinese Control D localization was verified); “setup” (a bundle of profile, endpoint and folders) is 配置 in zh-CN and 設定組合 in zh-TW and should be unified by a native reviewer: service 服务 / 服務, API key API 密钥 / API 金鑰, endpoint 端点 / 端點, exit 出口, sync 同步, profile 配置文件 / 設定檔, Service Rules 服务规则 / 服務規則, Custom Rules 自定义规则 / 自訂規則, DNS unchanged.",
     evidence: ["chrome", "mullvad"],
   },
   {
@@ -531,7 +535,7 @@ export const ZH_GLOSSARY: readonly ZhGlossaryEntry[] = [
     "zh-CN": { term: "演练场" },
     "zh-TW": { term: "演練場" },
     rationale:
-      "The Options test page that compares real and spoofed values; same word as the TypeScript Playground's Chinese name.",
+      "The Options test page that compares real and spoofed values; the TypeScript Playground's Chinese name (演练场) is the partial precedent. A reasoned choice: a Taiwanese reader may not guess the meaning, so confirm or replace.",
     evidence: [],
   },
   {

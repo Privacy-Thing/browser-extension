@@ -91,7 +91,7 @@ export const demo = {
     secChUaFullVersionList: "Sec-CH-UA-Full-Version-List 標頭",
     webRTCIcePolicy: "RTCPeerConnection ICE 原則",
     probePending: "正在收集…",
-    notAvailable: "不適用",
+    notAvailable: "無法取得",
     spoofedMatchesLocal: "就此身分而言，預覽值與你的瀏覽器相同。",
     browserVersionNote: (versionToken: string) =>
       `${BRAND_DISPLAY_NAME} 會保留標準化的瀏覽器版本字串，不會隨機化像 ${versionToken} 這樣的預留位置變體。`,

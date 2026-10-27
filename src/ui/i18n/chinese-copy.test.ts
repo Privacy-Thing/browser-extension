@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { LOCALE_GLOSSARIES } from "./glossary";
+import { QUOTED_FEATURE_NAMES } from "./glossary/zh-conventions";
 import {
   NON_TAIWAN_VARIANT_CHARACTERS,
   SIMPLIFIED_ONLY_CHARACTERS,
@@ -36,7 +37,7 @@ const FULL_WIDTH_PUNCTUATION = "，。、；：！？（）“”「」『』《
 
 const punctuationProblems = (text: string, path: string): string[] => {
   const problems: string[] = [];
-  const masked = text.replace(SAMPLE_TEXT_PATTERN, "⟦⟧");
+  const masked = text.replace(/⟪[a-z]\d*⟫/g, "Q").replace(SAMPLE_TEXT_PATTERN, "⟦⟧");
   const check = (pattern: RegExp, message: string) => {
     const match = pattern.exec(masked);
     if (match)
@@ -101,6 +102,16 @@ describe.each(VARIANTS)("%s script rules", (variant) => {
     const glossary = LOCALE_GLOSSARIES[variant];
     expect(glossary).toBeDefined();
     if (glossary) expect(forbiddenTermProblems([notice], glossary)).toEqual([]);
+  });
+
+  it("quotes the Trusted Sites feature name inside sentences", () => {
+    const { term, open, close } = QUOTED_FEATURE_NAMES[variant];
+    const unquoted = new RegExp(`(?<!${open})${term}(?!${close})`);
+    const problems = strings
+      .filter((entry) => /[，。；、：]/.test(entry.translated))
+      .filter((entry) => unquoted.test(entry.translated))
+      .map((entry) => `${entry.path}: ${entry.translated}`);
+    expect(problems).toEqual([]);
   });
 
   it("follows the Chinese punctuation and spacing conventions", () => {

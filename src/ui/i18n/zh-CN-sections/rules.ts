@@ -73,18 +73,18 @@ export const rules = {
 
   inspector: {
     title: "主机名检查工具",
-    hint: `在保存更改之前，检查 ${BRAND_DISPLAY_NAME} 如何处理某个主机名。它会显示该主机名是否匹配域名规则或受信任的网站，以及将应用哪个区域预设。`,
+    hint: `在保存更改之前，检查 ${BRAND_DISPLAY_NAME} 如何处理某个主机名。它会显示该主机名是否匹配域名规则或“受信任的网站”，以及将应用哪个区域预设。`,
     hostnameLabel: "主机名",
     hostnameHint: "请使用你要检查的确切主机，例如 shop.example.com。",
     hostnamePlaceholder: "例如 shop.example.com",
     noMatchTitle: "没有已保存的域名规则或受信任的网站与此主机名匹配",
     noMatchDescription: "没有适用的已保存规则，且默认规则已关闭或未配置。",
-    trustedSiteWinsTitle: "此主机名已由“受信任的网站”停用",
-    trustedSiteWinsDescription: `它与你的受信任的网站列表匹配，因此 ${BRAND_DISPLAY_NAME} 会在此处保持关闭，直到你移除或停用该条目。`,
+    trustedSiteWinsTitle: "此主机名已加入“受信任的网站”，保护已关闭",
+    trustedSiteWinsDescription: `它与你的“受信任的网站”列表匹配，因此 ${BRAND_DISPLAY_NAME} 会在此处保持关闭，直到你移除或停用该条目。`,
     trustedSiteOverridesRuleTitle: "“受信任的网站”正在覆盖匹配的域名规则",
-    trustedSiteOverridesRuleDescription: `此主机名同时匹配受信任的网站和域名规则。受信任的网站优先，因此 ${BRAND_DISPLAY_NAME} 保持关闭，下方的域名规则将被忽略。`,
+    trustedSiteOverridesRuleDescription: `此主机名同时匹配“受信任的网站”和域名规则。“受信任的网站”优先，因此 ${BRAND_DISPLAY_NAME} 保持关闭，下方的域名规则将被忽略。`,
     fallbackWinsTitle: "此处适用默认规则",
-    fallbackWinsDescription: `没有域名规则或受信任的网站与此主机名匹配，因此 ${BRAND_DISPLAY_NAME} 会在此处回退到默认规则。`,
+    fallbackWinsDescription: `没有域名规则或“受信任的网站”与此主机名匹配，因此 ${BRAND_DISPLAY_NAME} 会在此处回退到默认规则。`,
     ruleMatchTitle: (locationLabel: string) => `此处生效的预设为 ${locationLabel}`,
     ruleMatchDescription: `此主机名与下方的域名规则匹配，因此 ${BRAND_DISPLAY_NAME} 会在该网站上使用此预设。`,
     hostnameDetailLabel: "主机名",
@@ -214,6 +214,6 @@ export const rules = {
     duplicateAlertConfirm: "覆盖",
     duplicateAlertClose: "否",
     trustedSiteOverrideWarning: (pattern: string) =>
-      `此域名与受信任的网站条目“${pattern}”匹配。无论这些设置如何，${BRAND_DISPLAY_NAME} 都会在此处保持关闭。`,
+      `此域名与“受信任的网站”条目“${pattern}”匹配。无论这些设置如何，${BRAND_DISPLAY_NAME} 都会在此处保持关闭。`,
   },
 } as const;
