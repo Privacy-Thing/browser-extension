@@ -71,7 +71,8 @@ const ReportSiteChoice = ({
     <p className="rounded-md border border-border bg-muted/40 p-2" data-report-summary>
       {activeReport(session).status === "partial"
         ? t.sidebar.report.partial
-        : t.sidebar.report.complete}{" "}
+        : t.sidebar.report.complete}
+      {t.common.typography.fragmentSpace}
       {t.sidebar.report.evidenceHint}
     </p>
     <label className="flex items-start gap-2">

@@ -1,0 +1,50 @@
+export const settingsImport = {
+  title: "Review configuration import",
+  description:
+    "Review the changes before saving. Cancel keeps your current configuration.",
+  replace: "Replace configuration",
+  merge: "Merge selected presets and rules",
+  mergeHelp:
+    "Merge keeps your other settings, Trusted Sites and Default Rule. Select each preset and rule below.",
+  confirm: "Confirm import",
+  review: "Refresh preview",
+  undo: "Undo last import",
+  retention:
+    "One local copy is kept for 7 days. Any later configuration edit makes undo unavailable. Undo restores settings, not cookies, logins or website sessions.",
+  undoSuccess: "Previous configuration restored.",
+  success: "Configuration imported.",
+  failed: "Import failed.",
+  choose: "Choose a resolution",
+  importChoice: "Import / replace",
+  keep: "Keep local",
+  copy: "Import as a new preset",
+  skip: "Skip",
+  added: "Added",
+  changed: "Changed",
+  removed: "Removed",
+  before: "Before",
+  after: "After",
+  noChanges: "No configuration changes.",
+  containerHelp:
+    "Container IDs belong to another Firefox installation. Map each assignment to a local container or explicitly skip it. Choosing a local container replaces its assignment.",
+  containers: "Firefox containers",
+  locations: "Presets",
+  rules: "Rules",
+  trustedSites: "Trusted Sites",
+  settings: "Settings",
+  containerAssignments: "Container assignments",
+  conflict: "Conflict",
+  resolve: "Resolve the listed conflicts before confirming.",
+  reservedName: (name: string, scope: string) =>
+    `“${name}” in ${scope} is a reserved name and cannot be imported. Rename it in the file, then import it again.`,
+  selectAll: "Select all",
+  skipAll: "Skip all",
+  technicalDetails: "Technical details",
+  timeZoneHint: "Edit the file to use a supported time zone, then import it again.",
+  timeZoneTitle: "Choose supported time zones",
+  timeZoneHelp:
+    "This browser does not support the time zone of the presets below. Choose a time zone for each one. The import is checked again once every preset has one.",
+  timeZoneRejected: (timeZone: string) =>
+    `Unsupported time zone in the file: ${timeZone}`,
+  timeZoneChoose: "Choose a time zone",
+} as const;

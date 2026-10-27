@@ -7,6 +7,8 @@ import { describe, expect, it } from "vitest";
 
 import { en } from "./en";
 
+import { UI_LOCALES } from "@/shared/ui-locale";
+
 type LocaleLeafKind = "string" | "function";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -302,14 +304,17 @@ const collectUiPaths = (): ReadonlySet<string> => {
   return cachedUiTranslationPaths;
 };
 
+const LOCALE_FILE_PATTERN = /^[a-z]{2}(?:-[A-Z]{2})?\.ts$/;
+
+/** `zh-CN.ts` exports `zhCN`; single-subtag locales export their code. */
+const localeExportName = (localeCode: string): string => localeCode.replace("-", "");
+
 const collectLocaleModules = async (): Promise<
   Array<{ code: string; value: unknown }>
 > => {
   const localeFiles = fs
     .readdirSync(i18nRoot)
-    .filter((name) => name.endsWith(".ts"))
-    .filter((name) => !["index.ts", "types.ts"].includes(name))
-    .filter((name) => !/(?:\.(?:target|chromium|firefox))?\.test\.ts$/.test(name));
+    .filter((name) => LOCALE_FILE_PATTERN.test(name));
 
   const modules: Array<{ code: string; value: unknown }> = [];
 
@@ -317,7 +322,7 @@ const collectLocaleModules = async (): Promise<
     const localeCode = fileName.replace(/\.ts$/, "");
     const moduleUrl = pathToFileURL(path.join(i18nRoot, fileName)).href;
     const localeModule = (await import(moduleUrl)) as Record<string, unknown>;
-    modules.push({ code: localeCode, value: localeModule[localeCode] });
+    modules.push({ code: localeCode, value: localeModule[localeExportName(localeCode)] });
   }
 
   return modules;
@@ -376,13 +381,7 @@ describe("UI i18n coverage", () => {
   it("keeps all locale packs aligned with the base locale shape", async () => {
     const baseKeys = collectLocaleLeafPaths(en);
     const localeModules = await collectLocaleModules();
-    expect(localeModules.map(({ code }) => code).sort()).toEqual([
-      "en",
-      "es",
-      "pt",
-      "ru",
-      "uk",
-    ]);
+    expect(localeModules.map(({ code }) => code).sort()).toEqual([...UI_LOCALES].sort());
 
     for (const localeModule of localeModules) {
       const localeKeys = collectLocaleLeafPaths(localeModule.value);

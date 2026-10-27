@@ -3,15 +3,31 @@ import { es } from "./es";
 import { pt } from "./pt";
 import { ru } from "./ru";
 import { uk } from "./uk";
+import { zhCN } from "./zh-CN";
+import { zhTW } from "./zh-TW";
 
 import { isUiLocale, type UiLocale, type UiLocalePreference } from "@/shared/ui-locale";
 
 export type { UiLocale, UiLocalePreference };
 
-const catalogs = { en, es, pt, ru, uk } as const;
+const catalogs = { en, es, pt, ru, uk, "zh-CN": zhCN, "zh-TW": zhTW } as const;
+
+const HANT_REGIONS = new Set(["tw", "hk", "mo"]);
+
+/**
+ * Chinese has one catalog per script: an explicit `Hant`/`Hans` script subtag wins,
+ * otherwise Taiwan, Hong Kong and Macao use Traditional and every other `zh` tag
+ * (including bare `zh`, `zh-CN` and `zh-SG`) uses Simplified.
+ */
+const resolveChineseUiLocale = (subtags: readonly string[]): UiLocale => {
+  if (subtags.includes("hant")) return "zh-TW";
+  if (subtags.includes("hans")) return "zh-CN";
+  return subtags.some((subtag) => HANT_REGIONS.has(subtag)) ? "zh-TW" : "zh-CN";
+};
 
 export const resolveUiLocale = (language: string | undefined): UiLocale => {
-  const baseLanguage = language?.toLowerCase().split("-")[0];
+  const [baseLanguage, ...subtags] = language?.toLowerCase().split("-") ?? [];
+  if (baseLanguage === "zh") return resolveChineseUiLocale(subtags);
   return baseLanguage !== undefined && isUiLocale(baseLanguage) ? baseLanguage : "en";
 };
 

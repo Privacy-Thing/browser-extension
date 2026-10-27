@@ -3,6 +3,12 @@ import { BRAND_DISPLAY_NAME } from "@/shared/brand";
 export const common = {
   copyLinkTo: (section: string) => `Copy link to ${section}`,
 
+  /** Joins sentence fragments around inline links and emphasis. */
+  typography: {
+    fragmentSpace: " ",
+    fullStop: ".",
+  },
+
   actions: {
     cancel: "Cancel",
     reset: "Reset",

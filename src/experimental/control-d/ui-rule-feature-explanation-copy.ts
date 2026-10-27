@@ -130,4 +130,46 @@ export const explanationCopy: Record<UiLocale, ExplanationMessages> = {
     routes: "Налаштування Control D → Налаштування маршрутів",
     settings: "Налаштування Control D",
   },
+  "zh-CN": {
+    serviceRules: "Service Rules",
+    customRules: "Custom Rules",
+    service: "service",
+    scope: `{term} in Control D usually cover more domains than this rule. ${BRAND_DISPLAY_NAME} can set up a {feature} {service} redirect in Control D.`,
+    joining: `{feature} is already linked to another ${BRAND_DISPLAY_NAME} rule. Adding this pattern shares its Control D configuration.`,
+    tooltip: `A Service Rule covers a group of domains maintained by Control D. A Custom Rule applies to a specified domain or pattern and takes priority over a Service Rule. Linking a service does not extend ${BRAND_DISPLAY_NAME} protection beyond this rule's patterns.`,
+    fallback: `Saving creates {term} for these patterns. Include the service to add a Service Rule.`,
+    ready: "To change the redirect location or skip sync for {preset}, open {link}.",
+    excluded:
+      "{preset} is excluded from Control D sync. No domain or service redirects will be created for this preset. To include it, choose a redirect location in {link}.",
+    paused: `Automatic sync is off. Saving keeps the link in ${BRAND_DISPLAY_NAME} without updating Control D. Turn on automatic sync in {link}.`,
+    pending:
+      "Choose or confirm the Control D proxy location (city/country) for {preset} in {link} before this rule can sync.",
+    noPreset:
+      "Assign a Regional Preset to this rule before syncing redirects with Control D. Configure its redirect location in {link}.",
+    disabled: `This rule is off. On the next sync, ${BRAND_DISPLAY_NAME} removes its managed redirects for this rule from the Control D profile. Manage syncing in {link}.`,
+    preset: "Regional preset",
+    routes: "Control D settings → Route overrides",
+    settings: "Control D settings",
+  },
+  "zh-TW": {
+    serviceRules: "Service Rules",
+    customRules: "Custom Rules",
+    service: "service",
+    scope: `{term} in Control D usually cover more domains than this rule. ${BRAND_DISPLAY_NAME} can set up a {feature} {service} redirect in Control D.`,
+    joining: `{feature} is already linked to another ${BRAND_DISPLAY_NAME} rule. Adding this pattern shares its Control D configuration.`,
+    tooltip: `A Service Rule covers a group of domains maintained by Control D. A Custom Rule applies to a specified domain or pattern and takes priority over a Service Rule. Linking a service does not extend ${BRAND_DISPLAY_NAME} protection beyond this rule's patterns.`,
+    fallback: `Saving creates {term} for these patterns. Include the service to add a Service Rule.`,
+    ready: "To change the redirect location or skip sync for {preset}, open {link}.",
+    excluded:
+      "{preset} is excluded from Control D sync. No domain or service redirects will be created for this preset. To include it, choose a redirect location in {link}.",
+    paused: `Automatic sync is off. Saving keeps the link in ${BRAND_DISPLAY_NAME} without updating Control D. Turn on automatic sync in {link}.`,
+    pending:
+      "Choose or confirm the Control D proxy location (city/country) for {preset} in {link} before this rule can sync.",
+    noPreset:
+      "Assign a Regional Preset to this rule before syncing redirects with Control D. Configure its redirect location in {link}.",
+    disabled: `This rule is off. On the next sync, ${BRAND_DISPLAY_NAME} removes its managed redirects for this rule from the Control D profile. Manage syncing in {link}.`,
+    preset: "Regional preset",
+    routes: "Control D settings → Route overrides",
+    settings: "Control D settings",
+  },
 };

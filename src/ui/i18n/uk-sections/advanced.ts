@@ -111,6 +111,8 @@ export const advanced = {
       optionPortuguese: "Португальська",
       optionRussian: "Російська",
       optionUkrainian: "Українська",
+      optionSimplifiedChinese: "Спрощена китайська",
+      optionTraditionalChinese: "Традиційна китайська",
       reportLabel: "Знайшли помилку в перекладі? Повідомте про неї",
       copyLinkLabel: "мова",
     },

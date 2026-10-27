@@ -110,6 +110,8 @@ export const advanced = {
       optionPortuguese: "Portuguese",
       optionRussian: "Russian",
       optionUkrainian: "Ukrainian",
+      optionSimplifiedChinese: "Simplified Chinese",
+      optionTraditionalChinese: "Traditional Chinese",
       reportLabel: "Found a translation error? Report it",
       copyLinkLabel: "language",
     },

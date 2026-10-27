@@ -110,6 +110,8 @@ export const advanced = {
       optionPortuguese: "Португальский",
       optionRussian: "Русский",
       optionUkrainian: "Украинский",
+      optionSimplifiedChinese: "Упрощённый китайский",
+      optionTraditionalChinese: "Традиционный китайский",
       reportLabel: "Нашли ошибку в переводе? Сообщите о ней",
       copyLinkLabel: "язык",
     },

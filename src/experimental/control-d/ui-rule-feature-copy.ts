@@ -367,10 +367,136 @@ const uk: ProviderFeatureMessages = {
   ),
 };
 
+const zhCN: ProviderFeatureMessages = {
+  suggestQuestion: fill("Setup {value} service?"),
+  includeService: "Include service",
+  saveWithRule: "Applies when you save this rule.",
+  yes: "Yes",
+  no: "No thanks",
+  scope,
+  joinQuestion: fill("Add this pattern to the existing {value} rule?"),
+  joinHint: hint(
+    "Uses the settings and identity of {pattern}.",
+    "Uses the settings and identity of {pattern} and {extra} more.",
+  ),
+  joinReplaces:
+    "This rule's Regional Preset, protection settings and identity will be replaced.",
+  join: "Add to existing rule",
+  stagedLabel: fill("{value} · unsaved"),
+  addService: "Link a service",
+  change: "Change service",
+  removeService: "Unlink service",
+  dontUse: "Don't link",
+  back: "Back",
+  checking: "Checking…",
+  checkingLabel: fill("Looking for a {value} service"),
+  checkingStatus: "Checking status…",
+  preparing: "Getting ready…",
+  pendingRemoval: fill("{value} is unlinked when you save. The rule stays."),
+  pendingRemovalGroup: fill(
+    "{value} is unlinked from all these domains when you save. The rule and its domains stay.",
+  ),
+  pickerLabel: fill("{value} service"),
+  pickerPlaceholder: "Choose a service",
+  pickerSearch: "Search services",
+  pickerEmpty: "No matching services",
+  use: "Link",
+  chipLabel: pair("{first}, {second}. Show options"),
+  menuHeader: pair("{first} · {second}"),
+  sharedWith: sharedWith(
+    "Shares settings with {a}",
+    "Shares settings with {a} and {b}",
+    "Shares settings with {a} and {extra} more",
+  ),
+  errorBlocked: fill(
+    "Suggestions are paused. Pick a service, or check {value} settings.",
+  ),
+  errorConnect: fill("Connect {value} to link a service."),
+  errorCatalogue: fill("{value} services couldn't load right now."),
+  errorGeneric: "Something went wrong. Try again.",
+  errorSync: pair("{first} couldn't apply {second}. See {first} settings."),
+  errorJoinTaken: pair(
+    "{first} is already linked to {second}. Turn on the service to share its settings.",
+  ),
+  errorPattern: "Fix the rule's pattern before linking a service.",
+  errorMissingService: "That service is no longer available. Choose another.",
+  errorGroupChanged: fill(
+    "The domains using {value} changed. Reopen this rule and try again.",
+  ),
+  errorGroupSettings: fill(
+    "Domains using {value} have different settings. Save one of them to share its settings.",
+  ),
+  errorGroupIdentity: fill("Domains using {value} must share settings and identity."),
+};
+
+const zhTW: ProviderFeatureMessages = {
+  suggestQuestion: fill("Setup {value} service?"),
+  includeService: "Include service",
+  saveWithRule: "Applies when you save this rule.",
+  yes: "Yes",
+  no: "No thanks",
+  scope,
+  joinQuestion: fill("Add this pattern to the existing {value} rule?"),
+  joinHint: hint(
+    "Uses the settings and identity of {pattern}.",
+    "Uses the settings and identity of {pattern} and {extra} more.",
+  ),
+  joinReplaces:
+    "This rule's Regional Preset, protection settings and identity will be replaced.",
+  join: "Add to existing rule",
+  stagedLabel: fill("{value} · unsaved"),
+  addService: "Link a service",
+  change: "Change service",
+  removeService: "Unlink service",
+  dontUse: "Don't link",
+  back: "Back",
+  checking: "Checking…",
+  checkingLabel: fill("Looking for a {value} service"),
+  checkingStatus: "Checking status…",
+  preparing: "Getting ready…",
+  pendingRemoval: fill("{value} is unlinked when you save. The rule stays."),
+  pendingRemovalGroup: fill(
+    "{value} is unlinked from all these domains when you save. The rule and its domains stay.",
+  ),
+  pickerLabel: fill("{value} service"),
+  pickerPlaceholder: "Choose a service",
+  pickerSearch: "Search services",
+  pickerEmpty: "No matching services",
+  use: "Link",
+  chipLabel: pair("{first}, {second}. Show options"),
+  menuHeader: pair("{first} · {second}"),
+  sharedWith: sharedWith(
+    "Shares settings with {a}",
+    "Shares settings with {a} and {b}",
+    "Shares settings with {a} and {extra} more",
+  ),
+  errorBlocked: fill(
+    "Suggestions are paused. Pick a service, or check {value} settings.",
+  ),
+  errorConnect: fill("Connect {value} to link a service."),
+  errorCatalogue: fill("{value} services couldn't load right now."),
+  errorGeneric: "Something went wrong. Try again.",
+  errorSync: pair("{first} couldn't apply {second}. See {first} settings."),
+  errorJoinTaken: pair(
+    "{first} is already linked to {second}. Turn on the service to share its settings.",
+  ),
+  errorPattern: "Fix the rule's pattern before linking a service.",
+  errorMissingService: "That service is no longer available. Choose another.",
+  errorGroupChanged: fill(
+    "The domains using {value} changed. Reopen this rule and try again.",
+  ),
+  errorGroupSettings: fill(
+    "Domains using {value} have different settings. Save one of them to share its settings.",
+  ),
+  errorGroupIdentity: fill("Domains using {value} must share settings and identity."),
+};
+
 export const controlDRuleFeatureCopy: Record<UiLocale, ProviderFeatureMessages> = {
   en,
   es,
   pt,
   ru,
   uk,
+  "zh-CN": zhCN,
+  "zh-TW": zhTW,
 };

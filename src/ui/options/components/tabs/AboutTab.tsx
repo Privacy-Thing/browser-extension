@@ -79,8 +79,12 @@ const AboutIntro = () => (
       <p className="mt-1 text-sm text-muted-foreground">{t.about.description}</p>
     </div>
     <p className="text-sm text-muted-foreground">
-      <span>{t.about.body1}</span> <span>{t.about.body2}</span>{" "}
-      <span>{t.about.body3Prefix}</span>{" "}
+      <span>{t.about.body1}</span>
+      {t.common.typography.fragmentSpace}
+      <span>{t.about.body2}</span>
+      {t.common.typography.fragmentSpace}
+      <span>{t.about.body3Prefix}</span>
+      {t.common.typography.fragmentSpace}
       <a
         href={`#${SECTION_ANCHORS.options.overview}`}
         className="font-medium text-foreground underline underline-offset-4"

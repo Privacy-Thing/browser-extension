@@ -37,7 +37,21 @@ const uk: FeatureMessages = {
   remove: "Видалити",
   automaticMatching: `Під час додавання чи зміни правила домену ${BRAND_DISPLAY_NAME} запропонує відповідний сервіс Control D. ${BRAND_DISPLAY_NAME} захищає лише домени з ваших правил; сервіс Control D може охоплювати й інші.`,
 };
-const catalogs = { en, es, pt, ru, uk };
+const zhCN: FeatureMessages = {
+  serviceChanges: "DNS service rules",
+  add: "Add",
+  update: "Update",
+  remove: "Remove",
+  automaticMatching: `When you add or edit a domain rule, ${BRAND_DISPLAY_NAME} suggests a matching Control D service. ${BRAND_DISPLAY_NAME} protects only your rule's domains; a Control D service may cover others.`,
+};
+const zhTW: FeatureMessages = {
+  serviceChanges: "DNS service rules",
+  add: "Add",
+  update: "Update",
+  remove: "Remove",
+  automaticMatching: `When you add or edit a domain rule, ${BRAND_DISPLAY_NAME} suggests a matching Control D service. ${BRAND_DISPLAY_NAME} protects only your rule's domains; a Control D service may cover others.`,
+};
+const catalogs = { en, es, pt, ru, uk, "zh-CN": zhCN, "zh-TW": zhTW };
 export const featureText = createMessagesProxy(
   () => catalogs[getActiveUiLocale()],
 ) as FeatureMessages;

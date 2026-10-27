@@ -456,6 +456,12 @@ tasks:
     cmds:
       - pnpm --filter @privacy-brand/refract-worker exec tsx src/build-worker-source.ts
 
+  generate:zh-script-charsets:
+    desc: Regenerate the Simplified/Traditional character sets used by the Chinese catalog tests (commit the result)
+    cmds:
+      - node scripts/generate-zh-script-charsets.mjs
+      - pnpm exec prettier --write src/ui/i18n/glossary/zh-script-charsets.generated.ts
+
   generate:firefox-update-manifest:
     desc: Generate Firefox update manifest
     cmds:

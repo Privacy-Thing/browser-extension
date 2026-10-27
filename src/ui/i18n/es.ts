@@ -1,3 +1,5 @@
+import type { LocaleCatalog } from "./types";
+
 import { about } from "./es-sections/about";
 import { advanced } from "./es-sections/advanced";
 import { common } from "./es-sections/common";
@@ -29,4 +31,4 @@ export const es = {
   sidebar,
   welcome,
   settingsImport,
-} as const;
+} as const satisfies LocaleCatalog;
