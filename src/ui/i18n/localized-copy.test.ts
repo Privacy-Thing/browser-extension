@@ -5,7 +5,6 @@ import { en } from "./en";
 import { es } from "./es";
 import { pt } from "./pt";
 import { ru } from "./ru";
-import type { LocaleCatalog } from "./types";
 import { uk } from "./uk";
 
 const pluralProtectionCounts: Record<SurfacePresentationState, number> = {
