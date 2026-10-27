@@ -49,9 +49,13 @@ Reviewed head 6a1b3f3. No critical findings; two major findings and a set of min
 | Glossary overstated its evidence.                                                                                                                                                                                                                                                                 | Reworded: Inspector, Preset, Playground and the Control D “setup” are reasoned product choices with partial precedent, and the Spoofing note no longer says the alternatives imply illegality.            |
 | Spacing was not checked next to interpolated values.                                                                                                                                                                                                                                              | The test now renders always-Latin arguments (hostnames, patterns, times, locale codes) as Latin and requires the usual space next to Chinese text. Arguments that may be Chinese labels remain unchecked. |
 
-Not changed on purpose: the 你/您 choice. The sources disagree (Chromium zh-TW 你; Chromium and
-Mozilla support zh-CN 您; MozTW prefers 您). `ZH_REGISTER` in the glossary is the single
-setting; moving zh-CN to 您 is one replacement of about 146 occurrences.
+Decided afterwards by the maintainer: zh-CN addresses users with the polite 您 (Chromium and
+Mozilla support zh-CN do), and zh-TW keeps the plain 你 (Chromium zh-TW does). The MozTW style
+guide prefers 您 for Taiwan, so a native zh-TW reviewer may reverse that. The choice is the
+single `ZH_REGISTER` setting in the glossary conventions; the switch was one replacement of 146
+occurrences in the zh-CN catalogs and notices, with no 您们 or other compound affected. The
+back-translations above were made before the switch; the pronoun does not change their
+meaning, so the findings and counts stand.
 
 ## What a native reviewer should check first
 
@@ -62,7 +66,7 @@ setting; moving zh-CN to 您 is one replacement of about 146 occurrences.
 2. Coined or contested terms: 匹配模式 / 比對模式 (Pattern), 预设 / 預設集 (Preset),
    伪装 / 偽裝 (spoofing), 检查器 / 檢查器 (Inspector), 演练场 / 演練場 (Playground),
    Control D “setup” (配置 / 設定組合).
-3. Register: both catalogs use 你; Chrome and Firefox zh-CN use 您 (see the glossary's `ZH_REGISTER`).
+3. Register: zh-CN uses 您 and zh-TW 你 (maintainer decision; MozTW prefers 您 for Taiwan, so confirm zh-TW). See the glossary's `ZH_REGISTER`.
 4. Whether “受信任的网站 / 受信任的網站” needs quotes when it names the feature.
 5. Strings shortened to meet the width budget, for example `common.coordinateRandomization`
    and `locations.editor.disabledDependencySuffix`.

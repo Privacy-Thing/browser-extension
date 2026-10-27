@@ -29,7 +29,7 @@ export const sidebar = {
     restore: "恢复设置",
     save: "保留例外",
     helpedHint:
-      "为此主机保留此 Worker 设置。其他设置和容器身份保持不变。你可以在设置中移除它。",
+      "为此主机保留此 Worker 设置。其他设置和容器身份保持不变。您可以在设置中移除它。",
     siteEffects:
       "恢复设置不会撤消网站已做的更改：Service Worker 和 Shared Worker 及其缓存可能会继续存在，或按源共享。只有受支持上下文中的新调用才会使用所选策略。",
     noCandidates: "没有可供测试的 Worker 设置。",
@@ -66,7 +66,7 @@ export const sidebar = {
       cancelled: "测试已取消。临时覆盖已移除；匹配的标签页正在使用当前设置重新加载。",
       expired:
         "测试已结束。新的决定不再使用临时覆盖。如果现有文档仍在使用测试的策略，请重新加载。",
-      saved: "已根据你的确认保存仅限确切主机的 Worker 例外。匹配的标签页正在重新加载。",
+      saved: "已根据您的确认保存仅限确切主机的 Worker 例外。匹配的标签页正在重新加载。",
     },
     remaining: (minutes: number): string => `请在 ${minutes} 分钟内返回。`,
   },
@@ -99,7 +99,7 @@ export const sidebar = {
   loading: "正在检查此页面…",
   unsupportedTab: "无法在浏览器页面上进行伪装。请访问一个网站以检查覆盖范围。",
   noSpoofing: `${BRAND_DISPLAY_NAME} 未在此页面上启用。打开弹出窗口，为此网站设置规则。`,
-  trustedSite: "你已将此网站标记为受信任。当前未启用伪装。",
+  trustedSite: "您已将此网站标记为受信任。当前未启用伪装。",
   trustedSiteHint: "要更改此设置，请在设置中打开“受信任的网站”。",
 
   surfaces: {
@@ -258,7 +258,7 @@ export const sidebar = {
     hint: {
       empty: "请在下方至少选择一个方法。",
       ready: (count: number) => `已选择 ${count} 个方法。`,
-      changed: "点击“应用”以更新已启用的内容，或还原你的更改。",
+      changed: "点击“应用”以更新已启用的内容，或还原您的更改。",
       changedToEmpty: "未选择任何内容。请停用，使脚本不再停止。",
       pendingArm: "将在页面重新加载后应用。",
       pendingDisarm: "页面重新加载后，脚本将不再停止。",
@@ -288,7 +288,7 @@ export const sidebar = {
     everyCall: "每次调用时停止",
     firstCallHint: "每次页面加载时，每个方法只停止一次。",
     everyCallWarning:
-      "读取时间等常用 API 可能会非常频繁地让页面停止。请只选择你需要的方法。",
+      "读取时间等常用 API 可能会非常频繁地让页面停止。请只选择您需要的方法。",
     pauseNotice:
       "脚本执行停止期间，页面会冻结，但时钟仍在运行，因此页面可能会察觉到延迟。",
     firefoxNotice: `在 Firefox 开发者工具中，开启“设置 › 忽略已知的第三方脚本”，即可在调用栈中隐藏 ${BRAND_DISPLAY_NAME} 的帧。`,

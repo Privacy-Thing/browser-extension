@@ -49,6 +49,6 @@ export const common = {
     radiusInputLabel: "坐标随机化半径（公里）",
     readWhy: "了解原因。",
     tooltipPrivacy: `${BRAND_DISPLAY_NAME} 注重隐私。预设应当易于使用，但重复使用目录或搜索结果中的精确坐标可能会让 ${BRAND_DISPLAY_NAME} 用户更容易被识别。`,
-    tooltipExact: `需要特定位置？关闭此开关后，${BRAND_DISPLAY_NAME} 将使用精确坐标。你可以在“选项 > 地理位置 > 高级”中更改默认值。`,
+    tooltipExact: `需要特定位置？关闭此开关后，${BRAND_DISPLAY_NAME} 将使用精确坐标。您可以在“选项 > 地理位置 > 高级”中更改默认值。`,
   },
 } as const;

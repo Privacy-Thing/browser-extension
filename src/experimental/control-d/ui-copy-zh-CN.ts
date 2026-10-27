@@ -11,14 +11,14 @@ export const controlDZhCN = {
   intro: {
     title: "连接之前",
     purpose:
-      "Control D 是一项 DNS 和流量路由服务。此集成会将你的区域规则同步到单独的 Control D 配置文件，使这些网站使用匹配的出口。同步是单向的，仅从此扩展发出。你需要自己的 Control D 账户和具有写入权限的 API 密钥。",
+      "Control D 是一项 DNS 和流量路由服务。此集成会将您的区域规则同步到单独的 Control D 配置文件，使这些网站使用匹配的出口。同步是单向的，仅从此扩展发出。您需要自己的 Control D 账户和具有写入权限的 API 密钥。",
     resources:
-      "连接后，将创建一个配置文件、一个浏览器端点和若干规则文件夹（每个出口一个）。可选的服务识别功能可以创建一个查询配置文件和端点。断开连接后，这些资源会保留在你的 Control D 账户中，除非你在断开连接时选择删除它们。",
+      "连接后，将创建一个配置文件、一个浏览器端点和若干规则文件夹（每个出口一个）。可选的服务识别功能可以创建一个查询配置文件和端点。断开连接后，这些资源会保留在您的 Control D 账户中，除非您在断开连接时选择删除它们。",
     namesTitle: "随机资源名称",
-    names: `名称使用随机代码，绝不使用你的预设名称：“${BRAND_DISPLAY_NAME} XXXXX-XXXXX”、“PT Browser XXXXX-XXXXX”（在 Firefox 上为“PT Firefox XXXXX-XXXXX”）、“PT XXXXX-XXXXX <ROUTE>”。可选的查询资源：“PT Lookup XXXXX-XXXXX”、“PT Probe XXXXX-XXXXX”。`,
-    data: "Control D 会收到你的域名规则主机名、为其选择的出口以及这些资源名称。仅在使用服务识别时，规则主机名还会以 DNS-over-HTTPS 查询的形式发送，并请求不记录日志（no_log=1）。预设名称和坐标不会发送。你的 API 密钥保留在此安装中，不会包含在导出内容和浏览器同步中。",
+    names: `名称使用随机代码，绝不使用您的预设名称：“${BRAND_DISPLAY_NAME} XXXXX-XXXXX”、“PT Browser XXXXX-XXXXX”（在 Firefox 上为“PT Firefox XXXXX-XXXXX”）、“PT XXXXX-XXXXX <ROUTE>”。可选的查询资源：“PT Lookup XXXXX-XXXXX”、“PT Probe XXXXX-XXXXX”。`,
+    data: "Control D 会收到您的域名规则主机名、为其选择的出口以及这些资源名称。仅在使用服务识别时，规则主机名还会以 DNS-over-HTTPS 查询的形式发送，并请求不记录日志（no_log=1）。预设名称和坐标不会发送。您的 API 密钥保留在此安装中，不会包含在导出内容和浏览器同步中。",
     limits:
-      "此扩展本身不会自动更改浏览器 DNS，也不会更改你的 IP 地址。你需要在后续步骤中自行设置安全 DNS；只有在你配置其解析器后，Control D 才会路由流量。",
+      "此扩展本身不会自动更改浏览器 DNS，也不会更改您的 IP 地址。您需要在后续步骤中自行设置安全 DNS；只有在您配置其解析器后，Control D 才会路由流量。",
   },
   open: "打开 Control D",
   back: "返回“高级”",
@@ -39,7 +39,7 @@ export const controlDZhCN = {
   },
   account: {
     consent:
-      "连接时会创建一个配置文件、浏览器端点和规则文件夹，并使用随机代码命名；或者重复使用兼容的现有配置。断开连接后，已创建的资源会保留，除非你选择删除它们。",
+      "连接时会创建一个配置文件、浏览器端点和规则文件夹，并使用随机代码命名；或者重复使用兼容的现有配置。断开连接后，已创建的资源会保留，除非您选择删除它们。",
     title: "连接账户",
     description:
       "请使用具有写入权限的 API 密钥。它保留在此安装中，不会包含在导出内容和浏览器同步中。",
@@ -63,11 +63,11 @@ export const controlDZhCN = {
     createNew: "创建新配置",
     confirmTitle: "要使用此配置吗？",
     confirmDescription:
-      "连接后，简单的更改会自动应用。需要决定的事项会显示出来供你检查。",
+      "连接后，简单的更改会自动应用。需要决定的事项会显示出来供您检查。",
     folders: (count: number) => `文件夹：${count}`,
   },
   rules: {
-    consentRequired: "新的或已更改的近似路由需要你的批准，同步才能继续。",
+    consentRequired: "新的或已更改的近似路由需要您的批准，同步才能继续。",
     applyApproximate: "使用近似路由应用",
     appliedAutomatically: "规则已自动同步。请在下方配置浏览器 DNS。",
     applied: "规则已同步。请在下方配置浏览器 DNS。",
@@ -94,7 +94,7 @@ export const controlDZhCN = {
     guide: "设置说明",
     confirm: "我已验证此解析器",
     verified: "DNS 已验证",
-    verifiedDescription: "你已在 Control D 状态页面上确认此端点。",
+    verifiedDescription: "您已在 Control D 状态页面上确认此端点。",
     verifiedState: "已验证",
     unverifiedState: "未验证",
   },
@@ -144,14 +144,14 @@ export const controlDZhCN = {
   },
   help: {
     account: {
-      title: "你的密钥保留在此处",
+      title: "您的密钥保留在此处",
       body: "连接即授予此扩展访问 Control D 的权限。密钥保留在此浏览器中。",
       note: "创建和更新区域规则需要写入权限。",
     },
     setup: {
       title: "单独的配置",
       body: "使用新配置或重新连接现有配置。其他配置会保留各自的设置。",
-      note: "连接后，简单的更改会自动应用。需要决定的事项会显示出来供你检查。",
+      note: "连接后，简单的更改会自动应用。需要决定的事项会显示出来供您检查。",
     },
     rules: {
       title: "先检查，再应用",

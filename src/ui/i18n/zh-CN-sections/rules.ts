@@ -75,12 +75,12 @@ export const rules = {
     title: "主机名检查工具",
     hint: `在保存更改之前，检查 ${BRAND_DISPLAY_NAME} 如何处理某个主机名。它会显示该主机名是否匹配域名规则或“受信任的网站”，以及将应用哪个区域预设。`,
     hostnameLabel: "主机名",
-    hostnameHint: "请使用你要检查的确切主机，例如 shop.example.com。",
+    hostnameHint: "请使用您要检查的确切主机，例如 shop.example.com。",
     hostnamePlaceholder: "例如 shop.example.com",
     noMatchTitle: "没有已保存的域名规则或受信任的网站与此主机名匹配",
     noMatchDescription: "没有适用的已保存规则，且默认规则已关闭或未配置。",
     trustedSiteWinsTitle: "此主机名已加入“受信任的网站”，保护已关闭",
-    trustedSiteWinsDescription: `它与你的“受信任的网站”列表匹配，因此 ${BRAND_DISPLAY_NAME} 会在此处保持关闭，直到你移除或停用该条目。`,
+    trustedSiteWinsDescription: `它与您的“受信任的网站”列表匹配，因此 ${BRAND_DISPLAY_NAME} 会在此处保持关闭，直到您移除或停用该条目。`,
     trustedSiteOverridesRuleTitle: "“受信任的网站”正在覆盖匹配的域名规则",
     trustedSiteOverridesRuleDescription: `此主机名同时匹配“受信任的网站”和域名规则。“受信任的网站”优先，因此 ${BRAND_DISPLAY_NAME} 保持关闭，下方的域名规则将被忽略。`,
     fallbackWinsTitle: "此处适用默认规则",
@@ -120,14 +120,14 @@ export const rules = {
     advancedModal: {
       trigger: "高级",
       title: (pattern: string) => `${pattern} 的高级设置`,
-      description: "在你保存规则之前，这些更改仅保留在当前草稿中。",
+      description: "在您保存规则之前，这些更改仅保留在当前草稿中。",
       confirm: "确定",
       patternFallback: "此规则",
     },
     relaxCspLabel: "为 Worker 伪装放宽 CSP",
     relaxCspHint: `当此网站的内容安全策略标头阻止 ${BRAND_DISPLAY_NAME} 保护 Worker 时，移除这些标头。`,
     relaxCspRiskHint:
-      "安全警告：这会使恶意脚本更容易在该网站上运行。仅对你信任的网站启用，并且仅在 Worker 保护无法以其他方式生效时启用。",
+      "安全警告：这会使恶意脚本更容易在该网站上运行。仅对您信任的网站启用，并且仅在 Worker 保护无法以其他方式生效时启用。",
     relaxCspAriaLabel: (pattern: string) => `开启或关闭规则 ${pattern} 的 CSP 放宽`,
     surfaceOverrides: {
       title: "保护设置",
@@ -148,7 +148,7 @@ export const rules = {
       },
       timeLocale: {
         label: "时间和区域设置",
-        info: "控制 Date、Intl、navigator.language、navigator.languages 和语言请求头，使网站看到你当前生效的预设中的区域。",
+        info: "控制 Date、Intl、navigator.language、navigator.languages 和语言请求头，使网站看到您当前生效的预设中的区域。",
       },
       canvas: {
         label: "Canvas",
@@ -194,7 +194,7 @@ export const rules = {
     identity: {
       sectionTitle: "身份",
       sectionDescription:
-        "此规则拥有自己的伪装身份。仅当你希望此规则获得新的指纹和干净的网站状态时，才需要轮换身份。",
+        "此规则拥有自己的伪装身份。仅当您希望此规则获得新的指纹和干净的网站状态时，才需要轮换身份。",
       actionDescription: "清除相关网站数据，并以新身份启动此规则。",
       actionLabel: "新身份",
       confirmTitle: (pattern: string) => `为 ${pattern} 创建新身份？`,

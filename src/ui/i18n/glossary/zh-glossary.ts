@@ -80,7 +80,7 @@ export const ZH_GLOSSARY: readonly ZhGlossaryEntry[] = [
     "zh-CN": registerChoice("zh-CN"),
     "zh-TW": registerChoice("zh-TW"),
     rationale:
-      "One form of address per catalog, set by ZH_REGISTER. Both are currently the plain 你. Sources disagree: Chromium zh-TW uses 你 and Chromium and Mozilla support zh-CN use the polite 您, while the MozTW style guide prefers 您. A maintainer decision; the second-person pronoun test follows ZH_REGISTER.",
+      "One form of address per catalog, set by ZH_REGISTER. Maintainer decision (2026-10-27): zh-CN uses the polite 您, as Chromium and Mozilla support do; zh-TW keeps 你, as Chromium zh-TW does. The MozTW style guide prefers 您 for Taiwan, so a native zh-TW reviewer may reverse that choice (one replacement of about 133 occurrences). The forbidden-word check follows ZH_REGISTER.",
     evidence: ["chrome"],
   },
   {

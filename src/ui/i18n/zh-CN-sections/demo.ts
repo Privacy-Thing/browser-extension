@@ -30,7 +30,7 @@ export const demo = {
     realLocationGrantedDescription:
       "浏览器的当前位置现已显示在下方的地理位置行中，可供并排比较。",
     realLocationDeniedDescription:
-      "浏览器拒绝访问真实地理位置。如果权限发生变化，你可以重试。",
+      "浏览器拒绝访问真实地理位置。如果权限发生变化，您可以重试。",
     realLocationUnavailable: "无法比较真实位置，因为此浏览器在这里不提供地理位置。",
     realLocationRefresh: "重新获取真实位置",
   },
@@ -92,7 +92,7 @@ export const demo = {
     webRTCIcePolicy: "RTCPeerConnection ICE 策略",
     probePending: "正在收集…",
     notAvailable: "不可用",
-    spoofedMatchesLocal: "对于此身份，预览值与你的浏览器一致。",
+    spoofedMatchesLocal: "对于此身份，预览值与您的浏览器一致。",
     browserVersionNote: (versionToken: string) =>
       `${BRAND_DISPLAY_NAME} 保留规范化的浏览器版本标记，不会随机化 ${versionToken} 这类占位变体。`,
   },
@@ -136,8 +136,8 @@ export const demo = {
     title: "如何阅读此预览",
     body1:
       "<strong>语言、区域设置和时间</strong>——这些行显示所选预设会如何向网站呈现，而不会更改此演练场页面本身。",
-    body2: `<strong>地理位置</strong>——地图和位置行使用与受保护网站相同的移动和更新行为，因此你可以在分配预设之前预览更新时机和坐标变化。`,
-    body3: `<strong>浏览器值和标头</strong>——这些比较将你浏览器的当前值与 ${BRAND_DISPLAY_NAME} 在所选预设下会暴露的值并排显示，并遵循你在“设置”中使用的相同保护设置。`,
+    body2: `<strong>地理位置</strong>——地图和位置行使用与受保护网站相同的移动和更新行为，因此您可以在分配预设之前预览更新时机和坐标变化。`,
+    body3: `<strong>浏览器值和标头</strong>——这些比较将您浏览器的当前值与 ${BRAND_DISPLAY_NAME} 在所选预设下会暴露的值并排显示，并遵循您在“设置”中使用的相同保护设置。`,
     body4: "演练场的更新速度比正常浏览更快，便于在测试时发现变化。",
   },
 } as const;

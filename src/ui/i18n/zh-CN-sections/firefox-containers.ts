@@ -27,7 +27,7 @@ export const firefoxContainers = {
   inactiveBadge: "已删除",
   deletedContainerLabel: "已删除的容器",
   emptyTitle: "尚无 Firefox 容器",
-  emptyBody: `在此处或 Firefox 设置中创建你的第一个容器，然后为其分配一个 ${BRAND_DISPLAY_NAME} 预设。`,
+  emptyBody: `在此处或 Firefox 设置中创建您的第一个容器，然后为其分配一个 ${BRAND_DISPLAY_NAME} 预设。`,
   unavailableTitle: "Firefox 容器不可用",
   unavailableBody:
     "请开启 Firefox 容器，然后刷新列表。如果问题仍然存在，此 Firefox 版本可能不允许扩展管理容器。",
@@ -62,7 +62,7 @@ export const firefoxContainers = {
     identity: {
       sectionTitle: "身份",
       sectionDescription:
-        "此容器拥有自己的伪装身份。仅当你希望此容器获得新的指纹和干净的网站状态时，才需要轮换身份。",
+        "此容器拥有自己的伪装身份。仅当您希望此容器获得新的指纹和干净的网站状态时，才需要轮换身份。",
       actionDescription: "清除相关网站数据，并以新身份启动此容器。",
       actionLabel: "新身份",
       confirmTitle: (name: string) => `为“${name}”创建新身份？`,

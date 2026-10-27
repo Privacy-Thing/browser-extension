@@ -32,7 +32,7 @@ export const optionsPage = {
     items: {
       geolocation: {
         label: "地理位置",
-        description: `控制地理位置 API。开启后，${BRAND_DISPLAY_NAME} 会使用你当前的预设响应位置请求。关闭后，网站将获得浏览器真实的地理位置结果。`,
+        description: `控制地理位置 API。开启后，${BRAND_DISPLAY_NAME} 会使用您当前的预设响应位置请求。关闭后，网站将获得浏览器真实的地理位置结果。`,
         advancedButton: "高级",
         advancedModal: {
           title: "地理位置高级设置",
@@ -41,15 +41,15 @@ export const optionsPage = {
       },
       timeLocale: {
         label: "时间和区域设置",
-        description: `控制 Date、Intl、navigator.language、navigator.languages 和语言标头。开启后，${BRAND_DISPLAY_NAME} 会让这些值与你当前的预设保持一致。关闭后，网站将看到你浏览器真实的区域设置。`,
+        description: `控制 Date、Intl、navigator.language、navigator.languages 和语言标头。开启后，${BRAND_DISPLAY_NAME} 会让这些值与您当前的预设保持一致。关闭后，网站将看到您浏览器真实的区域设置。`,
       },
       canvas: {
         label: "Canvas",
-        description: `网站可以绘制隐藏图像，并利用细微的渲染差异来识别你的浏览器。开启后，${BRAND_DISPLAY_NAME} 会添加受控的噪声，使结果更难被当作指纹重复使用。关闭后，网站将获得你真实的 Canvas 输出。`,
+        description: `网站可以绘制隐藏图像，并利用细微的渲染差异来识别您的浏览器。开启后，${BRAND_DISPLAY_NAME} 会添加受控的噪声，使结果更难被当作指纹重复使用。关闭后，网站将获得您真实的 Canvas 输出。`,
       },
       webGL: {
         label: "WebGL",
-        description: `WebGL 会暴露图形相关细节，例如 GPU 型号、渲染器和驱动程序行为。开启后，${BRAND_DISPLAY_NAME} 会用符合你当前平台的一致配置替换这些线索。关闭后，网站可以读取更接近你真实设备的图形数据。`,
+        description: `WebGL 会暴露图形相关细节，例如 GPU 型号、渲染器和驱动程序行为。开启后，${BRAND_DISPLAY_NAME} 会用符合您当前平台的一致配置替换这些线索。关闭后，网站可以读取更接近您真实设备的图形数据。`,
       },
       audio: {
         label: "音频",
@@ -57,15 +57,15 @@ export const optionsPage = {
       },
       navigator: {
         label: "Navigator",
-        description: `Navigator 字段会暴露你的平台、语言设置、CPU 信息及其他浏览器身份数据。开启后，${BRAND_DISPLAY_NAME} 会掩盖所选的身份字段，同时保持它们内部一致。关闭后，网站将看到更多你真实的浏览器身份。`,
+        description: `Navigator 字段会暴露您的平台、语言设置、CPU 信息及其他浏览器身份数据。开启后，${BRAND_DISPLAY_NAME} 会掩盖所选的身份字段，同时保持它们内部一致。关闭后，网站将看到更多您真实的浏览器身份。`,
       },
       screen: {
         label: "屏幕",
-        description: `屏幕尺寸、像素比和色深可帮助网站将你的设备归入一个较小的设备群体。开启后，${BRAND_DISPLAY_NAME} 会掩盖这些确切的显示细节。关闭后，网站将获得你真实的屏幕属性。`,
+        description: `屏幕尺寸、像素比和色深可帮助网站将您的设备归入一个较小的设备群体。开启后，${BRAND_DISPLAY_NAME} 会掩盖这些确切的显示细节。关闭后，网站将获得您真实的屏幕属性。`,
       },
       clientHints: {
         label: "客户端提示",
-        description: `客户端提示通过请求标头和 JavaScript API 共享浏览器版本、平台和设备数据。开启后，${BRAND_DISPLAY_NAME} 会让这些值与你伪装的浏览器身份保持一致。关闭后，网站将获得你真实的浏览器和平台信息。`,
+        description: `客户端提示通过请求标头和 JavaScript API 共享浏览器版本、平台和设备数据。开启后，${BRAND_DISPLAY_NAME} 会让这些值与您伪装的浏览器身份保持一致。关闭后，网站将获得您真实的浏览器和平台信息。`,
       },
       battery: {
         label: "电池",
@@ -74,21 +74,21 @@ export const optionsPage = {
       clientHintsVersionRotation: {
         label: "轮换构建号和补丁号",
         description: (count: number) =>
-          `轮换通过客户端提示暴露的 Chromium 引擎构建号和补丁号，同时保留你已安装浏览器的主版本号。${BRAND_DISPLAY_NAME} 内置了最近 Chromium 构建的目录；对于此浏览器版本，它可以从 ${count} 个匹配条目中选择。精简后的 User-Agent 字符串保持浏览器原生的隐私保护格式 .0.0.0。`,
+          `轮换通过客户端提示暴露的 Chromium 引擎构建号和补丁号，同时保留您已安装浏览器的主版本号。${BRAND_DISPLAY_NAME} 内置了最近 Chromium 构建的目录；对于此浏览器版本，它可以从 ${count} 个匹配条目中选择。精简后的 User-Agent 字符串保持浏览器原生的隐私保护格式 .0.0.0。`,
         hintPrefix: "例如：",
         hint: "139.0.[构建号].[补丁号]",
       },
       webRTC: {
         label: "WebRTC",
-        description: `即使你使用 VPN 或代理，WebRTC 也可能暴露本地或公网 IP 地址。开启后，${BRAND_DISPLAY_NAME} 会要求浏览器使用最严格的 IP 处理模式。关闭后，WebRTC 将正常运行，这可能会暴露更多网络信息。`,
+        description: `即使您使用 VPN 或代理，WebRTC 也可能暴露本地或公网 IP 地址。开启后，${BRAND_DISPLAY_NAME} 会要求浏览器使用最严格的 IP 处理模式。关闭后，WebRTC 将正常运行，这可能会暴露更多网络信息。`,
       },
       serviceWorker: {
         label: "Service Worker",
-        description: `Service Worker 在后台运行，可能让网站保留长期数据和标识符。如果你希望 ${BRAND_DISPLAY_NAME} 默认在所有网站上阻止注册 Service Worker，请开启此选项。`,
+        description: `Service Worker 在后台运行，可能让网站保留长期数据和标识符。如果您希望 ${BRAND_DISPLAY_NAME} 默认在所有网站上阻止注册 Service Worker，请开启此选项。`,
         warning:
           "阻止 Service Worker 可能导致可安装的 Web 应用（PWA）、离线模式、推送通知和后台同步无法正常工作。某些应用还可能运行变慢或丢失功能。",
         defaultState:
-          "默认不阻止——你可以全局开启阻止，然后通过域名规则为特定域名允许 Service Worker。",
+          "默认不阻止——您可以全局开启阻止，然后通过域名规则为特定域名允许 Service Worker。",
         allow: "允许",
         block: "阻止",
       },
@@ -118,7 +118,7 @@ export const optionsPage = {
   copyLinkHelpLabel: "选项帮助",
   help: {
     title: "选项",
-    body1: `浏览器保护让你选择 ${BRAND_DISPLAY_NAME} 默认伪装哪些值。除非域名规则或 Firefox 容器另有设置，否则这些设置会影响所有网站。`,
-    body2: `关闭后，不会发出位置搜索或地图预览请求，${BRAND_DISPLAY_NAME} 仍可正常工作——你只需手动添加位置。Control D 的网络请求由其集成设置控制。`,
+    body1: `浏览器保护让您选择 ${BRAND_DISPLAY_NAME} 默认伪装哪些值。除非域名规则或 Firefox 容器另有设置，否则这些设置会影响所有网站。`,
+    body2: `关闭后，不会发出位置搜索或地图预览请求，${BRAND_DISPLAY_NAME} 仍可正常工作——您只需手动添加位置。Control D 的网络请求由其集成设置控制。`,
   },
 } as const;

@@ -42,7 +42,7 @@ const zhCN: FeatureMessages = {
   add: "添加",
   update: "更新",
   remove: "移除",
-  automaticMatching: `添加或编辑域名规则时，${BRAND_DISPLAY_NAME} 会推荐匹配的 Control D 服务。${BRAND_DISPLAY_NAME} 仅保护你规则中的域名；Control D 服务可能还涵盖其他域名。`,
+  automaticMatching: `添加或编辑域名规则时，${BRAND_DISPLAY_NAME} 会推荐匹配的 Control D 服务。${BRAND_DISPLAY_NAME} 仅保护您规则中的域名；Control D 服务可能还涵盖其他域名。`,
 };
 const zhTW: FeatureMessages = {
   serviceChanges: "DNS 服務規則",
