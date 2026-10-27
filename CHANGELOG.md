@@ -154,6 +154,11 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ### Fixed
 
+- Privacy and Options text no longer calls location search and map previews the
+  only optional network requests or says the extension stays offline. It now
+  describes map access only and points to integrations such as Control D, which
+  have their own settings.
+
 - Editing a regional preset that rules use no longer shows a large "still assigned"
   warning above the map and fields. Delete stays reachable by mouse, keyboard and
   touch; for a used preset it opens an alert that names how many rules use the
