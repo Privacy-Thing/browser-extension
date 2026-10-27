@@ -21,7 +21,7 @@ export const locations = {
     body1:
       "在将已保存的预设分配给网站之前进行预览。演练场会使用与受保护网站相同的地理位置行为，显示其区域设置、时区、日期格式和伪装坐标。",
     body2:
-      "默认情况下，演练场每 2 到 5 秒更新一次伪装的地理位置，便于观察移动。真实网站则使用你配置的“位置跟踪延迟”。",
+      "默认情况下，演练场每 2 到 5 秒更新一次伪装的地理位置，便于观察移动。真实网站则使用您配置的“位置跟踪延迟”。",
   },
 
   help: {
@@ -32,7 +32,7 @@ export const locations = {
     body3:
       "已保存的区域预设会更改浏览器层面的值，例如地理位置、区域设置和时区。它本身不会路由流量。配置 Control D 后，已同步的域名规则可以使用匹配的出口。",
     privacyTitle: "隐私",
-    privacyBody: `搜索和地图预览是可选的。只有在你允许后，${BRAND_DISPLAY_NAME} 才会连接 OpenStreetMap Nominatim 进行搜索，并连接 OpenFreeMap 显示交互式地图预览。`,
+    privacyBody: `搜索和地图预览是可选的。只有在您允许后，${BRAND_DISPLAY_NAME} 才会连接 OpenStreetMap Nominatim 进行搜索，并连接 OpenFreeMap 显示交互式地图预览。`,
     networkTitle: "网络限制",
     networkBodyPrefix: "需要在网络层面更改位置？请使用 VPN、代理或 DNS 工具。请参阅“",
     networkBodyLinkLabel: PRODUCT_NOT_LOWER,
@@ -44,9 +44,9 @@ export const locations = {
     mismatch: (saved: string, suggested: string) =>
       `时区 ${saved} 与建议的 ${suggested} 不同。`,
     approximation:
-      "你可以保留自己的选择。更改时区不会改变语言。在边境附近和海上，建议的时区只是近似值。",
+      "您可以保留自己的选择。更改时区不会改变语言。在边境附近和海上，建议的时区只是近似值。",
     outsideLand:
-      "这些坐标位于陆地之外，因此不提供时区建议。请检查纬度和经度；你所选的时区保持不变。",
+      "这些坐标位于陆地之外，因此不提供时区建议。请检查纬度和经度；您所选的时区保持不变。",
     applyTimeZone: (zone: string) => `使用 ${zone}`,
     scope:
       "这些值在时间和语言保护开启时显示。域名规则可能会停用此保护。“优先使用英语”会更改网站语言；日期和数字仍保留区域格式。",
@@ -59,7 +59,7 @@ export const locations = {
     number: "数字示例",
     samples:
       "示例使用 2026 年 1 月 15 日和 7 月 15 日 12:34:56 UTC 的时间，以及数字 1234567.89。",
-    unavailable: "预览不可用。请检查时区和语言；你的草稿未更改。",
+    unavailable: "预览不可用。请检查时区和语言；您的草稿未更改。",
   },
 
   editor: {
@@ -71,7 +71,7 @@ export const locations = {
     deleteBlockedListLabel: "使用此预设的规则",
     disabledDependencySuffix: "（关闭）",
     mapDisabledTitle: "地图已停用",
-    mapDisabledBody: "由于你未允许外部地图请求，地图预览未加载。",
+    mapDisabledBody: "由于您未允许外部地图请求，地图预览未加载。",
     geolocationSectionTitle: "地理位置",
     geolocationSectionDescription: "坐标、精确度，以及伪装位置允许的最大偏移范围。",
     localeSectionTitle: "时间和语言",
@@ -102,14 +102,14 @@ export const locations = {
     locationLabel: "位置",
     locationPlaceholder: "波兰华沙",
     osmDisclaimer:
-      "搜索查询使用外部 OpenStreetMap Nominatim API。在你同意后，交互式预览会使用 OpenFreeMap 的矢量瓦片和字体。",
+      "搜索查询使用外部 OpenStreetMap Nominatim API。在您同意后，交互式预览会使用 OpenFreeMap 的矢量瓦片和字体。",
     resultSelectLabel: "搜索结果",
     resultStepBody:
-      "OpenStreetMap 返回了多个可能的匹配项。请选择你要找的地点，然后继续。",
+      "OpenStreetMap 返回了多个可能的匹配项。请选择您要找的地点，然后继续。",
     resultStepHint: "请选择一个结果以继续。",
     languageSelectLabel: "浏览器语言",
-    languageStepBody: "此地点有多种可用的浏览器语言。请选择你希望此预设使用的语言。",
-    languageStepHint: "如果下方没有列出你想要的语言，可以在下一步中选择其他语言。",
+    languageStepBody: "此地点有多种可用的浏览器语言。请选择您希望此预设使用的语言。",
+    languageStepHint: "如果下方没有列出您想要的语言，可以在下一步中选择其他语言。",
     resultPrefix: "结果：",
   },
 } as const;

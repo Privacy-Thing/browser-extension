@@ -19,7 +19,7 @@ export const advanced = {
     enabled: {
       title: "新建区域预设时随机化坐标",
       description:
-        "将此设置用作生成预设的默认值。需要精确坐标时，你仍可在每次操作中将其关闭。",
+        "将此设置用作生成预设的默认值。需要精确坐标时，您仍可在每次操作中将其关闭。",
       readWhy: "了解原因。",
       tooltipPrivacy: `${BRAND_DISPLAY_NAME} 注重隐私。预设应当易于使用，但重复使用目录或搜索结果中的精确坐标，可能会让 ${BRAND_DISPLAY_NAME} 用户更容易被识别。`,
       tooltipExact: "需要特定位置？关闭此开关后，预设将使用精确坐标。",
@@ -72,20 +72,20 @@ export const advanced = {
     domainFencing: {
       title: "域名隔离",
       description:
-        "当默认规则或 Firefox 容器生效时，每个网站都会获得各自稳定的指纹。你的区域预设保持不变。",
+        "当默认规则或 Firefox 容器生效时，每个网站都会获得各自稳定的指纹。您的区域预设保持不变。",
       copyLinkLabel: "域名隔离",
     },
   },
 
   privacy: {
     title: "隐私",
-    description: `${BRAND_DISPLAY_NAME} 在你的设备上运行，不会将你的浏览数据发送到任何地方。位置搜索和地图预览是设置区域预设时唯一可选的网络请求。Control D 等集成有各自独立的设置。`,
+    description: `${BRAND_DISPLAY_NAME} 在您的设备上运行，不会将您的浏览数据发送到任何地方。位置搜索和地图预览是设置区域预设时唯一可选的网络请求。Control D 等集成有各自独立的设置。`,
     copyLinkLabel: "隐私",
 
     osmConsent: {
       title: externalMapConsentCopy.title,
       description: externalMapConsentCopy.description,
-      stateUnknown: `你尚未作出选择。${BRAND_DISPLAY_NAME} 在连接外部地图服务之前会先询问你。`,
+      stateUnknown: `您尚未作出选择。${BRAND_DISPLAY_NAME} 在连接外部地图服务之前会先询问您。`,
       statePrefix: "外部地图访问",
       stateEnabled: "已启用——可以加载位置搜索和地图预览",
       stateDisabled: `已停用——不会加载位置搜索和地图预览`,
@@ -116,7 +116,7 @@ export const advanced = {
     reduceMotion: {
       title: "减少动画",
       description: `关闭 ${BRAND_DISPLAY_NAME} 中的所有界面动画。`,
-      systemOverride: "你的系统无障碍设置已启用“减少动画”。",
+      systemOverride: "您的系统无障碍设置已启用“减少动画”。",
       copyLinkLabel: "减少动画",
     },
 
@@ -147,12 +147,12 @@ export const advanced = {
 
   danger: {
     title: "危险区域",
-    description: `这些操作可能会替换、删除或恢复你在本地保存的 ${BRAND_DISPLAY_NAME} 设置和数据。`,
+    description: `这些操作可能会替换、删除或恢复您在本地保存的 ${BRAND_DISPLAY_NAME} 设置和数据。`,
     copyLinkLabel: "危险区域",
 
     spoofing: {
       title: TURN_OFF_PRODUCT,
-      description: `关闭 ${BRAND_DISPLAY_NAME} 的所有保护，直到你重新开启。`,
+      description: `关闭 ${BRAND_DISPLAY_NAME} 的所有保护，直到您重新开启。`,
       copyLinkLabel: TURN_OFF_PRODUCT,
     },
 
@@ -179,11 +179,11 @@ export const advanced = {
 
     reset: {
       title: "重置",
-      description: "恢复初始默认设置，并移除你的自定义预设和规则。",
+      description: "恢复初始默认设置，并移除您的自定义预设和规则。",
       button: "重置设置",
       copyLinkLabel: "重置设置",
       confirmTitle: "要重置设置吗？",
-      confirmBody: "此操作将永久删除你保存的预设、规则和自定义设置，且无法撤消。",
+      confirmBody: "此操作将永久删除您保存的预设、规则和自定义设置，且无法撤消。",
       onboardingToggleLabel: "重置后再次运行设置向导",
       onboardingToggleDescription: "清除设置后，重新打开首次运行设置向导。",
     },
@@ -191,8 +191,8 @@ export const advanced = {
 
   help: {
     title: "高级",
-    body1: `使用“高级”可以微调保护、暂时关闭 ${BRAND_DISPLAY_NAME}，或管理你在本地保存的设置和数据。`,
+    body1: `使用“高级”可以微调保护、暂时关闭 ${BRAND_DISPLAY_NAME}，或管理您在本地保存的设置和数据。`,
     body2:
-      "导入、导出、重新加载和重置可帮助你在浏览器之间迁移设置、从错误中恢复，或在出现不同步时恢复已保存的设置。",
+      "导入、导出、重新加载和重置可帮助您在浏览器之间迁移设置、从错误中恢复，或在出现不同步时恢复已保存的设置。",
   },
 } as const;

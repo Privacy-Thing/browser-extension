@@ -3,14 +3,14 @@
 export type ZhVariant = "zh-CN" | "zh-TW";
 
 /**
- * Second-person pronoun per catalog. To switch zh-CN to the polite form, set
- * `use: "您", avoid: "你"` and replace 你 with 您 in the zh-CN catalogs and the zh-CN
- * release notices (about 146 occurrences, one mechanical replacement); the copy test
- * then confirms that nothing else changed.
+ * Second-person pronoun per catalog, enforced as a required-use and forbidden-word
+ * check. zh-CN uses the polite 您 (Chromium and Mozilla support zh-CN do); zh-TW keeps the
+ * plain 你 (Chromium zh-TW does). Changing a catalog is `use`/`avoid` here plus one
+ * replacement of the pronoun in that catalog and its release notices.
  */
 export const ZH_REGISTER: Readonly<Record<ZhVariant, { use: string; avoid: string }>> =
   {
-    "zh-CN": { use: "你", avoid: "您" },
+    "zh-CN": { use: "您", avoid: "你" },
     "zh-TW": { use: "你", avoid: "您" },
   };
 

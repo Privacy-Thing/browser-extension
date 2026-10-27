@@ -3,7 +3,7 @@ import { BRAND_DISPLAY_NAME } from "@/shared/brand";
 export const sharedWorkerModeCopy = {
   native: {
     label: "原生",
-    description: `正常运行 Shared Worker，不使用 ${BRAND_DISPLAY_NAME} 保护。这样兼容性最好，但 Worker 可以读取你浏览器的真实值。`,
+    description: `正常运行 Shared Worker，不使用 ${BRAND_DISPLAY_NAME} 保护。这样兼容性最好，但 Worker 可以读取您浏览器的真实值。`,
   },
   spoof: {
     label: "伪装",
@@ -18,7 +18,7 @@ export const sharedWorkerModeCopy = {
 export const workerHandlingModeCopy = {
   native: {
     label: "原生",
-    description: `正常运行专用 Worker 和 Shared Worker，不使用 ${BRAND_DISPLAY_NAME} 保护。这样兼容性最好，但 Worker 可以读取你浏览器的真实值。`,
+    description: `正常运行专用 Worker 和 Shared Worker，不使用 ${BRAND_DISPLAY_NAME} 保护。这样兼容性最好，但 Worker 可以读取您浏览器的真实值。`,
   },
   spoof: {
     label: "伪装",
