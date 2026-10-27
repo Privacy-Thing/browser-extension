@@ -1,100 +1,99 @@
 import { BRAND_DISPLAY_NAME } from "@/shared/brand";
 
-const ABOUT_PRODUCT = `About ${BRAND_DISPLAY_NAME}`;
-const ABOUT_PRODUCT_LOWER = `about ${BRAND_DISPLAY_NAME}`;
-const HOW_TO_USE_PRODUCT = `How to use ${BRAND_DISPLAY_NAME}`;
-const HOW_TO_USE_PRODUCT_LOWER = `how to use ${BRAND_DISPLAY_NAME}`;
-const WHAT_PRODUCT_IS_NOT = `What ${BRAND_DISPLAY_NAME} is not`;
-const PRODUCT_NOT_LOWER = `what ${BRAND_DISPLAY_NAME} is not`;
-const TERMS_OF_USE = "Terms of Use";
+const ABOUT_PRODUCT = `关于 ${BRAND_DISPLAY_NAME}`;
+const ABOUT_PRODUCT_LOWER = `关于 ${BRAND_DISPLAY_NAME}`;
+const HOW_TO_USE_PRODUCT = `如何使用 ${BRAND_DISPLAY_NAME}`;
+const HOW_TO_USE_PRODUCT_LOWER = `如何使用 ${BRAND_DISPLAY_NAME}`;
+const WHAT_PRODUCT_IS_NOT = `${BRAND_DISPLAY_NAME} 不是什么`;
+const PRODUCT_NOT_LOWER = `${BRAND_DISPLAY_NAME} 不是什么`;
+const TERMS_OF_USE = "使用条款";
 
 export const about = {
   title: ABOUT_PRODUCT,
-  description: `${BRAND_DISPLAY_NAME} helps you control how websites see your location, locale, time zone, and selected browser identity details.`,
+  description: `${BRAND_DISPLAY_NAME} 帮助你控制网站如何看到你的位置、区域设置、时区和部分浏览器身份信息。`,
   body1:
-    "Each saved regional preset bundles coordinates, language preferences, and a target time zone into a reusable setup that you can apply across selected domains without rebuilding it every time.",
-  body2: `Your changes are saved automatically. Updated presets and rules take effect on the next page load, so ${BRAND_DISPLAY_NAME} can apply the new setup from the start.`,
-  body3Prefix: "You can find shared browser protection controls in the",
-  body3LinkLabel: "Options tab",
-  body3Suffix: ".",
+    "每个已保存的区域预设都将坐标、语言偏好和目标时区组合成一套可重复使用的配置，你可以将其应用到所选域名，而无需每次重新创建。",
+  body2: `你的更改会自动保存。更新后的预设和规则将在下次加载页面时生效，以便 ${BRAND_DISPLAY_NAME} 从一开始就应用新配置。`,
+  body3Prefix: "共享的浏览器保护控件位于",
+  body3LinkLabel: "“选项”标签页",
+  body3Suffix: "。",
   website: {
-    prefix: "You can visit the ",
-    linkLabel: `${BRAND_DISPLAY_NAME} website`,
+    prefix: "你可以访问 ",
+    linkLabel: `${BRAND_DISPLAY_NAME} 网站`,
     url: "https://privacything.com",
-    suffix: " for project news, downloads, and more information.",
+    suffix: "，了解项目动态、下载和更多信息。",
   },
-  versionLabel: "Version",
-  browserTargetLabel: "Browser target",
-  releaseChannelLabel: "Release channel",
+  versionLabel: "版本",
+  browserTargetLabel: "目标浏览器",
+  releaseChannelLabel: "发布渠道",
   copyLinkLabel: ABOUT_PRODUCT_LOWER,
-  copyLinkTermsLabel: "terms of use",
-  copyLinkPrivacyLabel: "about privacy",
+  copyLinkTermsLabel: "使用条款",
+  copyLinkPrivacyLabel: "关于隐私",
   copyLinkLimitationsLabel: PRODUCT_NOT_LOWER,
-  copyLinkLicenseLabel: "license",
-  copyLinkAssetsLabel: "third-party assets",
+  copyLinkLicenseLabel: "许可证",
+  copyLinkAssetsLabel: "第三方资源",
   copyLinkUsageLabel: HOW_TO_USE_PRODUCT_LOWER,
   releaseChannels: {
-    local: "Local",
+    local: "本地",
     beta: "Beta",
-    stable: "Stable",
+    stable: "稳定版",
   },
 
   support: {
     url: "https://webh.pl",
-    logoLinkAriaLabel: "Open webh.pl",
-    bodyPrefix: `${BRAND_DISPLAY_NAME} grows with support from `,
+    logoLinkAriaLabel: "打开 webh.pl",
+    bodyPrefix: `${BRAND_DISPLAY_NAME} 的发展得到了 `,
     linkLabel: "webh.pl",
-    bodySuffix: " — fast, flexible infrastructure for ambitious projects.",
+    bodySuffix: " 的支持——为有抱负的项目提供快速、灵活的基础设施。",
   },
 
   terms: {
     title: TERMS_OF_USE,
-    body1: `${BRAND_DISPLAY_NAME} is provided “as is”, without warranty of any kind.`,
-    body2: `${BRAND_DISPLAY_NAME} helps users locally control selected browser-exposed location, locale, time zone, and related data. It is not a VPN, proxy, anonymity tool, security product, or guarantee of undetectability.`,
-    body3: `Use ${BRAND_DISPLAY_NAME} at your own risk. You are responsible for complying with applicable laws, website terms, workplace policies, and platform rules.`,
+    body1: `${BRAND_DISPLAY_NAME} 按“原样”提供，不附带任何形式的保证。`,
+    body2: `${BRAND_DISPLAY_NAME} 帮助用户在本地控制浏览器暴露的部分位置、区域设置、时区及相关数据。它不是 VPN、代理、匿名工具或安全产品，也不保证不被检测到。`,
+    body3: `使用 ${BRAND_DISPLAY_NAME} 的风险由你自行承担。你有责任遵守适用的法律、网站条款、工作场所政策和平台规则。`,
   },
 
   privacy: {
-    title: "Privacy",
-    body: `${BRAND_DISPLAY_NAME} stores settings and saved configuration locally. Optional map services receive search and map requests after consent. If you enable Control D, domain-rule hostnames, selected exits and managed resource names are sent to Control D. See the privacy policy for details.`,
-    openPolicyButton: "Open privacy policy",
+    title: "隐私",
+    body: `${BRAND_DISPLAY_NAME} 将设置和已保存的配置存储在本地。可选的地图服务在你同意后会收到搜索和地图请求。如果你启用 Control D，域名规则的主机名、所选出口和受管理资源的名称会发送给 Control D。详情请参阅隐私政策。`,
+    openPolicyButton: "打开隐私政策",
   },
 
   limitations: {
     title: WHAT_PRODUCT_IS_NOT,
-    intro: `${BRAND_DISPLAY_NAME} changes browser-visible data such as geolocation, locale, time zone, and selected fingerprint details. Its spoofing does not route traffic. The optional Control D integration syncs regional rules; Control D routes traffic after you configure its resolver.`,
+    intro: `${BRAND_DISPLAY_NAME} 会更改通过浏览器可见的数据，例如地理位置、区域设置、时区和部分指纹细节。它的伪装不会路由流量。可选的 Control D 集成会同步区域规则；在你配置其解析器后，由 Control D 路由流量。`,
     body1:
-      "Browser-level spoofing alone does not hide or replace your IP address. A configured Control D resolver can route selected sites through its exits.",
-    body2: "It does not replace a VPN, proxy, or DNS-based routing setup.",
-    body3:
-      "It does not make websites see your connection as coming from another country on its own.",
-    outro: `Use ${BRAND_DISPLAY_NAME} for browser-level spoofing. Use VPN, proxy, or DNS tools when you need network-level location changes.`,
+      "仅靠浏览器层面的伪装，无法隐藏或替换你的 IP 地址。已配置的 Control D 解析器可以将所选网站的流量经由其出口路由。",
+    body2: "它不能替代 VPN、代理或基于 DNS 的路由配置。",
+    body3: "它本身不能让网站认为你的连接来自另一个国家。",
+    outro: `使用 ${BRAND_DISPLAY_NAME} 进行浏览器层面的伪装。需要在网络层面更改位置时，请使用 VPN、代理或 DNS 工具。`,
   },
 
   license: {
-    title: "License",
-    creatorPrefix: "This project was created by ",
+    title: "许可证",
+    creatorPrefix: "本项目的创建者是 ",
     creatorLabel: "Tomasz Janusz",
     creatorUrl: "https://tomaszjanusz.dev",
-    creatorSuffix: ".",
-    copyright: "Copyright © 2025-present.",
-    body: `${BRAND_DISPLAY_NAME} is available under the GNU Affero General Public License v3.0 or later, with additional terms.`,
-    openLicenseButton: "Open license",
+    creatorSuffix: "。",
+    copyright: "版权所有 © 2025 至今。",
+    body: `${BRAND_DISPLAY_NAME} 依据 GNU Affero General Public License v3.0 或更高版本提供，并附有附加条款。`,
+    openLicenseButton: "打开许可证",
   },
 
   assets: {
-    title: "Third-party assets",
-    body: `Review the bundled third-party components and open the license texts shipped with ${BRAND_DISPLAY_NAME}.`,
-    openNoticesButton: "Open third-party notices",
+    title: "第三方资源",
+    body: `查看 ${BRAND_DISPLAY_NAME} 内置的第三方组件，并打开随附的许可证文本。`,
+    openNoticesButton: "打开第三方声明",
     fontAwesome: {
       label: "Font Awesome Free 7.2.0",
       url: "https://fontawesome.com",
-      body: " by Font Awesome / Fonticons, Inc. is licensed under CC BY 4.0, SIL OFL 1.1, and MIT.",
+      body: " 由 Font Awesome / Fonticons, Inc. 提供，采用 CC BY 4.0、SIL OFL 1.1 和 MIT 许可证。",
     },
     mapLibre: {
       label: "MapLibre GL JS",
       url: "https://maplibre.org/maplibre-gl-js/docs/",
-      body: " is bundled locally for vector map rendering.",
+      body: " 已内置在本地，用于渲染矢量地图。",
     },
     openFreeMap: {
       label: "OpenFreeMap",
@@ -107,62 +106,61 @@ export const about = {
     osmWikiCountryCodes: {
       label: "OpenStreetMap Wiki: Nominatim/Country Codes",
       url: "https://wiki.openstreetmap.org/wiki/Nominatim/Country_Codes",
-      body: " provides the country-to-language defaults used during preset generation.",
+      body: " 提供生成预设时使用的国家与语言默认对应关系。",
       licenseLabel: "CC BY-SA 2.0",
       licenseUrl: "https://wiki.openstreetmap.org/wiki/Wiki_content_license",
-      licenseBody: " applies to that wiki content and is attributed here accordingly.",
+      licenseBody: " 适用于该 Wiki 内容，此处据此注明出处。",
     },
-    mapPreviewsPrefix: "Interactive map previews use ",
-    mapPreviewsMiddle: " services with ",
-    mapPreviewsSuffix: " contributor attribution shown on the map.",
+    mapPreviewsPrefix: "交互式地图预览使用 ",
+    mapPreviewsMiddle: " 服务，地图上显示 ",
+    mapPreviewsSuffix: " 贡献者署名。",
 
     localData: {
-      title: "Local datasets",
-      body: `${BRAND_DISPLAY_NAME} ships with small local databases built from processed public data, so spoofed values stay statistically realistic. Nothing is fetched from the internet — these are locally bundled snapshots, refreshed with each extension update.`,
+      title: "本地数据集",
+      body: `${BRAND_DISPLAY_NAME} 内置了基于经过处理的公开数据构建的小型本地数据库，使伪装值在统计上保持真实。不会从互联网获取任何内容——这些是内置在本地的快照，每次扩展更新时一并更新。`,
       steam: {
         label: "Steam Hardware & Software Survey",
         url: "https://store.steampowered.com/hwsurvey/",
-        body: " (Valve) provides the Windows, Linux, and macOS screen-resolution, CPU-core, and RAM distributions used for local hardware profiles.",
+        body: "（Valve）提供本地硬件配置所用的 Windows、Linux 和 macOS 屏幕分辨率、CPU 核心数和内存分布。",
       },
       chromiumDash: {
         label: "ChromiumDash",
         url: "https://chromiumdash.appspot.com/",
-        body: " provides the real Chrome release versions used for User-Agent and Client Hints.",
+        body: " 提供用于 User-Agent 和客户端提示的真实 Chrome 发布版本号。",
       },
       localeCatalog: {
-        prefix: "The ",
+        prefix: "来自 ",
         mozilla: {
           label: "Mozilla",
           url: "https://github.com/mozilla-firefox/firefox/blob/main/intl/locale/language.properties",
         },
-        middle: " and ",
+        middle: " 和 ",
         chromium: {
           label: "Chromium",
           url: "https://github.com/chromium/chromium/blob/main/ui/base/l10n/l10n_util.cc",
         },
-        body: " locale catalogs provide language display names aligned with each browser engine.",
+        body: " 的区域设置目录提供与各浏览器引擎一致的语言显示名称。",
       },
     },
   },
 
   projectLinks: {
-    description: `${BRAND_DISPLAY_NAME} lives outside the extension too. Visit the website, browse the code, or let me know when something isn’t working.`,
-    websiteLabel: "Website",
+    description: `${BRAND_DISPLAY_NAME} 不止存在于扩展之中。你可以访问网站、浏览代码，或在出现问题时告诉我。`,
+    websiteLabel: "网站",
     websiteUrl: "https://privacything.com",
-    sourceLabel: "Source",
+    sourceLabel: "源代码",
     sourceUrl: "https://github.com/Privacy-Thing/browser-extension",
-    reportBugLabel: "Report bug",
+    reportBugLabel: "报告错误",
     reportBugUrl:
       "https://github.com/Privacy-Thing/browser-extension/issues/new?template=bug_report.yml",
   },
 
   usage: {
     title: HOW_TO_USE_PRODUCT,
-    body1:
-      "Start by generating a regional preset from a searched place when you want a fast, realistic starting point.",
-    body2: `Keep one saved regional preset per real-world place you want ${BRAND_DISPLAY_NAME} to imitate, then assign websites to the matching preset.`,
+    body1: "如果你想要一个快速、真实的起点，可以先根据搜索到的地点生成区域预设。",
+    body2: `为每个希望 ${BRAND_DISPLAY_NAME} 模拟的真实地点保存一个区域预设，然后将网站分配给对应的预设。`,
     body3:
-      "Use the popup for quick domain assignment. Open Settings when you want the full control panel for presets and rules.",
-    body4: `Explore Options and Advanced when you want more control over how ${BRAND_DISPLAY_NAME} behaves.`,
+      "使用弹出窗口快速分配域名。需要管理预设和规则的完整控制面板时，请打开“设置”。",
+    body4: `需要进一步控制 ${BRAND_DISPLAY_NAME} 的行为时，请查看“选项”和“高级”。`,
   },
 } as const;

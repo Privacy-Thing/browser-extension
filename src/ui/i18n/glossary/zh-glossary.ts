@@ -71,6 +71,15 @@ export type ZhSourceId = keyof typeof ZH_GLOSSARY_SOURCES;
 
 export const ZH_GLOSSARY: readonly ZhGlossaryEntry[] = [
   {
+    id: "register",
+    english: "you (form of address)",
+    "zh-CN": { term: "你", forbidden: ["您"] },
+    "zh-TW": { term: "你", forbidden: ["您"] },
+    rationale:
+      "One register across the interface: the plain 你 that Google uses in zh-TW and that short UI copy reads naturally with. Firefox and Chrome zh-CN use the polite 您; switching means changing every message, not mixing.",
+    evidence: ["chrome"],
+  },
+  {
     id: "domain",
     english: "Domain",
     required: /\bdomains?\b/i,
@@ -289,7 +298,7 @@ export const ZH_GLOSSARY: readonly ZhGlossaryEntry[] = [
   {
     id: "language",
     english: "Language",
-    required: /\blanguages?\b/i,
+    required: /(?<!-)\blanguages?\b/i,
     "zh-CN": { term: "语言" },
     "zh-TW": { term: "語言" },
     rationale: "Standard browser term.",
@@ -383,9 +392,10 @@ export const ZH_GLOSSARY: readonly ZhGlossaryEntry[] = [
     id: "reload",
     english: "Reload",
     required: /\breload/i,
-    "zh-CN": { term: "重新加载", forbidden: ["刷新"] },
-    "zh-TW": { term: "重新載入", forbidden: ["重新整理"] },
-    rationale: "Chrome and Firefox: 重新加载 / 重新載入.",
+    "zh-CN": { term: "重新加载" },
+    "zh-TW": { term: "重新載入" },
+    rationale:
+      "Reloading a page: 重新加载 / 重新載入 (Chrome, Firefox). Refreshing a list or preview may use 刷新 / 重新整理.",
     evidence: ["chrome", "firefox", "ublock"],
   },
   {
@@ -436,6 +446,10 @@ export const ZH_GLOSSARY: readonly ZhGlossaryEntry[] = [
     id: "privacy-policy",
     english: "Privacy policy",
     required: /\bprivacy policy\b/i,
+    exempt: {
+      "popup.pauseLimits":
+        "“WebRTC privacy policy” is a browser network setting, not the legal document: 隐私策略 / 隱私設定.",
+    },
     "zh-CN": { term: "隐私政策" },
     "zh-TW": { term: "隱私權政策" },
     rationale: "Mullvad, uBlock Origin (zh-CN) and Chrome (zh-TW).",

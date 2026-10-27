@@ -309,10 +309,9 @@ const chineseEntries = (variant: ZhVariant) => [
 
 // ─── Technical strings ─────────────────────────────────────────────────────────
 
-/** Paths whose value is code, a URL or a proper name and must equal English. */
+/** Paths whose value is a proper name and must equal English. */
 const IDENTICAL_PATHS: readonly RegExp[] = [
   /^sidebar\.accessed\.methods\./,
-  /(?:^|\.)(?:url|[a-z]*Url)$/,
   /^about\.(?:assets|localData)\..*\.label$/,
   /^about\.assets\.localData\.[a-zA-Z]+\.label$/,
   /^about\.assets\.localeCatalog\.(?:mozilla|chromium)\.label$/,
@@ -321,8 +320,18 @@ const IDENTICAL_PATHS: readonly RegExp[] = [
   /^about\.support\.linkLabel$/,
 ];
 
-const isIdenticalPath = (path: string) =>
-  IDENTICAL_PATHS.some((pattern) => pattern.test(path));
+/** URLs and JavaScript expressions such as `navigator.language` stay as they are. */
+const TECHNICAL_VALUE =
+  /^(?:https?:\/\/\S+|(?:new )?[A-Za-z_$][\w$]*(?:(?:\.|…)[\w$]+|\(\))+(?:\.[\w$]+|\(\))*)$/;
+
+const isIdentical = (entry: Pick<Entry, "path" | "english">) =>
+  IDENTICAL_PATHS.some((pattern) => pattern.test(entry.path)) ||
+  TECHNICAL_VALUE.test(entry.english);
+
+/** Paths allowed to keep English words, with the reason. */
+const LEFTOVER_EXEMPT: Readonly<Record<string, string>> = {
+  "controlD.intro.names": "Discloses the literal Control D resource names.",
+};
 
 /** English allowed inside Chinese text: brands, platforms, API names, units, codes. */
 const ALLOWED_LATIN = new Set(
@@ -379,6 +388,7 @@ const ALLOWED_LATIN = new Set(
     "Intl",
     "Date",
     "Navigator",
+    "navigator",
     "Worker",
     "Workers",
     "Web",
@@ -414,7 +424,37 @@ const ALLOWED_LATIN = new Set(
     "TLD",
     "no_log",
     "localhost",
-  ].flatMap((value) => value.split(/\s+/)),
+    "Cookie",
+    "Cookies",
+    "IndexedDB",
+    "Cache Storage",
+    "localStorage",
+    "sessionStorage",
+    "AudioContext",
+    "AnalyserNode",
+    "AudioBuffer",
+    "RTCPeerConnection",
+    "BatteryManager",
+    "SharedWorker",
+    "ServiceWorker",
+    "userScripts",
+    "Geolocation",
+    "Sec-CH-UA",
+    "Sec-CH-UA-Platform",
+    "Sec-CH-UA-Mobile",
+    "Sec-CH-UA-Full-Version-List",
+    "Unix",
+    "Font Awesome",
+    "Fonticons, Inc.",
+    "GNU Affero General Public License",
+    "AGPL",
+    "SIL",
+    "OFL",
+    "MIT",
+    "GeoWarp",
+  ]
+    .flatMap((value) => value.split(/\s+/))
+    .map((word) => word.replace(/[.,:)]+$/, "")),
 );
 
 const CODE_TOKEN = /[A-Za-z0-9_$]*[._/()[\]<>=:@#-][A-Za-z0-9_$./()[\]<>=:@#*-]*/g;
@@ -423,12 +463,14 @@ const leftoverEnglish = (text: string): string[] =>
   text
     .replace(SAMPLE_TEXT_PATTERN, " ")
     .replace(/https?:\/\/\S+/g, " ")
+    .replace(/\{\{?[A-Za-z]+\}?\}|<\/?(?:em|strong|code|b|i|br)\s*\/?>|<[A-Z]+>/g, " ")
     .split(/[^A-Za-z0-9_$.\-/()[\]<>=:@#*']+/)
     .filter((token) => /[A-Za-z]{2,}/.test(token))
     .filter((token) => !ALLOWED_LATIN.has(token.replace(/[.:)]+$/, "")))
     .filter(
       (token) => !(token.match(CODE_TOKEN)?.[0] === token && /[._/()=:]/.test(token)),
     )
+    .filter((token) => !/^[*\w.-]*\.[a-z]{2,}$/.test(token))
     .filter((token) => !/^[A-Z]{2,}(?:-[A-Z0-9]+)*$/.test(token))
     .filter((token) => !/^[a-z]{2,3}(?:-[A-Z]{2})?$/.test(token));
 
@@ -478,6 +520,7 @@ const punctuationProblems = (text: string, path: string): string[] => {
     "half-width parentheses around Chinese",
   );
   check(new RegExp(`"[^"]*[${HAN}][^"]*"`), "ASCII quotes around Chinese");
+  check(new RegExp(`[${HAN}] [${HAN}]`), "space between Chinese characters");
   check(/ {2,}/, "double space");
   check(/\t|\u00a0|\u3000/, "tab, non-breaking or ideographic space");
   if (!isFragmentPath(path)) check(/^\s|\s$/, "leading or trailing whitespace");
@@ -568,7 +611,7 @@ describe.each(VARIANTS)("%s catalog", (variant) => {
       const accepted = [choice.term, ...(choice.alternatives ?? [])];
       return entries
         .filter((entry) => entry.primary && required.test(entry.english))
-        .filter((entry) => !isIdenticalPath(entry.path))
+        .filter((entry) => !isIdentical(entry))
         .filter((entry) => !term.exempt?.[entry.path.replace(/\(\w+\)$/, "")])
         .filter(
           (entry) => !accepted.some((candidate) => entry.chinese.includes(candidate)),
@@ -580,7 +623,7 @@ describe.each(VARIANTS)("%s catalog", (variant) => {
 
   it("translates every sentence and keeps technical values identical", () => {
     const identical = entries
-      .filter((entry) => isIdenticalPath(entry.path))
+      .filter((entry) => isIdentical(entry))
       .filter((entry) => entry.chinese !== entry.english)
       .map((entry) => `${entry.path}: ${entry.chinese}`);
     expect(identical).toEqual([]);
@@ -591,7 +634,7 @@ describe.each(VARIANTS)("%s catalog", (variant) => {
     ).toEqual(en.sidebar.accessed.methods);
 
     const untranslated = entries
-      .filter((entry) => !isIdenticalPath(entry.path))
+      .filter((entry) => !isIdentical(entry) && !LEFTOVER_EXEMPT[entry.path])
       .flatMap((entry) => {
         const leftovers = leftoverEnglish(entry.chinese);
         if (leftovers.length > 0) return [`${entry.path}: ${leftovers.join(" ")}`];

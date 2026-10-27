@@ -108,12 +108,12 @@ const getSheetConfirmProps = (
     state.cleanupPlan?.surfaces
       .filter((surface) => surface.available)
       .map((surface) => getCleanupSurfaceLabel(surface.key))
-      .join(", ") ?? "";
+      .join(t.common.typography.listSeparator) ?? "";
   const unavailable =
     state.cleanupPlan?.surfaces
       .filter((surface) => !surface.available)
       .map((surface) => getCleanupSurfaceLabel(surface.key))
-      .join(", ") ?? "";
+      .join(t.common.typography.listSeparator) ?? "";
   return {
     confirmTitle: t.popup.cleanupConfirmTitle,
     confirmDescription: state.cleanupPlan

@@ -1,12 +1,12 @@
 import { BRAND_DISPLAY_NAME } from "@/shared/brand";
 
 export const externalMapConsentCopy = {
-  title: "Allow location search and map requests",
-  description: `Allow ${BRAND_DISPLAY_NAME} to send search queries to OpenStreetMap Nominatim when you search for locations and request vector tiles and fonts from OpenFreeMap when map previews are displayed. Those services receive your search text, map and font requests, and your IP address, but not your saved rules, presets, or browsing history. Keep this off if you prefer to enter coordinates manually without making map-service requests during setup.`,
+  title: "允許位置搜尋和地圖請求",
+  description: `允許 ${BRAND_DISPLAY_NAME} 在你搜尋位置時，將搜尋查詢傳送到 OpenStreetMap Nominatim；並在顯示地圖預覽時，向 OpenFreeMap 請求向量圖磚和字型。這些服務會收到你的搜尋文字、地圖和字型請求，以及你的 IP 位址，但不會收到你已儲存的規則、預設集或瀏覽記錄。如果你偏好手動輸入座標，不想在設定期間發出地圖服務請求，請保持關閉。`,
 } as const;
 
 export const osm = {
-  modalTitle: "Allow external map and search requests?",
-  body1: `External map access is optional. ${BRAND_DISPLAY_NAME} itself does not send your presets, rules, or browsing data to those services.`,
-  body2: `If you allow this, ${BRAND_DISPLAY_NAME} may contact OpenStreetMap Nominatim for location search and OpenFreeMap for interactive map previews.`,
+  modalTitle: "要允許外部地圖和搜尋請求嗎？",
+  body1: `外部地圖存取為選用功能。${BRAND_DISPLAY_NAME} 本身不會將你的預設集、規則或瀏覽資料傳送給這些服務。`,
+  body2: `如果你允許，${BRAND_DISPLAY_NAME} 可能會連線至 OpenStreetMap Nominatim 以搜尋位置，並連線至 OpenFreeMap 以顯示互動式地圖預覽。`,
 } as const;

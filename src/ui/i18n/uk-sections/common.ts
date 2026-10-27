@@ -7,6 +7,7 @@ export const common = {
   typography: {
     fragmentSpace: " ",
     fullStop: ".",
+    listSeparator: ", ",
   },
   actions: {
     cancel: "Скасувати",

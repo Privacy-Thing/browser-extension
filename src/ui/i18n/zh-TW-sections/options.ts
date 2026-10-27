@@ -3,101 +3,100 @@ import { workerHandlingModeCopy } from "./shared-worker";
 import { BRAND_DISPLAY_NAME } from "@/shared/brand";
 
 export const options = {
-  title: "Settings",
-  tabsAriaLabel: "Settings sections",
-  spoofingOffBannerTitle: "Spoofing is off",
-  spoofingOffBannerBody: `${BRAND_DISPLAY_NAME} is not applying spoofed location or browser values right now.`,
-  spoofingOffBannerAction: "Turn spoofing back on",
-  spoofingTurnedOffToast: `${BRAND_DISPLAY_NAME} turned off.`,
-  spoofingTurnedOnToast: `${BRAND_DISPLAY_NAME} turned on.`,
+  title: "設定",
+  tabsAriaLabel: "設定區段",
+  spoofingOffBannerTitle: "偽裝已關閉",
+  spoofingOffBannerBody: `${BRAND_DISPLAY_NAME} 目前未套用偽裝的位置或瀏覽器值。`,
+  spoofingOffBannerAction: "重新開啟偽裝",
+  spoofingTurnedOffToast: `${BRAND_DISPLAY_NAME} 已關閉。`,
+  spoofingTurnedOnToast: `${BRAND_DISPLAY_NAME} 已開啟。`,
 
   tabs: {
-    locations: "Regional Presets",
-    rules: "Domain Rules",
-    trustedSites: "Trusted Sites",
-    playground: "Playground",
-    options: "Options",
-    advanced: "Advanced",
-    about: "About",
+    locations: "地區預設集",
+    rules: "網域規則",
+    trustedSites: "受信任的網站",
+    playground: "演練場",
+    options: "選項",
+    advanced: "進階",
+    about: "關於",
   },
 } as const;
 
 export const optionsPage = {
   browserFingerprintSpoofing: {
-    title: "Global protection settings",
-    description: `Choose which browser protections ${BRAND_DISPLAY_NAME} uses by default. More specific settings can override individual protections, while Trusted Sites can disable them for matching sites.`,
-    disabledNote: `Browser protections are off everywhere. Turn them back on to choose what ${BRAND_DISPLAY_NAME} should spoof by default.`,
-    copyLinkLabel: "browser protections",
-    interceptsApis: (count: number) =>
-      `Intercepts ${count} browser ${count === 1 ? "API" : "APIs"}`,
+    title: "全域保護設定",
+    description: `選擇 ${BRAND_DISPLAY_NAME} 預設使用哪些瀏覽器保護。更具體的設定可以覆寫個別保護，而「受信任的網站」可以對相符的網站停用這些保護。`,
+    disabledNote: `瀏覽器保護已在所有地方關閉。重新開啟後，即可選擇 ${BRAND_DISPLAY_NAME} 預設要偽裝的項目。`,
+    copyLinkLabel: "瀏覽器保護",
+    interceptsApis: (count: number) => `攔截 ${count} 個瀏覽器 API`,
     items: {
       geolocation: {
-        label: "Geolocation",
-        description: `Controls the Geolocation API. When this is on, ${BRAND_DISPLAY_NAME} answers location requests with your active preset. Turn it off and sites get the browser's real geolocation result.`,
-        advancedButton: "Advanced",
+        label: "地理位置",
+        description: `控制地理位置 API。開啟時，${BRAND_DISPLAY_NAME} 會以你使用中的預設集回應位置要求。關閉後，網站會取得瀏覽器的真實地理位置結果。`,
+        advancedButton: "進階",
         advancedModal: {
-          title: "Geolocation advanced settings",
-          description: "Tune the default coordinate radius and location update timing.",
+          title: "地理位置進階設定",
+          description: "調整預設座標半徑和位置更新時機。",
         },
       },
       timeLocale: {
-        label: "Time & Locale",
-        description: `Controls Date, Intl, navigator.language, navigator.languages, and language headers. When this is on, ${BRAND_DISPLAY_NAME} keeps these values aligned with your active preset. Turn it off and sites see your browser's real regional settings.`,
+        label: "時間與地區設定",
+        description: `控制 Date、Intl、navigator.language、navigator.languages 和語言標頭。開啟時，${BRAND_DISPLAY_NAME} 會讓這些值與你使用中的預設集保持一致。關閉後，網站會看到瀏覽器的真實地區設定。`,
       },
       canvas: {
         label: "Canvas",
-        description: `Sites can draw a hidden image and use tiny rendering differences to recognize your browser. When this is on, ${BRAND_DISPLAY_NAME} adds controlled noise so the result is harder to reuse as a fingerprint. Turn it off and sites get your real canvas output.`,
+        description: `網站可以繪製隱藏圖像，並利用細微的轉譯差異辨識你的瀏覽器。開啟時，${BRAND_DISPLAY_NAME} 會加入受控雜訊，讓結果更難被重複用作指紋。關閉後，網站會取得你真實的 Canvas 輸出。`,
       },
       webGL: {
         label: "WebGL",
-        description: `WebGL reveals graphics details such as your GPU model, renderer, and driver behavior. When this is on, ${BRAND_DISPLAY_NAME} replaces those clues with a consistent profile that fits your current platform. Turn it off and sites can read graphics data closer to your real machine.`,
+        description: `WebGL 會透露圖形細節，例如 GPU 型號、轉譯器和驅動程式行為。開啟時，${BRAND_DISPLAY_NAME} 會以符合你目前平台的一致設定取代這些線索。關閉後，網站可以讀取更接近你真實電腦的圖形資料。`,
       },
       audio: {
-        label: "Audio",
-        description: `Audio APIs produce tiny hardware-specific differences that sites can measure in the background. When this is on, ${BRAND_DISPLAY_NAME} slightly changes those values so they are less useful for tracking. Turn it off and audio output stays unchanged.`,
+        label: "音訊",
+        description: `音訊 API 會產生與硬體相關的細微差異，網站可以在背景中測量這些差異。開啟時，${BRAND_DISPLAY_NAME} 會稍微變更這些值，降低它們用於追蹤的效用。關閉後，音訊輸出會保持不變。`,
       },
       navigator: {
         label: "Navigator",
-        description: `Navigator fields reveal details such as your platform, language setup, CPU hints, and other browser identity data. When this is on, ${BRAND_DISPLAY_NAME} masks selected identity fields while keeping them internally consistent. Turn it off and sites see more of your real browser identity.`,
+        description: `Navigator 欄位會透露平台、語言設定、CPU 提示和其他瀏覽器身分資料等細節。開啟時，${BRAND_DISPLAY_NAME} 會遮蔽部分身分欄位，同時讓它們在內部保持一致。關閉後，網站會看到更多你真實的瀏覽器身分。`,
       },
       screen: {
-        label: "Screen",
-        description: `Screen size, pixel ratio, and color depth help narrow you down to a small group of devices. When this is on, ${BRAND_DISPLAY_NAME} masks those exact display details. Turn it off and sites get your real screen properties.`,
+        label: "螢幕",
+        description: `螢幕尺寸、像素比和色彩深度有助於將你的裝置範圍縮小到少數幾種。開啟時，${BRAND_DISPLAY_NAME} 會遮蔽這些精確的顯示細節。關閉後，網站會取得你真實的螢幕屬性。`,
       },
       clientHints: {
-        label: "Client Hints",
-        description: `Client Hints share browser version, platform, and device data through request headers and JavaScript APIs. When this is on, ${BRAND_DISPLAY_NAME} keeps those values consistent with your spoofed browser identity. Turn it off and sites get your real browser and platform details.`,
+        label: "用戶端提示",
+        description: `用戶端提示會透過要求標頭和 JavaScript API 分享瀏覽器版本、平台和裝置資料。開啟時，${BRAND_DISPLAY_NAME} 會讓這些值與你偽裝的瀏覽器身分保持一致。關閉後，網站會取得你真實的瀏覽器和平台細節。`,
       },
       battery: {
-        label: "Battery",
-        description: `Battery status can reveal changing device information that sites may use to link visits. When this is on, ${BRAND_DISPLAY_NAME} reports a full, charging battery instead of the device's real state. Turn it off and sites can read the native Battery Status API.`,
+        label: "電池",
+        description: `電池狀態可能透露不斷變化的裝置資訊，網站可能用它來關聯不同的造訪。開啟時，${BRAND_DISPLAY_NAME} 會回報電池已充滿且正在充電，而不是裝置的真實狀態。關閉後，網站可以讀取原生的電池狀態 API。`,
       },
       clientHintsVersionRotation: {
-        label: "Rotate build and patch numbers",
+        label: "輪替組建與修補版本號碼",
         description: (count: number) =>
-          `Rotates the Chromium engine build and patch numbers exposed through Client Hints while keeping your installed browser's major version. ${BRAND_DISPLAY_NAME} ships with a catalog of recent Chromium builds; for this browser version, it can choose from ${count} matching ${count === 1 ? "entry" : "entries"}. The reduced User-Agent string stays at the browser's native privacy-preserving .0.0.0 format.`,
-        hintPrefix: "e.g.:",
-        hint: "139.0.[build].[patch]",
+          `輪替透過用戶端提示公開的 Chromium 引擎組建與修補版本號碼，同時保留你安裝的瀏覽器的主要版本。${BRAND_DISPLAY_NAME} 隨附近期 Chromium 組建的目錄；對於此瀏覽器版本，它可以從 ${count} 個相符項目中選擇。精簡的 User-Agent 字串會維持瀏覽器原生、保護隱私的 .0.0.0 格式。`,
+        hintPrefix: "例如：",
+        hint: "139.0.[組建].[修補]",
       },
       webRTC: {
         label: "WebRTC",
-        description: `WebRTC can reveal local or public IP addresses, even when you use a VPN or proxy. When this is on, ${BRAND_DISPLAY_NAME} asks the browser to use its strictest IP-handling mode. Turn it off and WebRTC behaves normally, which can expose more network details.`,
+        description: `即使你使用 VPN 或代理伺服器，WebRTC 仍可能透露本機或公用 IP 位址。開啟時，${BRAND_DISPLAY_NAME} 會要求瀏覽器使用最嚴格的 IP 處理模式。關閉後，WebRTC 會正常運作，可能暴露更多網路細節。`,
       },
       serviceWorker: {
-        label: "Service Workers",
-        description: `Service Workers run in the background and can let sites keep long-lived data and identifiers. Turn this on when ${BRAND_DISPLAY_NAME} should block sites from registering Service Workers everywhere by default.`,
+        label: "Service Worker",
+        description: `Service Worker 會在背景執行，並可讓網站保留長期資料和識別碼。如果你希望 ${BRAND_DISPLAY_NAME} 預設在所有地方封鎖網站註冊 Service Worker，請開啟此選項。`,
         warning:
-          "Blocking Service Workers can break installable web apps (PWAs), offline mode, push notifications, and background sync. Some apps may also work more slowly or lose features.",
+          "封鎖 Service Worker 可能導致可安裝的網頁應用程式（PWA）、離線模式、推播通知和背景同步無法運作。部分應用程式也可能變慢或失去功能。",
         defaultState:
-          "Blocking is off by default — you can turn it on globally, then allow it for specific domains with a Domain Rule.",
-        allow: "Allow",
-        block: "Block",
+          "預設不會封鎖——你可以在全域開啟封鎖，再透過網域規則允許特定網域。",
+        allow: "允許",
+        block: "封鎖",
       },
       sharedWorker: {
-        label: "Dedicated & Shared Workers",
+        label: "專用 Worker 與 Shared Worker",
         descriptionLead:
-          "Choose how Dedicated and Shared Workers run by default. Domain Rules and Firefox Containers can override this policy for matching sites.",
-        copyLinkLabel: "Dedicated and Shared Worker handling",
+          "選擇專用 Worker 和 Shared Worker 預設的執行方式。網域規則和 Firefox 容器可以為相符的網站覆寫此原則。",
+        copyLinkLabel: "專用 Worker 與 Shared Worker 的處理方式",
         native: workerHandlingModeCopy.native.label,
         nativeDescription: workerHandlingModeCopy.native.description,
         spoof: workerHandlingModeCopy.spoof.label,
@@ -108,18 +107,18 @@ export const optionsPage = {
     },
   },
   badgeQueryCount: {
-    label: "Show call count on extension badge",
-    description: `Show how many browser API calls ${BRAND_DISPLAY_NAME} handled on the extension badge instead of the text label.`,
+    label: "在擴充功能徽章上顯示呼叫次數",
+    description: `在擴充功能徽章上顯示 ${BRAND_DISPLAY_NAME} 處理的瀏覽器 API 呼叫次數，而非文字標籤。`,
     includeDateCalls: {
-      label: "Include Date and Temporal API calls",
+      label: "包含 Date 和 Temporal API 呼叫",
       description:
-        "Include Date.* and Temporal.* calls in the badge number. Turn this off to keep frequent time checks from inflating the count.",
+        "將 Date.* 和 Temporal.* 呼叫計入徽章數字。關閉此選項可避免頻繁的時間檢查使次數膨脹。",
     },
   },
-  copyLinkHelpLabel: "options help",
+  copyLinkHelpLabel: "選項說明",
   help: {
-    title: "Options",
-    body1: `Browser protections let you choose which values ${BRAND_DISPLAY_NAME} spoofs by default. These settings affect every site unless a Domain Rule or Firefox Container says otherwise.`,
-    body2: `Privacy controls cover the only optional network requests ${BRAND_DISPLAY_NAME} makes while you set up locations. Leave them off and ${BRAND_DISPLAY_NAME} still works — you will just add locations manually instead of using search or map previews.`,
+    title: "選項",
+    body1: `瀏覽器保護可讓你選擇 ${BRAND_DISPLAY_NAME} 預設要偽裝哪些值。除非網域規則或 Firefox 容器另有設定，這些設定會影響所有網站。`,
+    body2: `隱私控制項涵蓋 ${BRAND_DISPLAY_NAME} 在你設定位置時唯一會發出的選用網路要求。保持關閉時 ${BRAND_DISPLAY_NAME} 仍可正常運作——你只需要手動新增位置，而不使用搜尋或地圖預覽。`,
   },
 } as const;

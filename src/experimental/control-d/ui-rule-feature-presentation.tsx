@@ -55,7 +55,10 @@ const SyncNotice = ({
   return (
     <p data-plugin-sync-context={status} className="text-xs text-muted-foreground">
       {status === "ready" && !joining ? (
-        <>{interpolate(copy.fallback, { term: <em>{copy.customRules}</em> })} </>
+        <>
+          {interpolate(copy.fallback, { term: <em>{copy.customRules}</em> })}
+          {copy.sentenceGap}
+        </>
       ) : null}
       {interpolate(message, { preset: sync?.presetName ?? copy.preset, link })}
     </p>
