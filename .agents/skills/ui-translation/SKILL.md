@@ -64,6 +64,7 @@ Where copy lives:
 
    Fix the copy, not the check. Extend an allowlist or exemption only with a reason
    written next to it.
+
 5. In a locale marked unreviewed (`src/ui/i18n/translation-review.ts`), back-translate
    changed safety-critical strings in a separate context (see Mode A, step 8) and fix
    any drift.
