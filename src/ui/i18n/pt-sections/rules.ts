@@ -86,7 +86,8 @@ export const rules = {
       "Nenhuma Regra de Domínio ou Site Confiável salvo corresponde a este nome de host",
     noMatchDescription:
       "Nenhuma regra salva se aplica, e a Regra Padrão está desligada ou não configurada.",
-    trustedSiteWinsTitle: "Este nome de host está desativado pelos Sites Confiáveis",
+    trustedSiteWinsTitle:
+      "Este nome de host está nos Sites Confiáveis, então a proteção está desativada",
     trustedSiteWinsDescription: `Ele corresponde à sua lista de Sites Confiáveis, então o ${BRAND_DISPLAY_NAME} permanece desligado aqui até que você remova ou desative essa entrada.`,
     trustedSiteOverridesRuleTitle:
       "Sites Confiáveis estão substituindo uma Regra de Domínio correspondente",

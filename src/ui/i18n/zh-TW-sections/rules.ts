@@ -79,7 +79,7 @@ export const rules = {
     hostnamePlaceholder: "例如 shop.example.com",
     noMatchTitle: "沒有已儲存的網域規則或受信任的網站符合此主機名稱",
     noMatchDescription: "沒有適用的已儲存規則，且預設規則已關閉或未設定。",
-    trustedSiteWinsTitle: "此主機名稱已由受信任的網站停用",
+    trustedSiteWinsTitle: "此主機名稱已加入「受信任的網站」，保護已關閉",
     trustedSiteWinsDescription: `它符合你的「受信任的網站」清單，因此在你移除或停用該項目前，${BRAND_DISPLAY_NAME} 會在此保持關閉。`,
     trustedSiteOverridesRuleTitle: "受信任的網站正在覆寫相符的網域規則",
     trustedSiteOverridesRuleDescription: `此主機名稱同時符合受信任的網站和網域規則。受信任的網站優先，因此 ${BRAND_DISPLAY_NAME} 會保持關閉，並忽略下方的網域規則。`,

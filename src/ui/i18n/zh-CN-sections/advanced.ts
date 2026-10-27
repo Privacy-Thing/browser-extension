@@ -79,7 +79,7 @@ export const advanced = {
 
   privacy: {
     title: "隐私",
-    description: `${BRAND_DISPLAY_NAME} 在你的设备上运行，不会将你的浏览数据发送到任何地方。只有在你设置区域预设时使用位置搜索或地图预览，才会发出可选的网络请求。`,
+    description: `${BRAND_DISPLAY_NAME} 在你的设备上运行，不会将你的浏览数据发送到任何地方。位置搜索和地图预览是设置区域预设时唯一可选的网络请求。Control D 等集成有各自独立的设置。`,
     copyLinkLabel: "隐私",
 
     osmConsent: {
@@ -88,7 +88,7 @@ export const advanced = {
       stateUnknown: `你尚未作出选择。${BRAND_DISPLAY_NAME} 在连接外部地图服务之前会先询问你。`,
       statePrefix: "外部地图访问",
       stateEnabled: "已启用——可以加载位置搜索和地图预览",
-      stateDisabled: `已停用——配置位置时 ${BRAND_DISPLAY_NAME} 将保持离线`,
+      stateDisabled: `已停用——不会加载位置搜索和地图预览`,
       copyLinkLabel: "外部地图访问",
     },
   },

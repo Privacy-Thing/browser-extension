@@ -87,7 +87,7 @@ export const rules = {
     noMatchDescription:
       "No se aplica ninguna regla guardada y la Regla predeterminada está desactivada o sin configurar.",
     trustedSiteWinsTitle:
-      "Este nombre de host está desactivado mediante Sitios de confianza",
+      "Este nombre de host está en Sitios de confianza, por lo que la protección está desactivada",
     trustedSiteWinsDescription: `Coincide con tu lista de Sitios de confianza, por lo que ${BRAND_DISPLAY_NAME} permanecerá desactivado aquí hasta que elimines o desactives esa entrada.`,
     trustedSiteOverridesRuleTitle:
       "Sitios de confianza anula una regla de dominio coincidente",

@@ -84,7 +84,7 @@ export const rules = {
     noMatchTitle: "No saved Domain Rule or Trusted Site matches this hostname",
     noMatchDescription:
       "No saved rule applies, and the Default Rule is off or unconfigured.",
-    trustedSiteWinsTitle: "This hostname is disabled by Trusted Sites",
+    trustedSiteWinsTitle: "This hostname is in Trusted Sites, so protection is off",
     trustedSiteWinsDescription: `It matches your Trusted Sites list, so ${BRAND_DISPLAY_NAME} stays off here until you remove or disable that entry.`,
     trustedSiteOverridesRuleTitle:
       "Trusted Sites are overriding a matching Domain Rule",

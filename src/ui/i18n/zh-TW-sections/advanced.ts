@@ -79,7 +79,7 @@ export const advanced = {
 
   privacy: {
     title: "隱私",
-    description: `${BRAND_DISPLAY_NAME} 在你的裝置上執行，不會將你的瀏覽資料傳送到任何地方。選用的網路要求只有一種情況：你在設定地區預設集時使用位置搜尋或地圖預覽。`,
+    description: `${BRAND_DISPLAY_NAME} 在你的裝置上執行，不會將你的瀏覽資料傳送到任何地方。位置搜尋與地圖預覽是你設定地區預設集時唯一的選用網路要求。Control D 等整合有各自獨立的設定。`,
     copyLinkLabel: "隱私",
 
     osmConsent: {
@@ -88,7 +88,7 @@ export const advanced = {
       stateUnknown: `你尚未做出選擇。${BRAND_DISPLAY_NAME} 會在連線到外部地圖服務前先詢問你。`,
       statePrefix: "外部地圖存取",
       stateEnabled: "已啟用——可以載入位置搜尋與地圖預覽",
-      stateDisabled: `已停用——你設定位置時，${BRAND_DISPLAY_NAME} 會保持離線`,
+      stateDisabled: `已停用——不會載入位置搜尋與地圖預覽`,
       copyLinkLabel: "外部地圖存取",
     },
   },

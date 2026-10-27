@@ -119,6 +119,6 @@ export const optionsPage = {
   help: {
     title: "选项",
     body1: `浏览器保护让你选择 ${BRAND_DISPLAY_NAME} 默认伪装哪些值。除非域名规则或 Firefox 容器另有设置，否则这些设置会影响所有网站。`,
-    body2: `隐私设置管理 ${BRAND_DISPLAY_NAME} 仅有的可选网络请求，这些请求只在你设置位置时发出。即使保持关闭，${BRAND_DISPLAY_NAME} 仍可正常工作——你只需手动添加位置，而不使用搜索或地图预览。`,
+    body2: `关闭后，不会发出位置搜索或地图预览请求，${BRAND_DISPLAY_NAME} 仍可正常工作——你只需手动添加位置。Control D 的网络请求由其集成设置控制。`,
   },
 } as const;

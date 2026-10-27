@@ -79,7 +79,7 @@ export const rules = {
     hostnamePlaceholder: "例如 shop.example.com",
     noMatchTitle: "没有已保存的域名规则或受信任的网站与此主机名匹配",
     noMatchDescription: "没有适用的已保存规则，且默认规则已关闭或未配置。",
-    trustedSiteWinsTitle: "此主机名已由“受信任的网站”停用",
+    trustedSiteWinsTitle: "此主机名已加入“受信任的网站”，保护已关闭",
     trustedSiteWinsDescription: `它与你的受信任的网站列表匹配，因此 ${BRAND_DISPLAY_NAME} 会在此处保持关闭，直到你移除或停用该条目。`,
     trustedSiteOverridesRuleTitle: "“受信任的网站”正在覆盖匹配的域名规则",
     trustedSiteOverridesRuleDescription: `此主机名同时匹配受信任的网站和域名规则。受信任的网站优先，因此 ${BRAND_DISPLAY_NAME} 保持关闭，下方的域名规则将被忽略。`,
