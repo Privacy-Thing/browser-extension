@@ -451,7 +451,6 @@ const ALLOWED_LATIN = new Set(
     "SIL",
     "OFL",
     "MIT",
-    "GeoWarp",
   ]
     .flatMap((value) => value.split(/\s+/))
     .map((word) => word.replace(/[.,:)]+$/, "")),

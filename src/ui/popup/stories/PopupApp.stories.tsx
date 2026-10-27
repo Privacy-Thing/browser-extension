@@ -1182,27 +1182,27 @@ const chineseProtectionDetails = {
 } satisfies Story;
 
 /** Compact popup (360 px) and the expanded rule form and details (720 px) in Chinese. */
-export const ChineseSimplifiedCompact: Story = {
+export const ZhHansCompact: Story = {
   ...chineseCompact,
   decorators: [withUiLocale("zh-CN")],
 };
-export const ChineseTraditionalCompact: Story = {
+export const ZhHantCompact: Story = {
   ...chineseCompact,
   decorators: [withUiLocale("zh-TW")],
 };
-export const ChineseSimplifiedRuleEditor: Story = {
+export const ZhHansRuleEditor: Story = {
   ...chineseRuleEditor,
   decorators: [withUiLocale("zh-CN")],
 };
-export const ChineseTraditionalRuleEditor: Story = {
+export const ZhHantRuleEditor: Story = {
   ...chineseRuleEditor,
   decorators: [withUiLocale("zh-TW")],
 };
-export const ChineseSimplifiedProtectionDetails: Story = {
+export const ZhHansDetails: Story = {
   ...chineseProtectionDetails,
   decorators: [withUiLocale("zh-CN")],
 };
-export const ChineseTraditionalProtectionDetails: Story = {
+export const ZhHantDetails: Story = {
   ...chineseProtectionDetails,
   decorators: [withUiLocale("zh-TW")],
 };

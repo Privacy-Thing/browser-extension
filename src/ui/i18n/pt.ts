@@ -1,5 +1,3 @@
-import type { LocaleCatalog } from "./types";
-
 import { about } from "./pt-sections/about";
 import { advanced } from "./pt-sections/advanced";
 import { common } from "./pt-sections/common";
@@ -14,6 +12,7 @@ import { settingsImport } from "./pt-sections/settings-import";
 import { sidebar } from "./pt-sections/sidebar";
 import { trustedSites } from "./pt-sections/trusted-sites";
 import { welcome } from "./pt-sections/welcome";
+import type { LocaleCatalog } from "./types";
 
 export const pt = {
   common,

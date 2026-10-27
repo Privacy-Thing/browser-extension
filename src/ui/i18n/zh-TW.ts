@@ -1,5 +1,4 @@
 import type { LocaleCatalog } from "./types";
-
 import { about } from "./zh-TW-sections/about";
 import { advanced } from "./zh-TW-sections/advanced";
 import { common } from "./zh-TW-sections/common";

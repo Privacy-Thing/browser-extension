@@ -166,13 +166,13 @@ const expectChineseFits: Story["play"] = ({ canvasElement }) => {
 };
 
 /** Sidebar at its 360 px design width with the Chinese catalogs. */
-export const ChineseSimplifiedDark: Story = {
+export const ZhHansDark: Story = {
   args: { scenario: "evidence-states" },
   globals: { theme: "dark" },
   decorators: [withUiLocale("zh-CN")],
   play: expectChineseFits,
 };
-export const ChineseTraditionalDark: Story = {
+export const ZhHantDark: Story = {
   args: { scenario: "evidence-states" },
   globals: { theme: "dark" },
   decorators: [withUiLocale("zh-TW")],

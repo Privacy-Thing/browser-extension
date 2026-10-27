@@ -1,5 +1,3 @@
-import type { LocaleCatalog } from "./types";
-
 import { about } from "./es-sections/about";
 import { advanced } from "./es-sections/advanced";
 import { common } from "./es-sections/common";
@@ -14,6 +12,7 @@ import { settingsImport } from "./es-sections/settings-import";
 import { sidebar } from "./es-sections/sidebar";
 import { trustedSites } from "./es-sections/trusted-sites";
 import { welcome } from "./es-sections/welcome";
+import type { LocaleCatalog } from "./types";
 
 export const es = {
   common,

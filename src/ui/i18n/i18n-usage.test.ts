@@ -322,7 +322,10 @@ const collectLocaleModules = async (): Promise<
     const localeCode = fileName.replace(/\.ts$/, "");
     const moduleUrl = pathToFileURL(path.join(i18nRoot, fileName)).href;
     const localeModule = (await import(moduleUrl)) as Record<string, unknown>;
-    modules.push({ code: localeCode, value: localeModule[localeExportName(localeCode)] });
+    modules.push({
+      code: localeCode,
+      value: localeModule[localeExportName(localeCode)],
+    });
   }
 
   return modules;
@@ -381,7 +384,9 @@ describe("UI i18n coverage", () => {
   it("keeps all locale packs aligned with the base locale shape", async () => {
     const baseKeys = collectLocaleLeafPaths(en);
     const localeModules = await collectLocaleModules();
-    expect(localeModules.map(({ code }) => code).sort()).toEqual([...UI_LOCALES].sort());
+    expect(localeModules.map(({ code }) => code).sort()).toEqual(
+      [...UI_LOCALES].sort(),
+    );
 
     for (const localeModule of localeModules) {
       const localeKeys = collectLocaleLeafPaths(localeModule.value);

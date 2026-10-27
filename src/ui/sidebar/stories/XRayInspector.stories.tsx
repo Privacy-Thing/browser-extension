@@ -508,13 +508,13 @@ const chineseLayoutPlay = async (context: PlayContext) => {
 };
 
 /** The longest Inspector strings at the 360 px design width, in both Chinese scripts. */
-export const ChineseSimplified360Dark: Story = {
+export const ZhHans360Dark: Story = {
   args: { width: 360, preset: "live" },
   globals: { theme: "dark" },
   decorators: [withUiLocale("zh-CN")],
   play: chineseLayoutPlay,
 };
-export const ChineseTraditional360Dark: Story = {
+export const ZhHant360Dark: Story = {
   args: { width: 360, preset: "live" },
   globals: { theme: "dark" },
   decorators: [withUiLocale("zh-TW")],
