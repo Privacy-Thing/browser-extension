@@ -20,6 +20,7 @@ import {
   expectNoSideScroll,
   expectVisibleDialogFrame,
 } from "@/ui/shared/dialog-overflow-assertion";
+import { expectNoClippedText, withUiLocale } from "@/ui/shared/story-locale";
 
 type XRayStoryHarnessProps = {
   scenario: XRayStoryScenario;
@@ -156,4 +157,24 @@ export const ReportFillsPanel: Story = {
       body.style.removeProperty("min-height");
     }
   },
+};
+
+const expectChineseFits: Story["play"] = ({ canvasElement }) => {
+  const shell = canvasElement.querySelector<HTMLElement>("main");
+  if (!shell) throw new globalThis.Error("Missing story shell.");
+  expectNoClippedText(shell);
+};
+
+/** Sidebar at its 360 px design width with the Chinese catalogs. */
+export const ZhHansDark: Story = {
+  args: { scenario: "evidence-states" },
+  globals: { theme: "dark" },
+  decorators: [withUiLocale("zh-CN")],
+  play: expectChineseFits,
+};
+export const ZhHantDark: Story = {
+  args: { scenario: "evidence-states" },
+  globals: { theme: "dark" },
+  decorators: [withUiLocale("zh-TW")],
+  play: expectChineseFits,
 };

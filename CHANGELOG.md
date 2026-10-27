@@ -18,6 +18,11 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ### Added
 
+- Simplified Chinese and Traditional Chinese (Taiwan) interface languages. Automatic
+  chooses Traditional for Chinese browser languages from Taiwan, Hong Kong and Macao or
+  with a Traditional script tag, and Simplified for other Chinese. The translations are
+  machine-made and not yet reviewed by a native speaker; the language setting says so
+  and links to the translation error report.
 - X-Ray Inspector can stop script execution when a page script uses a spoofed API
   you choose, on its first call or on every call, while browser developer tools are
   open for the tab. Turn on Inspector in Page activity and pick whole categories or
@@ -148,6 +153,11 @@ The format is based on Keep a Changelog and the project follows Semantic Version
   rules. Domain fencing session rules still apply only to the top-frame host.
 
 ### Fixed
+
+- Privacy and Options text no longer calls location search and map previews the
+  only optional network requests or says the extension stays offline. It now
+  describes map access only and points to integrations such as Control D, which
+  have their own settings.
 
 - Editing a regional preset that rules use no longer shows a large "still assigned"
   warning above the map and fields. Delete stays reachable by mouse, keyboard and

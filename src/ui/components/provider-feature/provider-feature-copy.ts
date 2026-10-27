@@ -86,4 +86,16 @@ export const featurePendingCopy: Record<
     checkingStatus: "Перевірка стану…",
     preparing: "Підготовка…",
   },
+  "zh-CN": {
+    checking: "正在检查…",
+    checkingLabel: (value) => `正在检查 ${value}`,
+    checkingStatus: "正在检查状态…",
+    preparing: "正在准备…",
+  },
+  "zh-TW": {
+    checking: "正在檢查…",
+    checkingLabel: (value) => `正在檢查 ${value}`,
+    checkingStatus: "正在檢查狀態…",
+    preparing: "正在準備…",
+  },
 };

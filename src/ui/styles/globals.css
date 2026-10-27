@@ -1057,3 +1057,46 @@
     @apply font-medium text-foreground;
   }
 }
+
+/* ─── Chinese interface fonts ────────────────────────────────────────────────── */
+/* Browsers fall back per glyph, but naming the platform CJK faces after the Latin stack
+   keeps Simplified and Traditional glyph forms on macOS, Windows and Linux even when a
+   generic fallback would pick a Japanese face. The selector outranks the popup and
+   Options body stacks. */
+
+:root:lang(zh-CN) body {
+  font-family:
+    ui-sans-serif,
+    -apple-system,
+    "Segoe UI Variable Display",
+    "Segoe UI",
+    "PingFang SC",
+    "Hiragino Sans GB",
+    "Microsoft YaHei UI",
+    "Microsoft YaHei",
+    "Noto Sans CJK SC",
+    "Noto Sans SC",
+    "Source Han Sans SC",
+    "WenQuanYi Micro Hei",
+    "WenQuanYi Zen Hei",
+    system-ui,
+    sans-serif;
+}
+
+:root:lang(zh-TW) body {
+  font-family:
+    ui-sans-serif,
+    -apple-system,
+    "Segoe UI Variable Display",
+    "Segoe UI",
+    "PingFang TC",
+    "Microsoft JhengHei UI",
+    "Microsoft JhengHei",
+    "Noto Sans CJK TC",
+    "Noto Sans TC",
+    "Source Han Sans TC",
+    "WenQuanYi Micro Hei",
+    "WenQuanYi Zen Hei",
+    system-ui,
+    sans-serif;
+}

@@ -1,3 +1,4 @@
+import type { LocaleCatalog } from "./types";
 import { about } from "./uk-sections/about";
 import { advanced } from "./uk-sections/advanced";
 import { common } from "./uk-sections/common";
@@ -29,4 +30,4 @@ export const uk = {
   sidebar,
   welcome,
   settingsImport,
-} as const;
+} as const satisfies LocaleCatalog;

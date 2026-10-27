@@ -82,7 +82,7 @@ export const advanced = {
 
   privacy: {
     title: "Privacidade",
-    description: `${BRAND_DISPLAY_NAME} roda no seu dispositivo e não envia seus dados de navegação para lugar nenhum. As únicas solicitações de rede opcionais ocorrem quando você usa a pesquisa de localização ou visualizações de mapas ao configurar perfis regionais.`,
+    description: `${BRAND_DISPLAY_NAME} roda no seu dispositivo e não envia seus dados de navegação para lugar nenhum. A pesquisa de localização e as visualizações de mapas são as únicas solicitações de rede opcionais que ele faz ao configurar perfis regionais. Integrações como o Control D são separadas e têm suas próprias configurações.`,
     copyLinkLabel: "privacidade",
 
     osmConsent: {
@@ -92,7 +92,7 @@ export const advanced = {
       statePrefix: "O acesso a mapas externos está",
       stateEnabled:
         "ativado — a pesquisa de localização e visualizações de mapas podem carregar",
-      stateDisabled: `desativado — ${BRAND_DISPLAY_NAME} permanecerá offline enquanto você configura os locais`,
+      stateDisabled: `desativado — a pesquisa de localização e as visualizações de mapas não serão carregadas`,
       copyLinkLabel: "acesso a mapas externos",
     },
   },
@@ -111,6 +111,8 @@ export const advanced = {
       optionPortuguese: "Português",
       optionRussian: "Russo",
       optionUkrainian: "Ucraniano",
+      optionSimplifiedChinese: "Chinês simplificado",
+      optionTraditionalChinese: "Chinês tradicional",
       reportLabel: "Encontrou um erro de tradução? Informe",
       copyLinkLabel: "idioma",
     },

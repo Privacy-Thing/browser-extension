@@ -2,6 +2,13 @@ import { BRAND_DISPLAY_NAME } from "@/shared/brand";
 
 export const common = {
   copyLinkTo: (section: string) => `Скопіювати посилання: ${section}`,
+
+  /** Joins sentence fragments around inline links and emphasis. */
+  typography: {
+    fragmentSpace: " ",
+    fullStop: ".",
+    listSeparator: ", ",
+  },
   actions: {
     cancel: "Скасувати",
     reset: "Скинути",

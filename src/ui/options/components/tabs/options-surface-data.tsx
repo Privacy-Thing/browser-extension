@@ -183,13 +183,14 @@ export const renderOsmConsentState = (osmConsent: "unknown" | "granted" | "denie
   if (osmConsent === "unknown") return t.advanced.privacy.osmConsent.stateUnknown;
   return (
     <>
-      {t.advanced.privacy.osmConsent.statePrefix}{" "}
+      {t.advanced.privacy.osmConsent.statePrefix}
+      {t.common.typography.fragmentSpace}
       <strong>
         {osmConsent === "granted"
           ? t.advanced.privacy.osmConsent.stateEnabled
           : t.advanced.privacy.osmConsent.stateDisabled}
       </strong>
-      .
+      {t.common.typography.fullStop}
     </>
   );
 };

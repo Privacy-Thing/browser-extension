@@ -12,6 +12,7 @@ import { settingsImport } from "./ru-sections/settings-import";
 import { sidebar } from "./ru-sections/sidebar";
 import { trustedSites } from "./ru-sections/trusted-sites";
 import { welcome } from "./ru-sections/welcome";
+import type { LocaleCatalog } from "./types";
 
 export const ru = {
   common,
@@ -29,4 +30,4 @@ export const ru = {
   sidebar,
   welcome,
   settingsImport,
-} as const;
+} as const satisfies LocaleCatalog;

@@ -12,6 +12,7 @@ import { settingsImport } from "./es-sections/settings-import";
 import { sidebar } from "./es-sections/sidebar";
 import { trustedSites } from "./es-sections/trusted-sites";
 import { welcome } from "./es-sections/welcome";
+import type { LocaleCatalog } from "./types";
 
 export const es = {
   common,
@@ -29,4 +30,4 @@ export const es = {
   sidebar,
   welcome,
   settingsImport,
-} as const;
+} as const satisfies LocaleCatalog;

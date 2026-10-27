@@ -43,7 +43,8 @@ const WelcomeStep = (props: WelcomeProps) => (
         {t.welcome.steps.welcome.title}
       </h2>
       <p className="mt-3 text-sm leading-6 text-muted-foreground">
-        {t.welcome.steps.welcome.description}{" "}
+        {t.welcome.steps.welcome.description}
+        {t.common.typography.fragmentSpace}
         <button
           type="button"
           className="font-medium text-primary hover:underline"
@@ -51,7 +52,7 @@ const WelcomeStep = (props: WelcomeProps) => (
         >
           {t.welcome.steps.welcome.importInline}
         </button>
-        .
+        {t.common.typography.fullStop}
       </p>
       <input
         ref={props.importFileRef}
@@ -428,7 +429,8 @@ const GuidedStep = (props: GuidedProps) => (
       <h2 className="text-2xl font-semibold tracking-tight">{props.copy.title}</h2>
       {props.step === "privacy" ? (
         <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-          {t.welcome.steps.privacy.descriptionBeforePolicy}{" "}
+          {t.welcome.steps.privacy.descriptionBeforePolicy}
+          {t.common.typography.fragmentSpace}
           <button
             type="button"
             className="font-medium text-primary underline underline-offset-4 hover:text-primary/80"

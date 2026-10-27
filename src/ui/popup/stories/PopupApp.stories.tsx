@@ -36,6 +36,7 @@ import { BrandHorizontalLogo } from "@/ui/branding/BrandHorizontalLogo";
 import { t } from "@/ui/i18n";
 import { icon } from "@/ui/options/utils";
 import { expectScrollHandle } from "@/ui/shared/scrollbar-assertion";
+import { expectNoClippedText, withUiLocale } from "@/ui/shared/story-locale";
 
 type PopupStoryWorkspace =
   | "closed"
@@ -1136,4 +1137,72 @@ export const ScrollHandle: Story = {
     expect(card.left - bounds.left, "rule card start inset").toBe(24);
     expect(bounds.right - card.right, "rule card end inset").toBe(24);
   },
+};
+
+const expectPopupTextFits: Story["play"] = ({ canvasElement }) => {
+  // The story frame's border narrows the layout box, so check the panes themselves.
+  const panes = canvasElement.querySelectorAll<HTMLElement>(
+    ".gw-popup-core-pane, .gw-popup-workspace",
+  );
+  expect(panes.length).toBeGreaterThan(0);
+  for (const pane of panes) expectNoClippedText(pane);
+};
+
+const chineseCompact = {
+  args: {
+    variant: "rule-active",
+    context: "all-policy-risks",
+    workspace: "closed",
+    viewport: "compact",
+    showWorkbench: false,
+  },
+  globals: { theme: "dark" },
+  play: expectPopupTextFits,
+} satisfies Story;
+
+const chineseRuleEditor = {
+  args: {
+    variant: "rule-active",
+    context: "baseline",
+    workspace: "rule-form",
+    viewport: "browser",
+    showWorkbench: false,
+  },
+  globals: { theme: "dark" },
+  play: expectPopupTextFits,
+} satisfies Story;
+
+const chineseProtectionDetails = {
+  ...chineseRuleEditor,
+  args: {
+    ...chineseRuleEditor.args,
+    context: "all-policy-risks",
+    workspace: "protection-details",
+  },
+} satisfies Story;
+
+/** Compact popup (360 px) and the expanded rule form and details (720 px) in Chinese. */
+export const ZhHansCompact: Story = {
+  ...chineseCompact,
+  decorators: [withUiLocale("zh-CN")],
+};
+export const ZhHantCompact: Story = {
+  ...chineseCompact,
+  decorators: [withUiLocale("zh-TW")],
+};
+export const ZhHansRuleEditor: Story = {
+  ...chineseRuleEditor,
+  decorators: [withUiLocale("zh-CN")],
+};
+export const ZhHantRuleEditor: Story = {
+  ...chineseRuleEditor,
+  decorators: [withUiLocale("zh-TW")],
+};
+export const ZhHansDetails: Story = {
+  ...chineseProtectionDetails,
+  decorators: [withUiLocale("zh-CN")],
+};
+export const ZhHantDetails: Story = {
+  ...chineseProtectionDetails,
+  decorators: [withUiLocale("zh-TW")],
 };

@@ -1,0 +1,143 @@
+import { BRAND_DISPLAY_NAME } from "@/shared/brand";
+
+const SPOOFED_PRODUCT = `偽裝值——${BRAND_DISPLAY_NAME}`;
+
+export const demo = {
+  loadingSettings: "正在載入設定…",
+  noLocationsTitle: "尚無地區預設集",
+  noLocationsBody: "請先在「設定」中建立至少一個地區預設集，才能使用演練場。",
+  openSettingsButton: "開啟設定",
+
+  locationPreview: {
+    title: "預設集預覽",
+    activeLocationLabel: "使用中的預設集",
+    activeLocationDescription:
+      "選擇已儲存的地區預設集，預覽它向瀏覽器呈現的值。切換預設集會重設路線，並套用新的地理位置預覽。",
+    activeLocationPlaceholder: "選擇預設集…",
+    playgroundCadenceLabel: "演練場更新時機",
+    realSiteCadenceLabel: "網站更新時機",
+    configuredDelayLabel: "位置監看延遲",
+    callbackDelayLabel: "回呼延遲",
+    runtimeModeLabel: "執行模式",
+    runtimeModeSimple: "預設時機",
+    realLocationTitleIdle: "與目前的瀏覽器位置比較",
+    realLocationTitleLoading: "正在要求目前的瀏覽器位置",
+    realLocationTitleGranted: "目前的瀏覽器位置已就緒",
+    realLocationTitleDenied: "瀏覽器位置權限遭拒",
+    realLocationTitleUnavailable: "無法取得瀏覽器位置",
+    realLocationDescription:
+      "向瀏覽器要求一次真實地理位置，以便與下方的預設集預覽比較。",
+    realLocationGrantedDescription:
+      "下方的地理位置列現在會顯示瀏覽器目前的位置，方便並排比較。",
+    realLocationDeniedDescription:
+      "瀏覽器拒絕存取真實地理位置。如果權限有所變更，可以再試一次。",
+    realLocationUnavailable: "無法比較真實位置，因為此瀏覽器在這裡未提供地理位置。",
+    realLocationRefresh: "重新取得真實位置",
+  },
+
+  localMachineTitle: "本機",
+  spoofedTitle: SPOOFED_PRODUCT,
+  waitingForPermission: "正在等待瀏覽器權限…",
+  permissionDenied: "瀏覽器拒絕了權限",
+  geolocationUnavailable: "無法使用地理位置",
+  requestRealLocation: "要求真實位置",
+  requestRealLocationHintTitle: "尚未載入真實位置",
+  requestRealLocationTableHint: "請在上方要求瀏覽器的真實位置，以便在此比較。",
+  waitingForFix: "正在等待首次定位…",
+  selectLocationPrompt: "請在上方選擇地區預設集以查看預覽值。",
+
+  comparison: {
+    language: "navigator.language",
+    languages: "navigator.languages",
+    timeZone: "Intl…resolvedOptions().timeZone",
+    acceptLanguage: "Accept-Language 標頭",
+    timeZoneOffset: "new Date().getTimezoneOffset()",
+    dateToString: "new Date().toString()",
+    dateToDateString: "new Date().toDateString()",
+    dateToTimeString: "new Date().toTimeString()",
+    dateLocaleString: "new Date().toLocaleString()",
+    dateLocaleDateString: "new Date().toLocaleDateString()",
+    dateLocaleTimeString: "new Date().toLocaleTimeString()",
+    currentPosition: "navigator.geolocation.getCurrentPosition()",
+    coords: "geolocation.coords",
+    timestamp: "geolocation.timestamp",
+    timestampInfoLabel: "關於地理位置時間戳記的顯示方式",
+    timestampTooltip: `${BRAND_DISPLAY_NAME} 會傳回以毫秒為單位的原始紀元時間戳記。此處顯示的易讀日期僅為方便查看，並以該欄所顯示的時區格式化。`,
+    userAgent: "navigator.userAgent",
+    appVersion: "navigator.appVersion",
+    vendor: "navigator.vendor",
+    hardwareConcurrency: "navigator.hardwareConcurrency",
+    deviceMemory: "navigator.deviceMemory",
+    platform: "navigator.platform",
+    pixelDepth: "screen.pixelDepth",
+    screenMetrics: "screen.width/height/avail*/colorDepth",
+    devicePixelRatio: "window.devicePixelRatio",
+    canvas2d: "Canvas 2D 探測摘要",
+    webglRenderer: "WebGL 轉譯器探測",
+    webglDebugExtension: "WEBGL_debug_renderer_info",
+    webglReadPixels: "WebGL readPixels() 探測",
+    audioFingerprint: "AnalyserNode + AudioBuffer 探測",
+    clientHintBrands: "navigator.userAgentData.brands",
+    clientHintPlatform: "navigator.userAgentData.platform",
+    clientHintPlatformVersion: "navigator.userAgentData.platformVersion",
+    clientHintArchitecture: "navigator.userAgentData.architecture",
+    clientHintBitness: "navigator.userAgentData.bitness",
+    clientHintModel: "navigator.userAgentData.model",
+    clientHintMobile: "navigator.userAgentData.mobile",
+    clientHintFullVersionList: "navigator.userAgentData.fullVersionList",
+    secChUa: "Sec-CH-UA 標頭",
+    secChUaPlatform: "Sec-CH-UA-Platform 標頭",
+    secChUaMobile: "Sec-CH-UA-Mobile 標頭",
+    secChUaFullVersionList: "Sec-CH-UA-Full-Version-List 標頭",
+    webRTCIcePolicy: "RTCPeerConnection ICE 原則",
+    probePending: "正在收集…",
+    notAvailable: "無法取得",
+    spoofedMatchesLocal: "就此身分而言，預覽值與你的瀏覽器相同。",
+    browserVersionNote: (versionToken: string) =>
+      `${BRAND_DISPLAY_NAME} 會保留標準化的瀏覽器版本字串，不會隨機化像 ${versionToken} 這樣的預留位置變體。`,
+  },
+
+  previewSeed: {
+    title: "預覽身分",
+    description: "選擇此演練場預覽中顯示的一致瀏覽器身分。",
+    inputAriaLabel: "預覽身分代碼",
+    placeholder: "身分代碼",
+    hint: "請使用 6 個小寫字母或數字。變更代碼即可預覽不同的身分。",
+    randomize: "產生新身分",
+  },
+
+  sections: {
+    localeDate: "地區設定與日期",
+    networkHeaders: "網路標頭",
+    geolocation: "地理位置",
+    browserFingerprint: "瀏覽器身分",
+    webglCanvas: "Canvas 與 WebGL",
+    screen: "螢幕",
+    audio: "音訊",
+    webRTC: "WebRTC",
+  },
+
+  map: {
+    title: "地圖預覽",
+    noLocationTitle: "請先選擇預設集",
+    noLocationDescription: "在上方選擇已儲存的地區預設集，以啟用地圖和航點控制項。",
+    osmRequired: "需要地圖存取權",
+    osmRequiredDescription: "允許外部地圖存取，即可在互動式地圖上預覽偽裝的位置。",
+    demoIntervalLabel: "示範間隔（2–5 秒）",
+    clearButton: "清除",
+  },
+
+  disclaimer: {
+    title: "預覽模式，並非實際網站",
+    body: `使用此頁面，可在將所選地區預設集套用到網站之前，檢查 ${BRAND_DISPLAY_NAME} 會如何呈現它。語言、地區設定、時間、標頭及類似的值，會以相同預設集資料的<em>預覽</em>形式顯示。地理位置使用與受保護網站相同的移動和更新行為。在演練場中，位置更新的速度比一般網站更快，讓變化更容易看出。`,
+  },
+
+  howItWorks: {
+    title: "如何解讀此預覽",
+    body1:
+      "<strong>語言、地區設定和時間</strong>——這些列顯示所選預設集會如何向網站呈現，而不會變更此演練場頁面本身。",
+    body2: `<strong>地理位置</strong>——地圖和位置列使用與受保護網站相同的移動和更新行為，讓你在指派預設集之前預覽時機和座標變化。`,
+    body3: `<strong>瀏覽器值與標頭</strong>——這些比較會將你目前的瀏覽器值，與 ${BRAND_DISPLAY_NAME} 依所選預設集會公開的值並列，並遵循你在「設定」中使用的相同保護設定。`,
+    body4: "演練場的更新速度比一般瀏覽更快，讓你在測試時更容易發現變化。",
+  },
+} as const;

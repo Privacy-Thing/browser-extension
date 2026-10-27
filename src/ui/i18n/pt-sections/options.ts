@@ -121,6 +121,6 @@ export const optionsPage = {
   help: {
     title: "Opções",
     body1: `As proteções do navegador permitem escolher quais valores ${BRAND_DISPLAY_NAME} simula por padrão. Essas configurações afetam todos os sites, a menos que uma Regra de Domínio ou um Contêiner do Firefox determine o contrário.`,
-    body2: `Os controles de privacidade cobrem apenas as solicitações de rede opcionais que ${BRAND_DISPLAY_NAME} faz enquanto você configura locais. Deixe-os desativados e ${BRAND_DISPLAY_NAME} ainda funcionará — você apenas adicionará locais manualmente em vez de usar a pesquisa ou pré-visualizações de mapas.`,
+    body2: `Os controles de privacidade cobrem a pesquisa de localização e as visualizações de mapas ao configurar locais. Deixe-os desativados e ${BRAND_DISPLAY_NAME} ainda funcionará — você apenas adicionará locais manualmente em vez de usar a pesquisa ou pré-visualizações de mapas. Integrações como o Control D têm suas próprias configurações.`,
   },
 } as const;

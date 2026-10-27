@@ -82,7 +82,7 @@ export const advanced = {
 
   privacy: {
     title: "Privacy",
-    description: `${BRAND_DISPLAY_NAME} runs on your device and does not send your browsing data anywhere. The only optional network requests happen when you use location search or map previews while setting up regional presets.`,
+    description: `${BRAND_DISPLAY_NAME} runs on your device and does not send your browsing data anywhere. Location search and map previews are the only optional network requests it makes while you set up regional presets. Integrations such as Control D are separate and have their own settings.`,
     copyLinkLabel: "privacy",
 
     osmConsent: {
@@ -91,7 +91,7 @@ export const advanced = {
       stateUnknown: `You have not chosen this yet. ${BRAND_DISPLAY_NAME} will ask before it connects to an external map service.`,
       statePrefix: "External map access is",
       stateEnabled: "enabled — location search and map previews can load",
-      stateDisabled: `disabled — ${BRAND_DISPLAY_NAME} will stay offline while you configure locations`,
+      stateDisabled: `disabled — location search and map previews will not load`,
       copyLinkLabel: "external map access",
     },
   },
@@ -110,6 +110,8 @@ export const advanced = {
       optionPortuguese: "Portuguese",
       optionRussian: "Russian",
       optionUkrainian: "Ukrainian",
+      optionSimplifiedChinese: "Simplified Chinese",
+      optionTraditionalChinese: "Traditional Chinese",
       reportLabel: "Found a translation error? Report it",
       copyLinkLabel: "language",
     },

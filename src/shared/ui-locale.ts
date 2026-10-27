@@ -1,8 +1,17 @@
-export const UI_LOCALE_PREFERENCES = ["auto", "en", "es", "pt", "ru", "uk"] as const;
+export const UI_LOCALE_PREFERENCES = [
+  "auto",
+  "en",
+  "es",
+  "pt",
+  "ru",
+  "uk",
+  "zh-CN",
+  "zh-TW",
+] as const;
 
 export type UiLocalePreference = (typeof UI_LOCALE_PREFERENCES)[number];
 
-export const UI_LOCALES = ["en", "es", "pt", "ru", "uk"] as const;
+export const UI_LOCALES = ["en", "es", "pt", "ru", "uk", "zh-CN", "zh-TW"] as const;
 
 export type UiLocale = (typeof UI_LOCALES)[number];
 

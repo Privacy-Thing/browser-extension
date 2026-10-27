@@ -1,0 +1,43 @@
+import type { CleanupMessages } from "./cleanup-copy-en";
+
+import { BRAND_DISPLAY_NAME } from "@/shared/brand";
+export const cleanupZhTW = {
+  title: "要中斷 Control D 連線嗎？",
+  deleteChoice: `中斷連線並刪除 ${BRAND_DISPLAY_NAME} 建立的項目`,
+  keepChoice: "中斷連線",
+  keepDescription: "忘記 API 金鑰並停止同步。遠端資源和瀏覽器 DNS 設定會保留。",
+  review: "檢閱刪除計畫",
+  planTitle: "檢閱將刪除的項目",
+  planDescription: "只有名稱相符且內容未變更的已記錄資源才能刪除。略過的資源會保留。",
+  dnsWarning:
+    "請先將瀏覽器的安全 DNS 供應商從此 Control D 解析器切換為其他供應商。刪除端點會導致所有仍在使用它的裝置無法解析名稱。此處不會變更瀏覽器 DNS 設定。",
+  dnsConfirmed: "我已變更瀏覽器的 DNS",
+  confirm: "確認刪除並中斷連線",
+  resultTitle: "清理結果",
+  retry: "檢閱並重試失敗項目",
+  retainedKey:
+    "同步已停止。API 金鑰和其餘擁有權記錄會保留在本機以供重試。若要立即忘記金鑰，請中斷連線但不刪除。",
+  finished: "同步已停止，且已忘記 API 金鑰。",
+  close: "關閉",
+  cancel: "取消",
+  working: "處理中…",
+  failedRequest: "清理要求失敗。重試前請再次檢閱計畫。",
+  deleteLabel: "將刪除",
+  skipped: "已略過",
+  deleted: "已刪除",
+  failed: "失敗",
+  folder: "資料夾",
+  rule: "規則",
+  service: "服務覆寫",
+  endpoint: "端點",
+  profile: "設定檔",
+  nameChanged: "遠端名稱已不再相符。",
+  contentChanged: "遠端內容與上次記錄的狀態不同，或無法驗證擁有權。",
+  notRecorded: `此資源未記錄為由 ${BRAND_DISPLAY_NAME} 建立。`,
+  containsPreserved: "包含或依賴必須保留的資源。",
+  sharedProfile: "另一個端點正在使用此設定檔。",
+  alreadyDeleted: "已刪除。",
+  dependencyFailed: "必要的刪除作業失敗；請先重試該作業。",
+  empty: "沒有可刪除的已記錄資源。",
+  forgetKey: "中斷連線並忘記金鑰",
+} satisfies CleanupMessages;

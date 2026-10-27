@@ -82,7 +82,7 @@ export const advanced = {
 
   privacy: {
     title: "Privacidad",
-    description: `${BRAND_DISPLAY_NAME} se ejecuta en tu dispositivo y no envía a ningún sitio tus datos de navegación. Las únicas solicitudes de red opcionales se realizan al buscar ubicaciones o mostrar vistas previas del mapa mientras configuras perfiles regionales.`,
+    description: `${BRAND_DISPLAY_NAME} se ejecuta en tu dispositivo y no envía a ningún sitio tus datos de navegación. La búsqueda de ubicaciones y las vistas previas del mapa son las únicas solicitudes de red opcionales que realiza mientras configuras perfiles regionales. Las integraciones como Control D son independientes y tienen su propia configuración.`,
     copyLinkLabel: "privacidad",
 
     osmConsent: {
@@ -92,7 +92,7 @@ export const advanced = {
       statePrefix: "El acceso externo a mapas está",
       stateEnabled:
         "activado: se pueden cargar la búsqueda de ubicaciones y las vistas previas del mapa",
-      stateDisabled: `desactivado: ${BRAND_DISPLAY_NAME} no se conectará a Internet mientras configuras ubicaciones`,
+      stateDisabled: `desactivado: la búsqueda de ubicaciones y las vistas previas del mapa no se cargarán`,
       copyLinkLabel: "acceso a mapas externos",
     },
   },
@@ -111,6 +111,8 @@ export const advanced = {
       optionPortuguese: "Portugués",
       optionRussian: "Ruso",
       optionUkrainian: "Ucraniano",
+      optionSimplifiedChinese: "Chino simplificado",
+      optionTraditionalChinese: "Chino tradicional",
       reportLabel: "¿Encontraste un error de traducción? Infórmalo",
       copyLinkLabel: "idioma",
     },

@@ -179,7 +179,8 @@ src/
     ├── components/
     │   ├── ui/                          # shadcn/ui components (@/ui/components/ui/)
     │   └── stories/                     # Storybook stories for all UI components
-    ├── i18n/                            # UI string constants (English, Spanish, Portuguese)
+    ├── i18n/                            # UI catalogs (en, es, pt, ru, uk, zh-CN, zh-TW)
+    │   └── glossary/                    # Chinese terminology glossary and script character sets
     ├── logs/                            # Extension event log viewer
     ├── options/                         # Main options page (tabs: Rules, Locations, Containers, etc.)
     │   ├── components/

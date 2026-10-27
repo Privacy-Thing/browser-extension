@@ -23,6 +23,7 @@ import { Switch } from "@/ui/components/ui/switch";
 import { t } from "@/ui/i18n";
 import { en } from "@/ui/i18n/en";
 import { useUiLocale } from "@/ui/i18n/LocaleRefresh";
+import { unreviewedLocaleNotices } from "@/ui/i18n/translation-review";
 import type { OptionsModel } from "@/ui/options/components/tabs/options-model";
 import { renderOsmConsentState } from "@/ui/options/components/tabs/options-surface-data";
 import { languageOptionLabel } from "@/ui/options/interface-language-label";
@@ -158,6 +159,7 @@ const LanguageCard = ({ model }: { model: OptionsModel }) => {
   const englishLanguage = en.advanced.display.language;
   const labelFor = (englishName: string, localizedName: string) =>
     languageOptionLabel(activeLocale, englishName, localizedName);
+  const unreviewedNotice = unreviewedLocaleNotices[activeLocale];
   return (
     <SettingsControlCard
       anchorId={SETTING_ANCHORS.options.language}
@@ -168,6 +170,9 @@ const LanguageCard = ({ model }: { model: OptionsModel }) => {
       description={
         <span className="flex flex-col gap-2">
           <span>{t.advanced.display.language.description}</span>
+          {unreviewedNotice ? (
+            <span data-translation-review="unreviewed">{unreviewedNotice}</span>
+          ) : null}
           <a
             href={TRANSLATION_REPORT_URL}
             target="_blank"
@@ -229,6 +234,18 @@ const LanguageCard = ({ model }: { model: OptionsModel }) => {
               {labelFor(
                 englishLanguage.optionUkrainian,
                 t.advanced.display.language.optionUkrainian,
+              )}
+            </SelectItem>
+            <SelectItem value="zh-CN">
+              {labelFor(
+                englishLanguage.optionSimplifiedChinese,
+                t.advanced.display.language.optionSimplifiedChinese,
+              )}
+            </SelectItem>
+            <SelectItem value="zh-TW">
+              {labelFor(
+                englishLanguage.optionTraditionalChinese,
+                t.advanced.display.language.optionTraditionalChinese,
               )}
             </SelectItem>
           </SelectContent>
