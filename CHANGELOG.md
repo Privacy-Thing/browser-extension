@@ -18,6 +18,11 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ### Added
 
+- Simplified Chinese and Traditional Chinese (Taiwan) interface languages. Automatic
+  chooses Traditional for Chinese browser languages from Taiwan, Hong Kong and Macao or
+  with a Traditional script tag, and Simplified for other Chinese. The translations are
+  machine-made and not yet reviewed by a native speaker; the language setting says so
+  and links to the translation error report.
 - X-Ray Inspector can stop script execution when a page script uses a spoofed API
   you choose, on its first call or on every call, while browser developer tools are
   open for the tab. Turn on Inspector in Page activity and pick whole categories or

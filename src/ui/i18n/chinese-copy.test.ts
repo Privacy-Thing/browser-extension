@@ -610,7 +610,11 @@ describe.each(VARIANTS)("%s catalog", (variant) => {
       const choice = term[variant];
       const accepted = [choice.term, ...(choice.alternatives ?? [])];
       return entries
-        .filter((entry) => entry.primary && required.test(entry.english))
+        .filter(
+          (entry) =>
+            entry.primary &&
+            required.test(entry.english.replace(/\{\{?[A-Za-z]+\}?\}/g, "")),
+        )
         .filter((entry) => !isIdentical(entry))
         .filter((entry) => !term.exempt?.[entry.path.replace(/\(\w+\)$/, "")])
         .filter(

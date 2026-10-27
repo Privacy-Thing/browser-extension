@@ -19,6 +19,7 @@ import { XRayStoryShell } from "./XRayStoryShell";
 
 import type { SpoofingBrowserTarget } from "@/shared/spoofing-surfaces";
 import { t } from "@/ui/i18n";
+import { expectNoClippedText, withUiLocale } from "@/ui/shared/story-locale";
 
 type HarnessProps = {
   preset: InspectorStoryPreset;
@@ -498,3 +499,24 @@ export const Sidecar720Dark: Story = {
   play: layoutPlay,
 };
 export const ArmedDark: Story = { ...Armed, globals: { theme: "dark" } };
+
+const chineseLayoutPlay = async (context: PlayContext) => {
+  await openInspector(context);
+  const shell = context.canvasElement.querySelector<HTMLElement>("main");
+  if (!shell) throw new Error("Missing story shell.");
+  expectNoClippedText(shell);
+};
+
+/** The longest Inspector strings at the 360 px design width, in both Chinese scripts. */
+export const ChineseSimplified360Dark: Story = {
+  args: { width: 360, preset: "live" },
+  globals: { theme: "dark" },
+  decorators: [withUiLocale("zh-CN")],
+  play: chineseLayoutPlay,
+};
+export const ChineseTraditional360Dark: Story = {
+  args: { width: 360, preset: "live" },
+  globals: { theme: "dark" },
+  decorators: [withUiLocale("zh-TW")],
+  play: chineseLayoutPlay,
+};

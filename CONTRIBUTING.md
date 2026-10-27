@@ -147,6 +147,24 @@ Say explicitly in the pull request, per entry point, whether it changed, reused 
 helper, mirrored the change inline, or is not applicable — and back each claim with a file
 and a test. A path that diverges on purpose needs that reason written down.
 
+## Translations
+
+Interface catalogs live in `src/ui/i18n/<locale>-sections/`, with English as the source.
+Plugin copy (Control D) keeps its own per-locale files next to the plugin.
+
+The Simplified (`zh-CN`) and Traditional (`zh-TW`) Chinese catalogs are machine-translated
+and have not been reviewed by a native speaker; the language setting says so in Chinese.
+To report a wrong or unnatural translation, open an issue with the
+[bug report form](https://github.com/Privacy-Thing/browser-extension/issues/new?template=bug_report.yml)
+and include the screen, the current text and your suggestion.
+
+Chinese product terms are fixed in
+[`src/ui/i18n/glossary/zh-glossary.ts`](src/ui/i18n/glossary/zh-glossary.ts), with the words
+that must not be used and the sources each choice follows. Correct a term there first;
+`src/ui/i18n/chinese-copy.test.ts` then lists every message that has to change. The
+summary of the independent back-translation check is in
+[`docs/i18n/chinese-review.md`](docs/i18n/chinese-review.md).
+
 ## Commits
 
 Conventional Commits for subjects. Add or update focused tests near the behaviour you

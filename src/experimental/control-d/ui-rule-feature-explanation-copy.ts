@@ -146,12 +146,12 @@ export const explanationCopy: Record<UiLocale, ExplanationMessages> = {
     joining: `{feature} 已关联到另一条 ${BRAND_DISPLAY_NAME} 规则。添加此匹配模式将共享其 Control D 配置。`,
     tooltip: `服务规则涵盖由 Control D 维护的一组域名。自定义规则适用于指定的域名或匹配模式，并优先于服务规则。关联服务不会将 ${BRAND_DISPLAY_NAME} 的保护扩展到此规则的匹配模式之外。`,
     fallback: `保存后将为这些匹配模式创建{term}。包括该服务即可添加服务规则。`,
-    ready: "如需更改 {preset} 的重定向位置或跳过该预设的同步，请打开 {link}。",
+    ready: "如需更改 {preset} 的重定向位置或将其排除在同步之外，请打开 {link}。",
     excluded:
       "{preset} 已从 Control D 同步中排除。不会为此预设创建域名或服务重定向。如需包括它，请在 {link} 中选择重定向位置。",
     paused: `自动同步已关闭。保存后会在 ${BRAND_DISPLAY_NAME} 中保留关联，但不会更新 Control D。请在 {link} 中开启自动同步。`,
     pending:
-      "请先在 {link} 中为 {preset} 选择或确认该预设的 Control D 代理位置（城市/国家），此规则才能同步。",
+      "请先在 {link} 中为 {preset} 选择或确认 Control D 代理位置（城市/国家），此规则才能同步。",
     noPreset:
       "与 Control D 同步重定向之前，请为此规则分配区域预设。请在 {link} 中配置其重定向位置。",
     disabled: `此规则已关闭。下次同步时，${BRAND_DISPLAY_NAME} 会从 Control D 配置文件中移除此规则的受管理重定向。请在 {link} 中管理同步。`,
@@ -168,12 +168,12 @@ export const explanationCopy: Record<UiLocale, ExplanationMessages> = {
     joining: `{feature} 已連結至另一條 ${BRAND_DISPLAY_NAME} 規則。加入此比對模式會共用其 Control D 設定。`,
     tooltip: `服務規則涵蓋由 Control D 維護的一組網域。自訂規則適用於指定的網域或比對模式，並優先於服務規則。連結服務不會將 ${BRAND_DISPLAY_NAME} 的保護延伸到此規則的比對模式之外。`,
     fallback: `儲存時會為這些比對模式建立{term}。包含此服務即可新增服務規則。`,
-    ready: "若要變更 {preset} 的重新導向位置，或讓此預設集略過同步，請開啟 {link}。",
+    ready: "若要變更 {preset} 的重新導向位置，或將其排除在同步之外，請開啟 {link}。",
     excluded:
       "{preset} 已排除在 Control D 同步之外。不會為此預設集建立任何網域或服務重新導向。若要包含它，請在 {link}中選擇重新導向位置。",
     paused: `自動同步已關閉。儲存時會在 ${BRAND_DISPLAY_NAME} 中保留連結，但不會更新 Control D。請在 {link}中開啟自動同步。`,
     pending:
-      "此規則同步前，請在 {link}中為預設集 {preset} 選擇或確認 Control D 代理位置（城市／國家）。",
+      "此規則同步前，請在 {link}中為 {preset} 選擇或確認 Control D 代理位置（城市／國家）。",
     noPreset:
       "與 Control D 同步重新導向前，請先為此規則指派地區預設集。請在 {link}中設定其重新導向位置。",
     disabled: `此規則已關閉。下次同步時，${BRAND_DISPLAY_NAME} 會從 Control D 設定檔中移除它為此規則管理的重新導向。請在 {link}中管理同步。`,
