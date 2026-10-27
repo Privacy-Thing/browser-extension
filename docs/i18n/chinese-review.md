@@ -30,8 +30,9 @@ setting shows this notice in Chinese until a native review removes the locale fr
 
 Major findings, all fixed: the close button label of the rule sheet read as “turn off the
 Domain Rule” for screen readers (both variants); deleted (“inactive”) Firefox containers
-read as “not enabled” (both); zh-TW import retention text implied that only edits after
-seven days block undo. No privacy, VPN/proxy/DNS, consent or data-disclosure string was
+read as “not enabled” (both; zh-CN counted the filter label and the help text
+separately); zh-TW import retention text implied that only edits after seven days block
+undo. No privacy, VPN/proxy/DNS, consent or data-disclosure string was
 stronger than the English. The full findings tables are in the pull request description.
 
 ## What a native reviewer should check first

@@ -26,19 +26,34 @@ describe("resolveUiLocale", () => {
     expect(resolveUiLocale(language)).toBe("uk");
   });
 
-  it.each(["zh", "zh-CN", "zh-SG", "zh-Hans", "zh-Hans-HK", "ZH-hans-tw", "zh-MY"])(
-    "selects Simplified Chinese for %s",
-    (language) => {
-      expect(resolveUiLocale(language)).toBe("zh-CN");
-    },
-  );
+  it.each([
+    "zh",
+    "zh-CN",
+    "zh-SG",
+    "zh-Hans",
+    "zh-Hans-HK",
+    "ZH-hans-tw",
+    "zh-MY",
+    "zh-Hans-CN-x-hant",
+    "zh-CN-x-tw",
+    "zh-u-nu-hanidec",
+  ])("selects Simplified Chinese for %s", (language) => {
+    expect(resolveUiLocale(language)).toBe("zh-CN");
+  });
 
-  it.each(["zh-TW", "zh-HK", "zh-MO", "zh-Hant", "zh-Hant-CN", "ZH-tw", "zh-hant-sg"])(
-    "selects Traditional Chinese for %s",
-    (language) => {
-      expect(resolveUiLocale(language)).toBe("zh-TW");
-    },
-  );
+  it.each([
+    "zh-TW",
+    "zh-HK",
+    "zh-MO",
+    "zh-Hant",
+    "zh-Hant-CN",
+    "ZH-tw",
+    "zh-hant-sg",
+    "zh-yue-HK",
+    "zh-TW-u-ca-roc",
+  ])("selects Traditional Chinese for %s", (language) => {
+    expect(resolveUiLocale(language)).toBe("zh-TW");
+  });
 
   it.each([undefined, "", "en", "en-US", "pl-PL", "ja-JP", "zhx"])(
     "falls back to English for %s",
