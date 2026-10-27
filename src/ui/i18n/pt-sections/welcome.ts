@@ -15,7 +15,7 @@ export const welcome = {
     description: `Como ${BRAND_DISPLAY_NAME} lida com configurações, diagnósticos e solicitações de rede.`,
     close: "Fechar política de privacidade",
   },
-  saving: "Salvando...",
+  saving: "Salvando…",
   unexpectedError: "Algo deu errado",
   importSuccess: "Configurações importadas",
   importError: "Não foi possível importar as configurações",

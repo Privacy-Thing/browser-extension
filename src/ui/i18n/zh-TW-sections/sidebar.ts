@@ -201,7 +201,7 @@ export const sidebar = {
       canvasToDataURL: "canvas.toDataURL",
       canvasToBlob: "canvas.toBlob",
       webGLReadPixels: "gl.readPixels",
-      webGLGetExtension: "GPU renderer info",
+      webGLGetExtension: "GPU 轉譯器資訊",
       webGLGetSupportedExtensions: "gl.getSupportedExtensions",
       webGLGetParameter: "gl.getParameter",
       audioGetFloatFrequencyData: "analyser.getFloatFrequencyData",

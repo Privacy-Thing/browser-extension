@@ -53,6 +53,8 @@ Read the matching skill before acting when a task fits its trigger:
   task scope, pushing its branch and opening a ready-for-review pull request;
 - [public boundary audit](.agents/skills/public-boundary-audit/SKILL.md) for
   public snapshots, fork workflows, source archives and legacy identifier review.
+- [UI translation](.agents/skills/ui-translation/SKILL.md) for adding or changing
+  interface strings in every locale, or adding an interface language.
 
 Skills contain procedures; the invariants below always apply even when no skill is
 selected.

@@ -154,6 +154,10 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ### Fixed
 
+- Russian and Ukrainian copy names the product again where English does, Spanish
+  translates the WebRTC ICE policy row, Portuguese uses a proper ellipsis while
+  saving, and Russian and Ukrainian X-Ray translate the GPU renderer info label.
+
 - Editing a regional preset that rules use no longer shows a large "still assigned"
   warning above the map and fields. Delete stays reachable by mouse, keyboard and
   touch; for a used preset it opens an alert that names how many rules use the

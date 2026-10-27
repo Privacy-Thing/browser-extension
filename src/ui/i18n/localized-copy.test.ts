@@ -5,6 +5,7 @@ import { en } from "./en";
 import { es } from "./es";
 import { pt } from "./pt";
 import { ru } from "./ru";
+import type { LocaleCatalog } from "./types";
 import { uk } from "./uk";
 
 const pluralProtectionCounts: Record<SurfacePresentationState, number> = {
@@ -21,8 +22,16 @@ const pluralProtectionCounts: Record<SurfacePresentationState, number> = {
 
 describe("localized dynamic copy", () => {
   it("keeps diagnostic JavaScript method names unchanged", () => {
-    expect(ru.sidebar.accessed.methods).toEqual(en.sidebar.accessed.methods);
-    expect(uk.sidebar.accessed.methods).toEqual(en.sidebar.accessed.methods);
+    // webGLGetExtension is a description ("GPU renderer info"), not a method name.
+    const methodNames = ({
+      webGLGetExtension: _,
+      ...names
+    }: LocaleCatalog["sidebar"]["accessed"]["methods"]) => names;
+    for (const catalog of [es, pt, ru, uk]) {
+      expect(methodNames(catalog.sidebar.accessed.methods)).toEqual(
+        methodNames(en.sidebar.accessed.methods),
+      );
+    }
   });
 
   it("joins Russian and Ukrainian interface fragments into complete sentences", () => {
