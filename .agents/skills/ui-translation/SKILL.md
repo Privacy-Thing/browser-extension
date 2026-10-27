@@ -96,6 +96,9 @@ Where copy lives:
    Privacy Badger `_locales`, MDN (`github.com/mdn/translated-content`). Cite them in
    the file. [`zh-glossary.ts`](../../../src/ui/i18n/glossary/zh-glossary.ts) is the
    model.
+   Record the form of address (formal or plain; Chinese: `zh-conventions.ts`, zh-CN 您 and
+   zh-TW 你) and how feature names such as Trusted Sites are quoted, and enforce both in the
+   locale's tests.
 5. **Script rules:** for a script with its own conventions, add a per-script test
    (character sets, punctuation, spacing, assembled sentences); generate character data
    with a pinned generator, as in `pnpm task generate:zh-script-charsets`. For a
