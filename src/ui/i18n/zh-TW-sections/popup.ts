@@ -247,7 +247,7 @@ export const popup = {
   editDomainRuleLabel: "編輯網域規則",
   editContainerLabel: "編輯容器",
   firefoxFirstInlinePermissionTitle: "改善 Firefox 首次載入時的偽裝",
-  firefoxFirstInlinePermissionDescription: `Firefox 可能會向頁面的第一個指令碼洩露你真實的時間和地區設定。授予選用的使用者指令碼權限，${BRAND_DISPLAY_NAME} 就能更早開始偽裝。`,
+  firefoxFirstInlinePermissionDescription: `Firefox 可能會向頁面的第一個指令碼洩露你真實的時間和地區設定。授予選用的 userScripts 權限，${BRAND_DISPLAY_NAME} 就能更早開始偽裝。`,
   firefoxFirstInlinePermissionEnableLabel: "授予權限",
   detailsAbout: (label: string) => `關於「${label}」的詳細資料`,
   relaxCspHint: `當此網站的內容安全政策標頭妨礙 ${BRAND_DISPLAY_NAME} 保護 Worker 時，這會移除這些標頭。這會削弱網站對惡意指令碼的防護；請只對你信任的網站啟用。`,

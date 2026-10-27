@@ -78,9 +78,9 @@ export const welcome = {
         "偽裝用戶端提示時，使用隨附目錄中近期的 Chromium 組建與修補版本值。如果你希望這些次要版本細節保持固定，請關閉此選項。",
     },
     firefox: {
-      title: "Firefox 使用者指令碼權限（選用）",
-      description: `不授予此權限也可以在 Firefox 中使用 ${BRAND_DISPLAY_NAME}。如果你授予使用者指令碼權限，${BRAND_DISPLAY_NAME} 可以在支援的網站上更早套用偽裝值，改善首次載入頁面時的保護。你可以現在略過，之後在「設定」中變更。`,
-      action: "授予使用者指令碼權限",
+      title: "Firefox userScripts 權限（選用）",
+      description: `不授予此權限也可以在 Firefox 中使用 ${BRAND_DISPLAY_NAME}。如果你授予 userScripts 權限，${BRAND_DISPLAY_NAME} 可以在支援的網站上更早套用偽裝值，改善首次載入頁面時的保護。你可以現在略過，之後在「設定」中變更。`,
+      action: "授予 userScripts 權限",
       granted: "已授予權限",
       skipped: `你可以在沒有此權限的情況下繼續使用 ${BRAND_DISPLAY_NAME}。`,
     },
