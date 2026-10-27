@@ -154,6 +154,11 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ### Fixed
 
+- Russian and Ukrainian copy names the product again where English does, Spanish
+  translates the WebRTC ICE policy row, Portuguese uses a proper ellipsis while
+  saving, and X-Ray translates the GPU renderer info label in Russian, Ukrainian and
+  Chinese.
+
 - Privacy and Options text no longer calls location search and map previews the
   only optional network requests or says the extension stays offline. It now
   describes map access only and points to integrations such as Control D, which

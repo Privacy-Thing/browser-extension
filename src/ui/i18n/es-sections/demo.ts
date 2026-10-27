@@ -93,7 +93,7 @@ export const demo = {
     secChUaPlatform: "Encabezado Sec-CH-UA-Platform",
     secChUaMobile: "Encabezado Sec-CH-UA-Mobile",
     secChUaFullVersionList: "Encabezado Sec-CH-UA-Full-Version-List",
-    webRTCIcePolicy: "RTCPeerConnection ICE policy",
+    webRTCIcePolicy: "Política ICE de RTCPeerConnection",
     probePending: "Recopilando…",
     notAvailable: "No disponible",
     spoofedMatchesLocal:
