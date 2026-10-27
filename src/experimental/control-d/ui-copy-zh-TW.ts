@@ -107,7 +107,7 @@ export const controlDZhTW = {
     review: "檢閱變更",
     verify: "再次檢查 DNS",
     setupLabel: (code: string) => `設定組合 ${code}`,
-    syncedAt: (time: string) => `已於 ${time} 同步`,
+    syncedAt: (time: string) => `同步時間：${time}`,
   },
   summary: {
     created: (p: number, e: number, f: number) =>
@@ -133,13 +133,13 @@ export const controlDZhTW = {
     dismiss: "關閉",
     cancel: "取消",
     continue: "繼續",
-    notYet: "稍後再說",
+    notYet: "尚無",
     working: "處理中…",
     selected: "已選取",
     requestFailed: "Control D 要求失敗。",
     copyFailed: "無法複製解析器。",
     applyFirst: "請套用變更以建立端點和解析器。",
-    confirmedAt: (time: string) => `已於 ${time} 確認`,
+    confirmedAt: (time: string) => `確認時間：${time}`,
   },
   help: {
     account: {
