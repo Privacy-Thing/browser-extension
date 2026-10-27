@@ -13,6 +13,7 @@ import {
 import type { PresetUsage } from "@/ui/options/location-usage";
 import { getLocationModalAnchor } from "@/ui/options/navigation";
 import { useSettings } from "@/ui/options/state/SettingsContext";
+import type { ConfirmDialogConfig } from "@/ui/options/state/use-settings-confirm-dialog";
 
 type LocationEditorSectionId = LocationDetailsSectionId;
 
@@ -28,12 +29,56 @@ type EditorSessionProps = {
   osmConsent: "unknown" | "granted" | "denied";
   openOsmDialog: (action: { type: "editor"; profileIndex: number }) => void;
   regionalPresetUsage?: PresetUsage | undefined;
+  requestConfirmation: (config: ConfirmDialogConfig) => Promise<boolean>;
 };
 
 type EditorViewProps = EditorSessionProps & {
   draft: Location;
   updateDraft: (mutate: (current: Location) => Location) => void;
 };
+
+const PresetUsageList = ({ usage }: { usage: PresetUsage }) => (
+  <ul
+    aria-label={t.locations.editor.deleteBlockedListLabel}
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- the bounded list scrolls, so keyboard users must reach it
+    tabIndex={0}
+    data-preset-usage=""
+    data-preset-usage-count={usage.sources.length}
+    className="max-h-40 space-y-1 overflow-y-auto overscroll-contain rounded-md border border-border p-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+  >
+    {usage.sources.map((source) => (
+      <li
+        key={`${source.kind}:${source.key}`}
+        data-preset-usage-source={source.kind}
+        className="flex min-w-0 gap-1"
+      >
+        <span className="truncate" title={source.label}>
+          {source.label}
+        </span>
+        {!source.enabled ? (
+          <>
+            {" "}
+            <span className="shrink-0 text-muted-foreground">
+              {t.locations.editor.disabledDependencySuffix}
+            </span>
+          </>
+        ) : null}
+      </li>
+    ))}
+  </ul>
+);
+
+const showDeleteBlocked = (
+  usage: PresetUsage,
+  requestConfirmation: EditorSessionProps["requestConfirmation"],
+) =>
+  requestConfirmation({
+    kind: "alert",
+    title: t.locations.editor.deleteBlockedTitle,
+    description: t.locations.editor.deleteBlocked(usage.sources.length),
+    details: <PresetUsageList usage={usage} />,
+    confirmLabel: t.common.actions.close,
+  });
 
 const EditorFooter = ({
   draft,
@@ -43,6 +88,7 @@ const EditorFooter = ({
   handleRemoveProfile,
   profile,
   regionalPresetUsage,
+  requestConfirmation,
   saveInFlight,
   setProfileDialogOpened,
 }: EditorViewProps) => (
@@ -66,16 +112,24 @@ const EditorFooter = ({
           >
             {t.common.actions.duplicate}
           </Button>
+          {/* A used preset keeps Delete focusable so activating it can explain why. */}
           <Button
             variant="ghost"
-            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-            disabled={saveInFlight || Boolean(regionalPresetUsage)}
+            className="text-destructive hover:bg-destructive/10 hover:text-destructive aria-disabled:opacity-40"
+            disabled={saveInFlight}
+            aria-disabled={regionalPresetUsage ? true : undefined}
+            aria-haspopup={regionalPresetUsage ? "dialog" : undefined}
             title={
               regionalPresetUsage
-                ? t.locations.editor.deleteBlockedButtonTitle
+                ? t.locations.editor.deleteBlocked(regionalPresetUsage.sources.length)
                 : undefined
             }
+            data-preset-delete=""
             onClick={async () => {
+              if (regionalPresetUsage) {
+                await showDeleteBlocked(regionalPresetUsage, requestConfirmation);
+                return;
+              }
               if (await handleRemoveProfile(profile, editingProfileIndex)) {
                 setProfileDialogOpened(false);
               }
@@ -99,24 +153,6 @@ const EditorFooter = ({
   </>
 );
 
-const PresetUsageNotice = ({ usage }: { usage: PresetUsage }) => (
-  <div
-    className="mb-4 rounded-md border border-tone-warning-border bg-tone-warning-bg p-3 text-sm text-tone-warning-text"
-    role="status"
-  >
-    <h4 className="font-semibold">{t.locations.editor.deleteBlockedTitle}</h4>
-    <p className="mt-1">{t.locations.editor.deleteBlockedDescription}</p>
-    <ul className="mt-2 list-disc space-y-1 pl-5">
-      {usage.sources.map((source) => (
-        <li key={`${source.kind}:${source.key}`}>
-          {source.label}
-          {!source.enabled ? ` ${t.locations.editor.disabledDependencySuffix}` : null}
-        </li>
-      ))}
-    </ul>
-  </div>
-);
-
 const EditorBody = ({
   draft,
   editingProfileIndex,
@@ -124,7 +160,6 @@ const EditorBody = ({
   osmConsent,
   profile,
   profileDialogOpened,
-  regionalPresetUsage,
   saveInFlight,
   updateDraft,
 }: EditorViewProps) => {
@@ -148,7 +183,6 @@ const EditorBody = ({
           {getProfileTimeZoneError(draft)}
         </p>
       ) : null}
-      {regionalPresetUsage ? <PresetUsageNotice usage={regionalPresetUsage} /> : null}
       <div className="gw-generator-layout">
         <LazyProfileDraftMap
           draft={draft}
@@ -247,6 +281,7 @@ export const LocationEditorModal = () => {
     osmConsent,
     openOsmDialog,
     regionalPresetUsage,
+    requestConfirmation,
   } = useSettings();
 
   const profile =
@@ -266,6 +301,7 @@ export const LocationEditorModal = () => {
       handlePersistProfile={handlePersistProfile}
       osmConsent={osmConsent}
       openOsmDialog={openOsmDialog}
+      requestConfirmation={requestConfirmation}
       regionalPresetUsage={
         editingProfileIndex !== null ? regionalPresetUsage?.get(profile.id) : undefined
       }

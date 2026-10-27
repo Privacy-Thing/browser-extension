@@ -1,3 +1,5 @@
+import { useRef } from "react";
+
 import { cn } from "@/ui/components/lib/utils";
 import { Button } from "@/ui/components/ui/button";
 import {
@@ -35,9 +37,31 @@ const OnboardingReset = () => {
   );
 };
 
+// The dialog opens from code rather than a Radix trigger, so Radix has nowhere to
+// return focus on close. Send it back to the control that asked for the dialog.
+const useReturnFocus = () => {
+  const returnFocusRef = useRef<HTMLElement | null>(null);
+  return {
+    onOpenAutoFocus: () => {
+      const active = document.activeElement;
+      returnFocusRef.current = active instanceof HTMLElement ? active : null;
+    },
+    onCloseAutoFocus: (event: Event) => {
+      const target = returnFocusRef.current;
+      returnFocusRef.current = null;
+      if (target?.isConnected) {
+        event.preventDefault();
+        target.focus();
+      }
+    },
+  };
+};
+
 export const ConfirmDialog = () => {
   const { confirmDialogOpen, confirmDialogConfig, resolveConfirmDialog } =
     useSettings();
+  const isAlert = confirmDialogConfig?.kind === "alert";
+  const returnFocus = useReturnFocus();
   const description =
     confirmDialogConfig?.description ??
     "Review this action and choose confirm or cancel.";
@@ -70,6 +94,22 @@ export const ConfirmDialog = () => {
       {confirmDialogConfig?.cancelLabel ?? t.common.actions.cancel}
     </Button>
   );
+  let actions = (
+    <>
+      {cancelButton}
+      {confirmButton}
+    </>
+  );
+  if (isAlert) {
+    actions = confirmButton;
+  } else if (confirmDialogConfig?.actionOrder === "confirm-cancel") {
+    actions = (
+      <>
+        {confirmButton}
+        {cancelButton}
+      </>
+    );
+  }
   return (
     <Dialog
       open={confirmDialogOpen}
@@ -79,7 +119,14 @@ export const ConfirmDialog = () => {
         }
       }}
     >
-      <DialogContent id="confirm-dialog" animationTiming="urgent" className="max-w-md">
+      <DialogContent
+        id="confirm-dialog"
+        animationTiming="urgent"
+        className="max-w-md"
+        role={isAlert ? "alertdialog" : "dialog"}
+        data-confirm-kind={isAlert ? "alert" : "confirm"}
+        {...returnFocus}
+      >
         <DialogCloseButton label={t.common.actions.close} />
         <DialogHeader
           className={cn(
@@ -113,6 +160,7 @@ export const ConfirmDialog = () => {
         </DialogHeader>
 
         {confirmDialogConfig?.showOnboardingReset ? <OnboardingReset /> : null}
+        {confirmDialogConfig?.details}
 
         <DialogFooter
           className={cn(
@@ -121,17 +169,7 @@ export const ConfirmDialog = () => {
               "flex-row justify-between gap-2 sm:justify-between sm:space-x-0",
           )}
         >
-          {confirmDialogConfig?.actionOrder === "confirm-cancel" ? (
-            <>
-              {confirmButton}
-              {cancelButton}
-            </>
-          ) : (
-            <>
-              {cancelButton}
-              {confirmButton}
-            </>
-          )}
+          {actions}
         </DialogFooter>
       </DialogContent>
     </Dialog>

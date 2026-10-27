@@ -1,5 +1,5 @@
 import { BRAND_DISPLAY_NAME } from "@/shared/brand";
-import { slavicCount } from "@/ui/shared/slavic-plural";
+import { slavicCount, slavicPluralForm } from "@/ui/shared/slavic-plural";
 
 const PRODUCT_NOT_LOWER = `чем ${BRAND_DISPLAY_NAME} не является`;
 
@@ -71,11 +71,10 @@ export const locations = {
     title: "Редактировать профиль",
     description:
       "Измените координаты, региональные форматы и поведение геолокации в сохранённом профиле.",
-    deleteBlockedTitle: "Этот профиль все еще назначен",
-    deleteBlockedDescription:
-      "Прежде чем удалять профиль, измените или удалите каждое назначение ниже.",
-    deleteBlockedButtonTitle:
-      "Прежде чем удалять этот профиль, удалите все назначения.",
+    deleteBlockedTitle: "Нельзя удалить этот профиль",
+    deleteBlocked: (count: number) =>
+      `Используется в ${slavicCount(count, ["правиле", "правилах", "правилах"])}. Сначала переназначьте или удалите ${slavicPluralForm(count) === "one" ? "его" : "их"}.`,
+    deleteBlockedListLabel: "Правила, использующие этот профиль",
     disabledDependencySuffix: "(отключено)",
     mapDisabledTitle: "Карта отключена",
     mapDisabledBody:

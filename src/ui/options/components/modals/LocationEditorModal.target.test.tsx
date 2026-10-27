@@ -9,6 +9,7 @@ import { LocationEditorModal } from "./LocationEditorModal";
 import { flushReactEffects } from "@/test-utils/react";
 import type { LazyProfileDraftMapProps } from "@/ui/options/components/map/LazyProfileDraftMap";
 import { useSettings } from "@/ui/options/state/SettingsContext";
+import type { ConfirmDialogConfig } from "@/ui/options/state/use-settings-confirm-dialog";
 
 vi.mock("@/ui/components/ui/form-dialog-shell", () => ({
   FormDialogShell: ({
@@ -119,7 +120,16 @@ const createSettingsValue = ({
   handlePersistProfile: vi.fn(),
   osmConsent: "denied",
   openOsmDialog: vi.fn(),
+  requestConfirmation: vi.fn(async (_config: ConfirmDialogConfig) => true),
 });
+
+const findButton = (label: string): HTMLButtonElement => {
+  const button = Array.from(document.querySelectorAll("button")).find(
+    (candidate) => candidate.textContent === label,
+  );
+  if (!button) throw new Error(`Missing ${label} button.`);
+  return button;
+};
 
 const renderWithRoot = async (): Promise<Root> => {
   document.body.innerHTML = '<div id="root"></div>';
@@ -169,9 +179,7 @@ describe("LocationEditorModal", () => {
     const error = document.querySelector('[data-field-error="timeZone"]');
     expect(error?.textContent).toMatch(/Warsaw.*warsaw.*timeZone.*Mars\/Olympus/);
     expect(locationFieldsMock.mock.lastCall?.[0].activeSection).toBe("locale");
-    const save = document.querySelector(
-      '[data-testid="form-dialog-footer"] > button',
-    ) as HTMLButtonElement;
+    const save = findButton("Save");
     expect(save.disabled).toBe(true);
     expect(settings.handlePersistProfile).not.toHaveBeenCalled();
     expect(settings.setProfileDialogOpened).not.toHaveBeenCalled();
@@ -304,8 +312,8 @@ describe("LocationEditorModal", () => {
     expect(lastCall?.accuracyRadius).toBe(30);
   });
 
-  it("lists dependencies and disables deletion while the preset is assigned", async () => {
-    useSettingsMock.mockReturnValue({
+  it("explains a blocked delete in an alert only after Delete is activated", async () => {
+    const settings = {
       ...createSettingsValue(),
       regionalPresetUsage: new Map([
         [
@@ -323,15 +331,56 @@ describe("LocationEditorModal", () => {
           },
         ],
       ]),
-    } as never);
+    };
+    useSettingsMock.mockReturnValue(settings as never);
 
     root = await renderWithRoot();
 
-    expect(document.body.textContent).toContain("This preset is still assigned");
-    expect(document.body.textContent).toContain("Domain Rule: example.com (off)");
-    const deleteButton = Array.from(document.querySelectorAll("button")).find(
-      (button) => button.textContent === "Delete",
-    );
-    expect(deleteButton?.disabled).toBe(true);
+    expect(document.querySelector("[data-preset-usage]")).toBeNull();
+    const deleteButton = findButton("Delete");
+    expect(deleteButton.disabled).toBe(false);
+    expect(deleteButton.getAttribute("aria-disabled")).toBe("true");
+    expect(deleteButton.getAttribute("aria-haspopup")).toBe("dialog");
+
+    await act(async () => deleteButton.click());
+
+    expect(settings.handleRemoveProfile).not.toHaveBeenCalled();
+    expect(settings.requestConfirmation).toHaveBeenCalledOnce();
+    const alert = settings.requestConfirmation.mock.lastCall?.[0];
+    expect(alert).toMatchObject({
+      kind: "alert",
+      title: "Can't delete this preset",
+      description: "Used by 1 rule. Reassign or remove it first.",
+      confirmLabel: "Close",
+    });
+    // The editor itself never grows a usage block; the list lives in the alert.
+    expect(document.querySelector("[data-preset-usage]")).toBeNull();
+
+    const details = document.createElement("div");
+    document.body.append(details);
+    const detailsRoot = createRoot(details);
+    await act(async () => detailsRoot.render(alert?.details));
+    const list = details.querySelector("[data-preset-usage]");
+    expect(list?.getAttribute("data-preset-usage-count")).toBe("1");
+    expect(
+      list?.querySelector('[data-preset-usage-source="domain-rule"]')?.textContent,
+    ).toBe("Domain Rule: example.com (off)");
+    await act(async () => detailsRoot.unmount());
+  });
+
+  it("deletes an unused preset without a usage notice", async () => {
+    const settings = createSettingsValue();
+    settings.handleRemoveProfile.mockResolvedValue(true);
+    useSettingsMock.mockReturnValue(settings as never);
+
+    root = await renderWithRoot();
+
+    const deleteButton = findButton("Delete");
+    expect(deleteButton.hasAttribute("aria-disabled")).toBe(false);
+    await act(async () => deleteButton.click());
+    expect(settings.requestConfirmation).not.toHaveBeenCalled();
+    expect(settings.handleRemoveProfile).toHaveBeenCalledWith(baseProfile, 0);
+    expect(settings.setProfileDialogOpened).toHaveBeenCalledWith(false);
+    expect(document.querySelector("[data-preset-usage]")).toBeNull();
   });
 });
