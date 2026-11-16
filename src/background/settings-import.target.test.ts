@@ -19,6 +19,7 @@ import {
   withConfigurationLock,
   withConfigMutation,
 } from "@/background/settings-import-transaction";
+import { BUILD_BROWSER_TARGET } from "@/shared/build-flags";
 import {
   EXTENSION_COMMAND_TYPES as CMD,
   EXTENSION_STORAGE_KEYS as KEY,
@@ -31,6 +32,7 @@ import {
   type SettingsImportPreview,
 } from "@/shared/settings-import";
 import type { ExportedSettings, Location } from "@/shared/types";
+import { encodeUnbounded } from "@/shared/unbounded-location-values";
 
 const { containers } = vi.hoisted(() => ({
   containers: vi.fn(async () => [] as Array<{ cookieStoreId: string; name: string }>),
@@ -691,6 +693,75 @@ describe("reserved names in an import file", () => {
     expect(JSON.parse(result.ok ? "[]" : result.error)).toEqual([
       reserved(["locations", 0, "id"], "constructor"),
     ]);
+    expect(set).not.toHaveBeenCalled();
+  });
+});
+
+describe("unbounded location values in a settings file", () => {
+  const unbounded = {
+    ...location("far", "Far"),
+    accuracy: Infinity,
+    noiseRadius: Infinity,
+  };
+  // What the options page writes to disk and reads back.
+  const throughFile = (settings: ExportedSettings): ExportedSettings =>
+    JSON.parse(JSON.stringify(encodeUnbounded(settings))) as ExportedSettings;
+
+  it.runIf(BUILD_BROWSER_TARGET === "firefox")(
+    "keeps Infinity through export, file and import where storage can hold it",
+    async () => {
+      const file = throughFile(backup({ locations: [unbounded], rules: [] }));
+      expect(file.locations[0]).toMatchObject({
+        accuracy: "Infinity",
+        noiseRadius: "Infinity",
+      });
+      const handlers = createImportHandlers(deps());
+      const value = await preview(handlers, file);
+      // The UI sends the preview source back for corrections, so it stays JSON-safe.
+      expect(JSON.parse(JSON.stringify(value.source)).locations[0]).toMatchObject({
+        accuracy: "Infinity",
+        noiseRadius: "Infinity",
+      });
+      expect(await commit(handlers, value)).toMatchObject({ ok: true });
+      expect((await readConfiguration())[KEY.locations]).toEqual([
+        expect.objectContaining({
+          id: "far",
+          accuracy: Infinity,
+          noiseRadius: Infinity,
+        }),
+      ]);
+    },
+  );
+
+  it.runIf(BUILD_BROWSER_TARGET === "chromium")(
+    "rejects Infinity where JSON-backed storage would turn it into null",
+    async () => {
+      const result = await createImportHandlers(deps()).previewSettingsImport({
+        type: CMD.previewSettingsImport,
+        settings: throughFile(backup({ locations: [unbounded], rules: [] })),
+      });
+      expect(result).toMatchObject({
+        ok: false,
+        error: expect.stringContaining('"Far": accuracy is unbounded'),
+      });
+      expect(set).not.toHaveBeenCalled();
+    },
+  );
+
+  it("explains a null written by an older export instead of guessing a value", async () => {
+    const result = await createImportHandlers(deps()).previewSettingsImport({
+      type: CMD.previewSettingsImport,
+      settings: JSON.parse(
+        JSON.stringify({
+          ...backup(),
+          locations: [{ ...location("far", "Far"), accuracy: null }],
+        }),
+      ) as ExportedSettings,
+    });
+    expect(result).toMatchObject({
+      ok: false,
+      error: expect.stringContaining('"Far": accuracy is empty in this file'),
+    });
     expect(set).not.toHaveBeenCalled();
   });
 });

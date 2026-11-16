@@ -154,6 +154,12 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ### Fixed
 
+- Settings export no longer turns an unbounded location accuracy or noise radius into
+  `null`. Firefox backups keep the value and import it back unchanged. Chromium cannot
+  store such a value, so importing it, or a file from an older export that holds `null`
+  there, now stops with a message naming the location and field instead of a raw
+  validation error.
+
 - Russian and Ukrainian copy names the product again where English does, Spanish
   translates the WebRTC ICE policy row, Portuguese uses a proper ellipsis while
   saving, and X-Ray translates the GPU renderer info label in Russian, Ukrainian and

@@ -42,6 +42,7 @@ import type {
   ResetSettingsResponse,
   SaveLocationResponse,
 } from "@/shared/types";
+import { encodeUnbounded } from "@/shared/unbounded-location-values";
 
 export { getTrustedTabIds } from "@/background/settings-save-command";
 
@@ -82,7 +83,7 @@ const exportSettings = async (
   });
   return {
     ok: true,
-    settings: {
+    settings: encodeUnbounded({
       version: 3,
       exportedAt: new Date().toISOString(),
       locations: profiles,
@@ -93,7 +94,7 @@ const exportSettings = async (
       ...(sharedSpoofing ? { sharedSpoofing } : {}),
       ...(globalFallbackRule ? { globalFallbackRule } : {}),
       containerAssignments,
-    },
+    }),
   };
 };
 
