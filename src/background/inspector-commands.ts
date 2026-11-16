@@ -18,6 +18,7 @@ import {
 } from "@/background/storage/host-protection-pauses";
 import {
   initializeInspectors,
+  recordInspectorDocument,
   recordLiveInspector,
   storeInspector,
 } from "@/background/storage/inspector-sessions";
@@ -53,6 +54,40 @@ const supportedTab = async (tabId: number) => {
   };
 };
 
+const isPaused = (hostname: string, tabId: number): boolean => {
+  const pause = getHostPauseStatus(hostname, tabId);
+  return Boolean(pause.pause || pause.reloadRequired || pause.workerTest);
+};
+
+/**
+ * A document restored from the back/forward cache kept the selection it had
+ * when it was hidden; the tab's selection may have changed or ended since.
+ * Give the restored documents what a new load of them would get.
+ */
+const restoreInspector = (
+  deps: InspectorDeps,
+  sender: chrome.runtime.MessageSender,
+): Promise<void> =>
+  withConfigurationLock(async () => {
+    const tabId = sender.tab?.id;
+    if (sender.id !== chrome.runtime.id || tabId === undefined || sender.frameId !== 0)
+      throw new Error("A restored top document is required.");
+    await Promise.all([initializeInspectors(), initializeHostPauses()]);
+    const context = await supportedTab(tabId);
+    if (!context || !sender.url || new URL(sender.url).hostname !== context.hostname)
+      return;
+    const { hostname } = context;
+    const decision = await deps.resolveRuntimeDecision(hostname, context.cookieStoreId);
+    const traps = isPaused(hostname, tabId)
+      ? null
+      : (withInspector(tabId, hostname, decision).snapshot?.analystTraps ?? null);
+    const live = await deps.applyLive(tabId, traps);
+    // Documents the update could not reach keep an unknown selection.
+    if (live.coverage.notLive === 0) await recordLiveInspector(tabId, hostname);
+    else await recordInspectorDocument(tabId, hostname, null);
+    deps.publish(tabId);
+  });
+
 export const createInspectorHandlers = (deps: InspectorDeps) => {
   const resolve = async (tabId: number) => {
     await Promise.all([initializeInspectors(), initializeHostPauses()]);
@@ -62,8 +97,7 @@ export const createInspectorHandlers = (deps: InspectorDeps) => {
       context.hostname,
       context.cookieStoreId,
     );
-    const pause = getHostPauseStatus(context.hostname, tabId);
-    const paused = Boolean(pause.pause || pause.reloadRequired || pause.workerTest);
+    const paused = isPaused(context.hostname, tabId);
     const appliesLive =
       !paused && decision.snapshot !== null && (await deps.probeLive(tabId));
     return {
@@ -157,5 +191,11 @@ export const createInspectorHandlers = (deps: InspectorDeps) => {
         : null;
     return applyInspectorState(command.tabId, desired, command.apply);
   };
-  return { getInspectorState, applyInspectorState, inspectorCommand };
+  return {
+    getInspectorState,
+    applyInspectorState,
+    inspectorCommand,
+    restoreInspector: (sender: chrome.runtime.MessageSender) =>
+      restoreInspector(deps, sender),
+  };
 };

@@ -40,8 +40,10 @@ The format is based on Keep a Changelog and the project follows Semantic Version
   up on their next load, dedicated workers started afterwards use it while running
   ones keep the earlier selection until the page reloads, and a tab that cannot be
   updated live is reloaded instead. A selection belongs to one tab and its current
-  domain. Firefox cannot stop on Date or Intl calls, and shared workers are never
-  stopped. Available in beta and development builds.
+  domain; a page that Back or Forward restores from the browser's back/forward cache
+  takes the tab's current selection, so a selection that ended when the tab left the
+  domain does not keep stopping it. Firefox cannot stop on Date or Intl calls, and
+  shared workers are never stopped. Available in beta and development builds.
 
 - The optional Control D integration is now included in production builds for Chromium
   and Firefox, with API access requested only when connecting.

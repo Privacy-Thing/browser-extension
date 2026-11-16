@@ -237,6 +237,7 @@ describe("Inspector live channel", () => {
         get location(): never {
           throw new Error("SecurityError");
         },
+        addEventListener: vi.fn(),
       };
       frame.parent = parent ?? frame;
       return frame;
@@ -311,6 +312,22 @@ describe("Inspector live channel", () => {
     late.markLateEarlyBundle();
     expect(late.applyLiveMessage(message(null), background)).toMatchObject({
       reason: "late-runtime",
+    });
+  });
+
+  it("asks the background to settle the selection only when the page returns from the back/forward cache", async () => {
+    await loadEndpoints();
+    const sendMessage = vi.fn(async () => undefined);
+    vi.stubGlobal("chrome", {
+      runtime: { id: "extension", onMessage: { addListener: vi.fn() }, sendMessage },
+    });
+    const pageshow = (persisted: boolean) =>
+      window.dispatchEvent(Object.assign(new Event("pageshow"), { persisted }));
+    pageshow(false);
+    expect(sendMessage).not.toHaveBeenCalled();
+    pageshow(true);
+    expect(sendMessage).toHaveBeenCalledWith({
+      type: EXTENSION_COMMAND_TYPES.restoredXRayInspector,
     });
   });
 
