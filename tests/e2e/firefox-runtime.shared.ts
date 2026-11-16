@@ -1757,6 +1757,30 @@ const clearFirefoxBridgeLogs = async (page: Page): Promise<void> => {
   }
 };
 
+/**
+ * Settings that reload runtime tabs reload only the tabs the background has
+ * registered, and it registers a tab at the end of its asynchronous
+ * `webNavigation.onCommitted` handling, after the content bridge is already
+ * ready. With debug mode on, the background logs that registration; wait for
+ * it before a save that must reload this tab.
+ */
+const waitForFxTabRegistration = async (
+  page: Page,
+  hostname: string,
+): Promise<void> => {
+  await expect
+    .poll(
+      async () =>
+        (await readFxBridgeLogs(page)).some(
+          (entry) =>
+            entry.event === "navigation.tab-context-upserted" &&
+            (entry as { hostname?: unknown }).hostname === hostname,
+        ),
+      { timeout: 15_000, intervals: [100, 250, 500] },
+    )
+    .toBe(true);
+};
+
 const configureFxResultCookie = async (
   page: Page,
   detail: {
@@ -2590,6 +2614,27 @@ export const registerFxCoreTests = () => {
     const page = await prepareFirefoxHostPage(context);
     await gotoFirefoxHostUrl(page, serverUrl);
     await waitForFxBridge(page);
+
+    // The feature-flag save below reloads only a tab the background has
+    // registered. Turn on debug mode (it does not reload tabs) so the
+    // registration of the next navigation is logged, then wait for it.
+    const debugSaved = await requestFxSettingsBridge<
+      SaveSettingsResponse | FxSettingsBridgeError
+    >(
+      page,
+      FXT_BRIDGE_EVENTS.saveSimpleSettings,
+      FXT_BRIDGE_EVENTS.saveSimpleSettingsResult,
+      {
+        debugMode: true,
+      },
+    );
+    if (!debugSaved.ok) {
+      throw new Error(debugSaved.error);
+    }
+    await clearFirefoxBridgeLogs(page);
+    await gotoFirefoxHostUrl(page, serverUrl);
+    await waitForFxBridge(page);
+    await waitForFxTabRegistration(page, new URL(serverUrl).hostname);
 
     // Saving a runtime feature flag reloads this tab, so its reply can land on
     // the unloaded document. Send the save once, observe that reload, then
