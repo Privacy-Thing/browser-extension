@@ -14,6 +14,7 @@ const CWS_LOCALE_FILE_NAMES = {
   es: "es-ES",
   pt_BR: "pt-BR",
   zh_CN: "zh-CN",
+  zh_TW: "zh-TW",
 };
 const CWS_SECTION_SEPARATOR = "=".repeat(50);
 const countSectionSeparators = (description) =>
