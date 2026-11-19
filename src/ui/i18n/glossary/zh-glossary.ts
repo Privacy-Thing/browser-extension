@@ -22,6 +22,7 @@
  * To correct a term, change it here, run the Chinese copy tests and fix what they report.
  */
 
+import { ZH_CONTROL_D_SETUP } from "./zh-control-d-setup";
 import { registerChoice, type ZhVariant } from "./zh-conventions";
 
 export type { ZhVariant };
@@ -362,9 +363,10 @@ export const ZH_GLOSSARY: readonly ZhGlossaryEntry[] = [
     "zh-CN": { term: "Control D" },
     "zh-TW": { term: "Control D" },
     rationale:
-      "Brand, never translated. Its terms below are reasoned choices, not quotes from Control D (no Chinese Control D localization was verified); “setup” (a bundle of profile, endpoint and folders) is 配置 in zh-CN and 設定組合 in zh-TW and should be unified by a native reviewer: service 服务 / 服務, API key API 密钥 / API 金鑰, endpoint 端点 / 端點, exit 出口, sync 同步, profile 配置文件 / 設定檔, Service Rules 服务规则 / 服務規則, Custom Rules 自定义规则 / 自訂規則, DNS unchanged.",
+      "Brand, never translated. Its terms below are reasoned choices, not quotes from Control D (no Chinese Control D localization was verified); “setup” (a bundle of profile, endpoint and folders) is 配置 in zh-CN and 設定組合 in zh-TW (see the control-d-setup entry): service 服务 / 服務, API key API 密钥 / API 金鑰, endpoint 端点 / 端點, exit 出口, sync 同步, profile 配置文件 / 設定檔, Service Rules 服务规则 / 服務規則, Custom Rules 自定义规则 / 自訂規則, DNS unchanged.",
     evidence: ["chrome", "mullvad"],
   },
+  ZH_CONTROL_D_SETUP,
   {
     id: "api-key",
     english: "API key",
