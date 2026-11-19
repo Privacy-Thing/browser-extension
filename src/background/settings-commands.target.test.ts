@@ -11,7 +11,11 @@ import {
   EXTENSION_STORAGE_KEYS,
 } from "@/shared/extension-contract";
 import { DEFAULT_PREFERENCES } from "@/shared/settings-defaults";
-import type { EffectiveTabContext, TrustedSite } from "@/shared/types";
+import type {
+  EffectiveTabContext,
+  ExportedSettings,
+  TrustedSite,
+} from "@/shared/types";
 
 const {
   saveTrustedSites,
@@ -246,6 +250,31 @@ describe("createSettingsHandlers", () => {
     expect(exported).not.toHaveProperty("behavioralProfilesEnabled");
     expect(exported.featureFlags).toEqual({ temporalApi: false, domainFencing: false });
     expect(exported.locations).toEqual([]);
+  });
+
+  it("exports unbounded location values as JSON-safe text", async () => {
+    loadLocations.mockResolvedValueOnce([
+      {
+        id: "far",
+        label: "Far",
+        latitude: 1,
+        longitude: 2,
+        accuracy: Infinity,
+        noiseRadius: Infinity,
+        language: "pl",
+        languages: ["pl"],
+        timeZone: "Europe/Warsaw",
+      },
+    ] as never);
+    const { exportSettings } = createSettingsHandlers(createDeps());
+
+    const { settings } = await exportSettings();
+    const file = JSON.parse(JSON.stringify(settings)) as ExportedSettings;
+
+    expect(file.locations[0]).toMatchObject({
+      accuracy: "Infinity",
+      noiseRadius: "Infinity",
+    });
   });
 
   it("preserves retired profile data when importing an old backup", async () => {

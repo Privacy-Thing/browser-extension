@@ -18,6 +18,7 @@ import {
   getImportUndoStatus,
   undoSettingsImport,
 } from "@/background/settings-import-transaction";
+import { BUILD_BROWSER_TARGET } from "@/shared/build-flags";
 import {
   EXTENSION_COMMAND_TYPES,
   EXTENSION_STORAGE_KEYS,
@@ -34,6 +35,7 @@ import type {
   ImportSettingsResponse,
   ExportedSettings,
 } from "@/shared/types";
+import { decodeUnbounded, encodeUnbounded } from "@/shared/unbounded-location-values";
 import { getBrowserContainers } from "@/targets/firefox/containers-api";
 
 type PreviewCommand = Extract<
@@ -104,16 +106,18 @@ const previewSettingsImport = async (
     // Validate before touching even migration state; normalizing mints missing
     // nonces once and the retained candidate is exactly what confirmation writes.
     assertAllowedImportNames(command.settings);
-    validateImportedSettings(command.settings);
+    const file = decodeUnbounded(command.settings, {
+      storageKeepsInfinity: BUILD_BROWSER_TARGET === "firefox",
+    });
+    validateImportedSettings(file);
     await deps.ensureStorageMigration();
     const before = await readConfiguration();
     const current = configurationToExport(before);
     const source = configurationToExport(
       importedConfiguration({
-        ...command.settings,
+        ...file,
         onboardingCompleted:
-          command.settings.onboardingCompleted ??
-          normalizePreferences(current).onboardingCompleted,
+          file.onboardingCompleted ?? normalizePreferences(current).onboardingCompleted,
       }),
     );
     const localContainers = await getBrowserContainers();
@@ -159,7 +163,8 @@ const previewSettingsImport = async (
     const token = crypto.randomUUID();
     const preview: SettingsImportPreview = {
       token,
-      source,
+      // The UI sends this back for corrections, so keep it JSON-safe.
+      source: encodeUnbounded(source),
       selection,
       localContainers,
       conflicts: {
