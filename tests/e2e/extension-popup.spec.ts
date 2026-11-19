@@ -779,12 +779,16 @@ test("popup power toggles the current rule without removing it", async ({
     "data-presentation",
     "rule-active",
   );
-  await popupPage.locator("#toggle-current-rule").click();
+  const power = popupPage.locator("#toggle-current-rule");
+  await power.click();
   await expect(popupPage.locator("#current-rule")).toHaveAttribute(
     "data-presentation",
     "rule-inactive",
   );
-  await popupPage.locator("#toggle-current-rule").click();
+  // The card flips optimistically while the save is in flight, and the popup
+  // ignores clicks until it settles. Wait for that before toggling back.
+  await expect(power).toHaveAttribute("aria-busy", "false");
+  await power.click();
   await expect(popupPage.locator("#current-rule")).toHaveAttribute(
     "data-presentation",
     "rule-active",

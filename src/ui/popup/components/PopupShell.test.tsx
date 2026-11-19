@@ -75,6 +75,20 @@ describe("PopupShell", () => {
     expect(markup).not.toContain("Current state:");
   });
 
+  it("marks the power control busy while a popup mutation is pending", () => {
+    const powerButton = (markup: string) =>
+      /<button[^>]*id="toggle-current-rule"[^>]*>/.exec(markup)?.[0] ?? "";
+
+    const idle = renderToStaticMarkup(createElement(PopupShell, baseProps));
+    const pending = renderToStaticMarkup(
+      createElement(PopupShell, { ...baseProps, powerBusy: true }),
+    );
+
+    expect(powerButton(idle)).toContain('aria-busy="false"');
+    expect(powerButton(pending)).toContain('aria-busy="true"');
+    expect(powerButton(pending)).not.toContain("disabled");
+  });
+
   it("leaves the host slot empty when the active page has no hostname", () => {
     const { domain: _domain, ...propsWithoutDomain } = baseProps;
     const markup = renderToStaticMarkup(
