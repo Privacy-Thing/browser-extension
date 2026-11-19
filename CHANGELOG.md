@@ -154,6 +154,13 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ### Fixed
 
+- With Temporal API protection on in Chromium, the page runtime now takes over the
+  Temporal hooks installed before page scripts run instead of wrapping them a second
+  time. X-Ray no longer lists all Temporal methods as used on pages that never call
+  them or counts each Temporal call twice. In every browser, a protected Temporal
+  `toLocaleString` called without a receiver now fails as the native method does
+  instead of receiving the global object.
+
 - Russian and Ukrainian copy names the product again where English does, Spanish
   translates the WebRTC ICE policy row, Portuguese uses a proper ellipsis while
   saving, and X-Ray translates the GPU renderer info label in Russian, Ukrainian and

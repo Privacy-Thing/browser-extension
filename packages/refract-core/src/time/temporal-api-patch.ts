@@ -175,20 +175,29 @@ const installMethod = ({
   const ownershipProof = state.ownership
     ? privateSymbolFor(`${state.ownership.proofKey}:${methodId}`)
     : null;
-  const holder = {
-    [key](this: unknown, ...args: unknown[]) {
+  // Class bodies are strict even inside a sloppy IIFE bundle. A sloppy method
+  // would box the private handoff symbols passed as its receiver, so the
+  // ownership checks below could never match, and it would replace a nullish
+  // receiver with the global object before calling the strict native method.
+  const holder = class {
+    static [key](this: unknown, ...args: unknown[]) {
       if (state.ownership) {
         if (this === state.ownership.verify) return ownershipProof;
         if (this === state.ownership.commit) {
           state.defaults = args[0] as TemporalApiDefaults | null;
+          // The adopting bundle may take over access reporting, so one
+          // reporting layer applies once it owns the wrapper.
+          if (typeof args[1] === "function") {
+            state.onAccess = args[1] as TemporalApiPatchState["onAccess"];
+          }
           return ownershipProof;
         }
       }
       if (state.defaults !== null) state.onAccess?.(methodId);
       return createCall(nativeMethod, args, this);
-    },
+    }
   };
-  const wrapped = holder[key] as TemporalMethod;
+  const wrapped = (holder as unknown as Record<string, TemporalMethod>)[key]!;
   privateSetPrototype(wrapped, privateGetPrototype(nativeMethod));
   maskAsNative(
     wrapped,
@@ -351,10 +360,12 @@ const commitTemporalDefaults = (
   verified: readonly VerifiedTemporalAnchor[],
   commit: symbol,
   defaults: TemporalApiDefaults | null,
+  onAccess: TemporalApiPatchOptions["onAccess"],
 ): boolean => {
   for (const [method, proof] of verified) {
     try {
-      if (privateReflectApply(method, commit, [defaults]) !== proof) return false;
+      if (privateReflectApply(method, commit, [defaults, onAccess]) !== proof)
+        return false;
     } catch {
       return false;
     }
@@ -377,13 +388,15 @@ const disableTemporalAnchors = (
 
 /**
  * Verifies every available wrapper installed by an earlier bundle before
- * updating its defaults. The handoff key belongs only to the two injected
- * bundles and is not reused by a page-visible marker or transport channel.
+ * updating its defaults and, when given, its access reporter. The handoff key
+ * belongs only to the two injected bundles and is not reused by a page-visible
+ * marker or transport channel.
  */
 export const adoptTemporalApiPatch = (
   targetGlobal: TemporalApiGlobal,
   defaults: TemporalApiDefaults | null,
   ownershipKey: string,
+  onAccess?: TemporalApiPatchOptions["onAccess"],
 ): TemporalApiAnchor[] => {
   const anchors = getTemporalApiAnchors(targetGlobal);
   const verify = privateSymbolFor(`${ownershipKey}:verify`);
@@ -391,7 +404,7 @@ export const adoptTemporalApiPatch = (
   const verified = verifyTemporalApiAnchors(anchors, ownershipKey, verify);
   if (
     verified.length === anchors.length &&
-    commitTemporalDefaults(verified, commit, defaults)
+    commitTemporalDefaults(verified, commit, defaults, onAccess)
   ) {
     return anchors;
   }
