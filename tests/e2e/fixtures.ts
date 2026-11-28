@@ -11,6 +11,8 @@ import { EXTENSION_COMMAND_TYPES } from "../../src/shared/extension-contract";
 import { startProbeServers, type StartedProbeServers } from "./harness/probe-server";
 
 type ExtensionFixtures = {
+  /** Playwright disables Chromium's back/forward cache unless a spec opts in. */
+  backForwardCache: boolean;
   context: BrowserContext;
   extensionId: string;
   serverUrl: string;
@@ -128,12 +130,16 @@ export const test = base.extend<ExtensionFixtures & InternalFixtures>({
   secondaryServerUrl: async ({ probeServers }, use) => {
     await use(probeServers.secondaryUrl);
   },
-  context: async ({ playwright }, use) => {
+  backForwardCache: [false, { option: true }],
+  context: async ({ playwright, backForwardCache }, use) => {
     const extensionPath = getChromiumExtensionPath();
     const userDataDir = await mkdtemp(path.join(os.tmpdir(), "pt-e2e-"));
     const context = await playwright.chromium.launchPersistentContext(userDataDir, {
       channel: "chromium",
       headless: true,
+      ...(backForwardCache
+        ? { ignoreDefaultArgs: ["--disable-back-forward-cache"] }
+        : {}),
       args: [
         `--disable-extensions-except=${extensionPath}`,
         `--load-extension=${extensionPath}`,

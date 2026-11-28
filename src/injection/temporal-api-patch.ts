@@ -4,6 +4,7 @@ import {
   installTemporalApiPatch as installCoreTemporalApiPatch,
   type TemporalApiAnchor,
   type TemporalApiGlobal,
+  type TemporalApiMethodId,
 } from "@privacy-brand/refract-core/time/temporal-api-patch";
 
 import {
@@ -45,9 +46,18 @@ export const installTemporalApiPatch = (
           timeZone: locale.timeZone,
         }
       : null;
+  const onAccess = (methodId: TemporalApiMethodId): void =>
+    markSurfaceUsed("timeLocale", methodId);
+  // Adopted early wrappers report through this bundle from now on, so the
+  // Inspector selection settled after commit also covers Temporal.
   const adoptedAnchors =
     __PT_BROWSER_TARGET__ === "chromium" && verifyEarlyOwnership
-      ? adoptCoreTemporalApiPatch(targetGlobal, defaults, __PT_TEMPORAL_HANDOFF_KEY__)
+      ? adoptCoreTemporalApiPatch(
+          targetGlobal,
+          defaults,
+          __PT_TEMPORAL_HANDOFF_KEY__,
+          onAccess,
+        )
       : [];
   if (adoptedAnchors.length > 0) {
     if (!defaults) return [];
@@ -58,7 +68,7 @@ export const installTemporalApiPatch = (
   const anchors = installCoreTemporalApiPatch({
     targetGlobal,
     defaults,
-    onAccess: (methodId) => markSurfaceUsed("timeLocale", methodId),
+    onAccess,
   });
   registerTemporalAnchors(integrity, anchors);
   return anchors;

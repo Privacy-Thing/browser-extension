@@ -10,6 +10,11 @@ import {
   test,
 } from "./firefox-runtime.shared";
 
+// Each scenario drives several worker-test sessions, tab reloads and remote
+// probes in sequence (about 20 s on CI). Use the budget shared by the other
+// Firefox runtime suites instead of the 30 s local default.
+test.describe.configure({ timeout: 120_000 });
+
 const probe = async (page: Page | Frame, kind: "service-worker" | "shared-worker") => {
   await page.evaluate((workerKind) => {
     document.getElementById("pt26-result")?.remove();
@@ -316,9 +321,10 @@ test("Firefox worker test window renders on its own and its Close action restore
     await navigation;
     await expect.poll(async () => (await view()).phase).toBe("testing");
     expect(await probe(h, "service-worker")).toBe("allowed");
+    // Close removes the assistant tab, so it cannot report a probe result.
     const restored = h.waitForEvent("domcontentloaded");
-    await assistant.evaluate(
-      `(document.querySelector("[data-worker-test-close]").click(), true)`,
+    await assistant.dispatch(
+      `document.querySelector("[data-worker-test-close]").click()`,
     );
     await restored;
     expect(await probe(h, "service-worker")).toMatch(/^SecurityError:/);
@@ -329,6 +335,7 @@ test("Firefox worker test window renders on its own and its Close action restore
         ),
       )
       .toBe(false);
+    await assistant.close();
     expect(await command(commands.getSettings)).toEqual(before);
   } finally {
     await h.close();
