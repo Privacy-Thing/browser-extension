@@ -61,7 +61,7 @@ beforeEach(() => {
       ]),
     },
     storage: {
-      local: { get: vi.fn(async () => ({})) },
+      local: { get: vi.fn(async () => ({})), set: vi.fn(async () => undefined) },
       session: {
         get: vi.fn(async () => structuredClone(stored)),
         set: vi.fn(async (value) => {
@@ -294,6 +294,76 @@ describe("tab Inspector activation", () => {
     });
     expect(reload).not.toHaveBeenCalled();
   });
+  describe("a top document restored from the back/forward cache", () => {
+    const top = {
+      id: "extension",
+      tab: { id: 3 } as chrome.tabs.Tab,
+      frameId: 0,
+      url: "https://probe.example/",
+    };
+    const covered: InspectorLiveResult = {
+      top: true,
+      coverage: { live: 2, notLive: 0, reasons: [] },
+    };
+
+    it("drops a selection the tab no longer has", async () => {
+      const h = await setup(undefined, covered);
+      await h.restoreInspector(top);
+      expect(h.applyLive).toHaveBeenCalledWith(3, null);
+      expect(await h.getInspectorState(3)).toMatchObject({
+        armed: false,
+        pendingReload: false,
+      });
+    });
+
+    it("gets the tab's current selection without a reload", async () => {
+      const h = await setup(undefined, covered);
+      await h.storeInspector(3, "probe.example", desired);
+      await h.restoreInspector(top);
+      expect(h.applyLive).toHaveBeenCalledWith(3, desired);
+      expect(await h.getInspectorState(3)).toMatchObject({
+        armed: true,
+        pendingReload: false,
+      });
+      expect(reload).not.toHaveBeenCalled();
+    });
+
+    it("stays pending when some restored documents cannot take live updates", async () => {
+      const h = await setup(undefined, {
+        top: true,
+        coverage: { live: 1, notLive: 1, reasons: ["same-origin-frame"] },
+      });
+      await h.storeInspector(3, "probe.example", desired);
+      await h.recordInspectorDocument(
+        3,
+        "probe.example",
+        h.withInspector(3, "probe.example", h.decision).snapshot,
+      );
+      await h.restoreInspector(top);
+      expect((await h.getInspectorState(3)).pendingReload).toBe(true);
+    });
+
+    it("gives a restored document no selection while protection is paused", async () => {
+      const h = await setup(undefined, covered);
+      await h.storeInspector(3, "probe.example", desired);
+      const pauses = await import("./storage/host-protection-pauses");
+      await pauses.setHostPause("probe.example", "session");
+      await h.restoreInspector(top);
+      expect(h.applyLive).toHaveBeenCalledWith(3, null);
+    });
+
+    it("ignores child frames, other extensions and documents the tab already left", async () => {
+      const h = await setup(undefined, covered);
+      await expect(h.restoreInspector({ ...top, frameId: 7 })).rejects.toThrow();
+      await expect(h.restoreInspector({ ...top, id: "other" })).rejects.toThrow();
+      await expect(
+        h.restoreInspector({ id: "extension", frameId: 0 }),
+      ).rejects.toThrow();
+      await h.restoreInspector({ ...top, url: "https://other.example/" });
+      expect(h.applyLive).not.toHaveBeenCalled();
+    });
+  });
+
   it("falls back to seeding and reload when the top document is not live", async () => {
     const h = await setup();
     const result = await h.applyInspectorState(3, desired, "now");
