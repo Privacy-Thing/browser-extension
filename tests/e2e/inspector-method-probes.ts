@@ -58,7 +58,10 @@ export const INSPECTOR_METHOD_PROBES = {
     cleanup: "navigator.geolocation.clearWatch(s.id)",
   },
   "geolocation.clearWatch": {
-    setup: "s.id = navigator.geolocation.watchPosition(() => {}, () => {})",
+    // The watch delivers its first position on a timer, and that delivery reports
+    // through other armed hooks; wait for it so it cannot stop during the call.
+    setup:
+      "await new Promise((done) => { s.id = navigator.geolocation.watchPosition(done, done); })",
     call: "navigator.geolocation.clearWatch(s.id)",
   },
   "geolocation.permissionsQuery": {
@@ -290,13 +293,6 @@ export const KNOWN_STOP_DEFECTS: Record<
   Partial<Record<SpoofingSurfaceMethodId, KnownDefect>>
 > = {
   chromium: {
-    ...defects(temporalIds, {
-      arming: ["live", "next-load"],
-      // The early layer keeps its own selection, so its extra stop varies by load.
-      outcomes: [1, 2],
-      reason:
-        "The full runtime wraps the early-inline Temporal wrapper again instead of adopting it, so both report; fixed by PR #119.",
-    }),
     // With every method armed, internal calls through other hooks stop as well.
     "geolocation.getCurrentPosition": {
       arming: ["next-load"],
@@ -326,6 +322,7 @@ export const KNOWN_STOP_DEFECTS: Record<
         "navigator.appVersion",
         "serviceWorker.register",
       ],
+      // PT-84
       {
         arming: ["live"],
         outcomes: [0],
@@ -339,6 +336,7 @@ export const KNOWN_STOP_DEFECTS: Record<
         "geolocation.watchPosition",
         "geolocation.clearWatch",
       ],
+      // PT-86
       {
         arming: ["live", "next-load"],
         outcomes: [0],
@@ -348,6 +346,7 @@ export const KNOWN_STOP_DEFECTS: Record<
     ),
     ...defects(
       [...temporalIds, "sharedWorker.constructor", "geolocation.permissionsQuery"],
+      // PT-85
       {
         arming: ["next-load"],
         outcomes: [2],
