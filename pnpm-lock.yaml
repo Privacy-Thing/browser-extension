@@ -4168,8 +4168,8 @@ packages:
     resolution: {integrity: sha512-pyFS63ptit/P5WqUkt+UUfe+4oevH+bFeIiPPdfb0pFeYEu/1ELnJu5l+5EcTKYL5M7zaAa7S8ddywgXypqKCw==}
     engines: {node: '>= 0.4'}
 
-  node-forge@1.4.0:
-    resolution: {integrity: sha512-LarFH0+6VfriEhqMMcLX2F7SwSXeWwnEAJEsYm5QKWchiVYVvJyV9v7UDvUv+w5HO23ZpQTXDv/GxdDdMyOuoQ==}
+  node-forge@1.4.4:
+    resolution: {integrity: sha512-T6VRRpF3+czIGcXW/LOeoD7Ej28d8CF1UMEAbJyJRUtYMvyXAgxUPW2kbUibumvV9LiUQAznJOFyeYclzSJMMg==}
     engines: {node: '>= 6.13.0'}
 
   node-releases@2.0.57:
@@ -5607,7 +5607,7 @@ snapshots:
       bluebird: 3.7.2
       commander: 9.5.0
       debug: 4.3.7(supports-color@7.2.0)
-      node-forge: 1.4.0
+      node-forge: 1.4.4
       split: 1.0.1
     transitivePeerDependencies:
       - supports-color
@@ -9048,7 +9048,7 @@ snapshots:
       object.entries: 1.1.9
       semver: 6.3.1
 
-  node-forge@1.4.0: {}
+  node-forge@1.4.4: {}
 
   node-releases@2.0.57: {}
 
