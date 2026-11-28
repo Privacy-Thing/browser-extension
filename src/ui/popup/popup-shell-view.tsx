@@ -351,6 +351,7 @@ export const PopupShellPane = ({ controller }: { controller: PopupController }) 
           : {})}
         powerState={visual.resolvedPowerState}
         powerDisabled={isPowerDisabled(controller)}
+        powerBusy={state.mutationState.status === "pending"}
         powerTitle={viewModel.powerTitle}
         powerTarget={viewModel.powerTarget}
         powerLabel={viewModel.powerLabel}

@@ -281,6 +281,40 @@ describe("Temporal API patch", () => {
     expect(onAccess).toHaveBeenCalledTimes(2);
   });
 
+  it("moves access reporting to the adopting bundle", () => {
+    const fixture = createTemporalFixture();
+    const earlyAccess = vi.fn<(methodId: TemporalApiMethodId) => void>();
+    const adopterAccess = vi.fn<(methodId: TemporalApiMethodId) => void>();
+    const ownership = "temporal-reporter-handoff-test";
+    installTemporalApiPatch(
+      {
+        targetGlobal: { Temporal: fixture.temporal },
+        defaults: { languages: ["en-GB"], timeZone: "Europe/London" },
+        onAccess: earlyAccess,
+      },
+      ownership,
+    );
+    (fixture.temporal.Now.timeZoneId as () => unknown)();
+    expect(earlyAccess).toHaveBeenCalledTimes(1);
+
+    expect(
+      adoptTemporalApiPatch(
+        { Temporal: fixture.temporal },
+        { languages: ["pl-PL"], timeZone: "Europe/Warsaw" },
+        ownership,
+        adopterAccess,
+      ),
+    ).toHaveLength(14);
+    (fixture.temporal.Now.timeZoneId as () => unknown)();
+    fixture.instances.get("Instant")!.toLocaleString();
+
+    expect(earlyAccess).toHaveBeenCalledTimes(1);
+    expect(adopterAccess.mock.calls).toEqual([
+      ["temporal.Now.timeZoneId"],
+      ["temporal.Instant.toLocaleString"],
+    ]);
+  });
+
   it("rejects a forged claim that can only echo the private request", () => {
     const fixture = createTemporalFixture();
     const forgedTimeZoneId = function (this: unknown) {
@@ -305,6 +339,7 @@ describe("Temporal API patch", () => {
   it("rejects a mixed handoff when any available anchor was replaced", () => {
     const fixture = createTemporalFixture();
     const onAccess = vi.fn<(methodId: TemporalApiMethodId) => void>();
+    const adopterAccess = vi.fn<(methodId: TemporalApiMethodId) => void>();
     const ownership = "temporal-mixed-handoff-test";
     installTemporalApiPatch(
       {
@@ -330,6 +365,7 @@ describe("Temporal API patch", () => {
         { Temporal: fixture.temporal },
         { languages: ["pl-PL"], timeZone: "Europe/Warsaw" },
         ownership,
+        adopterAccess,
       ),
     ).toEqual([]);
     expect(fixture.temporal.Now.timeZoneId).toBe(earlyTimeZoneId);
@@ -349,6 +385,7 @@ describe("Temporal API patch", () => {
     expect((fixture.temporal.Now.timeZoneId as () => unknown)()).toBe("Europe/Warsaw");
     expect(onAccess).toHaveBeenCalledWith("temporal.Now.timeZoneId");
     expect(onAccess).toHaveBeenCalledTimes(1);
+    expect(adopterAccess).not.toHaveBeenCalled();
   });
 
   it("deactivates stale early wrappers when the accepted snapshot disables them", () => {

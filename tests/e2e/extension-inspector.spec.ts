@@ -22,6 +22,7 @@ type PauseFrame = {
 type Pause = { callFrames: PauseFrame[]; reason: string };
 const probeScript = `window.inspectorProbe = async function chosenRead(method) {
   if (method === "battery") { const manager = await navigator.getBattery(); return manager.level; }
+  if (method === "temporal") return Temporal.Now.timeZoneId();
   return Date.now();
 };`;
 
@@ -96,6 +97,7 @@ test("Inspector pauses only selected reads in the real runtime and leaves the pl
         browserFingerprintSpoofingEnabled: true,
         globalFallbackRule: { enabled: true, locationId: examples.locations[0].id },
         sharedSpoofing: { battery: true },
+        featureFlags: { temporalApi: true },
       })
     ).ok,
   ).toBe(true);
@@ -125,12 +127,15 @@ test("Inspector pauses only selected reads in the real runtime and leaves the pl
   };
   await run("battery");
   await run("date");
+  await run("temporal");
   expect(observed.pauses).toHaveLength(0);
   const before = await command(EXTENSION_COMMAND_TYPES.getXRayState, { tabId });
 
   for (const [methodId, selected, other] of [
     ["battery.manager.level", "battery", "date"],
     ["date.now", "date", "battery"],
+    // Chromium early-inline installs Temporal; the full runtime adopts it.
+    ["temporal.Now.timeZoneId", "temporal", "date"],
   ]) {
     // Live arming has its own spec; this one covers delivery inside a new document.
     const applied = await command(CMD_XRAY_SET_INSPECTOR, {
@@ -167,8 +172,18 @@ test("Inspector pauses only selected reads in the real runtime and leaves the pl
       pause.callFrames.slice(1, callerIndex).map((frame) => observed.ignored(frame)),
     ).toEqual(Array(callerIndex - 1).fill(true));
     expect(caller!.location.lineNumber).toBe(
-      methodId === "battery.manager.level" ? 1 : 2,
+      { "battery.manager.level": 1, "temporal.Now.timeZoneId": 2, "date.now": 3 }[
+        methodId!
+      ],
     );
+    if (methodId === "temporal.Now.timeZoneId") {
+      // The full runtime adopts the early wrapper instead of wrapping it again.
+      expect(
+        pause.callFrames
+          .slice(1, callerIndex)
+          .filter((frame) => observed.url(frame).includes("main-world-early.js")),
+      ).toHaveLength(1);
+    }
     const scriptSource = await cdp.send("Debugger.getScriptSource", {
       scriptId: top.location.scriptId,
     });
@@ -195,7 +210,7 @@ test("Inspector pauses only selected reads in the real runtime and leaves the pl
   }
   await command(CMD_XRAY_SET_INSPECTOR, {
     tabId,
-    methodIds: ["date.now"],
+    methodIds: ["date.now", "temporal.Now.timeZoneId"],
     mode: "every-call",
     apply: "next-load",
   });
@@ -203,7 +218,8 @@ test("Inspector pauses only selected reads in the real runtime and leaves the pl
   observed.pauses.length = 0;
   await run("date");
   await run("date");
-  expect(observed.pauses).toHaveLength(2);
+  await run("temporal");
+  expect(observed.pauses).toHaveLength(3);
   const pending = await command(CMD_XRAY_SET_INSPECTOR, {
     tabId,
     methodIds: ["battery.manager.level"],
@@ -233,6 +249,8 @@ test("Inspector pauses only selected reads in the real runtime and leaves the pl
     .toBe(false);
   observed.pauses.length = 0;
   await run("date");
+  // Early-inline Temporal hooks follow the settled selection too.
+  await run("temporal");
   expect(observed.pauses).toHaveLength(0);
   await run("battery");
   expect(observed.pauses).toHaveLength(1);
@@ -242,6 +260,7 @@ test("Inspector pauses only selected reads in the real runtime and leaves the pl
   await page.reload();
   observed.pauses.length = 0;
   await run("date");
+  await run("temporal");
   await run("battery");
   expect(observed.pauses).toHaveLength(0);
   await cdp.detach();
