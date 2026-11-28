@@ -5,6 +5,7 @@ export const E2E_OWNERSHIP_LANES = {
     "extension-inspector.spec.ts",
     "extension-inspector-live.spec.ts",
     "extension-inspector-coverage.spec.ts",
+    "extension-inspector-bfcache.spec.ts",
     "extension-host-pause.spec.ts",
     "extension-worker-test.spec.ts",
   ],

@@ -22,6 +22,8 @@ const createFxTestEvent = <Name extends string>(name: Name) =>
 export const CMD_RESOLVE_SNAPSHOT = createCommandType("resolve-runtime-snapshot");
 /** Background to isolated bootstrap only; never routed by the background. */
 export const CMD_XRAY_INSPECTOR_LIVE = createCommandType("xray-inspector-live");
+/** Isolated bootstrap to background: the top document returned from the back/forward cache. */
+export const CMD_INSPECTOR_RESTORED = createCommandType("xray-inspector-restored");
 export const CMD_SAVE_SETTINGS = createCommandType("save-simple-settings");
 export const CMD_SAVE_LOCATION = createCommandType("save-location-model");
 export const CMD_CLEANUP_DOMAIN = createCommandType("cleanup-domain-state");
@@ -91,6 +93,7 @@ export const EXTENSION_COMMAND_TYPES = {
   setXRayInspector: CMD_XRAY_SET_INSPECTOR,
   clearXRayInspector: CMD_XRAY_CLEAR_INSPECTOR,
   applyXRayInspectorLive: CMD_XRAY_INSPECTOR_LIVE,
+  restoredXRayInspector: CMD_INSPECTOR_RESTORED,
   getXRayState: createCommandType("get-doctor-state"),
   surfaceUsage: CMD_SURFACE_USAGE,
   surfaceError: CMD_SURFACE_ERROR,

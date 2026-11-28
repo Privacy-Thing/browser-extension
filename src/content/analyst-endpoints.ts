@@ -1,5 +1,7 @@
 import type { XRayLiveReason } from "@privacy-brand/xray-protocol";
 
+import { safeSendMessage } from "@/content/safe-messaging";
+import { CMD_INSPECTOR_RESTORED } from "@/shared/extension-contract";
 import {
   isInspectorLiveMessage,
   type InspectorLiveCommand,
@@ -142,4 +144,11 @@ export const installAnalystEndpoints = (): void => {
     if (result) sendResponse(result);
     return false;
   });
+  // A page restored from the back/forward cache keeps the selection it had when
+  // it was hidden. The background gives the tab's documents the selection a new
+  // load would get. Only the top document asks; it covers the tab's frames.
+  if (window === window.top)
+    window.addEventListener("pageshow", (event) => {
+      if (event.persisted) safeSendMessage({ type: CMD_INSPECTOR_RESTORED });
+    });
 };
