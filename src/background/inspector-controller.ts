@@ -10,7 +10,10 @@ import {
 } from "@/background/storage/inspector-sessions";
 import { fireAndForget } from "@/shared/async";
 import { BUILD_BROWSER_TARGET } from "@/shared/build-flags";
-import { EXTENSION_COMMAND_TYPES } from "@/shared/extension-contract";
+import {
+  CMD_INSPECTOR_RESTORED,
+  EXTENSION_COMMAND_TYPES,
+} from "@/shared/extension-contract";
 import type { EffectiveTabContext } from "@/shared/types";
 
 /** A reload replaces every child document, so only the top document is seeded. */
@@ -53,10 +56,14 @@ export const registerInspector = (
     fireAndForget(navigateInspector(details.tabId, hostname));
   });
   fireAndForget(initializeInspectors());
-  return handlers.inspectorCommand;
+  return (message: unknown, sender: chrome.runtime.MessageSender) =>
+    (message as { type?: unknown } | null)?.type === CMD_INSPECTOR_RESTORED
+      ? handlers.restoreInspector(sender)
+      : handlers.inspectorCommand(message, sender);
 };
 
 export const isInspectorCommand = (type: string): boolean =>
   type === EXTENSION_COMMAND_TYPES.getXRayInspectorState ||
   type === EXTENSION_COMMAND_TYPES.setXRayInspector ||
-  type === EXTENSION_COMMAND_TYPES.clearXRayInspector;
+  type === EXTENSION_COMMAND_TYPES.clearXRayInspector ||
+  type === CMD_INSPECTOR_RESTORED;
