@@ -63,6 +63,10 @@
     "zh-CN": {
       "storeLocale": "zh_CN",
       "title": "Privacy Thing (Preview)"
+    },
+    "zh-TW": {
+      "storeLocale": "zh_TW",
+      "title": "Privacy Thing (Preview)"
     }
   }
 }

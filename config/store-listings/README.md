@@ -19,8 +19,8 @@ config/store-listings/
 
 AMO descriptions are shipped for every configured manifest locale supported by
 production AMO: `de`, `en-US`, `es-ES`, `fr`, `it`, `ja`, `ko`, `pl`, `pt-BR`,
-`ru`, `uk`, and `zh-CN`. The corresponding manifest codes are mapped in
-`meta.json` (for example `en`, `pt_BR`, and `zh_CN`).
+`ru`, `uk`, `zh-CN`, and `zh-TW`. The corresponding manifest codes are mapped in
+`meta.json` (for example `en`, `pt_BR`, `zh_CN`, and `zh_TW`).
 
 The extension also ships an Arabic (`ar`) manifest locale. Production AMO does
 not currently accept Arabic listing translations, so `meta.json` records it in

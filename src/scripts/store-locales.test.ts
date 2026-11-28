@@ -33,6 +33,7 @@ describe("manifest locales", () => {
     expect(MANIFEST_LOCALE_CODES).toEqual([
       "ar",
       "zh_CN",
+      "zh_TW",
       "uk",
       "ru",
       "pt_BR",
