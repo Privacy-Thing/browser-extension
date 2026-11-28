@@ -156,6 +156,12 @@ The format is based on Keep a Changelog and the project follows Semantic Version
 
 ### Fixed
 
+- Settings export no longer turns an unbounded location accuracy or noise radius into
+  `null`. Firefox backups keep the value and import it back unchanged. Chromium cannot
+  store such a value, so importing it, or a file from an older export that holds `null`
+  there, now stops with a message naming the location and field instead of a raw
+  validation error.
+
 - With Temporal API protection on in Chromium, the page runtime now takes over the
   Temporal hooks installed before page scripts run instead of wrapping them a second
   time. X-Ray no longer lists all Temporal methods as used on pages that never call
