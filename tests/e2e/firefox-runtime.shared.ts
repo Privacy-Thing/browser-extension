@@ -1637,6 +1637,25 @@ const requestFxBridgeWithOpts = async <T>(
   );
 };
 
+/**
+ * Sends a bridge request without waiting for its reply. Use it for commands
+ * that reload the tab: the reply then races the reload, and re-sending a lost
+ * request (as `requestFxBridgeWithOpts` does) would reload the tab again.
+ * Observe the reload and read the persisted state instead.
+ */
+const dispatchFxBridgeRequest = async (
+  page: Page,
+  requestEventName: string,
+  detail: unknown,
+): Promise<void> => {
+  await page.evaluate(
+    ({ requestEventName, detail }) => {
+      document.dispatchEvent(new CustomEvent(requestEventName, { detail }));
+    },
+    { requestEventName, detail },
+  );
+};
+
 const requestFxSettingsBridge = async <T>(
   page: Page,
   requestEventName: string,
@@ -1736,6 +1755,30 @@ const clearFirefoxBridgeLogs = async (page: Page): Promise<void> => {
   if (!("ok" in response) || response.ok !== true) {
     throw new Error("Failed to clear Firefox bridge logs.");
   }
+};
+
+/**
+ * Settings that reload runtime tabs reload only the tabs the background has
+ * registered, and it registers a tab at the end of its asynchronous
+ * `webNavigation.onCommitted` handling, after the content bridge is already
+ * ready. With debug mode on, the background logs that registration; wait for
+ * it before a save that must reload this tab.
+ */
+const waitForFxTabRegistration = async (
+  page: Page,
+  hostname: string,
+): Promise<void> => {
+  await expect
+    .poll(
+      async () =>
+        (await readFxBridgeLogs(page)).some(
+          (entry) =>
+            entry.event === "navigation.tab-context-upserted" &&
+            (entry as { hostname?: unknown }).hostname === hostname,
+        ),
+      { timeout: 15_000, intervals: [100, 250, 500] },
+    )
+    .toBe(true);
 };
 
 const configureFxResultCookie = async (
@@ -2572,22 +2615,44 @@ export const registerFxCoreTests = () => {
     await gotoFirefoxHostUrl(page, serverUrl);
     await waitForFxBridge(page);
 
-    // Saving a runtime feature flag reloads this tab. Observe that navigation
-    // before dispatching the command instead of racing it with a second one.
-    const reloaded = page.waitForEvent("domcontentloaded");
-    const [saveSettingsResult] = await Promise.all([
-      requestFxSettingsBridge<SaveSettingsResponse>(
-        page,
-        FXT_BRIDGE_EVENTS.saveSimpleSettings,
-        FXT_BRIDGE_EVENTS.saveSimpleSettingsResult,
-        { featureFlags: { temporalApi: true } },
-      ),
-      reloaded,
-    ]);
-    expect(saveSettingsResult.ok).toBe(true);
-    if (!saveSettingsResult.ok) {
-      throw new Error(saveSettingsResult.error);
+    // The feature-flag save below reloads only a tab the background has
+    // registered. Turn on debug mode (it does not reload tabs) so the
+    // registration of the next navigation is logged, then wait for it.
+    const debugSaved = await requestFxSettingsBridge<
+      SaveSettingsResponse | FxSettingsBridgeError
+    >(
+      page,
+      FXT_BRIDGE_EVENTS.saveSimpleSettings,
+      FXT_BRIDGE_EVENTS.saveSimpleSettingsResult,
+      {
+        debugMode: true,
+      },
+    );
+    if (!debugSaved.ok) {
+      throw new Error(debugSaved.error);
     }
+    await clearFirefoxBridgeLogs(page);
+    await gotoFirefoxHostUrl(page, serverUrl);
+    await waitForFxBridge(page);
+    await waitForFxTabRegistration(page, new URL(serverUrl).hostname);
+
+    // Saving a runtime feature flag reloads this tab, so its reply can land on
+    // the unloaded document. Send the save once, observe that reload, then
+    // read the persisted flag: re-sending the save would reload the tab again
+    // underneath the Temporal snapshot.
+    const reloaded = page.waitForEvent("domcontentloaded");
+    await dispatchFxBridgeRequest(page, FXT_BRIDGE_EVENTS.saveSimpleSettings, {
+      featureFlags: { temporalApi: true },
+    });
+    await reloaded;
+    await waitForFxBridge(page);
+    const settings = await requestFxSettingsBridge<
+      GetSettingsResponse | FxSettingsBridgeError
+    >(page, FXT_BRIDGE_EVENTS.getSettings, FXT_BRIDGE_EVENTS.getSettingsResult, null);
+    if (!settings.ok) {
+      throw new Error(settings.error);
+    }
+    expect(settings.featureFlags.temporalApi).toBe(true);
 
     // This test owns Temporal readiness. The asynchronous geolocation probe
     // can outlive the settings reload and does not establish this contract.
@@ -5156,6 +5221,10 @@ const openFxUiProbe = async (
   await navigateFirefoxPopupPage(page, url);
   const remote = await connectRemoteFirefox(input.debuggerPort);
   const tab = await waitForRemoteFirefoxTab(remote, url);
+  // Probes report through `document.title`, and each UI entry module assigns
+  // the brand title when it runs. A probe sent before that assignment is
+  // overwritten and lost, so wait until the page has set its own title.
+  await waitForRemoteFxTabTitle(remote, url, BRAND_DISPLAY_NAME, 15_000, tab.actor);
   const consoleActor = await getRemoteFxConsoleActor(remote, tab.actor);
   return {
     evaluate: <T>(expression: string): Promise<T> =>
@@ -5168,6 +5237,12 @@ const openFxUiProbe = async (
         15_000,
         tab.actor,
       ),
+    /**
+     * Runs an action that closes or navigates this page without waiting for a
+     * probe result the page can no longer report. Observe its effect instead.
+     */
+    dispatch: (expression: string): Promise<void> =>
+      evaluateRemoteFxConsole(remote, consoleActor, expression),
     grantUserScripts: async () => {
       const button = await installFxPermButton(remote, consoleActor, url);
       await page.bringToFront();

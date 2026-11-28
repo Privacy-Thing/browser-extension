@@ -9,6 +9,8 @@ type PopupPowerButtonProps = {
   id?: string;
   state: "active" | "disabled" | "warning";
   disabled?: boolean;
+  /** A popup mutation is in flight; clicks are ignored until it settles. */
+  busy?: boolean;
   title?: string;
   ariaLabel: string;
   warningBadgeLabel?: string;
@@ -34,6 +36,7 @@ export const PopupPowerButton = ({
   id,
   state,
   disabled = false,
+  busy = false,
   title,
   ariaLabel,
   warningBadgeLabel,
@@ -68,6 +71,7 @@ export const PopupPowerButton = ({
             type="button"
             aria-label={ariaLabel}
             data-state={state}
+            aria-busy={busy}
             disabled={disabled}
             onClick={onClick}
             className="gw-popup-power-button"
