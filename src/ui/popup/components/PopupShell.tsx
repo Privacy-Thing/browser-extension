@@ -51,6 +51,7 @@ type PopupShellProps = {
   languagePrioritiesTitle?: string;
   powerState: "active" | "disabled" | "warning";
   powerDisabled?: boolean;
+  powerBusy?: boolean;
   powerTitle: string;
   powerTarget: string;
   powerLabel: string;
@@ -225,6 +226,7 @@ const PopupPowerSection = ({ props }: { props: PopupShellProps }) => (
       ariaLabel={props.powerAriaLabel}
       title={props.powerTitle}
       {...(props.powerDisabled !== undefined ? { disabled: props.powerDisabled } : {})}
+      {...(props.powerBusy !== undefined ? { busy: props.powerBusy } : {})}
       {...(props.powerWarningLabel
         ? { warningBadgeLabel: props.powerWarningLabel }
         : {})}
